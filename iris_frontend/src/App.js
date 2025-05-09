@@ -1,24 +1,33 @@
-import logo from './logo.svg';
+import React, { useState } from 'react';
+import Sidebar from './components/Sidebar/Sidebar';
+import Header from './components/Header';
+import Dashboard from './components/Dashboard/Dashboard';
 import './App.css';
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  return React.createElement(
+    'div',
+    { className: 'app' },
+    React.createElement(Sidebar, { collapsed: sidebarCollapsed }),
+    React.createElement(
+      'div',
+      { className: `main-content ${sidebarCollapsed ? 'collapsed' : ''}` },
+      React.createElement(Header, { toggleSidebar: toggleSidebar }),
+      React.createElement(Dashboard)
+    ),
+    React.createElement(
+      'button',
+      { className: 'toggle-btn', onClick: toggleSidebar },
+      React.createElement('i', {
+        className: `fas ${sidebarCollapsed ? 'fa-bars' : 'fa-times'}`
+      })
+    )
   );
 }
 
