@@ -7,8 +7,9 @@ class LoginController {
 
     async login(req, res) {
         try {
-            const { email, password } = req.body;
-            const result = await this.loginService.loginUser(email, password);
+            
+            const { userId , password } = req.body;
+            const result = await this.loginService.loginUser(userId, password);
             if (result) {
                 res.status(200).json({ message: 'Login successful', data: result });
             } else {

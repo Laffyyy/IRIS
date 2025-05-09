@@ -4,7 +4,7 @@ const LoginController = require('../controllers/logincontroller'); // Import the
 
 const loginController = new LoginController(); // Instantiate the class
 
-router.post('/login', (req, res) => loginController.login(req, res));
+router.post('/', (req, res) => loginController.login(req, res));
 router.post('/register', (req, res) => loginController.register(req, res));
 
 module.exports = router;
