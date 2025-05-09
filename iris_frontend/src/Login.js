@@ -2,8 +2,15 @@ import React, { useState } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-const Login = () => {
-const [showPassword, setShowPassword] = useState(false);
+const Login = ({ onContinue, onForgotPassword }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [employeeId, setEmployeeId] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onContinue();
+  };
 
   return (
     <div className="iris-wrapper">
@@ -14,13 +21,19 @@ const [showPassword, setShowPassword] = useState(false);
           <h2 className="iris-title">IRIS</h2>
           <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
 
-          <form className="iris-form">
+          <form className="iris-form" onSubmit={handleSubmit}>
             <div className="iris-input-wrapper">
               <label htmlFor="employee-id" className="iris-label">Employee ID</label>
               <span className="iris-icon">
                 <img src="assets/user-icon.png" alt="User Icon" />
               </span>
-              <input id="employee-id" type="text" required />
+              <input 
+                id="employee-id" 
+                type="text" 
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                required 
+              />
             </div>
 
             <div className="iris-input-wrapper">
@@ -29,22 +42,29 @@ const [showPassword, setShowPassword] = useState(false);
                 <img src="assets/lock-icon.png" alt="Lock Icon" />
               </span>
               <div className="input-wrapper">
-              <input id="password"
-              type={showPassword ? 'text' : 'password'}
-              required />
-              <button
-                type="button"
-                className="eye-icon-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                tabIndex={-1}
-              >
-                {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-              </button>
+                <input 
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
+                <button
+                  type="button"
+                  className="eye-icon-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                </button>
               </div>
             </div>
 
-            <a href="#" className="iris-forgot">Forgot Password?</a>
+            <a href="#" className="iris-forgot" onClick={(e) => {
+              e.preventDefault();
+              onForgotPassword();
+            }}>Forgot Password?</a>
 
             <button type="submit" className="iris-button">Continue</button>
           </form>

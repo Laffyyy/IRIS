@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import './ChangePassword.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-const ChangePassword = () => {
-const [showPassword, setShowPassword] = useState(false);
-const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+const ChangePassword = ({ onCancel }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
     <div className="change-password-container">
@@ -16,8 +16,8 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
         <div className="form-section">
           <h3>Password Information</h3>
 
-          <div className="new-password-group">
-            <label className="new-password-label">New Password</label>
+          <div className="security-question-group">
+            <label htmlFor="new-password" className="new-password-label">New Password</label>
             <div className="input-wrapper">
               <input
                 id="new-password"
@@ -36,22 +36,24 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
             </div>
           </div>
 
-          <label htmlFor="confirm-password">Confirm New Password</label>
-          <div className="input-wrapper">
-            <input
-              id="confirm-password"
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Confirm new password"
-            />
-            <button
-              type="button"
-              className="eye-icon-btn"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-              tabIndex={-1}
-            >
-              {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-            </button>
+          <div className="security-question-group">
+            <label htmlFor="confirm-password">Confirm New Password</label>
+            <div className="input-wrapper">
+              <input
+                id="confirm-password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                className="eye-icon-btn"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -98,7 +100,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
       </form>
 
       <div className="form-buttons">
-        <button type="button" className="cancel-btn">Cancel</button>
+        <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
         <button type="submit" className="save-btn">Save Changes</button>
       </div>
     </div>

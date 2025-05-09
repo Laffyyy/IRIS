@@ -10,11 +10,11 @@
 .otp-card {
     height: auto;
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    padding: 40px 30px;
+    padding: 40px 65px;
     text-align: center;
 }
 
@@ -27,11 +27,21 @@
     font-size: 20px;
     font-weight: 600;
     margin-bottom: 5px;
+    text-align: center;
+    margin-left: 0;
 }
 
 .otp-subtitle {
     font-size: 12px;
     color: #888;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.otp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 25px;
 }
 
@@ -72,9 +82,9 @@
 }
 
 .otp-expiry {
-    font-size: 12px;
+    font-size: 13px;
     color: #777;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     text-align: left;
 }
 
@@ -107,6 +117,24 @@
     color: white;
     border: none;
 }
+
+.resend-otp {
+    color: #0d6efd;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.resend-otp:disabled {
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
@@ -141,21 +169,25 @@
 }
 
 @media (max-width: 375px) {
-    .otp-input-group {
-        gap: 8px;
-    }
-    
-    .otp-input {
-        height: 45px;
-    }
-    
-    .otp-button-group {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .otp-back, .otp-submit {
-        width: 100%;
-        max-width: none;
-    }
+.otp-input-group {
+    gap: 8px;
+    margin-bottom: 25px;
+    gap: 12px;
+}
+
+.otp-input {
+    height: 52px;
+    font-size: 20px;
+}
+
+.otp-button-group {
+    margin-top: 40px;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.otp-back, .otp-submit {
+    width: 100%;
+    max-width: none;
+}
 }

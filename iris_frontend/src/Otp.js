@@ -1,14 +1,47 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import './Otp.css';
 
-const Otp = () => {
+const Otp = ({ onBack }) => {
   const inputsRef = useRef([]);
+  const [expireTime, setExpireTime] = useState(60);
+  const [resendTime, setResendTime] = useState(90);
+  const [canResend, setCanResend] = useState(false);
+
+  useEffect(() => {
+    if (expireTime > 0) {
+      const timer = setTimeout(() => setExpireTime(expireTime - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [expireTime]);
+
+  useEffect(() => {
+    if (resendTime > 0 && !canResend) {
+      const timer = setTimeout(() => setResendTime(resendTime - 1), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
+    }
+  }, [resendTime, canResend]);
+
+  const handleResendCode = () => {
+    if (!canResend) return;
+    setResendTime(90); // Reset to 90 seconds
+    setExpireTime(60); // Also reset the expiration timer
+    setCanResend(false);
+    // Add your resend OTP logic here
+  };
 
   const handleInputChange = (e, index) => {
     const value = e.target.value;
     if (value.length === 1 && index < 5) {
       inputsRef.current[index + 1].focus();
     }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -36,10 +69,21 @@ const Otp = () => {
           ))}
         </div>
 
-        <p className="otp-expiry">OTP will expire in 1 minute.</p>
+        <div className="otp-footer">
+          <p className="otp-expiry">
+            OTP will expire in {expireTime} seconds
+          </p>
+          <button
+            className="resend-otp"
+            onClick={handleResendCode}
+            disabled={!canResend}
+          >
+            {canResend ? 'Resend Code' : `Resend in ${formatTime(resendTime)}`}
+          </button>
+        </div>
 
         <div className="otp-button-group">
-          <button className="otp-back">Back</button>
+          <button className="otp-back" onClick={onBack}>Back</button>
           <button className="otp-submit">Login</button>
         </div>
       </div>
