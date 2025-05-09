@@ -37,24 +37,27 @@ class LoginService {
                 userData.Security_Answer2,
                 userData.Security_Answer3,
                 null,
+                'FIRST-TIME', // Default status
                 null,
-                null,
+                userData.created_by,
                 null
             );
             const [result] = await db.query(
-                'INSERT INTO tbl_login (dEmail, dPassword_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                    newUser.Email, 
-                    newUser.Password, 
-                    newUser.user_type, 
-                    newUser.Security_Question, 
-                    newUser.Security_Question2, 
-                    newUser.Security_Question3, 
-                    newUser.Security_Answer, 
-                    newUser.Security_Answer2, 
-                    newUser.Security_Answer3
-                ]
-            );
+            'INSERT INTO tbl_login (dEmail, dPassword_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3, dStatus, dCreatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                newUser.Email,
+                newUser.Password,
+                newUser.user_type,
+                newUser.Security_Question,
+                newUser.Security_Question2,
+                newUser.Security_Question3,
+                newUser.Security_Answer,
+                newUser.Security_Answer2,
+                newUser.Security_Answer3,
+                newUser.status,
+                newUser.created_by
+            ]
+        );
             return result.insertId;
         } catch (error) {
             throw error;
