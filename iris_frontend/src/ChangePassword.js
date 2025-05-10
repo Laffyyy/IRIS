@@ -6,6 +6,37 @@ const ChangePassword = ({ onCancel }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [passwords, setPasswords] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [answers, setAnswers] = useState({
+    answer1: '',
+    answer2: '',
+    answer3: ''
+  });
+
+  const handleAnswerChange = (e, field) => {
+    const value = e.target.value;
+    const filteredValue = value.replace(/[^a-zA-Z.]/g, '');
+    const truncatedValue = filteredValue.slice(0, 30);
+    setAnswers(prev => ({
+      ...prev,
+      [field]: truncatedValue
+    }));
+  };
+
+  const handlePasswordChange = (e, field) => {
+    const value = e.target.value;
+    const filteredValue = value.replace(/[^a-zA-Z.]/g, '');
+    const truncatedValue = filteredValue.slice(0, 30);
+    setPasswords(prev => ({
+      ...prev,
+      [field]: truncatedValue
+    }));
+  };
+
   return (
     <div className="change-password-container">
       <h2>Change Password</h2>
@@ -23,6 +54,8 @@ const ChangePassword = ({ onCancel }) => {
                 id="new-password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter new password"
+                value={passwords.newPassword}
+                onChange={(e) => handlePasswordChange(e, 'newPassword')}
               />
               <button
                 type="button"
@@ -43,6 +76,8 @@ const ChangePassword = ({ onCancel }) => {
                 id="confirm-password"
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="Confirm new password"
+                value={passwords.confirmPassword}
+                onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
               />
               <button
                 type="button"
@@ -70,7 +105,13 @@ const ChangePassword = ({ onCancel }) => {
               <option>What was the name of your first pet?</option>
               <option>What was the name of your elementary school?</option>
             </select>
-            <input type="text" placeholder="Your answer" />
+            <input 
+              type="text" 
+              placeholder="Your answer" 
+              value={answers.answer1}
+              onChange={(e) => handleAnswerChange(e, 'answer1')}
+              maxLength={30}
+            />
           </div>
 
           {/* Question 2 */}
@@ -82,7 +123,13 @@ const ChangePassword = ({ onCancel }) => {
               <option>What city were you born in?</option>
               <option>What is your favorite food?</option>
             </select>
-            <input type="text" placeholder="Your answer" />
+            <input 
+              type="text" 
+              placeholder="Your answer" 
+              value={answers.answer2}
+              onChange={(e) => handleAnswerChange(e, 'answer2')}
+              maxLength={30}
+            />
           </div>
 
           {/* Question 3 */}
@@ -94,7 +141,13 @@ const ChangePassword = ({ onCancel }) => {
               <option>What is your dream job?</option>
               <option>Who is your childhood best friend?</option>
             </select>
-            <input type="text" placeholder="Your answer" />
+            <input 
+              type="text" 
+              placeholder="Your answer" 
+              value={answers.answer3}
+              onChange={(e) => handleAnswerChange(e, 'answer3')}
+              maxLength={30}
+            />
           </div>
         </div>
       </form>

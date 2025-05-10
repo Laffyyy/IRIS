@@ -21,6 +21,8 @@
 .otp-logo {
     width: 60px;
     margin-bottom: 10px;
+    user-select: none; /* Prevent selection of the logo */
+    pointer-events: none; /* Prevent right-click on the logo */
 }
 
 .otp-title {
@@ -134,14 +136,12 @@
     cursor: not-allowed;
 }
 
-
-
 /* Responsive adjustments */
 @media (max-width: 600px) {
     .otp-card {
         padding: 30px 20px;
     }
-    
+
     .otp-button-group {
         margin-top: 40px;
     }
@@ -151,17 +151,17 @@
     .otp-card {
         padding: 25px 15px;
     }
-    
+
     .otp-input {
         height: 50px;
         font-size: 16px;
     }
-    
+
     .otp-button-group {
         margin-top: 30px;
         gap: 15px;
     }
-    
+
     .otp-back, .otp-submit {
         padding: 10px;
         font-size: 14px;
@@ -169,25 +169,25 @@
 }
 
 @media (max-width: 375px) {
-.otp-input-group {
-    gap: 8px;
-    margin-bottom: 25px;
-    gap: 12px;
-}
+    .otp-input-group {
+        gap: 8px;
+        margin-bottom: 25px;
+        gap: 12px;
+    }
 
-.otp-input {
-    height: 52px;
-    font-size: 20px;
-}
+    .otp-input {
+        height: 52px;
+        font-size: 20px;
+    }
 
-.otp-button-group {
-    margin-top: 40px;
-    flex-direction: column;
-    gap: 15px;
-}
+    .otp-button-group {
+        margin-top: 40px;
+        flex-direction: column;
+        gap: 15px;
+    }
 
-.otp-back, .otp-submit {
-    width: 100%;
-    max-width: none;
-}
+    .otp-back, .otp-submit {
+        width: 100%;
+        max-width: none;
+    }
 }

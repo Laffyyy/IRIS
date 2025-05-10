@@ -12,6 +12,20 @@ const Login = ({ onContinue, onForgotPassword }) => {
     onContinue();
   };
 
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    const filteredValue = value.replace(/[^a-zA-Z.]/g, ''); // Only letters and periods
+    const truncatedValue = filteredValue.slice(0, 30);      // Max 30 chars
+    setPassword(truncatedValue);
+  };
+
+  const handleEmployeeIdChange = (e) => {
+    const value = e.target.value;
+    const filteredValue = value.replace(/[^a-zA-Z0-9]/g, ''); // Alphanumeric only
+    const truncatedValue = filteredValue.slice(0, 10);        // Max 10 chars
+    setEmployeeId(truncatedValue);
+  };
+
   return (
     <div className="iris-wrapper">
       <div className="iris-login-box">
@@ -31,7 +45,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
                 id="employee-id" 
                 type="text" 
                 value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
+                onChange={handleEmployeeIdChange}
                 required 
               />
             </div>
@@ -46,7 +60,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   required 
                 />
                 <button
