@@ -25,42 +25,43 @@ const Otp = ({ onBack }) => {
 
   const handleResendCode = () => {
     if (!canResend) return;
-    setResendTime(90); // Reset to 90 seconds
-    setExpireTime(180); // Reset the expiration time to 3 minutes
+    setResendTime(90);
+    setExpireTime(180);
     setCanResend(false);
     // Add your resend OTP logic here
   };
 
   const handleInputChange = (e, index) => {
-    const value = e.target.value;
+    let value = e.target.value.toUpperCase();
+    value = value.replace(/[^A-Z0-9]/g, '');
 
-    // Only allow numeric input
-    if (!/^\d*$/.test(value)) {
-      e.target.value = ''; // Clear if not a number
-      return;
-    }
+    if (value.length > 1) return;
 
-    // Handle pasting: if the pasted value has more than 1 character, fill the rest of the inputs
-    if (value.length === 1 && index < 5) {
+    e.target.value = value;
+
+    if (value && index < 5) {
       inputsRef.current[index + 1].focus();
     }
+  };
 
-    // Focus on the previous input if backspace is pressed
-    if (value === '' && index > 0) {
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace' && !e.target.value && index > 0) {
       inputsRef.current[index - 1].focus();
     }
   };
 
   const handlePaste = (e) => {
-    const pastedData = e.clipboardData.getData('Text');
-    if (/^[0-9]{6}$/.test(pastedData)) {
-      // Fill all inputs with the pasted code
-      pastedData.split('').forEach((char, index) => {
-        inputsRef.current[index].value = char;
+    const pastedData = e.clipboardData.getData('Text').toUpperCase();
+    const filtered = pastedData.replace(/[^A-Z0-9]/g, '').slice(0, 6);
+
+    if (filtered.length === 6) {
+      filtered.split('').forEach((char, i) => {
+        inputsRef.current[i].value = char;
       });
-      // Focus on the last input
       inputsRef.current[5].focus();
     }
+
+    e.preventDefault();
   };
 
   const formatTime = (seconds) => {
@@ -72,7 +73,13 @@ const Otp = ({ onBack }) => {
   return (
     <div className="otp-container">
       <div className="otp-card">
-        <img src="/assets/logo.png" alt="IRIS Logo" className="otp-logo" />
+        <img
+          src="/assets/logo.png"
+          alt="IRIS Logo"
+          className="otp-logo"
+          style={{ userSelect: 'none', pointerEvents: 'none' }}
+          draggable={false}
+        />
         <h2 className="otp-title">IRIS</h2>
         <p className="otp-subtitle">Incentive Reporting & Insight Solution</p>
 
@@ -88,9 +95,10 @@ const Otp = ({ onBack }) => {
               type="text"
               maxLength="1"
               className="otp-input"
+              inputMode="numeric"
               onChange={(e) => handleInputChange(e, i)}
+              onKeyDown={(e) => handleKeyDown(e, i)}
               ref={(el) => (inputsRef.current[i] = el)}
-              inputMode="numeric" // Helps mobile devices display the numeric keyboard
             />
           ))}
         </div>

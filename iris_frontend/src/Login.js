@@ -14,14 +14,14 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z.]/g, ''); // Only letters and periods
-    const truncatedValue = filteredValue.slice(0, 30);      // Max 30 chars
+    const filteredValue = value.replace(/[^a-zA-Z-._!@]/g, ''); // Only letters and periods
+    const truncatedValue = filteredValue.slice(0, 20);      // Max 30 chars
     setPassword(truncatedValue);
   };
 
   const handleEmployeeIdChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9]/g, ''); // Alphanumeric only
+    const filteredValue = value.replace(/[^0-9]/g, '');
     const truncatedValue = filteredValue.slice(0, 10);        // Max 10 chars
     setEmployeeId(truncatedValue);
   };

@@ -19,7 +19,7 @@ const ChangePassword = ({ onCancel }) => {
 
   const handleAnswerChange = (e, field) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z.]/g, '');
+    const filteredValue = value.replace(/[^a-zA-Z]/g, '');
     const truncatedValue = filteredValue.slice(0, 30);
     setAnswers(prev => ({
       ...prev,
@@ -29,7 +29,7 @@ const ChangePassword = ({ onCancel }) => {
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z.]/g, '');
+    const filteredValue = value.replace(/[^a-zA-Z-._!@]/g, '');
     const truncatedValue = filteredValue.slice(0, 30);
     setPasswords(prev => ({
       ...prev,
