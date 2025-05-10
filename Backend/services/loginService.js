@@ -2,11 +2,15 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const login = require('../models/login');
+const OtpService = require('./otpService'); // Import the OtpService
 
 class LoginService {
-    async loginUser(email, password) {
+    constructor() {
+        this.otpService = new OtpService(); // Initialize OtpService
+    }
+    async loginUser(userID, password,otp = null) {
         try {
-            const [rows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [email]);
+            const [rows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
             if (rows.length === 0) {
                 throw new Error('User not found');
             }
@@ -16,6 +20,17 @@ class LoginService {
                 throw new Error('Invalid password');
             }
 
+            // If OTP is provided, verify it
+            if (otp) {
+                await this.otpService.verifyOtp(user.dUser_ID, otp);
+            } else {
+                // Generate and send OTP if not provided
+                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
+                // Here, you would send the OTP to the user via email/SMS
+                console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
+                return { message: 'OTP sent to your registered email or phone' };
+            }
+
             // Include the user's role in the token payload
             const token = jwt.sign(
                 { id: user.dUser_ID, role: user.dUser_Type },
@@ -23,11 +38,52 @@ class LoginService {
                 { expiresIn: '1h' }
             );
 
+            await db.query('UPDATE tbl_login SET dLast_Login = NOW() WHERE dUser_ID = ?', [userID]);
+
             return { token, user: { id: user.dUser_ID, email: user.dEmail, user_type: user.dUser_Type } };
+
         } catch (error) {
             throw error;
         }
     }
+
+    async changePassword(userID, newPassword) {
+        try {
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            await db.query('UPDATE tbl_login SET dPassword_hash = ? WHERE dUser_ID = ?', [hashedPassword, userID]);
+            return { message: 'Password changed successfully' };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async changesecurityQuestion(userID, newSecurityQuestions) {
+        try {
+            const normalizedSecurityAnswers = [
+                newSecurityQuestions.Security_Answer,
+                newSecurityQuestions.Security_Answer2,
+                newSecurityQuestions.Security_Answer3
+            ].map(answer => answer.toLowerCase());
+
+            await db.query(
+                'UPDATE tbl_login SET dSecurity_Question1 = ?, dSecurity_Question2 = ?, dSecurity_Question3 = ?, dAnswer_1 = ?, dAnswer_2 = ?, dAnswer_3 = ? WHERE dUser_ID = ?',
+                [
+                    newSecurityQuestions.Security_Question,
+                    newSecurityQuestions.Security_Question2,
+                    newSecurityQuestions.Security_Question3,
+                    normalizedSecurityAnswers[0],
+                    normalizedSecurityAnswers[1],
+                    normalizedSecurityAnswers[2],
+                    userID
+                ]
+            );
+            return { message: 'Security questions updated successfully' };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    
 
     async registerUser(userData) {
         try {
