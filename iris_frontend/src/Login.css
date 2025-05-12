@@ -1,0 +1,218 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100%;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #f4f6f8;
+}
+
+.iris-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #333;
+  text-align: left;
+}
+
+.iris-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.iris-login-box {
+  display: flex;
+  width: 720px;
+  height: 470px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.iris-left {
+  width: 55%;
+  padding: 40px;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.iris-logo {
+  width: 80px;
+  margin-bottom: 20px;
+  user-select: none; 
+  pointer-events: none;
+}
+
+.iris-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.iris-subtitle {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.iris-form {
+  width: 100%;
+}
+
+.iris-input-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.iris-input-wrapper input {
+  width: 100%;
+  padding: 8px 10px 8px 34px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.iris-input-wrapper input::placeholder {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.iris-icon {
+  position: absolute;
+  top: 32px;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  z-index: 2;
+}
+
+.iris-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.iris-forgot {
+  display: block;
+  text-align: right;
+  font-size: 11px;
+  color: #007bff;
+  text-decoration: none;
+  margin-top: -10px;  /* Pull it closer to the input */
+  margin-bottom: 20px;
+}
+
+.iris-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #0047b3;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  font-size: 14px;
+}
+
+.iris-button:hover {
+  background-color: #003399;
+}
+
+.iris-right {
+  width: 45%;
+  background-size: cover;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.iris-right-content {
+  color: white;
+  text-align: center;
+  padding: 0 30px;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.iris-right-content h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.iris-right-content p {
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* Optional Responsive */
+@media (max-width: 768px) {
+  .iris-login-box {
+    flex-direction: column;
+    width: 95%;
+    height: auto;
+  }
+
+  .iris-left, .iris-right {
+    width: 100%;
+    padding: 30px;
+  }
+
+  .iris-right {
+    border-left: none;
+  }
+}
+
+.eye-icon-btn {
+  position: absolute;
+  right: 10px;
+  top: 32px;
+  transform: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  z-index: 2;
+  margin-top: 0;
+}
+
+/* COMPLETE FIX for double eye icon */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute;
+  right: 0;
+  width: 0;
+  height: 0;
+}
+
+#password {
+  padding-right: 35px; /* Make space for eye icon */
+  padding-left: 34px; /* Match the employee ID input */
+}
