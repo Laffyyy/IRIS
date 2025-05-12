@@ -110,9 +110,12 @@ class LoginService {
               }
             }
           }
-              
-          // Normalize security answers - handle null/undefined values
-          const normalizedSecurityAnswers = [
+            // Calculate expiration date (90 days from now)
+            const expirationDate = new Date();
+            expirationDate.setDate(expirationDate.getDate() + 90);
+
+            // Normalize security answers - handle null/undefined values
+            const normalizedSecurityAnswers = [
             securityQuestions.Security_Answer || '',
             securityQuestions.Security_Answer2 || '',
             securityQuestions.Security_Answer3 || ''
@@ -132,17 +135,19 @@ class LoginService {
                  dAnswer_3 = ?,
                  dStatus = 'ACTIVE',
                  tLast_Login = NOW(),
-                 tLastUpdated = NOW()
+                 tLastUpdated = NOW(),
+                 tExpirationDate = ?
              WHERE dUser_ID = ?`,
             [
-              hashedNewPassword,
-              securityQuestions.Security_Question,
-              securityQuestions.Security_Question2,
-              securityQuestions.Security_Question3,
-              normalizedSecurityAnswers[0],
-              normalizedSecurityAnswers[1],
-              normalizedSecurityAnswers[2],
-              userID
+                hashedNewPassword,
+                securityQuestions.Security_Question,
+                securityQuestions.Security_Question2,
+                securityQuestions.Security_Question3,
+                normalizedSecurityAnswers[0],
+                normalizedSecurityAnswers[1],
+                normalizedSecurityAnswers[2],
+                expirationDate,
+                userID
             ]
           );
           
@@ -256,6 +261,10 @@ class LoginService {
             // Set default created_by if not provided
             const createdBy = userData.created_by || "123";
 
+            // Calculate expiration date (90 days from now)
+            const expirationDate = new Date();
+            expirationDate.setDate(expirationDate.getDate() + 90);
+
             // Create the new user object
             const newUser = new login(
                 customUserID, // Use the custom userID
@@ -272,12 +281,15 @@ class LoginService {
                 'FIRST-TIME', // Default status
                 null,
                 createdBy,
-                null
+                null,
+                null, // dPassword3_hash
+                null, // dPassword3_hash
+                expirationDate
             );
     
             // Insert the new user into the database
             const [result] = await db.query(
-                'INSERT INTO tbl_login (dUser_ID, dEmail, dPassword1_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3, dStatus, dCreatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO tbl_login (dUser_ID, dEmail, dPassword1_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3, dStatus, dCreatedBy, tExpirationDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     newUser.userID, // Custom userID
                     newUser.Email,
@@ -290,12 +302,47 @@ class LoginService {
                     newUser.Security_Answer2,
                     newUser.Security_Answer3,
                     newUser.status,
-                    newUser.created_by
+                    newUser.created_by,
+                    newUser.tExpiration_date
                 ]
             );
     
-            return result.insertId;
+            return customUserID;
         } catch (error) {
+            throw error;
+        }
+    }
+
+    async checkPasswordExpiration(userID) {
+        try {
+            console.log('Checking password expiration for user:', userID);
+            const [rows] = await db.query(
+                'SELECT tExpirationDate FROM tbl_login WHERE dUser_ID = ?', 
+                [userID]
+            );
+            
+            if (rows.length === 0) {
+                throw new Error('User not found');
+            }
+            
+            // Make sure we're using the right property name
+            const expirationDate = rows[0].tExpirationDate;
+            console.log('Expiration date from DB:', expirationDate);
+            
+            // If no expiration date is set, password doesn't expire
+            if (!expirationDate) {
+                console.log('No expiration date set, password does not expire');
+                return false;
+            }
+            
+            const currentDate = new Date();
+            const expDate = new Date(expirationDate);
+            const isExpired = currentDate >= expDate;
+            console.log('Current date:', currentDate, 'Expiration date:', expDate, 'Is expired:', isExpired);
+            
+            return isExpired;
+        } catch (error) {
+            console.error('Error checking password expiration:', error);
             throw error;
         }
     }

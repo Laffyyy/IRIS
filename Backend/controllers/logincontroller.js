@@ -79,7 +79,19 @@ class LoginController {
         }
     }
 
-    
+    async checkPasswordExpiration(req, res) {
+        try {
+            const { userId } = req.body;
+            const isExpired = await this.loginService.checkPasswordExpiration(userId);
+            
+            res.status(200).json({ isExpired });
+        } catch (error) {
+            res.status(500).json({ 
+                message: 'Error checking password expiration', 
+                error: error.message 
+            });
+        }
+    }
 }
 
 module.exports = LoginController;
