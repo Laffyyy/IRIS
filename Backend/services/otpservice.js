@@ -16,8 +16,6 @@ class OtpService {
   }
 
   async generateOtp(userId) {
-    // Alfa numeric OTP generation
-    // const otp = crypto.randomBytes(3).toString('hex'); // Generate a 6-character OTP
     const otp = crypto.randomInt(100000, 999999).toString(); // Generate a 6-digit OTP
     const expiry = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 minutes
 
