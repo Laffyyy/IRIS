@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const loginRoutes = require('./routes/loginroutes');
 const otpRoutes = require('./routes/otpcontoller');
+const changepassRoutes = require('./routes/changepasswordroutes');
 
 const app = express();
 
