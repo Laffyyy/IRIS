@@ -59,7 +59,7 @@ const handlePasswordChange = (e, field) => {
   const filteredValue = value.replace(/[^a-zA-Z0-9!@#$%^&*()_\-+=<>?{}[\]~.,:;'"|\\]/g, '');
   const truncatedValue = filteredValue.slice(0, 30);
 
-  // Real-time strong password check only for newPassword
+  // checker for newPassword
   if (field === 'newPassword') {
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,20}$/;
 
