@@ -8,45 +8,92 @@ class LoginService {
     constructor() {
         this.otpService = new OtpService(); // Initialize OtpService
     }
-    async loginUser(userID, password,otp = null) {
-        try {
-            const [rows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
-            if (rows.length === 0) {
-                throw new Error('User not found');
-            }
-            const user = rows[0];
-            const isMatch = await bcrypt.compare(password, user.dPassword_hash);
-            if (!isMatch) {
-                throw new Error('Invalid password');
-            }
 
-            // If OTP is provided, verify it
-            if (otp) {
-                await this.otpService.verifyOtp(user.dUser_ID, otp);
-            } else {
-                // Generate and send OTP if not provided
-                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
-                // Here, you would send the OTP to the user via email/SMS
-                console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
-                return { message: 'OTP sent to your registered email or phone' };
-            }
+    
+    async loginUser(userID, password, otp = null) {
+    try {
+        let user = null;
+        let table = null;
 
-            // Include the user's role in the token payload
+        // Step 1: Check if the user exists in tbl_login
+        const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
+        if (loginRows.length > 0) {
+            user = loginRows[0];
+            table = 'tbl_login';
+        } else {
+            // Step 2: Check if the user exists in tbl_admin
+            const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
+            if (adminRows.length > 0) {
+                user = adminRows[0];
+                table = 'tbl_admin';
+            }
+        }
+
+        // If user is not found in either table
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        // Step 3: Verify the password
+        let isMatch = false;
+        if (table === 'tbl_login') {
+            // Check password for tbl_login using dPassword1_hash
+            if (!user.dPassword1_hash) {
+                throw new Error('Password hash is missing for tbl_login');
+            }
+            console.log('Password:', password, 'Hash:', user.dPassword1_hash); // Debugging log
+            isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+        } else if (table === 'tbl_admin') {
+            // Check only dPassword1_hash for tbl_admin
+            if (!user.dPassword1_hash) {
+                throw new Error('Password hash is missing for tbl_admin');
+            }
+            console.log('Password:', password, 'Hash:', user.dPassword1_hash); // Debugging log
+            isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+        }
+
+        if (!isMatch) {
+            throw new Error('Invalid password');
+        }
+
+        // Step 4: Check the user's status (if applicable)
+        if (user.dStatus && user.dStatus === 'DEACTIVATED') {
+            throw new Error('Account is deactivated');
+        }
+        if (user.dStatus && user.dStatus === 'EXPIRED') {
+            throw new Error('Account has expired');
+        }
+
+        // Step 5: If OTP is provided, verify it
+        if (otp) {
+            await this.otpService.verifyOtp(user.dUser_ID, otp);
+
+            // Step 6: Generate a token after OTP verification
             const token = jwt.sign(
-                { id: user.dUser_ID, role: user.dUser_Type },
+                { id: user.dUser_ID, role: user.dUser_Type || user.dStatus },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
             );
 
-            await db.query('UPDATE tbl_login SET dLast_Login = NOW() WHERE dUser_ID = ?', [userID]);
+            // Update the last login time
+            await db.query(`UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ?`, [userID]);
 
-            return { token, user: { id: user.dUser_ID, email: user.dEmail, user_type: user.dUser_Type } };
-
-        } catch (error) {
-            throw error;
+            return { message: 'Login successful', token, user: { id: user.dUser_ID, email: user.dEmail, status: user.dStatus || user.dUser_Type } };
+        } else {
+            // Step 7: Generate and send OTP if not provided
+            const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
+            console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
+            return { message: 'OTP sent to your registered email or phone' };
         }
+    } catch (error) {
+        console.error('Error in loginUser:', error.message);
+        throw error;
     }
 
+
+
+}
+    //wrong file
     async changePassword(userID, newPassword) {
         try {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -56,7 +103,7 @@ class LoginService {
             throw error;
         }
     }
-
+    //wrong file
     async changesecurityQuestion(userID, newSecurityQuestions) {
         try {
             const normalizedSecurityAnswers = [
