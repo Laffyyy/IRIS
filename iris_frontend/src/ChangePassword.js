@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ChangePassword.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const ChangePassword = ({ onCancel }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const [passwords, setPasswords] = useState({
     newPassword: '',
     confirmPassword: ''
+  });
+
+  const [securityQuestions, setSecurityQuestions] = useState({
+    question1: 'What is your mother\'s maiden name?',
+    question2: 'What was the name of your first pet?',
+    question3: 'What was the name of your elementary school?'
   });
 
   const [answers, setAnswers] = useState({
@@ -17,6 +27,14 @@ const ChangePassword = ({ onCancel }) => {
     answer3: ''
   });
 
+  useEffect(() => {
+    // Retrieve userId from localStorage (saved during login)
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+  }, []);
+
   const handleAnswerChange = (e, field) => {
     const value = e.target.value;
     const filteredValue = value.replace(/[^a-zA-Z]/g, '');
@@ -24,6 +42,13 @@ const ChangePassword = ({ onCancel }) => {
     setAnswers(prev => ({
       ...prev,
       [field]: truncatedValue
+    }));
+  };
+
+  const handleQuestionChange = (e, field) => {
+    setSecurityQuestions(prev => ({
+      ...prev,
+      [field]: e.target.value
     }));
   };
 
@@ -37,12 +62,66 @@ const ChangePassword = ({ onCancel }) => {
     }));
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Validate passwords match
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    // Validate all security questions are answered
+    if (!answers.answer1 || !answers.answer2 || !answers.answer3) {
+      setError('All security questions must be answered');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:3000/api/login/firstlogin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          newPassword: passwords.newPassword,
+          securityQuestions: {
+            Security_Question: securityQuestions.question1,
+            Security_Question2: securityQuestions.question2,
+            Security_Question3: securityQuestions.question3,
+            Security_Answer: answers.answer1,
+            Security_Answer2: answers.answer2,
+            Security_Answer3: answers.answer3
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update password and security questions');
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        onCancel(); // Redirect to login after successful password change
+      }, 2000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="change-password-container">
       <h2>Change Password</h2>
       <p className="subtitle">Update your password and set new security questions</p>
 
-      <form className="form-grid">
+      <form id = "changePasswordForm" className="form-grid" onSubmit={handleSubmit}>
         {/* Password Info */}
         <div className="form-section">
           <h3>Password Information</h3>
@@ -56,6 +135,7 @@ const ChangePassword = ({ onCancel }) => {
                 placeholder="Enter new password"
                 value={passwords.newPassword}
                 onChange={(e) => handlePasswordChange(e, 'newPassword')}
+                required
               />
               <button
                 type="button"
@@ -78,6 +158,7 @@ const ChangePassword = ({ onCancel }) => {
                 placeholder="Confirm new password"
                 value={passwords.confirmPassword}
                 onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
+                required
               />
               <button
                 type="button"
@@ -99,7 +180,11 @@ const ChangePassword = ({ onCancel }) => {
           {/* Question 1 */}
           <div className="security-question-group">
             <label htmlFor="security-question-1">Security Question 1</label>
-            <select id="security-question-1">
+            <select id="security-question-1"
+              value={securityQuestions.question1}
+              onChange={(e) => handleQuestionChange(e, 'question1')}
+              required
+            >
               <option>Select a question</option>
               <option>What is your mother's maiden name?</option>
               <option>What was the name of your first pet?</option>
@@ -111,13 +196,18 @@ const ChangePassword = ({ onCancel }) => {
               value={answers.answer1}
               onChange={(e) => handleAnswerChange(e, 'answer1')}
               maxLength={30}
+              required
             />
           </div>
 
           {/* Question 2 */}
           <div className="security-question-group">
             <label htmlFor="security-question-2">Security Question 2</label>
-            <select id="security-question-2">
+            <select id="security-question-2"
+              value={securityQuestions.question2}
+              onChange={(e) => handleQuestionChange(e, 'question2')}
+              required
+             >
               <option>Select a question</option>
               <option>What is your favorite book?</option>
               <option>What city were you born in?</option>
@@ -129,13 +219,18 @@ const ChangePassword = ({ onCancel }) => {
               value={answers.answer2}
               onChange={(e) => handleAnswerChange(e, 'answer2')}
               maxLength={30}
+              required
             />
           </div>
 
           {/* Question 3 */}
           <div className="security-question-group">
             <label htmlFor="security-question-3">Security Question 3</label>
-            <select id="security-question-3">
+            <select id="security-question-3"
+              value={securityQuestions.question3}
+              onChange={(e) => handleQuestionChange(e, 'question3')}
+              required
+             >
               <option>Select a question</option>
               <option>What is your favorite movie?</option>
               <option>What is your dream job?</option>
@@ -147,15 +242,15 @@ const ChangePassword = ({ onCancel }) => {
               value={answers.answer3}
               onChange={(e) => handleAnswerChange(e, 'answer3')}
               maxLength={30}
+              required
             />
           </div>
         </div>
       </form>
-
       <div className="form-buttons">
-        <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="save-btn">Save Changes</button>
-      </div>
+            <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
+            <button type="submit" className="save-btn" form="changePasswordForm">Save Changes</button>
+          </div>
     </div>
   );
 };

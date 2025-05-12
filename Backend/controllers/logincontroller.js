@@ -32,9 +32,9 @@ class LoginController {
 
     async firstLogin(req, res) {
         try {
-            const { userId, newPassword } = req.body;
-            const result = await this.loginService.changePassword(userId, newPassword);
-            res.status(200).json({ message: 'Password changed successfully', data: result });
+            const { userId, newPassword, securityQuestions } = req.body;
+            const result = await this.loginService.updateFirstTimeUser(userId, newPassword, securityQuestions);
+            res.status(200).json({ message: 'Profile updated successfully', data: result });
         } catch (error) {
             res.status(500).json({ message: 'Internal server error', error: error.message });
         }

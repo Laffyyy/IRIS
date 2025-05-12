@@ -63,6 +63,58 @@ class LoginService {
         }
     }
 
+    async updateFirstTimeUser(userID, newPassword, securityQuestions) {
+        try {
+            // First get the current password hash
+            const [currentUser] = await db.query('SELECT dPassword1_hash FROM tbl_login WHERE dUser_ID = ?', [userID]);
+            
+            if (currentUser.length === 0) {
+                throw new Error('User not found');
+            }
+            
+            // Hash the new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            // Normalize security answers
+            const normalizedSecurityAnswers = [
+                securityQuestions.Security_Answer,
+                securityQuestions.Security_Answer2,
+                securityQuestions.Security_Answer3
+            ].map(answer => answer.toLowerCase());
+    
+            // Update the user record - move current password to dPassword2_hash, set new password as dPassword1_hash
+            await db.query(
+                `UPDATE tbl_login 
+                 SET dPassword2_hash = dPassword1_hash, 
+                     dPassword1_hash = ?,
+                     dSecurity_Question1 = ?, 
+                     dSecurity_Question2 = ?, 
+                     dSecurity_Question3 = ?,
+                     dAnswer_1 = ?, 
+                     dAnswer_2 = ?, 
+                     dAnswer_3 = ?,
+                     dStatus = 'ACTIVE',
+                     tLast_Login = NOW(),
+                     tLastUpdated = NOW()
+                 WHERE dUser_ID = ?`,
+                [
+                    hashedPassword,
+                    securityQuestions.Security_Question,
+                    securityQuestions.Security_Question2,
+                    securityQuestions.Security_Question3,
+                    normalizedSecurityAnswers[0],
+                    normalizedSecurityAnswers[1],
+                    normalizedSecurityAnswers[2],
+                    userID
+                ]
+            );
+            
+            return { message: 'Profile updated successfully' };
+        } catch (error) {
+            throw error;
+        }
+    }
+    
     async changePassword(userID, newPassword) {
         try {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
