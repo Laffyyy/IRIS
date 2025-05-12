@@ -15,8 +15,8 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z-._!@]/g, ''); // Only letters and periods
-    const truncatedValue = filteredValue.slice(0, 20);      // Max 30 chars
+    const filteredValue = value.replace(/[^a-zA-Z-._!@0-9]/g, ''); // Only letters and periods
+    const truncatedValue = filteredValue.slice(0, 20);      // Max 20 chars
     setPassword(truncatedValue);
   };
 
