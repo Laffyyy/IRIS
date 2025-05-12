@@ -66,22 +66,25 @@ const ChangePassword = ({ onCancel }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    // Validate passwords match
-    if (passwords.newPassword !== passwords.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    // Validate all security questions are answered
-    if (!answers.answer1 || !answers.answer2 || !answers.answer3) {
-      setError('All security questions must be answered');
-      setLoading(false);
-      return;
-    }
-
+  
     try {
+      // Validate passwords match
+      if (passwords.newPassword !== passwords.confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+  
+      // Validate all security questions are answered and selected
+      if (!answers.answer1 || !answers.answer2 || !answers.answer3) {
+        throw new Error('All security questions must be answered');
+      }
+  
+      // Check if "Select a question" is selected
+      if (securityQuestions.question1 === 'Select a question' || 
+          securityQuestions.question2 === 'Select a question' || 
+          securityQuestions.question3 === 'Select a question') {
+        throw new Error('Please select all security questions');
+      }
+  
       const response = await fetch('http://localhost:3000/api/login/firstlogin', {
         method: 'POST',
         headers: {
@@ -100,16 +103,23 @@ const ChangePassword = ({ onCancel }) => {
           }
         }),
       });
-
+  
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to update password and security questions');
+        // Just set the error message without throwing a new error
+        setError(data.error || 'Failed to update password');
+        alert(data.error || 'Failed to update password');
+        return; // Return early instead of throwing
       }
-
+  
       setSuccess(true);
       setTimeout(() => {
         onCancel(); // Redirect to login after successful password change
       }, 2000);
     } catch (err) {
+      // Client-side validation errors only
+      alert(err.message);
       setError(err.message);
     } finally {
       setLoading(false);
