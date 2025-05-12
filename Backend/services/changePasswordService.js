@@ -4,9 +4,6 @@ const jwt = require('jsonwebtoken');
 const login = require('../models/login');
 
 class ChangePasswordService {
-    constructor() {
-        this.ChangePasswordService = new ChangePasswordService(); // Initialize OtpService
-    }
 
     async updateFirstTimeUser(userID, newPassword, securityQuestions) {
         try {

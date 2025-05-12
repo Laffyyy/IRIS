@@ -20,5 +20,6 @@ app.use(express.json());
 
 app.use('/api/login', loginRoutes);
 app.use('/api/otp', otpRoutes)
+app.use('/api/changepass', changepassRoutes);
 
 module.exports = app;

@@ -1,9 +1,9 @@
-const ChangePasswordController = require('../services/changePasswordService')
-const LoginService = require('../services/loginService')
+const ChangePasswordService = require('../services/changePasswordService')
+
 
 class ChangePasswordController {
     constructor() {
-        this.loginService = new ChangePasswordService();
+        this.ChangePasswordService = new ChangePasswordService();
     }
 
     async firstLogin(req, res) {
@@ -11,7 +11,7 @@ class ChangePasswordController {
           const { userId, newPassword, securityQuestions } = req.body;
           console.log('Processing first login for user:', userId);
           
-          const result = await this.loginService.updateFirstTimeUser(userId, newPassword, securityQuestions);
+          const result = await this.ChangePasswordService.updateFirstTimeUser(userId, newPassword, securityQuestions);
           res.status(200).json({ message: 'Profile updated successfully', data: result });
         } catch (error) {
           console.error('Error in firstLogin:', error);
@@ -25,29 +25,12 @@ class ChangePasswordController {
       async changePassword(req, res) {
         try {
             const { userId, newPassword } = req.body;
-            const result = await this.loginService.changePassword(userId, newPassword);
+            const result = await this.ChangePasswordService.changePassword(userId, newPassword);
             res.status(200).json({ message: 'Password changed successfully', data: result });
         } catch (error) {
             res.status(500).json({ message: 'Internal server error', error: error.message });
         }
     }
-
-    
-    async firstLogin(req, res) {
-        try {
-          const { userId, newPassword, securityQuestions } = req.body;
-          console.log('Processing first login for user:', userId);
-          
-          const result = await this.loginService.updateFirstTimeUser(userId, newPassword, securityQuestions);
-          res.status(200).json({ message: 'Profile updated successfully', data: result });
-        } catch (error) {
-          console.error('Error in firstLogin:', error);
-          res.status(500).json({ 
-            message: 'Failed to update profile', 
-            error: error.message 
-          });
-        }
-      }
 }   
 
 module.exports = ChangePasswordController;

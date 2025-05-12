@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const LoginController = require('../controllers/logincontroller'); // Import the controller
 const ChangePasswordController = require('../controllers/changepasswordcontroller');
 
-router.post('/firstlogin', (req, res) => loginController.firstLogin(req, res));
-router.post('/checkStatus', (req, res) => loginController.checkUserStatus(req, res));
+const changepasswordController = new ChangePasswordController(); // Instantiate the class
+
+router.post('/firstlogin', (req, res) => changepasswordController.firstLogin(req, res));
+
+module.exports = router;

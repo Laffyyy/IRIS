@@ -85,7 +85,7 @@ const ChangePassword = ({ onCancel }) => {
         throw new Error('Please select all security questions');
       }
   
-      const response = await fetch('http://localhost:3000/api/login/firstlogin', {
+      const response = await fetch('http://localhost:3000/api/changepass/firstlogin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
