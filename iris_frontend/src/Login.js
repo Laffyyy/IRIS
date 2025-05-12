@@ -8,6 +8,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e) => {
+    localStorage.setItem('userId', employeeId);
     e.preventDefault();
     onContinue();
   };

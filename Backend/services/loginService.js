@@ -47,6 +47,22 @@ class LoginService {
         }
     }
 
+    async getUserStatus(userID) {
+        try {
+            // Query the database to check the user's status
+            const [rows] = await db.query('SELECT dStatus FROM tbl_login WHERE dUser_ID = ?', [userID]);
+            
+            if (rows.length === 0) {
+                throw new Error('User not found');
+            }
+            
+            const status = rows[0].dStatus;
+            return status;
+        } catch (error) {
+            throw error;
+        }
+    }
+
     async changePassword(userID, newPassword) {
         try {
             const hashedPassword = await bcrypt.hash(newPassword, 10);

@@ -40,6 +40,29 @@ class LoginController {
         }
     }
 
+    //For checking if the user is first time login or not
+    async checkUserStatus(req, res) {
+        try {
+            const { userId, otp } = req.body;
+            
+            // Call the service method to check the user status
+            const status = await this.loginService.getUserStatus(userId);
+            
+            // Return the status to the frontend
+            res.status(200).json({ 
+                status: status,
+                isFirstTimeLogin: status === 'FIRST-TIME'
+            });
+        } catch (error) {
+            console.error(`[ERROR] checkUserStatus failed:`, error);
+            console.error(`[ERROR] Stack trace:`, error.stack);
+            res.status(500).json({ 
+                message: 'Error checking user status', 
+                error: error.message 
+            });
+        }
+    }
+
     async changePassword(req, res) {
         try {
             const { userId, newPassword } = req.body;

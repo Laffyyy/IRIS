@@ -1,11 +1,22 @@
 import React, { useRef, useState, useEffect } from 'react';
 import './Otp.css';
 
-const Otp = ({ onBack }) => {
+const Otp = ({ onBack, onChangePassword }) => {
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
   const [resendTime, setResendTime] = useState(90);
   const [canResend, setCanResend] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState(''); // Store userId from local storage or props
+
+  useEffect(() => {
+    // Retrieve userId from localStorage (assuming it was saved during login)
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+  }, []);
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -23,12 +34,74 @@ const Otp = ({ onBack }) => {
     }
   }, [resendTime, canResend]);
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     if (!canResend) return;
-    setResendTime(90);
-    setExpireTime(180);
-    setCanResend(false);
-    // Add your resend OTP logic here
+    
+    try {
+      setLoading(true);
+      // API call to resend OTP
+      const response = await fetch('http://localhost:3000/api/otp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to resend OTP');
+      }
+
+      setResendTime(90);
+      setExpireTime(180);
+      setCanResend(false);
+      setError('');
+    } catch (err) {
+      setError('Failed to resend OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Add visual feedback during loading
+      const loadingIndicator = document.getElementById('loading-indicator');
+      if (loadingIndicator) loadingIndicator.style.display = 'block';
+      
+      // Use Promise.race to set a timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timed out')), 5000));
+      
+      const fetchPromise = fetch(`http://localhost:3000/api/login/checkStatus`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId })
+      });
+      
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+      
+      const data = await response.json();
+      
+      // Check if user is first-time user
+      if (data.status === 'FIRST-TIME') {
+        onChangePassword();
+      } else {
+        alert("Logged in successfully! (Dashboard would open here)");
+      }
+    } catch (err) {
+      console.error('Error during login:', err);
+      setError(`Login failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (e, index) => {
@@ -120,7 +193,9 @@ const Otp = ({ onBack }) => {
 
         <div className="otp-button-group">
           <button className="otp-back" onClick={onBack}>Back</button>
-          <button className="otp-submit">Login</button>
+          <button className="otp-submit" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Processing...' : 'Login'}
+          </button>
         </div>
       </div>
     </div>

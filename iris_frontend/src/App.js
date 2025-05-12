@@ -14,8 +14,11 @@ function App() {
           onContinue={() => setCurrentView('otp')} 
           onForgotPassword={() => setCurrentView('changePassword')} 
         />;
-      case 'otp':
-        return <Otp onBack={() => setCurrentView('login')} />;
+        case 'otp':
+          return <Otp 
+            onBack={() => setCurrentView('login')} 
+            onChangePassword={() => setCurrentView('changePassword')}
+          />;
       case 'changePassword':
         return <ChangePassword onCancel={() => setCurrentView('login')} />;
       default:
