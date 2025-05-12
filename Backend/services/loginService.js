@@ -89,13 +89,15 @@ class LoginService {
         try {
             // Generate a custom userID
             const date = new Date();
-            const formattedDate = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+            // Format date as YYMMDD (6 characters)
+            const formattedDate = `${date.getFullYear().toString().slice(2)}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
             
             // Query the database to get the current max ID or count
             const [rows] = await db.query('SELECT COUNT(*) AS count FROM tbl_login');
             const count = rows[0].count + 1; // Increment the count for the new user
             
-            const customUserID = `${count.toString().padStart(4, '0')}`;
+            //Gio change, added the formattedDate to the customUserID
+            const customUserID = `${formattedDate}${count.toString().padStart(4, '0')}`;
     
             // Hash the password
             const hashedPassword = await bcrypt.hash(userData.Password, 10);
@@ -106,7 +108,10 @@ class LoginService {
                 userData.Security_Answer2,
                 userData.Security_Answer3
             ].map(answer => answer.toLowerCase());
-    
+            
+            // Set default created_by if not provided
+            const createdBy = userData.created_by || "123";
+
             // Create the new user object
             const newUser = new login(
                 customUserID, // Use the custom userID
@@ -122,13 +127,13 @@ class LoginService {
                 null,
                 'FIRST-TIME', // Default status
                 null,
-                userData.created_by,
+                createdBy,
                 null
             );
     
             // Insert the new user into the database
             const [result] = await db.query(
-                'INSERT INTO tbl_login (dUser_ID, dEmail, dPassword_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3, dStatus, dCreatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO tbl_login (dUser_ID, dEmail, dPassword1_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3, dStatus, dCreatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     newUser.userID, // Custom userID
                     newUser.Email,
