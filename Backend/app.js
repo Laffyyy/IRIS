@@ -3,7 +3,7 @@ const cors = require('cors');
 const loginRoutes = require('./routes/loginroutes');
 const otpRoutes = require('./routes/otpcontoller');
 const helment = require('helmet');
-const cors = require('cors');
+
 
 const app = express();
 

@@ -7,19 +7,25 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
 
+  //localStorage
+  const storedUserId = localStorage.getItem('userId');
+  const storedPassword = localStorage.getItem('password');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
       // Check if password has expired
-      const response = await fetch('http://localhost:3000/api/login/checkExpiration', {
+      const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: employeeId
-        }),
+          userId: employeeId,
+          password: password,
+          otp : "", 
+        })
       });
   
       if (!response.ok) {
