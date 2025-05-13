@@ -15,45 +15,38 @@ class OtpService {
     });
   }
 
-  async generateOtp(userId) {
-    // Alfa numeric OTP generation
-    // const otp = crypto.randomBytes(3).toString('hex'); // Generate a 6-character OTP
-    const otp = crypto.randomInt(100000, 999999).toString(); // Generate a 6-digit OTP
-    const expiry = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 minutes
+  async generateOtp(userID) {
+    try {
+        // Generate a new OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
 
-    // Check if an OTP already exists for the user
-    const [existingOtp] = await db.query(
-      "SELECT * FROM tbl_otp WHERE dUser_ID = ?",
-      [userId]
-    );
+        // Check if an OTP already exists for the user
+        const [existingOtpRows] = await db.query(
+            'SELECT * FROM tbl_otp WHERE dUser_ID = ?',
+            [userID]
+        );
 
-    if (existingOtp.length > 0) {
-      // Update the existing OTP
-      await db.query(
-        "UPDATE tbl_otp SET dOTP = ?, tOTP_Expires = ?, dOTP_Status = 0 WHERE dUser_ID = ?",
-        [otp, expiry, userId]
-      );
-    } else {
-      // Insert a new OTP
-      await db.query(
-        "INSERT INTO tbl_otp (dOTP, dUser_ID, dOTP_Status, tOTP_Expires) VALUES (?, ?, ?, ?)",
-        [otp, userId, 0, expiry]
-      );
+        if (existingOtpRows.length > 0) {
+            // Update the existing OTP row
+            await db.query(
+                'UPDATE tbl_otp SET dOTP = ?, tOTP_Created = NOW(), tOTP_Expires = ?, dOTP_Status = 0 WHERE dUser_ID = ?',
+                [otp, expiresAt, userID]
+            );
+        } else {
+            // Insert a new OTP row
+            await db.query(
+                'INSERT INTO tbl_otp (dUser_ID, dOTP, tOTP_Created, tOTP_Expires, dOTP_Status) VALUES (?, ?, NOW(), ?, 0)',
+                [userID, otp, expiresAt]
+            );
+        }
+
+        return otp;
+    } catch (error) {
+        console.error('Error generating OTP:', error.message);
+        throw error;
     }
-
-    // Fetch the user's email
-    const userEmail = await this.getUserEmail(userId);
-
-    // Send OTP via email
-    await this.transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: userEmail,
-      subject: "Your OTP Code",
-      text: `Your OTP code is ${otp}. It is valid for 5 minutes.`,
-    });
-
-    return otp;
-  }
+}
 
   async verifyOtp(userId, otp) {
     const [rows] = await db.query(
