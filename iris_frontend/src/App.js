@@ -1,5 +1,4 @@
-import React, {useState} from 'react';
-import logo from './logo.svg';
+import React, { useState } from 'react';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';
@@ -15,11 +14,11 @@ function App() {
           onContinue={() => setCurrentView('otp')} 
           onForgotPassword={() => setCurrentView('changePassword')} 
         />;
-        case 'otp':
-          return <Otp 
-            onBack={() => setCurrentView('login')} 
-            onChangePassword={() => setCurrentView('changePassword')}
-          />;
+      case 'otp':
+        return <Otp 
+          onBack={() => setCurrentView('login')} 
+          onChangePassword={() => setCurrentView('changePassword')}
+        />;
       case 'changePassword':
         return <ChangePassword onCancel={() => setCurrentView('login')} />;
       default:
@@ -32,20 +31,7 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      {renderView()}
     </div>
   );
 }
