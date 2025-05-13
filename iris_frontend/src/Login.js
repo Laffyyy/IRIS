@@ -15,7 +15,6 @@ const Login = ({ onContinue, onForgotPassword }) => {
     e.preventDefault();
     
     try {
-    
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -24,19 +23,32 @@ const Login = ({ onContinue, onForgotPassword }) => {
         body: JSON.stringify({
           userId: employeeId,
           password: password,
-          otp : "", 
+          otp: "", 
         })
       });
-
-
-    
-      localStorage.setItem('userId', employeeId);
-      onContinue();
+  
+      // Parse the JSON response
+      const data = await response.json();
+      
+      // Check if response was successful
+      if (response.ok) {
+        // Store user data and continue only if login was successful
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        
+        // You might also want to store any token or user data returned from the API
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
+        
+        onContinue();
+      } else {
+        // Handle unsuccessful login (bad credentials, etc.)
+        alert( 'Login failed. Please check your credentials.');
+      }
     } catch (error) {
-      console.error('Error checking password expiration:', error);
-      // DO NOT fall back to regular login flow when there's an error
-      // Instead, show an error message to the user
-      alert('Unable to verify account status. Please try again or contact support.');
+      console.error('Error during login:', error);
+      alert('Unable to connect to the server. Please try again later.');
     }
   };
 

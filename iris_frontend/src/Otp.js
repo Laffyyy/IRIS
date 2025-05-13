@@ -8,7 +8,17 @@ const Otp = ({ onBack, onChangePassword }) => {
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(''); // Store userId from local storage or props
+  const [otp, setOtp] = useState('');
+  const [userId, setUserId] = useState('');
+  const [password, setPassword] = useState('');
+
+  //local storage
+  const storedUserId = localStorage.getItem('userId');
+  const storedPassword = localStorage.getItem('password');
+  
+
+
+  
 
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
@@ -72,35 +82,51 @@ const Otp = ({ onBack, onChangePassword }) => {
       const loadingIndicator = document.getElementById('loading-indicator');
       if (loadingIndicator) loadingIndicator.style.display = 'block';
       
-      // Use Promise.race to set a timeout
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timed out')), 5000));
-      
-      const fetchPromise = fetch(`http://localhost:3000/api/login/checkStatus`, {
+      const response = await fetch(`http://localhost:3000/api/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userId })
+        body: JSON.stringify({
+          userId: storedUserId, 
+          password: storedPassword,
+          otp: otp
+        })
       });
       
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
+      const data = await response.json();
+      console.log('Server response:', data);
       
-      if (!response.ok) {
-        throw new Error('Login failed');
+      // Check the response message content even if status is 200 OK
+      if (data.data?.message?.includes('OTP sent')) {
+        setError('Your OTP was not verified. A new OTP has been sent to your email.');
+        setExpireTime(180); // Reset the timer
+        setResendTime(90);  // Reset resend timer
+        alert("A new OTP has been sent to your email.");
+        // Optionally reset OTP fields
+        setOtp('');
+        return;
       }
       
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Login failed');
+      }
       
-      // Check if user is first-time user
-      if (data.status === 'FIRST-TIME') {
+      // Successful OTP verification
+      if (data.user?.status === "FIRST-TIME") {
         onChangePassword();
       } else {
+        // Store the authentication token
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
         alert("Logged in successfully! (Dashboard would open here)");
       }
     } catch (err) {
       console.error('Error during login:', err);
-      setError(`Login failed: ${err.message}`);
+      setError(err.message || 'An error occurred during login');
     } finally {
       setLoading(false);
+      const loadingIndicator = document.getElementById('loading-indicator');
+      if (loadingIndicator) loadingIndicator.style.display = 'none';
     }
   };
 
@@ -121,6 +147,9 @@ const Otp = ({ onBack, onChangePassword }) => {
     if (e.key === 'Backspace' && !e.target.value && index > 0) {
       inputsRef.current[index - 1].focus();
     }
+    setOtp(
+      inputsRef.current.map((input) => input.value).join('')
+    );
   };
 
   const handlePaste = (e) => {
@@ -135,6 +164,7 @@ const Otp = ({ onBack, onChangePassword }) => {
     }
 
     e.preventDefault();
+    setOtp(filtered);
   };
 
   const formatTime = (seconds) => {
