@@ -9,6 +9,7 @@ class LoginController {
         try {
             
             const { userId , password, otp } = req.body;
+            console.log('Received login request:', { userId, password, otp });
             const result = await this.loginService.loginUser(userId, password,otp);
             if (result) {
                 res.status(200).json({ message: 'Login successful', data: result });

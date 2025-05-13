@@ -1,5 +1,9 @@
+import React, {useState} from 'react';
 import logo from './logo.svg';
 import './App.css';
+import Login from './Login';
+import Otp from './Otp';
+import ChangePassword from './ChangePassword';
 
 function App() {
   const [currentView, setCurrentView] = useState('login');

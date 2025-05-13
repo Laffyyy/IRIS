@@ -15,7 +15,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
     e.preventDefault();
     
     try {
-      // Check if password has expired
+    
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -27,25 +27,8 @@ const Login = ({ onContinue, onForgotPassword }) => {
           otp : "", 
         })
       });
-  
-      if (!response.ok) {
-        console.error('Server returned error:', response.status);
-        throw new Error('Failed to check password expiration');
-      }
-      
-      const data = await response.json();
-      
-      if (data.isExpired) {
-        // Show confirmation dialog
-        const confirmChange = window.confirm('Your password has expired. Change password?');
-        if (confirmChange) {
-          localStorage.setItem('userId', employeeId);
-          onForgotPassword(); // Navigate to change password page
-          return;
-        }
-        // If they cancel, stay on login page - DO NOT PROCEED
-        return;
-      }
+
+
     
       localStorage.setItem('userId', employeeId);
       onContinue();
@@ -59,7 +42,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z-._!@]/g, ''); // Only letters and periods
+    const filteredValue = value.replace(/[^a-zA-Z0-9-._!@]/g, ''); // Only letters and periods
     const truncatedValue = filteredValue.slice(0, 20);      // Max 30 chars
     setPassword(truncatedValue);
   };
