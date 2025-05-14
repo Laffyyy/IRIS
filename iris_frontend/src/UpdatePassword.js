@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './UpdatePassword.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const UpdatePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -10,6 +11,8 @@ const UpdatePassword = () => {
     newPassword: '',
     confirmPassword: ''
   });
+
+  const navigate = useNavigate();
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
@@ -21,12 +24,22 @@ const UpdatePassword = () => {
     }));
   };
 
+  const handleCancel = () => {
+    navigate('/security-questions'); // Redirect to SecurityQuestions page
+  };
+
+  const handleSaveChanges = (e) => {
+    e.preventDefault();
+    // Add your save changes logic here (e.g., API call to save password)
+    navigate('/security-questions'); // After saving, navigate back to SecurityQuestions
+  };
+
   return (
     <div className="update-password-container">
       <h2>Update Password</h2>
       <p className="subtitle">Enter a new password for your account</p>
 
-      <form className="form-grid">
+      <form className="form-grid" onSubmit={handleSaveChanges}>
         {/* Password Info */}
         <div className="form-section">
           <h3>Password Information</h3>
@@ -76,7 +89,7 @@ const UpdatePassword = () => {
       </form>
 
       <div className="form-buttons">
-        <button type="button" className="cancel-btn">Cancel</button>
+        <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>
         <button type="submit" className="save-btn">Save Changes</button>
       </div>
     </div>
