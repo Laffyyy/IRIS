@@ -37,18 +37,14 @@ class LoginService {
         // Step 3: Verify the password
         let isMatch = false;
         if (table === 'tbl_login') {
-            // Check password for tbl_login using dPassword1_hash
             if (!user.dPassword1_hash) {
                 throw new Error('Password hash is missing for tbl_login');
             }
-            console.log('Password:', password, 'Hash:', user.dPassword1_hash); // Debugging log
             isMatch = await bcrypt.compare(password, user.dPassword1_hash);
         } else if (table === 'tbl_admin') {
-            // Check only dPassword1_hash for tbl_admin
             if (!user.dPassword1_hash) {
                 throw new Error('Password hash is missing for tbl_admin');
             }
-            console.log('Password:', password, 'Hash:', user.dPassword1_hash); // Debugging log
             isMatch = await bcrypt.compare(password, user.dPassword1_hash);
         }
 
@@ -80,18 +76,33 @@ class LoginService {
 
             return { message: 'Login successful', token, user: { id: user.dUser_ID, email: user.dEmail, status: user.dStatus || user.dUser_Type } };
         } else {
-            // Step 7: Generate and send OTP if not provided
-            const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
-            console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
-            return { message: 'OTP sent to your registered email or phone' };
+            // Step 7: Check OTP status or generate a new OTP if the user does not exist in tbl_otp
+            const [otpRows] = await db.query(
+                'SELECT dOTP_Status FROM tbl_otp WHERE dUser_ID = ? ORDER BY tOTP_Created DESC LIMIT 1',
+                [user.dUser_ID]
+            );
+
+            if (otpRows.length > 0) {
+                if (otpRows[0].dOTP_Status === 0) {
+                    // If OTP status is 0, do not generate a new OTP
+                    return { message: 'OTP already sent. Please check your email or phone.' };
+                } else {
+                    // Generate and send a new OTP if status is 1
+                    const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
+                    console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
+                    return { message: 'OTP sent to your registered email or phone' };
+                }
+            } else {
+                // If no OTP exists for the user, generate a new OTP
+                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
+                console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
+                return { message: 'OTP sent to your registered email or phone' };
+            }
         }
     } catch (error) {
         console.error('Error in loginUser:', error.message);
         throw error;
     }
-
-
-
 }
     //wrong file
     async changePassword(userID, newPassword) {

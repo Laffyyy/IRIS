@@ -41,6 +41,29 @@ class OtpService {
             );
         }
 
+        // Retrieve the user's email
+        const [userRows] = await db.query(
+            'SELECT dEmail FROM tbl_login WHERE dUser_ID = ?',
+            [userID]
+        );
+
+        if (userRows.length === 0) {
+            throw new Error('User email not found');
+        }
+
+        const userEmail = userRows[0].dEmail;
+
+        // Send the OTP to the user's email
+        const mailOptions = {
+            from: process.env.EMAIL_USER, // Sender address
+            to: userEmail, // Recipient address
+            subject: 'Your OTP Code', // Subject line
+            text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`, // Plain text body
+        };
+
+        await this.transporter.sendMail(mailOptions);
+
+        console.log(`OTP sent to ${userEmail}`);
         return otp;
     } catch (error) {
         console.error('Error generating OTP:', error.message);
