@@ -29,7 +29,7 @@ const ChangePassword = ({ onCancel }) => {
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z-._!@]/g, '');
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
     const truncatedValue = filteredValue.slice(0, 30);
     setPasswords(prev => ({
       ...prev,
