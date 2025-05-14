@@ -1,17 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate from react-router-dom
+import { useNavigate } from 'react-router-dom';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
-  const navigate = useNavigate();  // Initialize the navigate function
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(email);
-    // Navigate to the OTP page after submission
-    navigate('/otp');  // Adjust the path to match your routing setup
+    navigate('/otp');
   };
 
   return (
@@ -44,6 +43,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
+  const navigate = useNavigate();
 
   const carouselImages = [
     '/assets/stephen1.jpg',
@@ -59,7 +59,8 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onContinue();
+    onContinue && onContinue(); // Optional if you have external logic
+    navigate('/otp');
   };
 
   const handlePasswordChange = (e) => {
@@ -183,7 +184,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
           onClose={() => setShowModal(false)}
           onSubmit={(email) => {
             setShowModal(false);
-            console.log('Sending OTP to:', email); // Hook to backend
+            console.log('Sending OTP to:', email);
             alert(`OTP sent to ${email}`);
           }}
         />
