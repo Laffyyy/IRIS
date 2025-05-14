@@ -1,11 +1,16 @@
+// Otp.js
 import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Otp.css';
 
-const Otp = ({ onBack }) => {
+const Otp = ({ onBack, onComplete }) => {
+  const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
   const [resendTime, setResendTime] = useState(90);
   const [canResend, setCanResend] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -23,12 +28,25 @@ const Otp = ({ onBack }) => {
     }
   }, [resendTime, canResend]);
 
+  useEffect(() => {
+    const allFilled = otpValues.every(value => value !== '');
+    setIsComplete(allFilled);
+
+    if (allFilled) {
+      document.getElementById('otp-submit-button').focus();
+    }
+  }, [otpValues]);
+
   const handleResendCode = () => {
     if (!canResend) return;
     setResendTime(90);
     setExpireTime(180);
     setCanResend(false);
-    // Add your resend OTP logic here
+    setOtpValues(Array(6).fill(''));
+    inputsRef.current.forEach(input => {
+      if (input) input.value = '';
+    });
+    inputsRef.current[0]?.focus();
   };
 
   const handleInputChange = (e, index) => {
@@ -38,6 +56,9 @@ const Otp = ({ onBack }) => {
     if (value.length > 1) return;
 
     e.target.value = value;
+    const newOtpValues = [...otpValues];
+    newOtpValues[index] = value;
+    setOtpValues(newOtpValues);
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
@@ -46,6 +67,9 @@ const Otp = ({ onBack }) => {
 
   const handleKeyDown = (e, index) => {
     if (e.key === 'Backspace' && !e.target.value && index > 0) {
+      const newOtpValues = [...otpValues];
+      newOtpValues[index] = '';
+      setOtpValues(newOtpValues);
       inputsRef.current[index - 1].focus();
     }
   };
@@ -55,12 +79,14 @@ const Otp = ({ onBack }) => {
     const filtered = pastedData.replace(/[^A-Z0-9]/g, '').slice(0, 6);
 
     if (filtered.length === 6) {
+      const newOtpValues = Array(6).fill('');
       filtered.split('').forEach((char, i) => {
         inputsRef.current[i].value = char;
+        newOtpValues[i] = char;
       });
+      setOtpValues(newOtpValues);
       inputsRef.current[5].focus();
     }
-
     e.preventDefault();
   };
 
@@ -70,6 +96,17 @@ const Otp = ({ onBack }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleSubmit = () => {
+    if (isComplete) {
+      // Trigger onComplete callback if provided
+      if (onComplete) {
+        onComplete();
+      }
+      // Navigate to the Security Questions page
+      navigate('/security-questions');
+    }
+  };
+
   return (
     <div className="otp-container">
       <div className="otp-card">
@@ -77,14 +114,13 @@ const Otp = ({ onBack }) => {
           src="/assets/logo.png"
           alt="IRIS Logo"
           className="otp-logo"
-          style={{ userSelect: 'none', pointerEvents: 'none' }}
           draggable={false}
         />
         <h2 className="otp-title">IRIS</h2>
         <p className="otp-subtitle">Incentive Reporting & Insight Solution</p>
 
         <div className="otp-alert">
-          A one-time password has been sent to your registered email.
+          A one-time passcode has been sent to your registered email.
         </div>
 
         <label className="otp-label">Enter OTP</label>
@@ -106,8 +142,8 @@ const Otp = ({ onBack }) => {
         <div className="otp-footer">
           <p className="otp-expiry">
             {expireTime > 0
-              ? `OTP will expire in ${formatTime(expireTime)}`
-              : 'OTP has expired'}
+              ? `Code will expire in ${formatTime(expireTime)}`
+              : 'The code has expired'}
           </p>
           <button
             className="resend-otp"
@@ -120,7 +156,15 @@ const Otp = ({ onBack }) => {
 
         <div className="otp-button-group">
           <button className="otp-back" onClick={onBack}>Back</button>
-          <button className="otp-submit">Login</button>
+          <button
+            id="otp-submit-button"
+            className={`otp-submit ${isComplete ? 'otp-submit-enabled' : ''}`}
+            onClick={handleSubmit}
+            disabled={!isComplete}
+            type="button"
+          >
+            Login
+          </button>
         </div>
       </div>
     </div>

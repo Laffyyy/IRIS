@@ -1,35 +1,24 @@
 import './App.css';
-import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
+import SecurityQuestions from './SecurityQuestions';
+import UpdatePassword from './UpdatePassword';
 
 function App() {
-  const [currentView, setCurrentView] = useState('login');
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'login':
-        return <Login 
-          onContinue={() => setCurrentView('otp')} 
-          onForgotPassword={() => setCurrentView('changePassword')} 
-        />;
-      case 'otp':
-        return <Otp onBack={() => setCurrentView('login')} />;
-      case 'changePassword':
-        return <ChangePassword onCancel={() => setCurrentView('login')} />;
-      default:
-        return <Login 
-          onContinue={() => setCurrentView('otp')} 
-          onForgotPassword={() => setCurrentView('changePassword')} 
-        />;
-    }
-  };
-
   return (
-    <div className="App">
-      {renderView()}
-    </div>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/otp" element={<Otp />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/security-questions" element={<SecurityQuestions />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
