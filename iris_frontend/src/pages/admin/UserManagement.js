@@ -1,33 +1,17 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload } from 'react-icons/fa';
 import './UserManagement.css';
 
 const UserManagement = () => {
   // State for main table
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      employeeId: 'E01M1',
-      name: 'John Aldie Abdul Doe',
-      email: 'john.aldie_abdul.deo@gmail.com',
-      role: 'Admin',
-      status: 'Active'
-    },
-    {
-      id: 2,
-      employeeId: 'E02M1',
-      name: 'Jane Smith',
-      email: 'jane.smith@gmail.com',
-      role: 'Reports POC',
-      status: 'Active'
-    }
-  ]);
-  
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = React.useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // State for add user modal
   const [newUser, setNewUser] = useState({
@@ -45,12 +29,28 @@ const UserManagement = () => {
   const [dragActive, setDragActive] = useState(false);
   const [previewTab, setPreviewTab] = useState('valid');
   const [individualPreview, setIndividualPreview] = useState([]);
+  
+  useEffect(() => {
+    fetch("http://localhost:5000/api/users")
+      .then(res => res.json())
+      .then(data => {
+        console.log("Fetched users:", data); // ✅ This should show real data
+        setUsers(data);
+      })
+      .catch(err => {
+        console.error("Failed to fetch users:", err);
+      });
+  }, []);
 
   // Filter users for main table
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'All' || user.role === roleFilter;
+    const matchesSearch =
+      (user.dUser_ID && user.dUser_ID.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // If you're not filtering by role, this can be omitted or always return true
+    const matchesRole = true;
+
     return matchesSearch && matchesRole;
   });
 
@@ -260,11 +260,11 @@ const UserManagement = () => {
             </thead>
             <tbody>
               {filteredUsers.map(user => (
-                <tr key={user.id}>
-                  <td className="name-col">{user.name}</td>
-                  <td className="email-col">{user.email}</td>
-                  <td className="role-col">{user.role}</td>
-                  <td className="status-col">{user.status}</td>
+                <tr key={user.dUser_ID}>
+                  <td className="name-col">{user.dUser_ID}</td>
+                  <td className="email-col">{user.dEmail}</td>
+                  <td className="role-col">{user.dUser_Type}</td>
+                  <td className="status-col">{user.dStatus}</td>
                   <td className="actions-col">
                     <div className="action-buttons">
                       <button onClick={() => handleEdit(user)} className="edit-btn">
