@@ -22,10 +22,10 @@ const Dashboard = () => {
   ];
 
   const toggleCellValue = (location, field) => {
-    setProcessingData(prevData => 
-      prevData.map(row => 
-        row.location === location 
-          ? { ...row, [field]: !row[field] } 
+    setProcessingData(prevData =>
+      prevData.map(row =>
+        row.location === location
+          ? { ...row, [field]: !row[field] }
           : row
       )
     );
@@ -40,23 +40,23 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container">
       <div className="user-header">
-        <div className="user-info">
+        <div className="user-left">
           <h2>{mockUser.name}</h2>
           <span className="user-role">{mockUser.role}</span>
         </div>
-        <div className="user-meta">
-          <div className="responsibilities">
-            <span className="label">Responsibilities</span>
+        <div className="user-center">
+          <span className="labelr">Responsibilities</span>
+          <div className="responsibility-pills">
             {mockUser.responsibilities.map((item, idx) => (
               <span key={idx} className="pill">{item}</span>
             ))}
           </div>
-          <div className="last-login">
-            <span className="label">Last Login</span>
-            <div>
-              <span>{mockUser.lastLogin}</span>
-              <span className="status-pill">{mockUser.status}</span>
-            </div>
+        </div>
+        <div className="user-right">
+          <span className="label">Last Login</span>
+          <div className="login-status">
+            <span>{mockUser.lastLogin}</span>
+            <span className="status-pill">{mockUser.status}</span>
           </div>
         </div>
       </div>
@@ -84,38 +84,38 @@ const Dashboard = () => {
                 {processingData.map((row, index) => (
                   <tr key={index}>
                     <td>{row.location}</td>
-                    <td 
-                      className="editable-cell" 
+                    <td
+                      className={`editable-cell ${row.hrLog ? 'status-check' : 'status-cross'}`}
                       onClick={() => toggleCellValue(row.location, 'hrLog')}
                     >
                       {row.hrLog ? '✓' : 'X'}
                     </td>
-                    <td 
-                      className="editable-cell" 
+                    <td
+                      className={`editable-cell ${row.hrDb ? 'status-check' : 'status-cross'}`}
                       onClick={() => toggleCellValue(row.location, 'hrDb')}
                     >
                       {row.hrDb ? '✓' : 'X'}
                     </td>
-                    <td 
-                      className="editable-cell" 
+                    <td
+                      className={`editable-cell ${row.hrsApp ? 'status-check' : 'status-cross'}`}
                       onClick={() => toggleCellValue(row.location, 'hrsApp')}
                     >
                       {row.hrsApp ? '✓' : 'X'}
                     </td>
-                    <td 
-                      className="editable-cell" 
+                    <td
+                      className={`editable-cell ${row.payroll ? 'status-check' : 'status-cross'}`}
                       onClick={() => toggleCellValue(row.location, 'payroll')}
                     >
                       {row.payroll ? '✓' : 'X'}
                     </td>
-                    <td 
-                      className="editable-cell" 
+                    <td
+                      className={`editable-cell ${row.store ? 'status-check' : 'status-cross'}`}
                       onClick={() => toggleCellValue(row.location, 'store')}
                     >
                       {row.store ? '✓' : 'X'}
                     </td>
-                    <td 
-                      className="editable-cell" 
+                    <td
+                      className={`editable-cell ${row.region ? 'status-check' : 'status-cross'}`}
                       onClick={() => toggleCellValue(row.location, 'region')}
                     >
                       {row.region ? '✓' : 'X'}
