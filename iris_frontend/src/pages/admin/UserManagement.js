@@ -5,6 +5,25 @@ import './UserManagement.css';
 
 const UserManagement = () => {
 
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [securityQuestionsData, setSecurityQuestionsData] = useState([
+    { question: '', answer: '' },
+    { question: '', answer: '' },
+    { question: '', answer: '' }
+  ]);
+
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [showSecurityQuestions, setShowSecurityQuestions] = useState([]);
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -30,6 +49,12 @@ const UserManagement = () => {
   const [dragActive, setDragActive] = useState(false);
   const [previewTab, setPreviewTab] = useState('valid');
   const [individualPreview, setIndividualPreview] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const selectedUserNames = users
+  .filter(user => selectedUsers.includes(user.dUser_ID))
+  .map(user => user.dName);
   
   useEffect(() => {
     fetch("http://localhost:5000/api/users")
@@ -41,19 +66,20 @@ const UserManagement = () => {
       .catch(err => {
         console.error("Failed to fetch users:", err);
       });
-  }, []);
+    }, []);
 
   // Filter users for main table
-  const filteredUsers = users.filter(user => {
-    const matchesSearch =
-      (user.dUser_ID && user.dUser_ID.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+const filteredUsers = users.filter(user => {
+  const matchesSearch =
+    (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (user.dName && user.dName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // If you're not filtering by role, this can be omitted or always return true
-    const matchesRole = true;
+  const matchesRole =
+    roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
 
-    return matchesSearch && matchesRole;
-  });
+  return matchesSearch && matchesRole;
+});
 
   // Handle file drop for bulk upload
   const handleDrag = useCallback((e) => {
@@ -147,59 +173,133 @@ const UserManagement = () => {
     document.body.removeChild(link);
   };
 
-  // Handle adding individual user to preview
   const handleAddToList = () => {
     if (newUser.employeeId && newUser.email && newUser.name && newUser.role) {
-      setIndividualPreview([{
-        ...newUser,
-        status: 'Active'
-      }]);
-    }
-  };
+      setIndividualPreview(prev => [
+        ...prev,
+        {
+          ...newUser,
+          status: 'FIRST-TIME',
+        }
+      ]);
 
-  // Handle adding individual user submission
-  const handleAddIndividual = () => {
-    if (individualPreview.length > 0) {
-      const userToAdd = {
-        ...individualPreview[0],
-        id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
-        password: 'defaultPassword123',
-        securityQuestions: [
-          { question: 'What was your first pet\'s name?', answer: 'Default' },
-          { question: 'What city were you born in?', answer: 'Default' },
-          { question: 'What is your mother\'s maiden name?', answer: 'Default' }
-        ]
-      };
-      setUsers([...users, userToAdd]);
-      setAddModalOpen(false);
+      // Clear input after adding to the list
       setNewUser({
         employeeId: '',
         email: '',
         name: '',
         role: 'HR'
       });
-      setIndividualPreview([]);
+    }
+  };
+  
+
+  const handleAddIndividual = async () => {
+    if (individualPreview.length > 0) {
+      const usersToSend = individualPreview.map(user => ({
+        ...user,
+        password: 'defaultPass123',
+        createdBy: 'admin'
+      }));
+
+      try {
+        console.log("Users to send:", usersToSend);
+        const response = await fetch('http://localhost:5000/api/users/bulk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ users: usersToSend }) // 👈 wrap in object
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to add users');
+        }
+
+        const result = await response.json();
+
+        // Optional: set updated users
+        setUsers(prev => [...prev, ...usersToSend]);
+
+        // Reset form
+        setAddModalOpen(false);
+        setIndividualPreview([]);
+        setNewUser({
+          employeeId: '',
+          email: '',
+          name: '',
+          role: 'HR'
+        });
+
+      } catch (error) {
+        console.error('Error adding users:', error.message);
+      }
     }
   };
 
-  // Handle bulk upload submission
-  const handleBulkUpload = () => {
-    const usersToAdd = bulkUsers.map((user, index) => ({
-      ...user,
-      id: users.length > 0 ? Math.max(...users.map(u => u.id)) + index + 1 : index + 1,
-      password: 'defaultPassword123',
-      securityQuestions: [
-        { question: 'What was your first pet\'s name?', answer: 'Default' },
-        { question: 'What city were you born in?', answer: 'Default' },
-        { question: 'What is your mother\'s maiden name?', answer: 'Default' }
-      ]
-    }));
-    setUsers([...users, ...usersToAdd]);
+  const handleBulkUpload = async () => {
+  const usersToSend = bulkUsers.map(user => ({
+    ...user,
+    password: 'defaultPassword123',
+    status: 'FIRST-TIME',
+    createdBy: 'admin',
+  }));
+
+  try {
+    const response = await fetch('http://localhost:5000/api/users/bulk', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ users: usersToSend })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to bulk add users');
+    }
+
+    const result = await response.json();
+    setUsers(prev => [...prev, ...usersToSend]);
     setAddModalOpen(false);
     setBulkUsers([]);
     setInvalidUsers([]);
     setFile(null);
-  };
+  } catch (error) {
+    console.error('Bulk upload error:', error.message);
+  }
+};
+
+const handleDeleteUsers = async () => {
+  if (deleteConfirmText === 'CONFIRM' && selectedUsers.length > 0) {
+    try {
+      const response = await fetch('http://localhost:5000/api/users/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userIds: selectedUsers })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete users');
+      }
+
+      // Filter deleted users from local state
+      setUsers(prevUsers => prevUsers.filter(user => !selectedUsers.includes(user.dUser_ID)));
+
+      // Reset modal and selection
+      setSelectedUsers([]);
+      setDeleteConfirmText('');
+      setShowDeleteModal(false);
+
+    } catch (error) {
+      console.error('Error deleting users:', error.message);
+    }
+  }
+};
 
   // Other handlers
   const handleEdit = (user) => {
@@ -239,8 +339,10 @@ const UserManagement = () => {
     setNewUser(prev => ({ ...prev, [name]: value }));
   };
 
-  const removeIndividualPreview = () => {
-    setIndividualPreview([]);
+  const handleRemoveFromPreview = (employeeIdToRemove) => {
+    setIndividualPreview(prev =>
+      prev.filter(user => user.employeeId !== employeeIdToRemove)
+    );
   };
 
   const handlePasswordChange = (e) => {
@@ -289,8 +391,8 @@ const UserManagement = () => {
               <option value="All">All Roles</option>
               <option value="Admin">Admin</option>
               <option value="HR">HR</option>
-              <option value="Reports POC">Reports POC</option>
-              <option value="C&B">C&B</option>
+              <option value="REPORTS">REPORTS</option>
+              <option value="CNB">CNB</option>
             </select>
           </div>
 
@@ -312,26 +414,80 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map(user => (
-                <tr key={user.dUser_ID}>
-                  <td className="name-col">{user.dUser_ID}</td>
-                  <td className="email-col">{user.dEmail}</td>
-                  <td className="role-col">{user.dUser_Type}</td>
-                  <td className="status-col">{user.dStatus}</td>
-                  <td className="actions-col">
-                    <div className="action-buttons">
-                      <button onClick={() => handleEdit(user)} className="edit-btn">
-                        <FaEdit size={12} /> Edit
-                      </button>
-                      <button onClick={() => handleDelete(user.id)} className="delete-btn">
-                        <FaTrash size={12} /> Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredUsers.map(user => {
+                const isSelected = selectedUsers.includes(user.dUser_ID);
+
+                return (
+                  <tr
+                    key={user.dUser_ID}
+                    className={isSelected ? 'selected-row' : ''}
+                    onClick={(e) => {
+                      // Prevent triggering on button or checkbox clicks
+                      if (
+                        e.target.tagName !== 'BUTTON' &&
+                        e.target.tagName !== 'svg' &&
+                        e.target.tagName !== 'path' &&
+                        e.target.type !== 'checkbox'
+                      ) {
+                        if (isSelected) {
+                          setSelectedUsers(prev => prev.filter(id => id !== user.dUser_ID));
+                        } else {
+                          setSelectedUsers(prev => [...prev, user.dUser_ID]);
+                        }
+                      }
+                    }}
+                  >
+                    <td className="role-col">{user.dUser_ID}</td>
+                    <td className="name-col">{user.dName}</td>
+                    <td className="email-col">{user.dEmail}</td>
+                    <td className="role-col">{user.dUser_Type}</td>
+                    <td className="status-col">{user.dStatus}</td>
+                    <td className="actions-col">
+                      <div className="action-buttons">
+                        <button onClick={() => handleEdit(user)} className="edit-btn">
+                          <FaEdit size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent row click
+                            setSelectedUsers([user.dUser_ID]); // Prepare only that user
+                            setShowDeleteModal(true);
+                          }}
+                          className="delete-btn"
+                        >
+                          <FaTrash size={12} /> Delete
+                        </button>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            if (e.target.checked) {
+                              setSelectedUsers(prev => [...prev, user.dUser_ID]);
+                            } else {
+                              setSelectedUsers(prev => prev.filter(id => id !== user.dUser_ID));
+                            }
+                          }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+            {selectedUsers.length > 1 && (
+              <div className="bulk-delete-container">
+                <button
+                  className="bulk-delete-btn"
+                  onClick={() => {
+                    setShowDeleteModal(true);
+                  }}
+                >
+                  <FaTrash /> Delete Selected ({selectedUsers.length})
+                </button>
+              </div>
+            )}
         </div>
       </div>
 
@@ -410,8 +566,8 @@ const UserManagement = () => {
                     >
                       <option value="Admin">Admin</option>
                       <option value="HR">HR</option>
-                      <option value="Reports POC">Reports POC</option>
-                      <option value="C&B">C&B</option>
+                      <option value="REPORTS">REPORTS</option>
+                      <option value="CNB">CNB</option>
                     </select>
                   </div>
                 </div>
@@ -434,7 +590,6 @@ const UserManagement = () => {
                           <th>Name</th>
                           <th>Email</th>
                           <th>Role</th>
-                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -445,11 +600,10 @@ const UserManagement = () => {
                             <td>{user.name}</td>
                             <td>{user.email}</td>
                             <td>{user.role}</td>
-                            <td>{user.status}</td>
                             <td>
                               <button
                                 className="remove-btn"
-                                onClick={removeIndividualPreview}
+                                onClick={() => handleRemoveFromPreview(user.employeeId)}
                               >
                                 <FaTimes />
                               </button>
@@ -616,6 +770,43 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay">
+        <div className="modal">
+          <h3>Confirm Deletion</h3>
+          <p>
+            Type <strong>CONFIRM</strong> to delete the following user(s):
+          </p>
+          <ul>
+            {users
+              .filter(user => selectedUsers.includes(user.dUser_ID))
+              .map(user => (
+                <li key={user.dUser_ID}>{user.dName}</li>
+              ))}
+          </ul>
+          <input
+            type="text"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+          />
+          <button
+            disabled={deleteConfirmText !== 'CONFIRM'}
+            onClick={handleDeleteUsers}
+          >
+            Confirm Delete
+          </button>
+          <button
+            onClick={() => {
+              setShowDeleteModal(false);
+              setDeleteConfirmText('');
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      )}
       
       {/* Edit User Modal */}
       {editModalOpen && currentUser && (
@@ -673,8 +864,8 @@ const UserManagement = () => {
                 >
                   <option value="Admin">Admin</option>
                   <option value="HR">HR</option>
-                  <option value="Reports POC">Reports POC</option>
-                  <option value="C&B">C&B</option>
+                  <option value="REPORTS">REPORTS</option>
+                  <option value="CNB">CNB</option>
                 </select>
               </div>
             </div>
