@@ -1,73 +1,176 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+
+const ForgotPasswordModal = ({ onClose, onSubmit }) => {
+  const [email, setEmail] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(email);
+    navigate('/otp');
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <h3>Reset Your Password</h3>
+        <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
+        <form onSubmit={handleSubmit} className="modal-form">
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <div className="modal-buttons">
+            <button type="button" onClick={onClose}>Cancel</button>
+            <button type="submit">Send OTP</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const employeeIdRef = useRef(null);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const carouselImages = [
+    '/assets/stephen1.jpg',
+    '/assets/stephen2.jpg',
+    '/assets/stephen3.jpg',
+  ];
+
+  useEffect(() => {
+    if (employeeIdRef.current) {
+      employeeIdRef.current.focus();
+    }
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onContinue();
+    
+    try {
+      // Check if password has expired
+      const response = await fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: employeeId,
+          password: password,
+          otp: ""
+        }),
+      });
+  
+      if (!response.ok) {
+        console.error('Server returned error:', response.status);
+        throw new Error('Failed to check password expiration');
+      }
+      
+      const data = await response.json();
+      console.log('Login response:', data); // Debug log to see structure
+      
+      // Check for expired password in the correct location (data.data.expired)
+      if (data.data && data.data.expired) {
+        const confirmChange = window.confirm('Your password has expired. Change password?');
+        if (confirmChange) {
+          localStorage.setItem('userId', employeeId);
+          navigate('/change-password');
+        } else {
+          // Stay on the login page if user declines to change password
+          return;
+        }
+        return; // Stop the login flow regardless
+      }
+    
+      // Only reach here if password is not expired
+      localStorage.setItem('userId', employeeId);
+      navigate('/otp');
+    } catch (error) {
+      console.error('Error checking password expiration:', error);
+      alert('Unable to verify account status. Please try again or contact support.');
+    }
   };
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z-._!@]/g, ''); // Only letters and periods
-    const truncatedValue = filteredValue.slice(0, 20);      // Max 30 chars
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
+    const truncatedValue = filteredValue.slice(0, 20);
     setPassword(truncatedValue);
   };
 
   const handleEmployeeIdChange = (e) => {
     const value = e.target.value;
     const filteredValue = value.replace(/[^0-9]/g, '');
-    const truncatedValue = filteredValue.slice(0, 10);        // Max 10 chars
+    const truncatedValue = filteredValue.slice(0, 10);
     setEmployeeId(truncatedValue);
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) =>
+        prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1
+      );
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [carouselImages.length]);
 
   return (
     <div className="iris-wrapper">
       <div className="iris-login-box">
-        {/* Left Panel */}
         <div className="iris-left">
-          <img src="assets/logo.png" alt="IRIS Logo" className="iris-logo" />
+          <img src="/assets/logo.png" alt="IRIS Logo" className="iris-logo" />
           <h2 className="iris-title">IRIS</h2>
           <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
 
           <form className="iris-form" onSubmit={handleSubmit}>
             <div className="iris-input-wrapper">
-              <label htmlFor="employee-id" className="iris-label">Employee ID</label>
+              <label className="iris-label">Username</label>
               <span className="iris-icon">
-                <img src="assets/user-icon.png" alt="User Icon" />
+                <img src="/assets/user-icon.png" alt="User Icon" />
               </span>
-              <input 
-                id="employee-id" 
-                type="text" 
+              <input
+                id="employee-id"
+                type="text"
                 value={employeeId}
                 onChange={handleEmployeeIdChange}
-                required 
+                required
+                ref={employeeIdRef}
               />
             </div>
 
             <div className="iris-input-wrapper">
-              <label htmlFor="password" className="iris-label">Password</label>
-              <span className="iris-icon">
-                <img src="assets/lock-icon.png" alt="Lock Icon" />
+              <label className="iris-label">Password</label>
+              <span className="iris-icon password-icon">
+                <img src="/assets/lock-icon.png" alt="Lock Icon" />
               </span>
-              <div className="input-wrapper">
-                <input 
+              <div className="input-wrapper" style={{ position: 'relative' }}>
+                <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={handlePasswordChange}
-                  required 
+                  required
+                  pattern="[a-zA-Z0-9\-._!@]+"
+                  title="Password can contain letters, numbers, and -._!@"
                 />
                 <button
                   type="button"
                   className="eye-icon-btn"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   tabIndex={-1}
                 >
                   {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
@@ -75,26 +178,58 @@ const Login = ({ onContinue, onForgotPassword }) => {
               </div>
             </div>
 
-            <a href="#" className="iris-forgot" onClick={(e) => {
-              e.preventDefault();
-              onForgotPassword();
-            }}>Forgot Password?</a>
+            <div className="iris-forgot-wrapper">
+              <a
+                href="#"
+                className="iris-forgot"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowModal(true);
+                }}
+              >
+                Forgot Password?
+              </a>
+            </div>
 
-            <button type="submit" className="iris-button">Continue</button>
+            <div className="iris-button-wrapper">
+              <button type="submit" className="iris-button">Continue</button>
+            </div>
           </form>
         </div>
 
-        {/* Right Panel */}
-        <div
-          className="iris-right"
-          style={{ backgroundImage: `url("/assets/right-login-bg.png")`, backgroundSize: 'cover' }}
-        >
-          <div className="iris-right-content">
-            <h2>Welcome in to IRIS</h2>
-            <p>Empowering organizations to recognize and reward excellence through data-driven performance management.</p>
+        <div className="iris-right">
+          <div className="carousel-container">
+            <div
+              className="carousel-slide"
+              style={{
+                backgroundImage: `url(${carouselImages[currentImageIndex]})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }}
+            />
+            <div className="carousel-indicators">
+              {carouselImages.map((_, index) => (
+                <span
+                  key={index}
+                  className={`indicator ${index === currentImageIndex ? 'active' : ''}`}
+                  onClick={() => setCurrentImageIndex(index)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {showModal && (
+        <ForgotPasswordModal
+          onClose={() => setShowModal(false)}
+          onSubmit={(email) => {
+            setShowModal(false);
+            console.log('Sending OTP to:', email);
+            alert(`OTP sent to ${email}`);
+          }}
+        />
+      )}
     </div>
   );
 };
