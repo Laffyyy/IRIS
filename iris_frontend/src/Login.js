@@ -62,13 +62,15 @@ const Login = ({ onContinue, onForgotPassword }) => {
     
     try {
       // Check if password has expired
-      const response = await fetch('http://localhost:3000/api/login/checkExpiration', {
+      const response = await fetch('http://localhost:3000/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: employeeId
+          userId: employeeId,
+          password: password,
+          otp: ""
         }),
       });
   
@@ -78,25 +80,26 @@ const Login = ({ onContinue, onForgotPassword }) => {
       }
       
       const data = await response.json();
+      console.log('Login response:', data); // Debug log to see structure
       
-      if (data.isExpired) {
-        // Show confirmation dialog
+      // Check for expired password in the correct location (data.data.expired)
+      if (data.data && data.data.expired) {
         const confirmChange = window.confirm('Your password has expired. Change password?');
         if (confirmChange) {
           localStorage.setItem('userId', employeeId);
-          onForgotPassword(); // Navigate to change password page
+          navigate('/change-password');
+        } else {
+          // Stay on the login page if user declines to change password
           return;
         }
-        // If they cancel, stay on login page - DO NOT PROCEED
-        return;
+        return; // Stop the login flow regardless
       }
     
+      // Only reach here if password is not expired
       localStorage.setItem('userId', employeeId);
-      onContinue();
+      navigate('/otp');
     } catch (error) {
       console.error('Error checking password expiration:', error);
-      // DO NOT fall back to regular login flow when there's an error
-      // Instead, show an error message to the user
       alert('Unable to verify account status. Please try again or contact support.');
     }
   };

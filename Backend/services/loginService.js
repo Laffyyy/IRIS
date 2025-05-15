@@ -15,9 +15,18 @@ class LoginService {
                 throw new Error('User not found');
             }
             const user = rows[0];
-            const isMatch = await bcrypt.compare(password, user.dPassword_hash);
+            const isMatch = await bcrypt.compare(password, user.dPassword1_hash);
             if (!isMatch) {
                 throw new Error('Invalid password');
+            }
+
+            const isExpired = await this.checkPasswordExpiration(userID);
+            if (isExpired) {
+                // If password is expired, return a specific response
+                return { 
+                    expired: true, 
+                    message: 'Your password has expired. Please reset your password.' 
+                };
             }
 
             // If OTP is provided, verify it
@@ -30,177 +39,18 @@ class LoginService {
                 console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
                 return { message: 'OTP sent to your registered email or phone' };
             }
-
+            /*
             // Include the user's role in the token payload
             const token = jwt.sign(
                 { id: user.dUser_ID, role: user.dUser_Type },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
-            );
+            );*/
 
             await db.query('UPDATE tbl_login SET dLast_Login = NOW() WHERE dUser_ID = ?', [userID]);
 
             return { token, user: { id: user.dUser_ID, email: user.dEmail, user_type: user.dUser_Type } };
 
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async getUserStatus(userID) {
-        try {
-            // Query the database to check the user's status
-            const [rows] = await db.query('SELECT dStatus FROM tbl_login WHERE dUser_ID = ?', [userID]);
-            
-            if (rows.length === 0) {
-                throw new Error('User not found');
-            }
-            
-            const status = rows[0].dStatus;
-            return status;
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async updateFirstTimeUser(userID, newPassword, securityQuestions) {
-        try {
-          // Validate inputs
-          if (!userID || !newPassword || !securityQuestions) {
-            throw new Error('Missing required parameters');
-          }
-      
-          // Make sure security questions and answers exist
-          const requiredFields = ['Security_Question', 'Security_Question2', 'Security_Question3', 
-                                 'Security_Answer', 'Security_Answer2', 'Security_Answer3'];
-          
-          for (const field of requiredFields) {
-            if (!securityQuestions[field]) {
-              throw new Error(`Missing required field: ${field}`);
-            }
-          }
-          
-          // First get the current password hashes to check against reuse
-          const [currentUser] = await db.query(
-            'SELECT dPassword1_hash, dPassword2_hash, dPassword3_hash FROM tbl_login WHERE dUser_ID = ?', 
-            [userID]
-          );
-              
-          if (currentUser.length === 0) {
-            throw new Error('User not found');
-          }
-              
-          // Hash the new password
-          const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-              
-          // Check if new password matches any previous passwords
-          const previousPasswords = [
-            currentUser[0].dPassword1_hash,
-            currentUser[0].dPassword2_hash,
-            currentUser[0].dPassword3_hash
-          ].filter(Boolean); // Filter out null values
-              
-          // Check each previous password
-          for (const oldPasswordHash of previousPasswords) {
-            if (oldPasswordHash) {
-              // We need to check if the new plain text password matches any of the hashed ones
-              const isMatch = await bcrypt.compare(newPassword, oldPasswordHash);
-              if (isMatch) {
-                throw new Error('New password cannot be the same as any of your last 3 passwords');
-              }
-            }
-          }
-            // Calculate expiration date (90 days from now)
-            const expirationDate = new Date();
-            expirationDate.setDate(expirationDate.getDate() + 90);
-
-            // Normalize security answers - handle null/undefined values
-            const normalizedSecurityAnswers = [
-            securityQuestions.Security_Answer || '',
-            securityQuestions.Security_Answer2 || '',
-            securityQuestions.Security_Answer3 || ''
-          ].map(answer => (answer || '').toLowerCase());
-          
-          // Continue with password update - move current password to dPassword2_hash
-          await db.query(
-            `UPDATE tbl_login 
-             SET dPassword3_hash = dPassword2_hash,
-                 dPassword2_hash = dPassword1_hash, 
-                 dPassword1_hash = ?,
-                 dSecurity_Question1 = ?, 
-                 dSecurity_Question2 = ?, 
-                 dSecurity_Question3 = ?,
-                 dAnswer_1 = ?, 
-                 dAnswer_2 = ?, 
-                 dAnswer_3 = ?,
-                 dStatus = 'ACTIVE',
-                 tLast_Login = NOW(),
-                 tLastUpdated = NOW(),
-                 tExpirationDate = ?
-             WHERE dUser_ID = ?`,
-            [
-                hashedNewPassword,
-                securityQuestions.Security_Question,
-                securityQuestions.Security_Question2,
-                securityQuestions.Security_Question3,
-                normalizedSecurityAnswers[0],
-                normalizedSecurityAnswers[1],
-                normalizedSecurityAnswers[2],
-                expirationDate,
-                userID
-            ]
-          );
-          
-          return { message: 'Profile updated successfully' };
-        } catch (error) {
-          console.error('Error in updateFirstTimeUser:', error);
-          throw error;
-        }
-      }
-    
-    async changePassword(userID, newPassword) {
-        try {
-            // Get existing password hashes
-            const [currentUser] = await db.query(
-                'SELECT dPassword1_hash, dPassword2_hash, dPassword3_hash FROM tbl_login WHERE dUser_ID = ?', 
-                [userID]
-            );
-            
-            if (currentUser.length === 0) {
-                throw new Error('User not found');
-            }
-            
-            // Check if new password matches any previous passwords
-            const previousPasswords = [
-                currentUser[0].dPassword1_hash,
-                currentUser[0].dPassword2_hash,
-                currentUser[0].dPassword3_hash
-            ].filter(Boolean);
-            
-            for (const oldPasswordHash of previousPasswords) {
-                if (oldPasswordHash) {
-                    const isMatch = await bcrypt.compare(newPassword, oldPasswordHash);
-                    if (isMatch) {
-                        throw new Error('New password cannot be the same as any of your last 3 passwords');
-                    }
-                }
-            }
-            
-            // Hash the new password
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-            
-            // Update password history
-            await db.query(`
-                UPDATE tbl_login 
-                SET dPassword3_hash = dPassword2_hash,
-                    dPassword2_hash = dPassword1_hash, 
-                    dPassword1_hash = ?,
-                    tLastUpdated = NOW()
-                WHERE dUser_ID = ?`, 
-                [hashedPassword, userID]
-            );
-            
-            return { message: 'Password changed successfully' };
         } catch (error) {
             throw error;
         }
@@ -232,8 +82,6 @@ class LoginService {
         }
     }
 
-    
-
     async registerUser(userData) {
         try {
             // Generate a custom userID
@@ -261,9 +109,9 @@ class LoginService {
             // Set default created_by if not provided
             const createdBy = userData.created_by || "123";
 
-            // Calculate expiration date (90 days from now)
+
             const expirationDate = new Date();
-            expirationDate.setDate(expirationDate.getDate() + 90);
+            expirationDate.setMinutes(expirationDate.getMinutes() + 15);
 
             // Create the new user object
             const newUser = new login(
