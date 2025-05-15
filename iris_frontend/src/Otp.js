@@ -132,7 +132,7 @@ import './Otp.css';
       if (userStatus === 'FIRST-TIME'){
         navigate('../change-password');
       } else if (userStatus === 'ACTIVE'){
-        alert('Login successful');
+        navigate('/dashboard');
       }
     }
   };

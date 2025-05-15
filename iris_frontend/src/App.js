@@ -6,7 +6,6 @@ import UserManagement from './pages/admin/UserManagement';
 import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import './App.css';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
@@ -24,6 +23,7 @@ function App() {
           <Route path="/security-questions" element={<SecurityQuestions />} />
           <Route path="/update-password" element={<UpdatePassword />} />  {/* Add this line for UpdatePassword */}
         </Routes>
+      </div>
         <div className="app-container">
           <Sidebar />
           <main className="main-content">
@@ -40,7 +40,6 @@ function App() {
             </Routes>
           </main>
         </div>
-      </div>
     </Router>
   );
 }
