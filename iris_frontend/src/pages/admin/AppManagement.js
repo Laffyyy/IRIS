@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import './AppManagement.css';
 
 const AppManagement = () => {
-  const [date, setDate] = useState(new Date(2025, 4, 1)); // May 2025
-  const [minWorkdays, setMinWorkdays] = useState(10); // Default to 10
+  const [month, setMonth] = useState('April');
+  const [year, setYear] = useState('2025');
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
+  const [understood, setUnderstood] = useState(false);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -12,29 +15,29 @@ const AppManagement = () => {
 
   const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() + i).toString());
 
-  const handleMonthChange = (e) => {
-    const newDate = new Date(date);
-    newDate.setMonth(months.indexOf(e.target.value));
-    setDate(newDate);
-  };
-
-  const handleYearChange = (e) => {
-    const newDate = new Date(date);
-    newDate.setFullYear(parseInt(e.target.value));
-    setDate(newDate);
-  };
-
-  const handleWorkdaysChange = (e) => {
-    const value = parseInt(e.target.value) || 0;
-    setMinWorkdays(value);
-  };
+  // Get current real-time month and year
+  const currentDate = new Date();
+  const currentMonth = months[currentDate.getMonth()];
+  const currentYear = currentDate.getFullYear().toString();
 
   const handleSave = () => {
-    console.log('Configuration saved:', {
-      processingDate: date,
-      minWorkdays
-    });
-    alert('Configuration saved successfully!');
+    setShowConfirmation(true);
+  };
+
+  const handleConfirm = () => {
+    if (confirmationText === 'CONFIRM' && understood) {
+      console.log('Processing month set to:', { month, year });
+      alert('Processing month configured successfully!');
+      setShowConfirmation(false);
+      setConfirmationText('');
+      setUnderstood(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setShowConfirmation(false);
+    setConfirmationText('');
+    setUnderstood(false);
   };
 
   return (
@@ -48,53 +51,97 @@ const AppManagement = () => {
         </div>
 
         <div className="configuration-section">
-          <h2>Processing Period</h2>
-          
-          <div className="form-row">
-            <div className="date-selectors">
-              <div className="form-group">
-                <label>Month</label>
-                <select
-                  value={months[date.getMonth()]}
-                  onChange={handleMonthChange}
-                >
-                  {months.map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>Year</label>
-                <select
-                  value={date.getFullYear().toString()}
-                  onChange={handleYearChange}
-                >
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="active-month-card">
+            <div className="active-month-header">
+              <h3>Active Month</h3>
             </div>
+            <div className="active-month-value">
+              {currentMonth} {currentYear}
+            </div>
+          </div>
 
-            <div className="form-group workdays-input">
-              <label>Minimum Workdays for Proration</label>
-              <input
-                type="number"
-                min="1"
-                value={minWorkdays}
-                onChange={handleWorkdaysChange}
-              />
+          <h2>Current Processing Month</h2>
+          <div className="processing-month-value">
+            {month} {year}
+          </div>
+        </div>
+
+        <div className="configuration-section">
+          <h2>Configure Processing Month</h2>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Month</label>
+              <select value={month} onChange={(e) => setMonth(e.target.value)}>
+                {months.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Year</label>
+              <select value={year} onChange={(e) => setYear(e.target.value)}>
+                {years.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
 
         <div className="save-section">
           <button onClick={handleSave} className="save-btn">
-            Save Configuration
+            Save Changes
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-content">
+              <h3>Confirmation Required</h3>
+              
+              <div className="warning">
+                <p>Warning: Processing month will be set to <strong>{month} {year}</strong>. It cannot be change after it has been configured.</p>
+              </div>
+              
+              <div className="confirmation-checkbox">
+                <input
+                  type="checkbox"
+                  id="understand"
+                  checked={understood}
+                  onChange={(e) => setUnderstood(e.target.checked)}
+                />
+                <label htmlFor="understand">I understand that this action cannot be undone</label>
+              </div>
+              
+              <div className="confirmation-input">
+                <p>Type "CONFIRM" to proceed</p>
+                <input
+                  type="text"
+                  value={confirmationText}
+                  onChange={(e) => setConfirmationText(e.target.value.toUpperCase())}
+                  placeholder="CONFIRM"
+                />
+              </div>
+              
+              <div className="modal-buttons">
+                <button onClick={handleCancel} className="cancel-btn">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className="confirm-btn"
+                  disabled={confirmationText !== 'CONFIRM' || !understood}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
