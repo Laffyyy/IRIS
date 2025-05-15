@@ -11,6 +11,7 @@ const ChangePassword = ({ onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate(); // Initialize useNavigate
+  const [passwordWarning, setPasswordWarning] = useState('');
 
   const [passwords, setPasswords] = useState({
     newPassword: '',
@@ -54,15 +55,28 @@ const ChangePassword = ({ onCancel }) => {
     }));
   };
 
-  const handlePasswordChange = (e, field) => {
-    const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
-    const truncatedValue = filteredValue.slice(0, 30);
-    setPasswords(prev => ({
-      ...prev,
-      [field]: truncatedValue
-    }));
-  };
+const handlePasswordChange = (e, field) => {
+  const value = e.target.value;
+
+  const filteredValue = value.replace(/[^a-zA-Z0-9!@#$%^&*()_\-+=<>?{}[\]~.,:;'"|\\]/g, '');
+  const truncatedValue = filteredValue.slice(0, 30);
+
+  // checker for newPassword
+  if (field === 'newPassword') {
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,20}$/;
+
+    // Only trigger alert if password is long enough but still weak
+    if (truncatedValue.length >= 20 && !strongPasswordRegex.test(truncatedValue)) {
+      alert('Password must include uppercase, lowercase, number, and special character.');
+    }
+  }
+
+  setPasswords(prev => ({
+    ...prev,
+    [field]: truncatedValue,
+  }));
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
