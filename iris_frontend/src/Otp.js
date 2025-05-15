@@ -86,6 +86,7 @@ import './Otp.css';
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
+      setIsComplete(true);
     }
   };
 
@@ -126,8 +127,13 @@ import './Otp.css';
       if (onComplete) {
         onComplete();
       }
-      // Navigate to the Security Questions page
-      navigate('/security-questions');
+      
+      const userStatus = localStorage.getItem('status');
+      if (userStatus === 'FIRST-TIME'){
+        navigate('../change-password');
+      } else if (userStatus === 'ACTIVE'){
+        alert('Login successful');
+      }
     }
   };
 

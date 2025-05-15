@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ChangePassword.css';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const ChangePassword = ({ onCancel }) => {
@@ -9,6 +10,7 @@ const ChangePassword = ({ onCancel }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const navigate = useNavigate(); // Initialize useNavigate
 
   const [passwords, setPasswords] = useState({
     newPassword: '',
@@ -16,9 +18,9 @@ const ChangePassword = ({ onCancel }) => {
   });
 
   const [securityQuestions, setSecurityQuestions] = useState({
-    question1: 'What is your mother\'s maiden name?',
-    question2: 'What was the name of your first pet?',
-    question3: 'What was the name of your elementary school?'
+    question1: 'Select a question',
+    question2: 'Select a question?',
+    question3: 'Select a question?'
   });
 
   const [answers, setAnswers] = useState({
@@ -114,9 +116,8 @@ const ChangePassword = ({ onCancel }) => {
       }
   
       setSuccess(true);
-      setTimeout(() => {
-        onCancel(); // Redirect to login after successful password change
-      }, 2000);
+      alert('Password changed successfully');
+      navigate('/')
     } catch (err) {
       // Client-side validation errors only
       alert(err.message);

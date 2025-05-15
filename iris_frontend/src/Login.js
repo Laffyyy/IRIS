@@ -44,6 +44,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
+  const navigate = useNavigate();
 
   const carouselImages = [
     '/assets/stephen1.jpg',
@@ -57,10 +58,23 @@ const Login = ({ onContinue, onForgotPassword }) => {
     }
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     localStorage.setItem('userId', employeeId);
     e.preventDefault();
     onContinue();
+    
+    const response = await fetch('http://localhost:3000/api/login/fetchStatus', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: employeeId,
+      }),
+    });
+
+    const data = await response.json();
+    localStorage.setItem('status', data.status);
   };
 
   const handlePasswordChange = (e) => {
@@ -77,6 +91,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
     setEmployeeId(truncatedValue);
   };
 
+  onContinue = (e) => {
+    navigate('/otp');
+  }
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) =>

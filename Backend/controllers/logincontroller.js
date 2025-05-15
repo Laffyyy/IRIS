@@ -41,7 +41,6 @@ class LoginController {
             // Return the status to the frontend
             res.status(200).json({ 
                 status: status,
-                isFirstTimeLogin: status === 'FIRST-TIME'
             });
         } catch (error) {
             console.error(`[ERROR] checkUserStatus failed:`, error);
