@@ -1,7 +1,7 @@
 // Otp.js
-import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import './Otp.css';
+import React, { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
+import "./Otp.css";
 
 const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
@@ -10,7 +10,7 @@ const Otp = ({ onBack, onComplete }) => {
   const [resendTime, setResendTime] = useState(90);
   const [canResend, setCanResend] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
+  const [otpValues, setOtpValues] = useState(Array(6).fill(""));
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -29,11 +29,11 @@ const Otp = ({ onBack, onComplete }) => {
   }, [resendTime, canResend]);
 
   useEffect(() => {
-    const allFilled = otpValues.every(value => value !== '');
+    const allFilled = otpValues.every((value) => value !== "");
     setIsComplete(allFilled);
 
     if (allFilled) {
-      document.getElementById('otp-submit-button').focus();
+      document.getElementById("otp-submit-button").focus();
     }
   }, [otpValues]);
 
@@ -42,16 +42,16 @@ const Otp = ({ onBack, onComplete }) => {
     setResendTime(90);
     setExpireTime(180);
     setCanResend(false);
-    setOtpValues(Array(6).fill(''));
-    inputsRef.current.forEach(input => {
-      if (input) input.value = '';
+    setOtpValues(Array(6).fill(""));
+    inputsRef.current.forEach((input) => {
+      if (input) input.value = "";
     });
     inputsRef.current[0]?.focus();
   };
 
   const handleInputChange = (e, index) => {
     let value = e.target.value.toUpperCase();
-    value = value.replace(/[^A-Z0-9]/g, '');
+    value = value.replace(/[^A-Z0-9]/g, "");
 
     if (value.length > 1) return;
 
@@ -66,21 +66,21 @@ const Otp = ({ onBack, onComplete }) => {
   };
 
   const handleKeyDown = (e, index) => {
-    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+    if (e.key === "Backspace" && !e.target.value && index > 0) {
       const newOtpValues = [...otpValues];
-      newOtpValues[index] = '';
+      newOtpValues[index] = "";
       setOtpValues(newOtpValues);
       inputsRef.current[index - 1].focus();
     }
   };
 
   const handlePaste = (e) => {
-    const pastedData = e.clipboardData.getData('Text').toUpperCase();
-    const filtered = pastedData.replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const pastedData = e.clipboardData.getData("Text").toUpperCase();
+    const filtered = pastedData.replace(/[^A-Z0-9]/g, "").slice(0, 6);
 
     if (filtered.length === 6) {
-      const newOtpValues = Array(6).fill('');
-      filtered.split('').forEach((char, i) => {
+      const newOtpValues = Array(6).fill("");
+      filtered.split("").forEach((char, i) => {
         inputsRef.current[i].value = char;
         newOtpValues[i] = char;
       });
@@ -93,7 +93,7 @@ const Otp = ({ onBack, onComplete }) => {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleSubmit = () => {
@@ -103,7 +103,7 @@ const Otp = ({ onBack, onComplete }) => {
         onComplete();
       }
       // Navigate to the Security Questions page
-      navigate('/security-questions');
+      navigate("/security-questions");
     }
   };
 
@@ -125,40 +125,44 @@ const Otp = ({ onBack, onComplete }) => {
 
         <label className="otp-label">Enter OTP</label>
         <div className="otp-input-group" onPaste={handlePaste}>
-          {Array(6).fill('').map((_, i) => (
-            <input
-              key={i}
-              type="text"
-              maxLength="1"
-              className="otp-input"
-              inputMode="numeric"
-              onChange={(e) => handleInputChange(e, i)}
-              onKeyDown={(e) => handleKeyDown(e, i)}
-              ref={(el) => (inputsRef.current[i] = el)}
-            />
-          ))}
+          {Array(6)
+            .fill("")
+            .map((_, i) => (
+              <input
+                key={i}
+                type="text"
+                maxLength="1"
+                className="otp-input"
+                inputMode="numeric"
+                onChange={(e) => handleInputChange(e, i)}
+                onKeyDown={(e) => handleKeyDown(e, i)}
+                ref={(el) => (inputsRef.current[i] = el)}
+              />
+            ))}
         </div>
 
         <div className="otp-footer">
           <p className="otp-expiry">
             {expireTime > 0
               ? `Code will expire in ${formatTime(expireTime)}`
-              : 'The code has expired'}
+              : "The code has expired"}
           </p>
           <button
             className="resend-otp"
             onClick={handleResendCode}
             disabled={!canResend}
           >
-            {canResend ? 'Resend Code' : `Resend in ${formatTime(resendTime)}`}
+            {canResend ? "Resend Code" : `Resend in ${formatTime(resendTime)}`}
           </button>
         </div>
 
         <div className="otp-button-group">
-          <button className="otp-back" onClick={onBack}>Back</button>
+          <button className="otp-back" onClick={onBack || (() => navigate(-1))}>
+            Back
+          </button>
           <button
             id="otp-submit-button"
-            className={`otp-submit ${isComplete ? 'otp-submit-enabled' : ''}`}
+            className={`otp-submit ${isComplete ? "otp-submit-enabled" : ""}`}
             onClick={handleSubmit}
             disabled={!isComplete}
             type="button"

@@ -1,5 +1,6 @@
 const express = require('express');
 const loginRoutes = require('./routes/loginroutes');
+const securityRoutes = require('./routes/securityroutes');
 const helment = require('helmet');
 const cors = require('cors');
 
@@ -17,7 +18,7 @@ app.use(cors({
 
 
 app.use('/api/login', loginRoutes);
-
+app.use('/api/security', securityRoutes);
 
 
 module.exports = app;

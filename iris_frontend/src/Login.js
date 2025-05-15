@@ -1,23 +1,39 @@
-import React, { useState, useRef, useEffect } from 'react';
-import './Login.css';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from "react";
+import "./Login.css";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+// Login.js or EmailContext.js
+import { createContext, useContext } from "react";
+
+export const EmailContext = createContext();
+export const useEmail = () => useContext(EmailContext);
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(email);
-    navigate('/otp');
+    setIsSending(true);
+
+    try {
+      await onSubmit(email); // wait for OTP sending process
+      navigate("/otp");
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <h3>Reset Your Password</h3>
-        <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
+        <p className="modal-text">
+          Please enter your registered email to receive an OTP code.
+        </p>
         <form onSubmit={handleSubmit} className="modal-form">
           <input
             type="email"
@@ -27,8 +43,12 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
             required
           />
           <div className="modal-buttons">
-            <button type="button" onClick={onClose}>Cancel</button>
-            <button type="submit">Send OTP</button>
+            <button type="button" onClick={onClose} disabled={isSending}>
+              Cancel
+            </button>
+            <button type="submit" disabled={isSending}>
+              {isSending ? "Sending..." : "Send OTP"}
+            </button>
           </div>
         </form>
       </div>
@@ -38,17 +58,17 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
 
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [employeeId, setEmployeeId] = useState('');
-  const [password, setPassword] = useState('');
+  const [employeeId, setEmployeeId] = useState("");
+  const [password, setPassword] = useState("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
 
   const carouselImages = [
-    '/assets/stephen1.jpg',
-    '/assets/stephen2.jpg',
-    '/assets/stephen3.jpg',
+    "/assets/stephen1.jpg",
+    "/assets/stephen2.jpg",
+    "/assets/stephen3.jpg",
   ];
 
   useEffect(() => {
@@ -60,19 +80,19 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     onContinue && onContinue(); // Optional if you have external logic
-    navigate('/otp');
+    navigate("/otp");
   };
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, "");
     const truncatedValue = filteredValue.slice(0, 20);
     setPassword(truncatedValue);
   };
 
   const handleEmployeeIdChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^0-9]/g, '');
+    const filteredValue = value.replace(/[^0-9]/g, "");
     const truncatedValue = filteredValue.slice(0, 10);
     setEmployeeId(truncatedValue);
   };
@@ -92,7 +112,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
         <div className="iris-left">
           <img src="/assets/logo.png" alt="IRIS Logo" className="iris-logo" />
           <h2 className="iris-title">IRIS</h2>
-          <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
+          <p className="iris-subtitle">
+            Incentive Reporting & Insight Solution
+          </p>
 
           <form className="iris-form" onSubmit={handleSubmit}>
             <div className="iris-input-wrapper">
@@ -115,10 +137,10 @@ const Login = ({ onContinue, onForgotPassword }) => {
               <span className="iris-icon password-icon">
                 <img src="/assets/lock-icon.png" alt="Lock Icon" />
               </span>
-              <div className="input-wrapper" style={{ position: 'relative' }}>
+              <div className="input-wrapper" style={{ position: "relative" }}>
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={handlePasswordChange}
                   required
@@ -129,10 +151,14 @@ const Login = ({ onContinue, onForgotPassword }) => {
                   type="button"
                   className="eye-icon-btn"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   tabIndex={-1}
                 >
-                  {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                  {showPassword ? (
+                    <FaEyeSlash size={14} />
+                  ) : (
+                    <FaEye size={14} />
+                  )}
                 </button>
               </div>
             </div>
@@ -151,7 +177,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
             </div>
 
             <div className="iris-button-wrapper">
-              <button type="submit" className="iris-button">Continue</button>
+              <button type="submit" className="iris-button">
+                Continue
+              </button>
             </div>
           </form>
         </div>
@@ -162,15 +190,17 @@ const Login = ({ onContinue, onForgotPassword }) => {
               className="carousel-slide"
               style={{
                 backgroundImage: `url(${carouselImages[currentImageIndex]})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
+                backgroundSize: "cover",
+                backgroundPosition: "center",
               }}
             />
             <div className="carousel-indicators">
               {carouselImages.map((_, index) => (
                 <span
                   key={index}
-                  className={`indicator ${index === currentImageIndex ? 'active' : ''}`}
+                  className={`indicator ${
+                    index === currentImageIndex ? "active" : ""
+                  }`}
                   onClick={() => setCurrentImageIndex(index)}
                 />
               ))}
@@ -183,9 +213,14 @@ const Login = ({ onContinue, onForgotPassword }) => {
         <ForgotPasswordModal
           onClose={() => setShowModal(false)}
           onSubmit={(email) => {
-            setShowModal(false);
-            console.log('Sending OTP to:', email);
-            alert(`OTP sent to ${email}`);
+            return new Promise((resolve) => {
+              console.log("Sending OTP to:", email);
+              setTimeout(() => {
+                alert(`OTP sent successfully! Please check your email.`);
+                setShowModal(false);
+                resolve();
+              }, 1000); // simulate network delay
+            });
           }}
         />
       )}
