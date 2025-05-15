@@ -3,8 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
-import SecurityQuestions from './SecurityQuestions';
-import UpdatePassword from './UpdatePassword';
+import SecurityQuestions from './SecurityQuestions';  // Import SecurityQuestions
+import UpdatePassword from './UpdatePassword';  // Import UpdatePassword
 
 function App() {
   return (
@@ -15,7 +15,7 @@ function App() {
           <Route path="/otp" element={<Otp />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/security-questions" element={<SecurityQuestions />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />  {/* Add this line for UpdatePassword */}
         </Routes>
       </div>
     </Router>
