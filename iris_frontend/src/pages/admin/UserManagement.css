@@ -586,3 +586,112 @@ th {
     min-width: 600px;
   }
 }
+
+/* Additional CSS to complement existing styles in UserManagement.css */
+
+/* Make Edit User modal wider */
+.modal.edit-user-modal {
+  max-width: 900px !important;
+  width: 90%;
+}
+
+/* Layout for side-by-side sections */
+.password-security-container {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.password-change-section,
+.security-questions-section {
+  flex: 1;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #f8fafc;
+}
+
+.section-header {
+  font-size: 14px;
+  color: #004D8D;
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.password-fields,
+.security-questions-fields {
+  margin-top: 15px;
+}
+
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-container input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.toggle-password-btn:hover {
+  color: #004D8D;
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Security questions styling */
+.security-question-group {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.security-question-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Toggle visibility button styles */
+.visibility-toggle {
+  background: none;
+  border: none;
+  color: #004D8D;
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.visibility-toggle:hover {
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .password-security-container {
+    flex-direction: column;
+  }
+}
