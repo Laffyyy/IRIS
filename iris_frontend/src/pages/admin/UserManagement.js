@@ -4,7 +4,7 @@ import { FaKey, FaShieldAlt, FaChevronRight, FaChevronDown } from 'react-icons/f
 import './UserManagement.css';
 
 const UserManagement = () => {
-
+  // State declarations
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -18,22 +18,21 @@ const UserManagement = () => {
   ]);
 
   const [showPasswordFields, setShowPasswordFields] = useState(false);
-  const [showSecurityQuestions, setShowSecurityQuestions] = useState([]);
-
+  const [showSecurityQuestions, setShowSecurityQuestions] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [users, setUsers] = React.useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
   
-  // State for add user modal
+  // Add user modal state
   const [newUser, setNewUser] = useState({
     employeeId: '',
     email: '',
@@ -41,7 +40,7 @@ const UserManagement = () => {
     role: 'HR'
   });
 
-  // State for bulk upload
+  // Bulk upload state
   const [uploadMethod, setUploadMethod] = useState('individual');
   const [bulkUsers, setBulkUsers] = useState([]);
   const [invalidUsers, setInvalidUsers] = useState([]);
@@ -52,36 +51,46 @@ const UserManagement = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
-    const selectedUserNames = users
-  .filter(user => selectedUsers.includes(user.dUser_ID))
-  .map(user => user.dName);
-  
+
+  // Security question options
+  const securityQuestionOptions = [
+    "What was your first pet's name?",
+    "What city were you born in?",
+    "What is your mother's maiden name?",
+    "What was the name of your first school?",
+    "What was your childhood nickname?"
+  ];
+
+  // Fetch users on component mount
   useEffect(() => {
-    fetch("http://localhost:5000/api/users")
-      .then(res => res.json())
-      .then(data => {
-        console.log("Fetched users:", data); // ✅ This should show real data
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/users");
+        const data = await response.json();
         setUsers(data);
-      })
-      .catch(err => {
-        console.error("Failed to fetch users:", err);
-      });
-    }, []);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
-  // Filter users for main table
-const filteredUsers = users.filter(user => {
-  const matchesSearch =
-    (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.dName && user.dName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filter users based on search term and role
+  const filteredUsers = users.filter(user => {
+    const matchesSearch =
+      (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.dName && user.dName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const matchesRole =
-    roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
+    const matchesRole =
+      roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
 
-  return matchesSearch && matchesRole;
-});
+    return matchesSearch && matchesRole;
+  });
 
-  // Handle file drop for bulk upload
+  // File drag and drop handlers
   const handleDrag = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -107,51 +116,19 @@ const filteredUsers = users.filter(user => {
     }
   };
 
-  // Simulate file processing
+  // File processing (mock implementation)
   const handleFile = (file) => {
     setFile(file);
-    // Mock data
+    // Mock processing - replace with actual file processing
     const mockValidUsers = [
-      {
-        employeeId: 'E01M1',
-        name: 'John Aldie Abdul Doe',
-        email: 'john.aldie_abdul.deo@gmail.com',
-        role: 'Admin',
-        status: 'Active',
-        valid: true
-      },
-      {
-        employeeId: 'E02M1',
-        name: 'Jane Smith',
-        email: 'jane.smith@gmail.com',
-        role: 'Reports POC',
-        status: 'Active',
-        valid: true
-      }
+      { employeeId: 'E001', name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active', valid: true },
+      { employeeId: 'E002', name: 'Jane Smith', email: 'jane@example.com', role: 'HR', status: 'Active', valid: true }
     ];
     const mockInvalidUsers = [
-      {
-        employeeId: 'EQNM',
-        name: 'John Abise Abdul Doe',
-        email: 'john.abise.abaid.doe@gmail.com',
-        role: 'Admin',
-        status: 'Active',
-        valid: false,
-        reason: 'Invalid Format'
-      },
-      {
-        employeeId: 'EQ2M1',
-        name: 'Jane Smith',
-        email: 'jane.smith@gmail.com',
-        role: 'Report+ POC',
-        status: 'Active',
-        valid: false,
-        reason: 'Same Dataset'
-      }
+      { employeeId: 'E003', name: 'Invalid User', email: 'invalid', role: '', status: '', valid: false, reason: 'Missing required fields' }
     ];
     setBulkUsers(mockValidUsers);
     setInvalidUsers(mockInvalidUsers);
-    setPreviewTab('valid');
   };
 
   // Remove uploaded file
@@ -161,9 +138,9 @@ const filteredUsers = users.filter(user => {
     setInvalidUsers([]);
   };
 
-  // Generate template for bulk upload
+  // Generate CSV template for bulk upload
   const generateTemplate = () => {
-    const csvContent = "Employee ID,Name,Email,Role,Status\nE01M1,John Doe,john.doe@example.com,HR,Active";
+    const csvContent = "Employee ID,Name,Email,Role,Status\nE001,John Doe,john@example.com,Admin,Active";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -173,135 +150,92 @@ const filteredUsers = users.filter(user => {
     document.body.removeChild(link);
   };
 
+  // Add user to preview list
   const handleAddToList = () => {
     if (newUser.employeeId && newUser.email && newUser.name && newUser.role) {
-      setIndividualPreview(prev => [
-        ...prev,
-        {
-          ...newUser,
-          status: 'FIRST-TIME',
-        }
-      ]);
-
-      // Clear input after adding to the list
-      setNewUser({
-        employeeId: '',
-        email: '',
-        name: '',
-        role: 'HR'
-      });
+      setIndividualPreview(prev => [...prev, { ...newUser, status: 'FIRST-TIME' }]);
+      setNewUser({ employeeId: '', email: '', name: '', role: 'HR' });
     }
   };
-  
 
+  // Submit individual users
   const handleAddIndividual = async () => {
     if (individualPreview.length > 0) {
-      const usersToSend = individualPreview.map(user => ({
-        ...user,
-        password: 'defaultPass123',
-        createdBy: 'admin'
-      }));
-
       try {
-        console.log("Users to send:", usersToSend);
         const response = await fetch('http://localhost:5000/api/users/bulk', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ users: usersToSend }) // 👈 wrap in object
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            users: individualPreview.map(user => ({
+              ...user,
+              password: 'defaultPass123',
+              createdBy: 'admin'
+            }))
+          })
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to add users');
-        }
-
+        if (!response.ok) throw new Error('Failed to add users');
+        
         const result = await response.json();
-
-        // Optional: set updated users
-        setUsers(prev => [...prev, ...usersToSend]);
-
-        // Reset form
+        setUsers(prev => [...prev, ...individualPreview]);
         setAddModalOpen(false);
         setIndividualPreview([]);
-        setNewUser({
-          employeeId: '',
-          email: '',
-          name: '',
-          role: 'HR'
-        });
-
       } catch (error) {
-        console.error('Error adding users:', error.message);
+        console.error('Error adding users:', error);
       }
     }
   };
 
+  // Submit bulk users
   const handleBulkUpload = async () => {
-  const usersToSend = bulkUsers.map(user => ({
-    ...user,
-    password: 'defaultPassword123',
-    status: 'FIRST-TIME',
-    createdBy: 'admin',
-  }));
-
-  try {
-    const response = await fetch('http://localhost:5000/api/users/bulk', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ users: usersToSend })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to bulk add users');
-    }
-
-    const result = await response.json();
-    setUsers(prev => [...prev, ...usersToSend]);
-    setAddModalOpen(false);
-    setBulkUsers([]);
-    setInvalidUsers([]);
-    setFile(null);
-  } catch (error) {
-    console.error('Bulk upload error:', error.message);
-  }
-};
-
-const handleDeleteUsers = async () => {
-  if (deleteConfirmText === 'CONFIRM' && selectedUsers.length > 0) {
     try {
-      const response = await fetch('http://localhost:5000/api/users/delete', {
+      const response = await fetch('http://localhost:5000/api/users/bulk', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userIds: selectedUsers })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          users: bulkUsers.map(user => ({
+            ...user,
+            password: 'defaultPassword123',
+            createdBy: 'admin'
+          }))
+        })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete users');
-      }
-
-      // Filter deleted users from local state
-      setUsers(prevUsers => prevUsers.filter(user => !selectedUsers.includes(user.dUser_ID)));
-
-      // Reset modal and selection
-      setSelectedUsers([]);
-      setDeleteConfirmText('');
-      setShowDeleteModal(false);
-
+      if (!response.ok) throw new Error('Failed to bulk add users');
+      
+      const result = await response.json();
+      setUsers(prev => [...prev, ...bulkUsers]);
+      setAddModalOpen(false);
+      setBulkUsers([]);
+      setFile(null);
     } catch (error) {
-      console.error('Error deleting users:', error.message);
+      console.error('Bulk upload error:', error);
     }
-  }
-};
+  };
 
-  // Other handlers
+  // Delete selected users
+  const handleDeleteUsers = async () => {
+    if (deleteConfirmText === 'CONFIRM' && selectedUsers.length > 0) {
+      try {
+        const response = await fetch('http://localhost:5000/api/users/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds: selectedUsers })
+        });
+
+        if (!response.ok) throw new Error('Failed to delete users');
+        
+        setUsers(prev => prev.filter(user => !selectedUsers.includes(user.dUser_ID)));
+        setSelectedUsers([]);
+        setShowDeleteModal(false);
+        setDeleteConfirmText('');
+      } catch (error) {
+        console.error('Error deleting users:', error);
+      }
+    }
+  };
+
+  // Edit user handler
   const handleEdit = (user) => {
     setCurrentUser(user);
     setPasswordData({
@@ -309,62 +243,69 @@ const handleDeleteUsers = async () => {
       newPassword: '',
       confirmPassword: ''
     });
-    setSecurityQuestionsData(user.securityQuestions);
+    setSecurityQuestionsData(user.securityQuestions || [
+      { question: '', answer: '' },
+      { question: '', answer: '' },
+      { question: '', answer: '' }
+    ]);
     setShowPasswordFields(false);
     setShowSecurityQuestions(false);
     setEditModalOpen(true);
   };
 
-  const handleDelete = (userId) => {
-    setUsers(users.filter(user => user.id !== userId));
-  };
-
-  const handleSave = (updatedUser) => {
-    // Only update password if fields are filled and match
-    if (showPasswordFields && passwordData.newPassword && passwordData.newPassword === passwordData.confirmPassword) {
-      updatedUser.password = passwordData.newPassword;
-    }
-
-    // Update security questions if modified
-    if (showSecurityQuestions) {
-      updatedUser.securityQuestions = securityQuestionsData;
-    }
-
-    setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
-    setEditModalOpen(false);
-  };
-
+  // Handle new user input changes
   const handleNewUserChange = (e) => {
     const { name, value } = e.target;
     setNewUser(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleRemoveFromPreview = (employeeIdToRemove) => {
-    setIndividualPreview(prev =>
-      prev.filter(user => user.employeeId !== employeeIdToRemove)
-    );
-  };
-
+  // Handle password changes
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle security question changes
   const handleSecurityQuestionChange = (index, field, value) => {
     const updatedQuestions = [...securityQuestionsData];
     updatedQuestions[index][field] = value;
     setSecurityQuestionsData(updatedQuestions);
   };
 
-  // Security question options
-  const securityQuestionOptions = [
-    'What was your first pet\'s name?',
-    'What city were you born in?',
-    'What is your mother\'s maiden name?',
-    'What was the name of your first school?',
-    'What was your childhood nickname?',
-    'What is your favorite movie?'
-  ];
+  // Remove user from preview list
+  const handleRemoveFromPreview = (employeeIdToRemove) => {
+    setIndividualPreview(prev =>
+      prev.filter(user => user.employeeId !== employeeIdToRemove)
+    );
+  };
+
+  // Save user changes
+  const handleSave = async (updatedUser) => {
+    try {
+      // Only update password if fields are filled and match
+      if (showPasswordFields && passwordData.newPassword && passwordData.newPassword === passwordData.confirmPassword) {
+        updatedUser.password = passwordData.newPassword;
+      }
+
+      // Update security questions if modified
+      if (showSecurityQuestions) {
+        updatedUser.securityQuestions = securityQuestionsData;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/users/${updatedUser.dUser_ID}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+
+      if (!response.ok) throw new Error('Failed to update user');
+
+      setUsers(users.map(user => user.dUser_ID === updatedUser.dUser_ID ? updatedUser : user));
+      setEditModalOpen(false);
+    } catch (error) {
+      console.error('Error saving user:', error);
+    }
+  };
 
   return (
     <div className="user-management-container">
@@ -410,47 +351,82 @@ const handleDeleteUsers = async () => {
                 <th className="email-col">Email</th>
                 <th className="role-col">Role</th>
                 <th className="status-col">Status</th>
-                <th className="actions-col">Actions</th>
+                <th className="actions-col">
+                  <div className="actions-header">
+                    Actions
+                    <div className="select-all-container">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.length > 0 && selectedUsers.length === filteredUsers.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers(filteredUsers.map(user => user.dUser_ID));
+                          } else {
+                            setSelectedUsers([]);
+                          }
+                        }}
+                      />
+                      <span className="selected-count">
+                        {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map(user => {
+              {filteredUsers.map((user, index) => {
                 const isSelected = selectedUsers.includes(user.dUser_ID);
-
                 return (
                   <tr
                     key={user.dUser_ID}
                     className={isSelected ? 'selected-row' : ''}
                     onClick={(e) => {
-                      // Prevent triggering on button or checkbox clicks
-                      if (
-                        e.target.tagName !== 'BUTTON' &&
-                        e.target.tagName !== 'svg' &&
-                        e.target.tagName !== 'path' &&
-                        e.target.type !== 'checkbox'
-                      ) {
-                        if (isSelected) {
-                          setSelectedUsers(prev => prev.filter(id => id !== user.dUser_ID));
+                      if (e.target.tagName !== 'BUTTON' && 
+                          e.target.tagName !== 'svg' && 
+                          e.target.tagName !== 'path' && 
+                          e.target.type !== 'checkbox') {
+                        if (e.shiftKey && lastSelectedIndex !== null) {
+                          const start = Math.min(lastSelectedIndex, index);
+                          const end = Math.max(lastSelectedIndex, index);
+                          const newSelectedUsers = [...selectedUsers];
+                          
+                          filteredUsers.slice(start, end + 1).forEach(rangeUser => {
+                            const userId = rangeUser.dUser_ID;
+                            if (isSelected) {
+                              const i = newSelectedUsers.indexOf(userId);
+                              if (i > -1) newSelectedUsers.splice(i, 1);
+                            } else if (!newSelectedUsers.includes(userId)) {
+                              newSelectedUsers.push(userId);
+                            }
+                          });
+                          
+                          setSelectedUsers(newSelectedUsers);
                         } else {
-                          setSelectedUsers(prev => [...prev, user.dUser_ID]);
+                          setSelectedUsers(prev => 
+                            isSelected 
+                              ? prev.filter(id => id !== user.dUser_ID) 
+                              : [...prev, user.dUser_ID]
+                          );
+                          setLastSelectedIndex(index);
                         }
                       }
                     }}
                   >
-                    <td className="role-col">{user.dUser_ID}</td>
-                    <td className="name-col">{user.dName}</td>
-                    <td className="email-col">{user.dEmail}</td>
-                    <td className="role-col">{user.dUser_Type}</td>
-                    <td className="status-col">{user.dStatus}</td>
-                    <td className="actions-col">
+                    <td>{user.dUser_ID}</td>
+                    <td>{user.dName}</td>
+                    <td>{user.dEmail}</td>
+                    <td>{user.dUser_Type}</td>
+                    <td>{user.dStatus}</td>
+                    <td>
                       <div className="action-buttons">
                         <button onClick={() => handleEdit(user)} className="edit-btn">
                           <FaEdit size={12} /> Edit
                         </button>
                         <button
                           onClick={(e) => {
-                            e.stopPropagation(); // Prevent row click
-                            setSelectedUsers([user.dUser_ID]); // Prepare only that user
+                            e.stopPropagation();
+                            setSelectedUsers([user.dUser_ID]);
                             setShowDeleteModal(true);
                           }}
                           className="delete-btn"
@@ -462,11 +438,12 @@ const handleDeleteUsers = async () => {
                           checked={isSelected}
                           onChange={(e) => {
                             e.stopPropagation();
-                            if (e.target.checked) {
-                              setSelectedUsers(prev => [...prev, user.dUser_ID]);
-                            } else {
-                              setSelectedUsers(prev => prev.filter(id => id !== user.dUser_ID));
-                            }
+                            setSelectedUsers(prev => 
+                              e.target.checked 
+                                ? [...prev, user.dUser_ID] 
+                                : prev.filter(id => id !== user.dUser_ID)
+                            );
+                            setLastSelectedIndex(index);
                           }}
                         />
                       </div>
@@ -476,18 +453,17 @@ const handleDeleteUsers = async () => {
               })}
             </tbody>
           </table>
-            {selectedUsers.length > 1 && (
-              <div className="bulk-delete-container">
-                <button
-                  className="bulk-delete-btn"
-                  onClick={() => {
-                    setShowDeleteModal(true);
-                  }}
-                >
-                  <FaTrash /> Delete Selected ({selectedUsers.length})
-                </button>
-              </div>
-            )}
+
+          {selectedUsers.length > 0 && (
+            <div className="bulk-actions-container">
+              <button
+                className="bulk-delete-btn"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <FaTrash /> Delete Selected ({selectedUsers.length})
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -771,43 +747,60 @@ const handleDeleteUsers = async () => {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="modal-overlay">
-        <div className="modal">
-          <h3>Confirm Deletion</h3>
-          <p>
-            Type <strong>CONFIRM</strong> to delete the following user(s):
-          </p>
-          <ul>
-            {users
-              .filter(user => selectedUsers.includes(user.dUser_ID))
-              .map(user => (
-                <li key={user.dUser_ID}>{user.dName}</li>
-              ))}
-          </ul>
-          <input
-            type="text"
-            value={deleteConfirmText}
-            onChange={(e) => setDeleteConfirmText(e.target.value)}
-          />
-          <button
-            disabled={deleteConfirmText !== 'CONFIRM'}
-            onClick={handleDeleteUsers}
-          >
-            Confirm Delete
-          </button>
-          <button
-            onClick={() => {
-              setShowDeleteModal(false);
-              setDeleteConfirmText('');
-            }}
-          >
-            Cancel
-          </button>
+          <div className="modal delete-confirmation-modal">
+            <h3>
+              <FaTrash /> Confirm Deletion
+            </h3>
+            <p>
+              You are about to delete {selectedUsers.length} user(s). 
+              This action cannot be undone. Type <strong>CONFIRM</strong> to proceed.
+            </p>
+            
+            {selectedUsers.length > 0 && (
+              <ul>
+                {users
+                  .filter(user => selectedUsers.includes(user.dUser_ID))
+                  .map(user => (
+                    <li key={user.dUser_ID}>
+                      <span>{user.dName}</span>
+                      <span className="user-id">{user.dUser_ID}</span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type CONFIRM to delete"
+            />
+            
+            <div className="delete-modal-actions">
+              <button 
+                className="cancel-btn"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="delete-confirm-btn"
+                disabled={deleteConfirmText !== 'CONFIRM'}
+                onClick={handleDeleteUsers}
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
       )}
-      
+
       {/* Edit User Modal */}
       {editModalOpen && currentUser && (
         <div className="modal-overlay">
@@ -825,8 +818,8 @@ const handleDeleteUsers = async () => {
                 <input
                   type="text"
                   name="employeeId"
-                  value={currentUser.employeeId}
-                  onChange={(e) => setCurrentUser({...currentUser, employeeId: e.target.value})}
+                  value={currentUser.dUser_ID}
+                  onChange={(e) => setCurrentUser({...currentUser, dUser_ID: e.target.value})}
                   required
                 />
               </div>
@@ -836,8 +829,8 @@ const handleDeleteUsers = async () => {
                 <input
                   type="text"
                   name="name"
-                  value={currentUser.name}
-                  onChange={(e) => setCurrentUser({...currentUser, name: e.target.value})}
+                  value={currentUser.dName}
+                  onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value})}
                   required
                 />
               </div>
@@ -849,8 +842,8 @@ const handleDeleteUsers = async () => {
                 <input
                   type="email"
                   name="email"
-                  value={currentUser.email}
-                  onChange={(e) => setCurrentUser({...currentUser, email: e.target.value})}
+                  value={currentUser.dEmail}
+                  onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value})}
                   required
                 />
               </div>
@@ -859,8 +852,8 @@ const handleDeleteUsers = async () => {
                 <label>Role:</label>
                 <select
                   name="role"
-                  value={currentUser.role}
-                  onChange={(e) => setCurrentUser({...currentUser, role: e.target.value})}
+                  value={currentUser.dUser_Type}
+                  onChange={(e) => setCurrentUser({...currentUser, dUser_Type: e.target.value})}
                 >
                   <option value="Admin">Admin</option>
                   <option value="HR">HR</option>
@@ -875,8 +868,8 @@ const handleDeleteUsers = async () => {
                 <label>Status:</label>
                 <select
                   name="status"
-                  value={currentUser.status}
-                  onChange={(e) => setCurrentUser({...currentUser, status: e.target.value})}
+                  value={currentUser.dStatus}
+                  onChange={(e) => setCurrentUser({...currentUser, dStatus: e.target.value})}
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -884,9 +877,7 @@ const handleDeleteUsers = async () => {
               </div>
             </div>
 
-            {/* Side-by-side layout for Password and Security Questions */}
             <div className="password-security-container">
-              {/* Password Change Section */}
               <div className="password-change-section">
                 <h3 className="section-header">
                   <FaKey size={14} /> Password
@@ -967,7 +958,6 @@ const handleDeleteUsers = async () => {
                 )}
               </div>
 
-              {/* Security Questions Section */}
               <div className="security-questions-section">
                 <h3 className="section-header">
                   <FaShieldAlt size={14} /> Security Questions
