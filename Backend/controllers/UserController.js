@@ -40,13 +40,51 @@ exports.createUser = async (req, res) => {
   }
 };
 
+exports.checkDuplicates = async (req, res) => {
+  try {
+    const { employeeIds, emails } = req.body;
+    const existing = await userService.findExistingEmployeeIdsEmailsOrNames(employeeIds, emails);
+    res.json(existing);
+  } catch (err) {
+    res.status(500).json({ message: err.sqlMessage || err.message || 'Internal Server Error' });
+  }
+};
+
 exports.addUsersBulk = async (req, res) => {
   try {
-    const users = req.body.users; // ⬅ This is key
+    const users = req.body.users;
     if (!Array.isArray(users) || users.length === 0) {
       return res.status(400).json({ message: 'No users to add' });
     }
 
+    // 1. Check for duplicates in the upload file
+    const seenIds = new Set();
+    const seenEmails = new Set();
+    for (const user of users) {
+      if (seenIds.has(user.employeeId)) {
+        return res.status(400).json({ message: `Duplicate employee ID in upload: ${user.employeeId}` });
+      }
+      if (seenEmails.has(user.email)) {
+        return res.status(400).json({ message: `Duplicate email in upload: ${user.email}` });
+      }
+      seenIds.add(user.employeeId);
+      seenEmails.add(user.email);
+    }
+
+    // 2. Check for duplicates in the database
+    const existing = await userService.findExistingEmployeeIdsEmailsOrNames(
+      users.map(u => u.employeeId),
+      users.map(u => u.email)
+    );
+    if (existing.length > 0) {
+      const existingIds = users.map(u => u.employeeId).filter(id => existing.some(e => e.dUser_ID === id));
+      const existingEmails = users.map(u => u.email).filter(email => existing.some(e => e.dEmail === email));
+      return res.status(400).json({
+        message: `Duplicate(s) found in database. Employee IDs: [${existingIds.join(', ')}], Emails: [${existingEmails.join(', ')}]`
+      });
+    }
+
+    // If we get here, there are no duplicates in the upload or DB
     const processedUsers = await Promise.all(users.map(async user => ({
       ...user,
       hashedPassword: await bcrypt.hash(user.password, 10)
@@ -57,7 +95,7 @@ exports.addUsersBulk = async (req, res) => {
     res.status(201).json({ message: 'Users added successfully', users: insertedIds });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ message: err.sqlMessage || err.message || 'Internal Server Error' });
   }
 };
 

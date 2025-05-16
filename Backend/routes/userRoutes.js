@@ -6,5 +6,6 @@ router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
 router.post('/bulk', userController.addUsersBulk);
 router.post('/delete', userController.deleteUsers);
+router.post('/check-duplicates', userController.checkDuplicates);
 
 module.exports = router;

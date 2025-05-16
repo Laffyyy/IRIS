@@ -1,7 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FaKey, FaShieldAlt, FaChevronRight, FaChevronDown } from 'react-icons/fa';
+import * as XLSX from 'xlsx';
 import './UserManagement.css';
+
+function isExactRole(role) {
+  const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+  return allowedRoles.includes(role);
+}
 
 const UserManagement = () => {
   // State declarations
@@ -51,6 +57,25 @@ const UserManagement = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [fileError, setFileError] = useState('');
+
+  // Edit invalid user state
+  const [editInvalidModalOpen, setEditInvalidModalOpen] = useState(false);
+  const [editingInvalidUser, setEditingInvalidUser] = useState(null);
+  const [editingInvalidUserIndex, setEditingInvalidUserIndex] = useState(null);
+  const [editInvalidErrors, setEditInvalidErrors] = useState({});
+
+  // State for editing valid users
+  const [editValidModalOpen, setEditValidModalOpen] = useState(false);
+  const [editingValidUser, setEditingValidUser] = useState(null);
+  const [editingValidUserIndex, setEditingValidUserIndex] = useState(null);
+  const [editValidErrors, setEditValidErrors] = useState({});
+
+  // State for confirmation and result modals
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+  const [showBulkResultModal, setShowBulkResultModal] = useState(false);
+  const [bulkResultMessage, setBulkResultMessage] = useState('');
+  const [bulkResultSuccess, setBulkResultSuccess] = useState(false);
 
   // Security question options
   const securityQuestionOptions = [
@@ -116,19 +141,153 @@ const UserManagement = () => {
     }
   };
 
-  // File processing (mock implementation)
-  const handleFile = (file) => {
-    setFile(file);
-    // Mock processing - replace with actual file processing
-    const mockValidUsers = [
-      { employeeId: 'E001', name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active', valid: true },
-      { employeeId: 'E002', name: 'Jane Smith', email: 'jane@example.com', role: 'HR', status: 'Active', valid: true }
-    ];
-    const mockInvalidUsers = [
-      { employeeId: 'E003', name: 'Invalid User', email: 'invalid', role: '', status: '', valid: false, reason: 'Missing required fields' }
-    ];
-    setBulkUsers(mockValidUsers);
-    setInvalidUsers(mockInvalidUsers);
+  // File processing with validation
+  const handleFile = async (file) => {
+    setFileError('');
+    // 1. Filename validation
+    if (!file.name.includes('user_upload_template')) {
+      setFile(null);
+      setBulkUsers([]);
+      setInvalidUsers([]);
+      setFileError('Invalid filename. Please use the provided template.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      let data = e.target.result;
+      let workbook, sheetName, worksheet, jsonData;
+      let isCSV = file.name.endsWith('.csv');
+      const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+      try {
+        if (isCSV) {
+          workbook = XLSX.read(data, { type: 'binary' });
+        } else {
+          workbook = XLSX.read(data, { type: 'array' });
+        }
+        sheetName = workbook.SheetNames[0];
+        worksheet = workbook.Sheets[sheetName];
+        jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      } catch (err) {
+        setFile(null);
+        setBulkUsers([]);
+        setInvalidUsers([]);
+        setFileError('File could not be parsed.');
+        return;
+      }
+
+      // 2. Header validation
+      const requiredHeader = ['EMPLOYEE ID', 'NAME', 'EMAIL', 'ROLE'];
+      const header = jsonData[0] || [];
+      const headerValid = requiredHeader.length === header.length && requiredHeader.every((h, i) => h === header[i]);
+      if (!headerValid) {
+        setFile(null);
+        setBulkUsers([]);
+        setInvalidUsers([]);
+        setFileError('Invalid Format. Please use the provided template.');
+        return;
+      }
+
+      // 3. Row/cell validation
+      const parsedUsers = [];
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        const [employeeId, name, email, role, ...extra] = row;
+        const reasons = [];
+        const hasExtraContent = extra.some(cell => cell && cell.toString().trim() !== '');
+        if (hasExtraContent) {
+          reasons.push('Extra columns detected. Only EMPLOYEE ID, NAME, EMAIL, and ROLE should have values.');
+        }
+        if (!employeeId) reasons.push('Missing Employee ID');
+        if (!name) reasons.push('Missing Name');
+        if (!email) reasons.push('Missing Email');
+        if (!role) reasons.push('Missing Role');
+        if (role && !allowedRoles.includes(role.trim().toUpperCase())) {
+          reasons.push('Invalid role');
+        }
+        if (reasons.length > 0) {
+          parsedUsers.push({
+            employeeId: employeeId || '',
+            name: name || '',
+            email: email || '',
+            role: role || '',
+            reasons,
+            notEditable: reasons.some(r => r.includes('database'))
+          });
+        } else {
+          parsedUsers.push({
+            employeeId,
+            name,
+            email,
+            role,
+            valid: true,
+          });
+        }
+      }
+
+      // Count occurrences in the file
+      const idCounts = {};
+      const emailCounts = {};
+      parsedUsers.forEach(user => {
+        idCounts[user.employeeId] = (idCounts[user.employeeId] || 0) + 1;
+        emailCounts[user.email] = (emailCounts[user.email] || 0) + 1;
+      });
+
+      // 1. Check for duplicates in the file
+      const seenIds = new Set();
+      const seenEmails = new Set();
+      const fileDuplicateIds = new Set();
+      const fileDuplicateEmails = new Set();
+      for (const user of parsedUsers) {
+        if (seenIds.has(user.employeeId)) fileDuplicateIds.add(user.employeeId);
+        if (seenEmails.has(user.email)) fileDuplicateEmails.add(user.email);
+        seenIds.add(user.employeeId);
+        seenEmails.add(user.email);
+      }
+
+      // 2. Check for duplicates in the database
+      let dbDuplicates = [];
+      try {
+        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employeeIds: parsedUsers.map(u => u.employeeId),
+            emails: parsedUsers.map(u => u.email)
+          })
+        });
+        dbDuplicates = await response.json();
+      } catch (e) {
+        // handle error
+      }
+
+      // 3. Mark users as invalid if they are duplicates in file or DB
+      const invalidUsers = [];
+      const validUsers = [];
+      for (const user of parsedUsers) {
+        const reasons = [];
+        if (idCounts[user.employeeId] > 1) reasons.push('Duplicate Employee ID in file');
+        if (emailCounts[user.email] > 1) reasons.push('Duplicate Email in file');
+        if (dbDuplicates.some(u => u.dUser_ID === user.employeeId)) reasons.push('Duplicate Employee ID in database');
+        if (dbDuplicates.some(u => u.dEmail === user.email)) reasons.push('Duplicate Email in database');
+        if (user.role && !isExactRole(user.role)) {
+          reasons.push('Role must be exactly one of: HR, REPORTS, ADMIN, CNB');
+        }
+        if (reasons.length > 0) {
+          invalidUsers.push({ ...user, reasons, notEditable: reasons.some(r => r.includes('database')) });
+        } else {
+          validUsers.push(user);
+        }
+      }
+      setBulkUsers(validUsers);
+      setInvalidUsers(invalidUsers);
+      setFile(file);
+    };
+    if (file.name.endsWith('.csv')) {
+      reader.readAsBinaryString(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   // Remove uploaded file
@@ -140,11 +299,16 @@ const UserManagement = () => {
 
   // Generate CSV template for bulk upload
   const generateTemplate = () => {
-    const csvContent = "Employee ID,Name,Email,Role,Status\nE001,John Doe,john@example.com,Admin,Active";
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace('T', '_')
+      .replace(/\.\d+Z$/, '')
+      .slice(0, 19);
+    const csvContent = "EMPLOYEE ID,NAME,EMAIL,ROLE\nE001,John Doe,john@example.com,HR/REPORTS/CNB/ADMIN";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', 'user_upload_template.csv');
+    link.setAttribute('download', `user_upload_template_${timestamp}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -186,7 +350,7 @@ const UserManagement = () => {
     }
   };
 
-  // Submit bulk users
+  // Submit bulk users (with result modal)
   const handleBulkUpload = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/users/bulk', {
@@ -196,20 +360,39 @@ const UserManagement = () => {
           users: bulkUsers.map(user => ({
             ...user,
             password: 'defaultPassword123',
-            createdBy: 'admin'
+            createdBy: 'admin',
+            status: 'FIRST-TIME',
           }))
         })
       });
 
-      if (!response.ok) throw new Error('Failed to bulk add users');
-      
-      const result = await response.json();
+      let result = null;
+      let errorMsg = '';
+      try {
+        result = await response.json();
+      } catch (e) {
+        // ignore JSON parse error
+      }
+
+      if (!response.ok) {
+        errorMsg = (result && result.error) ? result.error : (result && result.message) ? result.message : 'Failed to bulk add users';
+        setShowBulkResultModal(true);
+        setBulkResultSuccess(false);
+        setBulkResultMessage('Bulk upload error: ' + errorMsg);
+        return;
+      }
+
       setUsers(prev => [...prev, ...bulkUsers]);
       setAddModalOpen(false);
       setBulkUsers([]);
       setFile(null);
+      setShowBulkResultModal(true);
+      setBulkResultSuccess(true);
+      setBulkResultMessage('Users uploaded successfully!');
     } catch (error) {
-      console.error('Bulk upload error:', error);
+      setShowBulkResultModal(true);
+      setBulkResultSuccess(false);
+      setBulkResultMessage('Bulk upload error: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -305,6 +488,186 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error saving user:', error);
     }
+  };
+
+  // Handler to open modal for editing invalid user
+  const handleEditInvalidUser = (index) => {
+    setEditingInvalidUser({ ...invalidUsers[index] });
+    setEditingInvalidUserIndex(index);
+    setEditInvalidModalOpen(true);
+  };
+
+  // Handler for editing fields in the modal
+  const handleEditingInvalidUserChange = (e) => {
+    const { name, value } = e.target;
+    setEditingInvalidUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handler to save the edited invalid user
+  const handleSaveEditedInvalidUser = async () => {
+    const { employeeId, name, email, role } = editingInvalidUser;
+    const errors = {};
+    const reasons = [];
+    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+
+    // 1. Required fields
+    if (!employeeId) { errors.employeeId = 'Employee ID is required'; reasons.push('Missing Employee ID'); }
+    if (!name) { errors.name = 'Name is required'; reasons.push('Missing Name'); }
+    if (!email) { errors.email = 'Email is required'; reasons.push('Missing Email'); }
+    if (!role) { errors.role = 'Role is required'; reasons.push('Missing Role'); }
+    const trimmedRole = role.trim().toUpperCase();
+    const isValidRole = allowedRoles.some(allowed => trimmedRole === allowed);
+    if (!isValidRole) {
+      errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
+      reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
+    }
+
+    // 2. Check for duplicates in the file (excluding the row being edited)
+    const otherInvalids = invalidUsers.filter((_, i) => i !== editingInvalidUserIndex);
+    const allBulk = [...bulkUsers, ...otherInvalids];
+    const idCount = allBulk.filter(u => u.employeeId === employeeId).length;
+    const emailCount = allBulk.filter(u => u.email === email).length;
+    if (idCount > 0) {
+      errors.employeeId = 'Duplicate Employee ID in file';
+      reasons.push('Duplicate Employee ID in file');
+    }
+    if (emailCount > 0) {
+      errors.email = 'Duplicate Email in file';
+      reasons.push('Duplicate Email in file');
+    }
+
+    // 3. Check for duplicates in the database
+    let dbDuplicates = [];
+    try {
+      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeIds: [employeeId],
+          emails: [email]
+        })
+      });
+      dbDuplicates = await response.json();
+    } catch (e) {
+      // handle error
+    }
+    if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
+      errors.employeeId = 'Duplicate Employee ID in database';
+      reasons.push('Duplicate Employee ID in database');
+    }
+    if (dbDuplicates.some(u => u.dEmail === email)) {
+      errors.email = 'Duplicate Email in database';
+      reasons.push('Duplicate Email in database');
+    }
+
+    setEditInvalidErrors(errors);
+
+    if (Object.keys(errors).length === 0 && reasons.length === 0) {
+      // Move to valid users
+      setBulkUsers(prev => [
+        ...prev,
+        { employeeId, name, email, role, valid: true }
+      ]);
+      // Remove from invalid users
+      setInvalidUsers(prev => prev.filter((_, i) => i !== editingInvalidUserIndex));
+      setEditInvalidModalOpen(false);
+      setEditingInvalidUser(null);
+      setEditingInvalidUserIndex(null);
+      setEditInvalidErrors({});
+    } else {
+      // Update the user in the invalid list
+      const updatedInvalids = invalidUsers.map((user, i) =>
+        i === editingInvalidUserIndex ? { employeeId, name, email, role } : user
+      );
+      // Revalidate all users
+      await revalidateAllUsers([...bulkUsers, ...updatedInvalids]);
+      setEditInvalidModalOpen(false);
+      setEditingInvalidUser(null);
+      setEditingInvalidUserIndex(null);
+      setEditInvalidErrors({});
+    }
+  };
+
+  // Handler to open modal for editing valid user
+  const handleEditValidUser = (index) => {
+    setEditingValidUser({ ...bulkUsers[index] });
+    setEditingValidUserIndex(index);
+    setEditValidModalOpen(true);
+  };
+
+  // Handler for editing fields in the valid modal
+  const handleEditingValidUserChange = (e) => {
+    const { name, value } = e.target;
+    setEditingValidUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handler to save the edited valid user
+  const handleSaveEditedValidUser = async () => {
+    const { employeeId, name, email, role } = editingValidUser;
+    const errors = {};
+    if (!employeeId) errors.employeeId = 'Employee ID is required';
+    if (!name) errors.name = 'Name is required';
+    if (!email) errors.email = 'Email is required';
+    if (!role) errors.role = 'Role is required';
+    setEditValidErrors(errors);
+    if (Object.keys(errors).length === 0) {
+      const updatedValids = bulkUsers.map((user, i) =>
+        i === editingValidUserIndex ? { employeeId, name, email, role, valid: true } : user
+      );
+      await revalidateAllUsers([...updatedValids, ...invalidUsers]);
+      setEditValidModalOpen(false);
+      setEditingValidUser(null);
+      setEditingValidUserIndex(null);
+      setEditValidErrors({});
+    }
+  };
+
+  const revalidateAllUsers = async (allUsers) => {
+    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+    // Count occurrences in the file
+    const idCounts = {};
+    const emailCounts = {};
+    allUsers.forEach(user => {
+      idCounts[user.employeeId] = (idCounts[user.employeeId] || 0) + 1;
+      emailCounts[user.email] = (emailCounts[user.email] || 0) + 1;
+    });
+
+    // Check for duplicates in the database
+    let dbDuplicates = [];
+    try {
+      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeIds: allUsers.map(u => u.employeeId),
+          emails: allUsers.map(u => u.email)
+        })
+      });
+      dbDuplicates = await response.json();
+    } catch (e) {
+      // handle error
+    }
+
+    // Mark users as invalid if they are duplicates in file or DB
+    const invalidUsers = [];
+    const validUsers = [];
+    for (const user of allUsers) {
+      const reasons = [];
+      if (idCounts[user.employeeId] > 1) reasons.push('Duplicate Employee ID in file');
+      if (emailCounts[user.email] > 1) reasons.push('Duplicate Email in file');
+      if (dbDuplicates.some(u => u.dUser_ID === user.employeeId)) reasons.push('Duplicate Employee ID in database');
+      if (dbDuplicates.some(u => u.dEmail === user.email)) reasons.push('Duplicate Email in database');
+      if (user.role && !isExactRole(user.role)) {
+        reasons.push('Role must be exactly one of: HR, REPORTS, ADMIN, CNB');
+      }
+      if (reasons.length > 0) {
+        invalidUsers.push({ ...user, reasons, notEditable: reasons.some(r => r.includes('database')) });
+      } else {
+        validUsers.push(user);
+      }
+    }
+    setBulkUsers(validUsers);
+    setInvalidUsers(invalidUsers);
   };
 
   return (
@@ -470,7 +833,7 @@ const UserManagement = () => {
       {/* Add User Modal */}
       {addModalOpen && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: '700px' }}>
+          <div className="modal" style={{ width: '900px' }}>
             <div className="modal-header">
               <h2>Add User</h2>
               <button onClick={() => setAddModalOpen(false)} className="close-btn">
@@ -611,35 +974,43 @@ const UserManagement = () => {
                   </button>
                 </div>
 
-                <div
-                  className={`drop-zone ${dragActive ? 'active' : ''}`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <div className="drop-zone-content">
-                    <p>Drag and drop your file here or</p>
-                    <p>CSV or Excel files only (max 5MB)</p>
-                    <input
-                      type="file"
-                      id="file-upload"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileChange}
-                      style={{ display: 'none' }}
-                    />
-                    <label htmlFor="file-upload" className="browse-files-btn">
-                      Browse Files
-                    </label>
+                {!file && (
+                  <div
+                    className={`drop-zone ${dragActive ? 'active' : ''}`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                  >
+                    <div className="drop-zone-content">
+                      <p>Drag and drop your file here or</p>
+                      <p>CSV or Excel files only (max 5MB)</p>
+                      <input
+                        type="file"
+                        id="file-upload"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="file-upload" className="browse-files-btn">
+                        Browse Files
+                      </label>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {file && (
-                  <div className="file-preview">
+                  <div className="file-preview" style={{ marginTop: 0 }}>
                     <span>📄 {file.name}</span>
                     <button onClick={removeFile} className="remove-file-btn">
                       <FaTimesCircle />
                     </button>
+                  </div>
+                )}
+
+                {fileError && (
+                  <div style={{ color: 'red', marginTop: '8px', fontWeight: 500 }}>
+                    {fileError}
                   </div>
                 )}
 
@@ -672,7 +1043,6 @@ const UserManagement = () => {
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Role</th>
-                                <th>Status</th>
                                 <th>Actions</th>
                               </tr>
                             </thead>
@@ -683,14 +1053,21 @@ const UserManagement = () => {
                                   <td>{user.name}</td>
                                   <td>{user.email}</td>
                                   <td>{user.role}</td>
-                                  <td>{user.status}</td>
                                   <td>
-                                    <button
-                                      className="remove-btn"
-                                      onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
-                                    >
-                                      <FaTimes />
-                                    </button>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <button
+                                        className="edit-btn"
+                                        onClick={() => handleEditValidUser(index)}
+                                      >
+                                        <FaEdit /> Edit
+                                      </button>
+                                      <button
+                                        className="remove-btn"
+                                        onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
+                                      >
+                                        <FaTimes />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -709,18 +1086,27 @@ const UserManagement = () => {
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Role</th>
-                                <th>Status</th>
+                                <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {invalidUsers.map((user, index) => (
                                 <tr key={`invalid-${index}`}>
-                                  <td className="reason-cell">{user.reason}</td>
+                                  <td className="reason-cell">{user.reasons && user.reasons.join(', ')}</td>
                                   <td>{user.employeeId}</td>
                                   <td>{user.name}</td>
                                   <td>{user.email}</td>
                                   <td>{user.role}</td>
-                                  <td>{user.status}</td>
+                                  <td>
+                                    {!user.notEditable && (
+                                      <button
+                                        className="edit-btn"
+                                        onClick={() => handleEditInvalidUser(index)}
+                                      >
+                                        <FaEdit /> Edit
+                                      </button>
+                                    )}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -734,7 +1120,7 @@ const UserManagement = () => {
                 <div className="modal-actions">
                   <button onClick={() => setAddModalOpen(false)} className="cancel-btn">Cancel</button>
                   <button
-                    onClick={handleBulkUpload}
+                    onClick={() => setShowBulkConfirmModal(true)}
                     className="save-btn"
                     disabled={bulkUsers.length === 0}
                   >
@@ -1007,6 +1393,188 @@ const UserManagement = () => {
             <div className="modal-actions">
               <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
               <button onClick={() => handleSave(currentUser)} className="save-btn">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invalid User Modal */}
+      {editInvalidModalOpen && editingInvalidUser && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '500px' }}>
+            <div className="modal-header">
+              <h2>Edit Invalid User</h2>
+              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); }} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="form-group">
+              <label>Employee ID</label>
+              <input
+                type="text"
+                name="employeeId"
+                value={editingInvalidUser.employeeId}
+                onChange={handleEditingInvalidUserChange}
+              />
+              {editInvalidErrors.employeeId && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.employeeId}</div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Name</label>
+              <input
+                type="text"
+                name="name"
+                value={editingInvalidUser.name}
+                onChange={handleEditingInvalidUserChange}
+              />
+              {editInvalidErrors.name && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.name}</div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                name="email"
+                value={editingInvalidUser.email}
+                onChange={handleEditingInvalidUserChange}
+              />
+              {editInvalidErrors.email && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.email}</div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Role</label>
+              <select
+                name="role"
+                value={editingInvalidUser.role}
+                onChange={handleEditingInvalidUserChange}
+              >
+                <option value="">Select Role</option>
+                <option value="HR">HR</option>
+                <option value="REPORTS">REPORTS</option>
+                <option value="ADMIN">ADMIN</option>
+                <option value="CNB">CNB</option>
+              </select>
+              {editInvalidErrors.role && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.role}</div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); }} className="cancel-btn">Cancel</button>
+              <button onClick={handleSaveEditedInvalidUser} className="save-btn">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Valid User Modal */}
+      {editValidModalOpen && editingValidUser && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '500px' }}>
+            <div className="modal-header">
+              <h2>Edit User</h2>
+              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); }} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="form-group">
+              <label>Employee ID</label>
+              <input
+                type="text"
+                name="employeeId"
+                value={editingValidUser.employeeId}
+                onChange={handleEditingValidUserChange}
+              />
+              {editValidErrors.employeeId && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.employeeId}</div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Name</label>
+              <input
+                type="text"
+                name="name"
+                value={editingValidUser.name}
+                onChange={handleEditingValidUserChange}
+              />
+              {editValidErrors.name && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.name}</div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                name="email"
+                value={editingValidUser.email}
+                onChange={handleEditingValidUserChange}
+              />
+              {editValidErrors.email && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.email}</div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Role</label>
+              <input
+                type="text"
+                name="role"
+                value={editingValidUser.role}
+                onChange={handleEditingValidUserChange}
+              />
+              {editValidErrors.role && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.role}</div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); }} className="cancel-btn">Cancel</button>
+              <button onClick={handleSaveEditedValidUser} className="save-btn">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk upload confirmation modal */}
+      {showBulkConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>Confirm Bulk Upload</h2>
+              <button onClick={() => setShowBulkConfirmModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>Are you sure you want to upload {bulkUsers.length} users?</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowBulkConfirmModal(false)} className="cancel-btn">Cancel</button>
+              <button
+                onClick={() => {
+                  setShowBulkConfirmModal(false);
+                  handleBulkUpload();
+                }}
+                className="save-btn"
+              >
+                Yes, Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk upload result modal */}
+      {showBulkResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{bulkResultSuccess ? 'Upload Successful' : 'Upload Failed'}</h2>
+              <button onClick={() => setShowBulkResultModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>{bulkResultMessage}</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowBulkResultModal(false)} className="save-btn">OK</button>
             </div>
           </div>
         </div>

@@ -14,6 +14,15 @@ exports.insertUser = async ({ employeeId, name, email, hashedPassword, role, sta
   return result.insertId;
 };
 
+exports.findExistingEmployeeIdsEmailsOrNames = async (employeeIds, emails) => {
+  if (employeeIds.length === 0 && emails.length === 0) return [];
+  const [rows] = await pool.query(
+    `SELECT dUser_ID, dEmail FROM iris.tbl_login WHERE dUser_ID IN (?) OR dEmail IN (?)`,
+    [employeeIds, emails]
+  );
+  return rows;
+};
+
 exports.insertUsersBulk = async (users) => {
   const insertPromises = users.map(user =>
     pool.query(
