@@ -12,7 +12,9 @@ import faqsIcon from '../assets/icons/faqs-icon.png';
 import logoutIcon from '../assets/icons/logout-icon.png';
 import userManagementIcon from '../assets/icons/users.png';
 import appManagementIcon from '../assets/icons/apps.png';
+import siteManagementIcon from '../assets/icons/sites.png';
 import clientManagementIcon from '../assets/icons/clients.png';
+import kpiManagementIcon from '../assets/icons/kpis.png';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
@@ -22,7 +24,9 @@ const navItems = [
     subItems: [
       { name: 'User Management', path: '/admin/users', icon: userManagementIcon },
       { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
-      { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon }
+      { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
+      { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
+      { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
     ]
   },
   { name: 'HR', path: '/hr', icon: hrIcon },
@@ -52,7 +56,6 @@ const Sidebar = () => {
       onMouseEnter={() => !isLocked && setIsHovered(true)}
       onMouseLeave={() => !isLocked && setIsHovered(false)}
     >
-
       {(shouldShowExpanded || isLocked) && (
         <button 
           className="lock-btn"

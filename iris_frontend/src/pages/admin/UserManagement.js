@@ -480,11 +480,8 @@ const UserManagement = () => {
                             <td>{user.role}</td>
                             <td>{user.status}</td>
                             <td>
-                              <button
-                                className="remove-btn"
-                                onClick={removeIndividualPreview}
-                              >
-                                <FaTimes />
+                              <button onClick={() => removeIndividualPreview(user.id)} className="delete-btn">
+                                <FaTrash size={12} /> Delete
                               </button>
                             </td>
                           </tr>
@@ -588,11 +585,8 @@ const UserManagement = () => {
                                   <td>{user.role}</td>
                                   <td>{user.status}</td>
                                   <td>
-                                    <button
-                                      className="remove-btn"
-                                      onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
-                                    >
-                                      <FaTimes />
+                                    <button onClick={() => removeIndividualPreview(user.id)} className="delete-btn">
+                                      <FaTrash size={12} /> Delete
                                     </button>
                                   </td>
                                 </tr>
