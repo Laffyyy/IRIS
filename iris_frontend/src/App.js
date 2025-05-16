@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
+import SiteManagement from './pages/admin/SiteManagement';
+import KPIManagement from './pages/admin/KPIManagement';
 import './App.css';
 
 function App() {
@@ -19,6 +21,8 @@ function App() {
             <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/apps" element={<AppManagement />} />
             <Route path="/admin/clients" element={<ClientManagement />} />
+            <Route path="/admin/sites" element={<SiteManagement />} />
+            <Route path="/admin/kpis" element={<KPIManagement />} />
             <Route path="/hr" element={<div>HR Page</div>} />
             <Route path="/reports" element={<div>Reports Page</div>} />
             <Route path="/compensation" element={<div>C&B Page</div>} />

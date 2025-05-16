@@ -1,257 +1,280 @@
+// ClientManagement.js
 import React, { useState } from 'react';
-import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes } from 'react-icons/fa';
-import './UserManagement.css';
+import './ClientManagement.css';
 
-const UserManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    role: 'HR',
-    status: 'Active',
-    deactivationReason: ''
-  });
+const ClientManagement = () => {
+  const [activeTab, setActiveTab] = useState('addClient');
+  const [clients, setClients] = useState([
+    { id: 1, name: 'Client A' },
+    { id: 2, name: 'Client B' }
+  ]);
+  const [lobs, setLobs] = useState([
+    { id: 1, name: 'LOB X', clientId: 1 },
+    { id: 2, name: 'LOB Y', clientId: 2 }
+  ]);
+  const [subLobs, setSubLobs] = useState([
+    { id: 1, name: 'Sub LOB 1', lobId: 1 },
+    { id: 2, name: 'Sub LOB 2', lobId: 2 }
+  ]);
+  const [sites, setSites] = useState([
+    { id: 1, name: 'Site A' },
+    { id: 2, name: 'Site B' }
+  ]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'All' || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  // Form states
+  const [clientName, setClientName] = useState('');
+  const [lobName, setLobName] = useState('');
+  const [selectedClientForLob, setSelectedClientForLob] = useState(null);
+  const [selectedSiteForLob, setSelectedSiteForLob] = useState(null);
+  const [subLobName, setSubLobName] = useState('');
+  const [selectedLobForSubLob, setSelectedLobForSubLob] = useState(null);
 
-  const handleEdit = (user) => {
-    setCurrentUser(user);
-    setEditModalOpen(true);
+  const handleAddClient = () => {
+    if (clientName.trim()) {
+      const newClient = {
+        id: clients.length + 1,
+        name: clientName
+      };
+      setClients([...clients, newClient]);
+      setClientName('');
+    }
   };
 
-  const handleDelete = (userId) => {
-    setUsers(users.filter(user => user.id !== userId));
+  const handleAddLob = () => {
+    if (lobName.trim() && selectedClientForLob && selectedSiteForLob) {
+      const newLob = {
+        id: lobs.length + 1,
+        name: lobName,
+        clientId: selectedClientForLob,
+        siteId: selectedSiteForLob
+      };
+      setLobs([...lobs, newLob]);
+      setLobName('');
+      setSelectedClientForLob(null);
+      setSelectedSiteForLob(null);
+    }
   };
 
-  const handleSave = (updatedUser) => {
-    setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
-    setEditModalOpen(false);
-  };
-
-  const handleAdd = () => {
-    const userToAdd = {
-      ...newUser,
-      id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1
-    };
-    setUsers([...users, userToAdd]);
-    setAddModalOpen(false);
-    setNewUser({
-      name: '',
-      email: '',
-      role: 'HR',
-      status: 'Active',
-      deactivationReason: ''
-    });
-  };
-
-  const handleNewUserChange = (e) => {
-    const { name, value } = e.target;
-    setNewUser(prev => ({ ...prev, [name]: value }));
+  const handleAddSubLob = () => {
+    if (subLobName.trim() && selectedLobForSubLob) {
+      const newSubLob = {
+        id: subLobs.length + 1,
+        name: subLobName,
+        lobId: selectedLobForSubLob
+      };
+      setSubLobs([...subLobs, newSubLob]);
+      setSubLobName('');
+      setSelectedLobForSubLob(null);
+    }
   };
 
   return (
-    <div className="user-management-container">
+    <div className="client-management-container">
       <div className="white-card">
-        <div className="user-management-header">
-          <h1>User Management</h1>
-          <p className="subtitle">Add, modify, or delete users and manage their roles and access.</p>
+        <div className="client-management-header">
+          <h1>Client Management</h1>
+          <p className="subtitle">Manage clients, LOBs, and Sub LOBs</p>
         </div>
-        
-        <div className="controls">
-          {users.length > 0 && (
-            <>
-              <div className="search-container">
-                <FaSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              <div className="filter-container">
-                <label>Filter by Role:</label>
-                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-                  <option value="All">All Roles</option>
-                  <option value="Admin">Admin</option>
-                  <option value="HR">HR</option>
-                  <option value="Reports POC">Reports POC</option>
-                  <option value="C&B">C&B</option>
-                </select>
-              </div>
-            </>
-          )}
-          
-          <button className="add-user-btn" onClick={() => setAddModalOpen(true)}>
-            <FaPlus /> Add User
+
+        <div className="tab-container">
+          <div 
+            className={`tab ${activeTab === 'addClient' ? 'active' : ''}`}
+            onClick={() => setActiveTab('addClient')}
+          >
+            Add Client
+          </div>
+          <div 
+            className={`tab ${activeTab === 'addLOB' ? 'active' : ''}`}
+            onClick={() => setActiveTab('addLOB')}
+          >
+            Add LOB
+          </div>
+          <div 
+            className={`tab ${activeTab === 'addSubLOB' ? 'active' : ''}`}
+            onClick={() => setActiveTab('addSubLOB')}
+          >
+            Add Sub LOB
+          </div>
+        </div>
+
+        <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Client Name</label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="Enter client name"
+              />
+            </div>
+          </div>
+          <button onClick={handleAddClient} className="add-button">
+            + Add Client
           </button>
         </div>
-        
-        {users.length > 0 ? (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th className="name-col">Name</th>
-                  <th className="email-col">Email</th>
-                  <th className="role-col">Role</th>
-                  <th className="status-col">Status</th>
-                  <th className="reason-col">Reason for Deactivation</th>
-                  <th className="actions-col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map(user => (
-                  <tr key={user.id}>
-                    <td className="name-col">{user.name}</td>
-                    <td className="email-col">{user.email}</td>
-                    <td className="role-col">{user.role}</td>
-                    <td className={`status-col status ${user.status.toLowerCase()}`}>
-                      {user.status}
-                    </td>
-                    <td className="reason-col">{user.deactivationReason}</td>
-                    <td className="actions-col">
-                      <div className="action-buttons">
-                        <button onClick={() => handleEdit(user)} className="edit-btn">
-                          <FaEdit size={12} /> <span>Edit</span>
-                        </button>
-                        <button onClick={() => handleDelete(user.id)} className="delete-btn">
-                          <FaTrash size={12} /> <span>Delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+
+        <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
+          <div className="form-row">
+            <div className="form-group">
+              <label>LOB Name</label>
+              <input
+                type="text"
+                value={lobName}
+                onChange={(e) => setLobName(e.target.value)}
+                placeholder="Enter LOB name"
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Select Client</label>
+              <select
+                value={selectedClientForLob || ''}
+                onChange={(e) => setSelectedClientForLob(Number(e.target.value))}
+              >
+                <option value="">Select a client</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
                 ))}
-              </tbody>
-            </table>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Select Site</label>
+              <select
+                value={selectedSiteForLob || ''}
+                onChange={(e) => setSelectedSiteForLob(Number(e.target.value))}
+              >
+                <option value="">Select a site</option>
+                {sites.map(site => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        ) : (
-          <div className="empty-state">
-            <p>No users added yet. Click "Add User" to get started.</p>
+          <button 
+            onClick={handleAddLob} 
+            className="add-button"
+            disabled={!lobName.trim() || !selectedClientForLob || !selectedSiteForLob}
+          >
+            + Add LOB
+          </button>
+        </div>
+
+        <div className={`tab-content ${activeTab === 'addSubLOB' ? 'active' : ''}`}>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Sub LOB Name</label>
+              <input
+                type="text"
+                value={subLobName}
+                onChange={(e) => setSubLobName(e.target.value)}
+                placeholder="Enter Sub LOB name"
+              />
+            </div>
           </div>
-        )}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Select LOB</label>
+              <select
+                value={selectedLobForSubLob || ''}
+                onChange={(e) => setSelectedLobForSubLob(Number(e.target.value))}
+              >
+                <option value="">Select a LOB</option>
+                {lobs.map(lob => (
+                  <option key={lob.id} value={lob.id}>
+                    {lob.name} (Client: {clients.find(c => c.id === lob.clientId)?.name || 'Unknown'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button 
+            onClick={handleAddSubLob} 
+            className="add-button"
+            disabled={!subLobName.trim() || !selectedLobForSubLob}
+          >
+            + Add Sub LOB
+          </button>
+        </div>
+
+        <div className="existing-items">
+          <h2>Existing Items</h2>
+          <div className="tables-container">
+            <div className="table-section">
+              <h3>Clients</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clients.map(client => (
+                    <tr key={client.id}>
+                      <td>{client.id}</td>
+                      <td>{client.name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="table-section">
+              <h3>LOBs</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Client</th>
+                    <th>Site</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lobs.map(lob => (
+                    <tr key={lob.id}>
+                      <td>{lob.id}</td>
+                      <td>{lob.name}</td>
+                      <td>{clients.find(c => c.id === lob.clientId)?.name || 'Unknown'}</td>
+                      <td>{sites.find(s => s.id === lob.siteId)?.name || 'Unknown'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="table-section">
+              <h3>Sub LOBs</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Parent LOB</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subLobs.map(subLob => (
+                    <tr key={subLob.id}>
+                      <td>{subLob.id}</td>
+                      <td>{subLob.name}</td>
+                      <td>{lobs.find(l => l.id === subLob.lobId)?.name || 'Unknown'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
-      
-      {editModalOpen && (
-        <UserModal
-          title="Edit User"
-          user={currentUser}
-          onClose={() => setEditModalOpen(false)}
-          onSave={handleSave}
-        />
-      )}
-      
-      {addModalOpen && (
-        <UserModal
-          title="Add New User"
-          user={newUser}
-          onClose={() => setAddModalOpen(false)}
-          onSave={handleAdd}
-          isAddMode={true}
-        />
-      )}
     </div>
   );
 };
 
-const UserModal = ({ title, user, onClose, onSave, isAddMode = false }) => {
-  const [editedUser, setEditedUser] = useState({ ...user });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setEditedUser(prev => ({ ...prev, [name]: value }));
-  };
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <button onClick={onClose} className="close-btn">
-            <FaTimes size={14} />
-          </button>
-        </div>
-        
-        <div className="form-group">
-          <label>Name:</label>
-          <input
-            type="text"
-            name="name"
-            value={editedUser.name}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Email:</label>
-          <input
-            type="email"
-            name="email"
-            value={editedUser.email}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Role:</label>
-          <select
-            name="role"
-            value={editedUser.role}
-            onChange={handleChange}
-          >
-            <option value="Admin">Admin</option>
-            <option value="HR">HR</option>
-            <option value="Reports POC">Reports POC</option>
-            <option value="C&B">C&B</option>
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label>Status:</label>
-          <select
-            name="status"
-            value={editedUser.status}
-            onChange={handleChange}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-        
-        {editedUser.status === 'Inactive' && (
-          <div className="form-group">
-            <label>Reason for Deactivation:</label>
-            <textarea
-              name="deactivationReason"
-              value={editedUser.deactivationReason}
-              onChange={handleChange}
-              rows="3"
-            />
-          </div>
-        )}
-        
-        <div className="modal-actions">
-          <button onClick={onClose} className="cancel-btn">Cancel</button>
-          <button onClick={() => onSave(editedUser)} className="save-btn">
-            {isAddMode ? 'Add User' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default UserManagement;
+export default ClientManagement;
