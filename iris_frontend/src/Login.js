@@ -19,7 +19,7 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
 
     try {
       await onSubmit(email); // wait for OTP sending process
-      navigate("/otp");
+      navigate("/otp", { state: { email } }); // navigate with email state
     } catch (error) {
       console.error("Error sending OTP:", error);
     } finally {
@@ -80,7 +80,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     onContinue && onContinue(); // Optional if you have external logic
-    navigate("/otp");
+    navigate("/otp", { state: { email: employeeId } }); // navigate with email state
   };
 
   const handlePasswordChange = (e) => {

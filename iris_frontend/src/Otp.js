@@ -1,10 +1,12 @@
 // Otp.js
 import React, { useRef, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useLocation, useNavigate } from "react-router-dom"; // Import useLocation and useNavigate
 import "./Otp.css";
 
 const Otp = ({ onBack, onComplete }) => {
+  const location = useLocation(); // Initialize useLocation
   const navigate = useNavigate(); // Initialize useNavigate
+  const email = location.state?.email || ""; // Get email from previous step
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
   const [resendTime, setResendTime] = useState(90);
@@ -96,6 +98,11 @@ const Otp = ({ onBack, onComplete }) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleOtpSuccess = () => {
+    // After successful OTP verification
+    navigate("/security-questions", { state: { email } });
+  };
+
   const handleSubmit = () => {
     if (isComplete) {
       // Trigger onComplete callback if provided
@@ -103,7 +110,7 @@ const Otp = ({ onBack, onComplete }) => {
         onComplete();
       }
       // Navigate to the Security Questions page
-      navigate("/security-questions");
+      handleOtpSuccess();
     }
   };
 
@@ -167,12 +174,13 @@ const Otp = ({ onBack, onComplete }) => {
             disabled={!isComplete}
             type="button"
           >
-            Login
+               Login
           </button>
         </div>
       </div>
     </div>
   );
 };
+
 
 export default Otp;
