@@ -42,6 +42,9 @@ const ClientManagement = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
 
+  // Add these new state variables at the top with your other states
+  const [editRow, setEditRow] = useState({ type: null, data: null });
+
   useEffect(() => {
     const fetchClientData = async () => {
       try {
@@ -218,49 +221,121 @@ const ClientManagement = () => {
     }
   };
 
-    // Add LOB tab functions
-    const handleAddLob = () => {
-      if (selectedClientForLob && selectedSiteForLob && lobCardsForLob.some(card => card.lobName.trim())) {
-        let newLobId = lobs.length > 0 ? Math.max(...lobs.map(l => l.id)) : 0;
-        let newSubLobId = subLobs.length > 0 ? Math.max(...subLobs.map(s => s.id)) : 0;
-        
-        const newLobs = [];
-        const newSubLobs = [];
-        
-        lobCardsForLob.forEach(card => {
+  const handleAddLob = async () => {
+    if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
+      try {
+        // Get the client name from the selected client ID
+        const client = clients.find(c => c.id === selectedClientForLob);
+        if (!client) {
+          alert('Selected client not found');
+          return;
+        }
+  
+        // Process each LOB card
+        for (const card of lobCardsForLob) {
           if (card.lobName.trim()) {
-            newLobId++;
-            newLobs.push({
-              id: newLobId,
-              name: card.lobName.trim(),
-              clientId: selectedClientForLob,
-              siteId: selectedSiteForLob
+            // First add the LOB
+            const lobResponse = await axios.post('http://localhost:3000/api/clients/lob/add', {
+              clientName: client.name,
+              lobName: card.lobName.trim(),
+              // No site ID is passed now
             });
             
-            card.subLobNames.forEach(subLobName => {
+            console.log('LOB added:', lobResponse.data);
+            
+            // Now add all SubLOBs for this LOB
+            for (const subLobName of card.subLobNames) {
               if (subLobName.trim()) {
-                newSubLobId++;
-                newSubLobs.push({
-                  id: newSubLobId,
-                  name: subLobName.trim(),
-                  lobId: newLobId
+                try {
+                  const subLobResponse = await axios.post('http://localhost:3000/api/clients/sublob/add', {
+                    clientName: client.name,
+                    lobName: card.lobName.trim(),
+                    subLOBName: subLobName.trim()
+                  });
+                  
+                  console.log('SubLOB added:', subLobResponse.data);
+                } catch (subLobError) {
+                  console.error('Error adding SubLOB:', subLobError);
+                  alert(`Failed to add SubLOB "${subLobName.trim()}": ${subLobError.response?.data?.error || subLobError.message}`);
+                }
+              }
+            }
+          }
+        }
+        
+        // Refresh client data to show the new LOBs and SubLOBs
+        try {
+          const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+          if (refreshResponse.data && refreshResponse.data.data) {
+            // Transform API data (same as in useEffect)
+            const transformedClients = [];
+            const transformedLobs = [];
+            const transformedSubLobs = [];
+            let lobId = 0;
+            let subLobId = 0;
+            
+            refreshResponse.data.data.forEach((client, clientIndex) => {
+              const clientId = clientIndex + 1;
+              transformedClients.push({
+                id: clientId,
+                name: client.clientName,
+                createdBy: client.createdBy || '-',
+                createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+              });
+              
+              if (client.LOBs && Array.isArray(client.LOBs)) {
+                client.LOBs.forEach(lob => {
+                  lobId++;
+                  transformedLobs.push({
+                    id: lobId,
+                    name: lob.name,
+                    clientId: clientId,
+                    // Default site ID since we don't require it now
+                    siteId: null
+                  });
+                  
+                  if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                    lob.subLOBs.forEach(subLobName => {
+                      subLobId++;
+                      transformedSubLobs.push({
+                        id: subLobId,
+                        name: subLobName,
+                        lobId: lobId
+                      });
+                    });
+                  }
                 });
               }
             });
+            
+            setClients(transformedClients);
+            setLobs(transformedLobs);
+            setSubLobs(transformedSubLobs);
           }
-        });
-  
-        if (newLobs.length > 0) {
-          setLobs([...lobs, ...newLobs]);
-          if (newSubLobs.length > 0) {
-            setSubLobs([...subLobs, ...newSubLobs]);
-          }
-          setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
-          setSelectedClientForLob(null);
-          setSelectedSiteForLob(null);
+        } catch (err) {
+          console.error('Error refreshing client data:', err);
+          alert('LOBs were added, but we had trouble refreshing the display. Please reload the page.');
         }
+        
+        // Reset form
+        setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
+        setSelectedClientForLob(null);
+        // No need to reset site selection since we don't use it
+        
+        alert('LOBs added successfully!');
+      } catch (error) {
+        console.error('Error adding LOB:', error);
+        alert(`Failed to add LOB: ${error.response?.data?.error || error.message}`);
       }
-    };
+    } else {
+      // Validation feedback
+      if (!selectedClientForLob) {
+        alert('Please select a client');
+      } else {
+        alert('Please enter at least one LOB name');
+      }
+    }
+  };
     
     // Add Sub LOB tab functions
     const handleAddSubLob = async () => {
@@ -350,6 +425,180 @@ const ClientManagement = () => {
         alert('Sub LOBs added successfully!');
       }
     };
+
+    // Add/update these handle functions
+// Update the handleEditRow function but keep your modal interface
+const handleEditRow = (type, data) => {
+  if (type === 'client') {
+    // For clients, use your existing currentClient state and modal
+    const clientLobs = lobs.filter(lob => lob.clientId === data.id);
+    const clientSubLobs = subLobs.filter(subLob => 
+      clientLobs.some(lob => lob.id === subLob.lobId)
+    );
+    
+    setCurrentClient({
+      ...data,
+      lobs: clientLobs,
+      subLobs: clientSubLobs
+    });
+  } else if (type === 'lob') {
+    // For LOBs, create a minimal client object with just this LOB
+    const client = clients.find(c => c.id === data.clientId);
+    if (!client) return;
+    
+    const lobSubLobs = subLobs.filter(subLob => subLob.lobId === data.id);
+    
+    setCurrentClient({
+      id: client.id,
+      name: client.name,
+      createdBy: client.createdBy || '',
+      createdAt: client.createdAt || '',
+      lobs: [data], // Just this one LOB
+      subLobs: lobSubLobs // Just the SubLOBs for this LOB
+    });
+  } else if (type === 'sublob') {
+    // For SubLOBs, create a minimal client object with just the parent LOB and this SubLOB
+    const lob = lobs.find(l => l.id === data.lobId);
+    if (!lob) return;
+    
+    const client = clients.find(c => c.id === lob.clientId);
+    if (!client) return;
+    
+    setCurrentClient({
+      id: client.id,
+      name: client.name,
+      createdBy: client.createdBy || '',
+      createdAt: client.createdAt || '',
+      lobs: [lob], // Just the parent LOB
+      subLobs: [data] // Just this one SubLOB
+    });
+  }
+  
+  setEditModalOpen(true);
+};
+
+const handleSaveRow = async () => {
+  try {
+    const { type, data } = editRow;
+    
+    if (type === 'client') {
+      // Update client
+      await axios.post('http://localhost:3000/api/clients/update', {
+        oldClientName: data.originalName || data.name,
+        newClientName: data.name
+      });
+      
+      // Update in local state
+      setClients(clients.map(c => 
+        c.id === data.id ? { ...c, name: data.name } : c
+      ));
+    } 
+    else if (type === 'lob') {
+      // Update LOB
+      const client = clients.find(c => c.id === data.clientId);
+      if (client) {
+        await axios.post('http://localhost:3000/api/clients/lob/update', {
+          clientName: client.name,
+          oldLOBName: data.originalName || data.name,
+          newLOBName: data.name
+        });
+        
+        // Update in local state
+        setLobs(lobs.map(l => 
+          l.id === data.id ? { ...l, name: data.name } : l
+        ));
+      }
+    }
+    else if (type === 'sublob') {
+      // Update SubLOB
+      const lob = lobs.find(l => l.id === data.lobId);
+      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+      
+      if (client && lob) {
+        await axios.post('http://localhost:3000/api/clients/sublob/update', {
+          clientName: client.name,
+          lobName: lob.name,
+          oldSubLOBName: data.originalName || data.name,
+          newSubLOBName: data.name
+        });
+        
+        // Update in local state
+        setSubLobs(subLobs.map(s => 
+          s.id === data.id ? { ...s, name: data.name } : s
+        ));
+      }
+    }
+    
+    setEditModalOpen(false);
+    setEditRow({ type: null, data: null });
+    
+    // Success message
+    alert('Update successful!');
+  } catch (error) {
+    console.error('Error updating item:', error);
+    alert(`Update failed: ${error.response?.data?.error || error.message}`);
+  }
+};
+
+const handleDeleteRow = async (type, id) => {
+  try {
+    if (type === 'client') {
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+      
+      // Delete client from backend
+      await axios.delete(`http://localhost:3000/api/clients/delete`, {
+        data: { clientName: client.name }
+      });
+      
+      // Update local state
+      setClients(clients.filter(c => c.id !== id));
+      const clientLobs = lobs.filter(l => l.clientId === id);
+      setLobs(lobs.filter(l => l.clientId !== id));
+      const lobIds = clientLobs.map(l => l.id);
+      setSubLobs(subLobs.filter(s => !lobIds.includes(s.lobId)));
+    }
+    else if (type === 'lob') {
+      const lob = lobs.find(l => l.id === id);
+      if (!lob) return;
+      
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) return;
+      
+      // Delete LOB from backend
+      await axios.delete(`http://localhost:3000/api/clients/lob/delete`, {
+        data: { clientName: client.name, lobName: lob.name }
+      });
+      
+      // Update local state
+      setLobs(lobs.filter(l => l.id !== id));
+      setSubLobs(subLobs.filter(s => s.lobId !== id));
+    }
+    else if (type === 'sublob') {
+      const sublob = subLobs.find(s => s.id === id);
+      if (!sublob) return;
+      
+      const lob = lobs.find(l => l.id === sublob.lobId);
+      if (!lob) return;
+      
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) return;
+      
+      // Delete SubLOB from backend
+      await axios.delete(`http://localhost:3000/api/clients/sublob/delete`, {
+        data: { clientName: client.name, lobName: lob.name, subLOBName: sublob.name }
+      });
+      
+      // Update local state
+      setSubLobs(subLobs.filter(s => s.id !== id));
+    }
+    
+    alert('Item deleted successfully');
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    alert(`Deletion failed: ${error.response?.data?.error || error.message}`);
+  }
+};
 
   const handleAddAnotherLobCard = () => {
     if (lobCards.length < 4) {
@@ -859,7 +1108,7 @@ const ClientManagement = () => {
               <FaSearch className="search-icon" />
               <input
                 type="text"
-                placeholder="Search clients..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -905,33 +1154,139 @@ const ClientManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredClients.map(client => {
-                  const clientLobs = lobs.filter(lob => lob.clientId === client.id);
-                  const clientSubLobs = subLobs.filter(subLob => 
-                    clientLobs.some(lob => lob.id === subLob.lobId)
-                  );
-                  
-                  return (
-                    <tr key={client.id}>
-                      <td>C{client.id}</td>
-                      <td>{client.name}</td>
-                      <td>{clientLobs.map(lob => lob.name).join(', ') || '-'}</td>
-                      <td>{clientSubLobs.map(subLob => subLob.name).join(', ') || '-'}</td>
-                      <td>{client.createdBy || '-'}</td>
-                      <td>{client.createdAt || '-'}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button onClick={() => handleEdit(client)} className="edit-btn">
-                            <FaPencilAlt size={12} /> Edit
-                          </button>
-                          <button onClick={() => handleDelete(client.id, 'client')} className="delete-btn">
-                            <FaTrash size={12} /> Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {activeTableTab === 'clients' ? (
+                  // Show clients with their LOBs in separate rows
+                  filteredClients.flatMap(client => {
+                    const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+                    
+                    // If no LOBs, just show the client
+                    if (clientLobs.length === 0) {
+                      return [(
+                        <tr key={`client-${client.id}`}>
+                          <td>{client.id.toString().padStart(3, '0')}</td>
+                          <td>{client.name}</td>
+                          <td>-</td>
+                          <td>-</td>
+                          <td>{client.createdBy || '-'}</td>
+                          <td>{client.createdAt || '-'}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button onClick={() => handleEditRow('client', client)} className="edit-btn">
+                                <FaPencilAlt size={12} /> Edit
+                              </button>
+                              <button onClick={() => handleDeleteRow('client', client.id)} className="delete-btn">
+                                <FaTrash size={12} /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )];
+                    }
+                    
+                    // Show a row for each LOB
+                    return clientLobs.map(lob => {
+                      const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+                      const subLobsText = lobSubLobs.map(sl => sl.name).join(', ') || '-';
+                      
+                      return (
+                        <tr key={`lob-${lob.id}`}>
+                          <td>{client.id.toString().padStart(3, '0')}</td>
+                          <td>{client.name}</td>
+                          <td>{lob.name}</td>
+                          <td>{subLobsText}</td>
+                          <td>{client.createdBy || '-'}</td>
+                          <td>{client.createdAt || '-'}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button onClick={() => handleEditRow('lob', {...lob, clientName: client.name})} className="edit-btn">
+                                <FaPencilAlt size={12} /> Edit
+                              </button>
+                              <button onClick={() => handleDeleteRow('lob', lob.id)} className="delete-btn">
+                                <FaTrash size={12} /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })
+                ) : activeTableTab === 'lobs' ? (
+                  // Show LOBs with their SubLOBs in separate rows
+                  lobs
+                    .filter(lob => {
+                      const client = clients.find(c => c.id === lob.clientId);
+                      return client && 
+                            client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                            (!filterClient || lob.clientId === filterClient);
+                    })
+                    .map(lob => {
+                      const client = clients.find(c => c.id === lob.clientId);
+                      const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+                      const subLobsText = lobSubLobs.map(sl => sl.name).join(', ') || '-';
+                      
+                      return (
+                        <tr key={`lob-view-${lob.id}`}>
+                          <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
+                          <td>{client ? client.name : '-'}</td>
+                          <td>{lob.name}</td>
+                          <td>{subLobsText}</td>
+                          <td>{client ? client.createdBy : '-'}</td>
+                          <td>{client ? client.createdAt : '-'}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button onClick={() => handleEditRow('lob', {...lob, clientName: client.name})} className="edit-btn">
+                                <FaPencilAlt size={12} /> Edit
+                              </button>
+                              <button onClick={() => handleDeleteRow('lob', lob.id)} className="delete-btn">
+                                <FaTrash size={12} /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                ) : (
+                  // Show SubLOBs
+                  subLobs
+                    .filter(subLob => {
+                      const lob = lobs.find(l => l.id === subLob.lobId);
+                      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                      
+                      return client && 
+                            (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              lob.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              subLob.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                            (!filterClient || (lob && lob.clientId === filterClient));
+                    })
+                    .map(subLob => {
+                      const lob = lobs.find(l => l.id === subLob.lobId);
+                      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                      
+                      return (
+                        <tr key={`sublob-${subLob.id}`}>
+                          <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
+                          <td>{client ? client.name : '-'}</td>
+                          <td>{lob ? lob.name : '-'}</td>
+                          <td>{subLob.name}</td>
+                          <td>{client ? client.createdBy : '-'}</td>
+                          <td>{client ? client.createdAt : '-'}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button 
+                                onClick={() => handleEditRow('sublob', {...subLob, lobName: lob?.name, clientName: client?.name})} 
+                                className="edit-btn"
+                              >
+                                <FaPencilAlt size={12} /> Edit
+                              </button>
+                              <button onClick={() => handleDeleteRow('sublob', subLob.id)} className="delete-btn">
+                                <FaTrash size={12} /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
               </tbody>
             </table>
           </div>
