@@ -1,7 +1,7 @@
 // KPIManagement.js
 import React, { useState, useEffect } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
 
 
 const KPIManagement = () => {
@@ -21,7 +21,10 @@ const KPIManagement = () => {
   const [category, setCategory] = useState('');
   const [behavior, setBehavior] = useState('');
   const [description, setDescription] = useState('');
-  const [editingKpi, setEditingKpi] = useState(null);
+  
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentKpi, setCurrentKpi] = useState(null);
 
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
@@ -82,116 +85,29 @@ const KPIManagement = () => {
         }
       };
 
-      fetchKPIs();
+          fetchKPIs(); // Add this line to call the function
     }, []);
 
-const handleDeleteKpi = async (kpiId) => {
-      if (window.confirm('Are you sure you want to delete this KPI?')) {
-        try {
-          const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`, {
-            method: 'DELETE',
-          });
+  const handleEditClick = (kpi) => {
+    setCurrentKpi(kpi);
+    setEditModalOpen(true);
+  };
 
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
+  const handleSave = (updatedKpi) => {
+    setKpis(kpis.map(kpi => 
+      kpi.id === updatedKpi.id ? updatedKpi : kpi
+    ));
+    setEditModalOpen(false);
+    setCurrentKpi(null);
+  };
 
-          // Update local state after successful deletion
-          setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiId));
-        } catch (error) {
-          console.error('Error deleting KPI:', error);
-          alert('Failed to delete KPI. Please try again.');
-        }
-      }
-    };  
-
-  const handleEditClick = async (kpiId) => {
-      try {
-        const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const kpi = await response.json();
-        
-        // Set form data with fetched KPI
-        setEditingKpi(kpi);
-        setKpiName(kpi.dKPI_Name);
-        setCategory(kpi.dCategory);
-        setBehavior(kpi.dCalculationBehavior);
-        setDescription(kpi.dDescription);
-        setActiveTab('addKPI');
-      } catch (error) {
-        console.error('Error fetching KPI for edit:', error);
-        alert('Failed to load KPI data for editing. Please try again.');
-      }
-    };
-
-  const handleUpdateKpi = async () => {
-      if (kpiName?.trim() && category && behavior) {
-        try {
-          const updateData = {
-            dKPI_Name: kpiName,
-            dCategory: category,
-            dDescription: description,
-            dCalculationBehavior: behavior
-          };
-
-          // Make the update request
-          const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(updateData)
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(errorData?.message || `Server error: ${response.status}`);
-          }
-
-          // Fetch fresh data after update
-          const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-          const updatedKpis = await refreshResponse.json();
-          setKpis(updatedKpis);
-
-          // Reset form and switch to view tab
-          resetForm();
-          setActiveTab('viewKPIs');
-          alert('KPI updated successfully!');
-
-        } catch (error) {
-          console.error('Error updating KPI:', error);
-          alert(`Failed to update KPI: ${error.message}`);
-        }
-      }
-    };
-
-    // Add this function before the return statement
-  const handleDescriptionChange = (e) => {
-        const text = e.target.value;
-        if (text.length <= MAX_CHARS) {
-          setDescription(text);
-          setDescriptionCount(text.length);
-        }
-      };
-  
-    const handleKpiNameChange = (e) => {
-          const text = e.target.value;
-          if (text.length <= MAX_NAME_LENGTH) {
-            setKpiName(text);
-          }
-        };
-
-      const resetForm = () => {
-        setKpiName('');
-        setDescriptionCount(0); // Add this line
-        setCategory('');
-        setBehavior('');
-        setDescription('');
-        setEditingKpi(null);
-      };
+  const resetForm = () => {
+    setKpiName('');
+    setCategory('');
+    setBehavior('');
+    setDescription('');
+    setCurrentKpi(null);
+  };
 
   return (
     <div className="kpi-management-container">
@@ -206,7 +122,7 @@ const handleDeleteKpi = async (kpiId) => {
             className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
             onClick={() => setActiveTab('addKPI')}
           >
-            {editingKpi ? 'Edit KPI' : 'Add New KPI'}
+            {currentKpi ? 'Edit KPI' : 'Add New KPI'}
           </div>
           <div 
             className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
@@ -283,28 +199,13 @@ const handleDeleteKpi = async (kpiId) => {
             </div>
           </div>
 
-            {editingKpi ? (
-              <div className="button-group">
-                <button 
-                  onClick={handleUpdateKpi} 
-                  className="add-button"
-                  disabled={!kpiName.trim() || !category || !behavior}
-                >
-                  Update KPI
-                </button>
-                <button onClick={resetForm} className="cancel-button">
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button 
-                onClick={handleAddKpi} 
-                className="add-button"
-                disabled={!kpiName.trim() || !category || !behavior}
-              >
-                + Add New KPI
-              </button>
-            )}
+            <button 
+              onClick={handleAddKpi} 
+              className="add-button"
+              disabled={!kpiName.trim() || !category || !behavior}
+            >
+              + Add New KPI
+            </button>
           </div>
         </div>
 
@@ -346,6 +247,80 @@ const handleDeleteKpi = async (kpiId) => {
           </div>
         </div>
       </div>
+
+      {/* Edit KPI Modal */}
+      {editModalOpen && currentKpi && (
+        <div className="modal-overlay">
+          <div className="modal edit-kpi-modal">
+            <div className="modal-header">
+              <h2>Edit KPI</h2>
+              <button onClick={() => setEditModalOpen(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>KPI Name</label>
+                <input
+                  type="text"
+                  value={currentKpi.name}
+                  onChange={(e) => setCurrentKpi({...currentKpi, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <select
+                  value={currentKpi.category}
+                  onChange={(e) => setCurrentKpi({...currentKpi, category: e.target.value})}
+                >
+                  <option value="">Select category</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Calculation Behavior</label>
+                <select
+                  value={currentKpi.behavior}
+                  onChange={(e) => setCurrentKpi({...currentKpi, behavior: e.target.value})}
+                >
+                  <option value="">Select behavior</option>
+                  {behaviors.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Description</label>
+                              <textarea
+                value={currentKpi.description}
+                onChange={(e) => setCurrentKpi({...currentKpi, description: e.target.value})}
+                placeholder="Describe what this KPI measures and why it's important"
+                rows="3"
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
+              <button 
+                onClick={() => handleSave(currentKpi)} 
+                className="save-btn"
+                disabled={!currentKpi.name.trim() || !currentKpi.category || !currentKpi.behavior}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
