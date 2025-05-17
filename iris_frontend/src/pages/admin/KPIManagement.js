@@ -1,7 +1,7 @@
 // KPIManagement.js
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload } from 'react-icons/fa';
 
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
@@ -19,8 +19,105 @@ const KPIManagement = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentKpi, setCurrentKpi] = useState(null);
 
+  // Add bulk upload states
+  const [uploadMethod, setUploadMethod] = useState('individual');
+  const [bulkKpis, setBulkKpis] = useState([]);
+  const [invalidKpis, setInvalidKpis] = useState([]);
+  const [file, setFile] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [previewTab, setPreviewTab] = useState('valid');
+  const [individualPreview, setIndividualPreview] = useState([]);
+
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
+
+  // Handle file drop for bulk upload
+  const handleDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  // Simulate file processing
+  const handleFile = (file) => {
+    setFile(file);
+    // Mock data
+    const mockValidKpis = [
+      {
+        name: 'Customer Satisfaction',
+        category: 'Customer',
+        behavior: 'Increase',
+        description: 'Measures overall customer satisfaction score',
+        valid: true
+      },
+      {
+        name: 'Employee Turnover',
+        category: 'Employee',
+        behavior: 'Decrease',
+        description: 'Tracks employee turnover rate',
+        valid: true
+      }
+    ];
+    const mockInvalidKpis = [
+      {
+        name: 'Invalid KPI',
+        category: 'Unknown',
+        behavior: 'Invalid',
+        description: 'Invalid description',
+        valid: false,
+        reason: 'Invalid Category'
+      },
+      {
+        name: 'Duplicate KPI',
+        category: 'Financial',
+        behavior: 'Increase',
+        description: 'Duplicate description',
+        valid: false,
+        reason: 'Duplicate Entry'
+      }
+    ];
+    setBulkKpis(mockValidKpis);
+    setInvalidKpis(mockInvalidKpis);
+    setPreviewTab('valid');
+  };
+
+  // Remove uploaded file
+  const removeFile = () => {
+    setFile(null);
+    setBulkKpis([]);
+    setInvalidKpis([]);
+  };
+
+  // Generate template for bulk upload
+  const generateTemplate = () => {
+    const csvContent = "KPI Name,Category,Behavior,Description\nRevenue Growth,Financial,Increase,Measures growth in total revenue";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'kpi_upload_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleAddKpi = () => {
     if (kpiName.trim() && category && behavior) {
@@ -34,6 +131,31 @@ const KPIManagement = () => {
       setKpis([...kpis, newKpi]);
       resetForm();
     }
+  };
+
+  // Handle adding individual KPI to preview
+  const handleAddToList = () => {
+    if (kpiName.trim() && category && behavior) {
+      setIndividualPreview([{
+        name: kpiName,
+        category: category,
+        behavior: behavior,
+        description: description
+      }]);
+    }
+  };
+
+  // Handle bulk upload submission
+  const handleBulkUpload = () => {
+    const kpisToAdd = bulkKpis.map((kpi, index) => ({
+      ...kpi,
+      id: kpis.length > 0 ? Math.max(...kpis.map(k => k.id)) + index + 1 : index + 1
+    }));
+    setKpis([...kpis, ...kpisToAdd]);
+    setEditModalOpen(false);
+    setBulkKpis([]);
+    setInvalidKpis([]);
+    setFile(null);
   };
 
   const handleDeleteKpi = (kpiId) => {
@@ -61,6 +183,11 @@ const KPIManagement = () => {
     setBehavior('');
     setDescription('');
     setCurrentKpi(null);
+    setIndividualPreview([]);
+  };
+
+  const removeIndividualPreview = () => {
+    setIndividualPreview([]);
   };
 
   return (
@@ -91,62 +218,259 @@ const KPIManagement = () => {
 
         <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
           <div className="form-section">
-            <div className="form-row">
-              <div className="form-group">
-                <label>KPI Name</label>
-                <input
-                  type="text"
-                  value={kpiName}
-                  onChange={(e) => setKpiName(e.target.value)}
-                  placeholder="Enter KPI name"
-                />
-              </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+            <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
+            <div className="upload-method-tabs">
+              <button
+                className={`tab-btn ${uploadMethod === 'individual' ? 'active' : ''}`}
+                onClick={() => setUploadMethod('individual')}
+              >
+                Individual Upload
+              </button>
+              <button
+                className={`tab-btn ${uploadMethod === 'bulk' ? 'active' : ''}`}
+                onClick={() => setUploadMethod('bulk')}
+              >
+                Bulk Upload
+              </button>
+            </div>
+
+            {uploadMethod === 'individual' ? (
+              <div className="individual-upload-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>KPI Name</label>
+                    <input
+                      type="text"
+                      value={kpiName}
+                      onChange={(e) => setKpiName(e.target.value)}
+                      placeholder="Enter KPI name"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Calculation Behavior</label>
+                    <select
+                      value={behavior}
+                      onChange={(e) => setBehavior(e.target.value)}
+                    >
+                      <option value="">Select behavior</option>
+                      {behaviors.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe what this KPI measures and why it's important"
+                    rows="3"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleAddToList} 
+                  className="add-to-list-btn"
+                  disabled={!kpiName.trim() || !category || !behavior}
                 >
-                  <option value="">Select category</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  Add to List
+                </button>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Calculation Behavior</label>
-                <select
-                  value={behavior}
-                  onChange={(e) => setBehavior(e.target.value)}
+                {individualPreview.length > 0 && (
+                  <div className="individual-preview">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>KPI Name</th>
+                          <th>Category</th>
+                          <th>Behavior</th>
+                          <th>Description</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {individualPreview.map((kpi, index) => (
+                          <tr key={`individual-preview-${index}`}>
+                            <td>{kpi.name}</td>
+                            <td>{kpi.category}</td>
+                            <td>{kpi.behavior}</td>
+                            <td>{kpi.description}</td>
+                            <td>
+                              <button onClick={removeIndividualPreview} className="delete-btn">
+                                <FaTrash size={12} /> Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button 
+                    onClick={handleAddKpi} 
+                    className="save-btn"
+                    disabled={individualPreview.length === 0}
+                  >
+                    Add KPI
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bulk-upload-form">
+                <div className="bulk-upload-actions">
+                  <h3><FaUpload /> Upload KPIs</h3>
+                  <button onClick={generateTemplate} className="generate-template-btn">
+                    <FaFileDownload /> Generate Template
+                  </button>
+                </div>
+
+                <div
+                  className={`drop-zone ${dragActive ? 'active' : ''}`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
                 >
-                  <option value="">Select behavior</option>
-                  {behaviors.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                  <div className="drop-zone-content">
+                    <p>Drag and drop your file here or</p>
+                    <p>CSV or Excel files only (max 5MB)</p>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileChange}
+                      style={{ display: 'none' }}
+                    />
+                    <label htmlFor="file-upload" className="browse-files-btn">
+                      Browse Files
+                    </label>
+                  </div>
+                </div>
+
+                {file && (
+                  <div className="file-preview">
+                    <span>📄 {file.name}</span>
+                    <button onClick={removeFile} className="remove-file-btn">
+                      <FaTimesCircle />
+                    </button>
+                  </div>
+                )}
+
+                {(bulkKpis.length > 0 || invalidKpis.length > 0) && (
+                  <div className="upload-preview">
+                    <div className="preview-tabs">
+                      <button
+                        className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
+                        onClick={() => setPreviewTab('valid')}
+                        disabled={bulkKpis.length === 0}
+                      >
+                        Valid ({bulkKpis.length})
+                      </button>
+                      <button
+                        className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
+                        onClick={() => setPreviewTab('invalid')}
+                        disabled={invalidKpis.length === 0}
+                      >
+                        Invalid ({invalidKpis.length})
+                      </button>
+                    </div>
+
+                    <div className="preview-content">
+                      {previewTab === 'valid' && bulkKpis.length > 0 && (
+                        <div className="valid-kpis-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>KPI Name</th>
+                                <th>Category</th>
+                                <th>Behavior</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {bulkKpis.map((kpi, index) => (
+                                <tr key={`valid-${index}`}>
+                                  <td>{kpi.name}</td>
+                                  <td>{kpi.category}</td>
+                                  <td>{kpi.behavior}</td>
+                                  <td>{kpi.description}</td>
+                                  <td>
+                                    <button onClick={() => {
+                                      const updatedKpis = [...bulkKpis];
+                                      updatedKpis.splice(index, 1);
+                                      setBulkKpis(updatedKpis);
+                                    }} className="delete-btn">
+                                      <FaTrash size={12} /> Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {previewTab === 'invalid' && invalidKpis.length > 0 && (
+                        <div className="invalid-kpis-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Reason</th>
+                                <th>KPI Name</th>
+                                <th>Category</th>
+                                <th>Behavior</th>
+                                <th>Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invalidKpis.map((kpi, index) => (
+                                <tr key={`invalid-${index}`}>
+                                  <td className="reason-cell">{kpi.reason}</td>
+                                  <td>{kpi.name}</td>
+                                  <td>{kpi.category}</td>
+                                  <td>{kpi.behavior}</td>
+                                  <td>{kpi.description}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button
+                    onClick={handleBulkUpload}
+                    className="save-btn"
+                    disabled={bulkKpis.length === 0}
+                  >
+                    Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what this KPI measures and why it's important"
-                rows="3"
-              />
-            </div>
-
-            <button 
-              onClick={handleAddKpi} 
-              className="add-button"
-              disabled={!kpiName.trim() || !category || !behavior}
-            >
-              + Add New KPI
-            </button>
+            )}
           </div>
         </div>
 
@@ -241,7 +565,7 @@ const KPIManagement = () => {
 
             <div className="form-group">
               <label>Description</label>
-                              <textarea
+              <textarea
                 value={currentKpi.description}
                 onChange={(e) => setCurrentKpi({...currentKpi, description: e.target.value})}
                 placeholder="Describe what this KPI measures and why it's important"
