@@ -3,12 +3,19 @@ import React, { useState, useEffect } from 'react';
 import './KPIManagement.css';
 import { FaTrash, FaPencilAlt } from 'react-icons/fa';
 
+
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
   const [kpis, setKpis] = useState([
     { id: 1, name: 'Revenue Growth', category: 'Financial', behavior: 'Increase', description: 'Measures growth in total revenue' }
   ]);
   
+  // Add this at the top with other state declarations
+  const [descriptionCount, setDescriptionCount] = useState(0);
+  const MAX_CHARS = 150;
+  const MAX_NAME_LENGTH = 30;
+  
+
   // Form states
   const [kpiName, setKpiName] = useState('');
   const [category, setCategory] = useState('');
@@ -26,7 +33,7 @@ const KPIManagement = () => {
         dCategory: category,
         dDescription: description,
         dCalculationBehavior: behavior,
-        dCreatedBy: '1'
+        dCreatedBy: '2505170018'
       };
 
       const response = await fetch('http://localhost:3000/api/kpis', {
@@ -161,8 +168,25 @@ const handleDeleteKpi = async (kpiId) => {
       }
     };
 
+    // Add this function before the return statement
+  const handleDescriptionChange = (e) => {
+        const text = e.target.value;
+        if (text.length <= MAX_CHARS) {
+          setDescription(text);
+          setDescriptionCount(text.length);
+        }
+      };
+  
+    const handleKpiNameChange = (e) => {
+          const text = e.target.value;
+          if (text.length <= MAX_NAME_LENGTH) {
+            setKpiName(text);
+          }
+        };
+
       const resetForm = () => {
         setKpiName('');
+        setDescriptionCount(0); // Add this line
         setCategory('');
         setBehavior('');
         setDescription('');
@@ -199,14 +223,17 @@ const handleDeleteKpi = async (kpiId) => {
           <div className="form-section">
             <div className="form-row">
               <div className="form-group">
-                <label>KPI Name</label>
+              <label>KPI Name</label>
+              <div className="input-container">
                 <input
                   type="text"
                   value={kpiName}
-                  onChange={(e) => setKpiName(e.target.value)}
+                  onChange={handleKpiNameChange}
                   placeholder="Enter KPI name"
+                  maxLength={MAX_NAME_LENGTH}
                 />
               </div>
+            </div>
               <div className="form-group">
                 <label>Category</label>
                 <select
@@ -241,14 +268,20 @@ const handleDeleteKpi = async (kpiId) => {
             </div>
 
             <div className="form-group">
-              <label>Description</label>
+            <label>Description</label>
+            <div className="textarea-container">
               <textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={handleDescriptionChange}
                 placeholder="Describe what this KPI measures and why it's important"
                 rows="3"
+                maxLength={MAX_CHARS}
               />
+              <small className={`char-count ${descriptionCount === MAX_CHARS ? 'limit-reached' : ''}`}>
+                {descriptionCount}/{MAX_CHARS}
+              </small>
             </div>
+          </div>
 
             {editingKpi ? (
               <div className="button-group">
