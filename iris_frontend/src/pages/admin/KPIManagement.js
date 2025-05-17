@@ -1,7 +1,8 @@
 // KPIManagement.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
 import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload } from 'react-icons/fa';
+
 
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
@@ -37,6 +38,14 @@ const KPIManagement = () => {
 
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
+
+  const handleFormSubmit = () => {
+  if (editingKpi) {
+    handleUpdateKpi();
+  } else {
+    handleAddKpi();
+  }
+};
 
   // Handle file drop for bulk upload
   const handleDrag = useCallback((e) => {
@@ -126,62 +135,185 @@ const KPIManagement = () => {
     document.body.removeChild(link);
   };
 
-  const handleFormSubmit = () => {
-  if (editingKpi) {
-    handleUpdateKpi();
-  } else {
-    handleAddKpi();
-  }
-};
-
   const handleAddKpi = async () => {
     try {
-      const kpiData = {
-        dKPI_Name: kpiName.trim(),
-        dCategory: category,
-        dDescription: description,
-        dCalculationBehavior: behavior,
-        dCreatedBy: '2505170018'
-      };
+      if (kpiName.trim() && category && behavior) {
+        const kpiData = {
+          dKPI_Name: kpiName,
+          dCategory: category,
+          dCalculationBehavior: behavior,
+          dDescription: description
+        };
 
-      const response = await fetch('http://localhost:3000/api/kpis', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(kpiData)
-      });
+        const response = await fetch('http://localhost:3000/api/kpis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(kpiData)
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Server error: ${response.status}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Server error: ${response.status}`);
+        }
+
+        // Get the newly created KPI
+        const createdKpi = await response.json();
+
+        // Fetch updated KPI list to ensure we have the latest data
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+
+        // Reset form and switch to view tab
+        resetForm();
+        setActiveTab('viewKPIs');
+        alert('KPI added successfully!');
       }
-
-      // Get the newly created KPI
-      const createdKpi = await response.json();
-
-      // Fetch updated KPI list to ensure we have the latest data
-      const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-      const updatedKpis = await refreshResponse.json();
-      setKpis(updatedKpis);
-
-      // Reset form and switch to view tab
-      resetForm();
+    } catch (error) {
+      console.error('Error details:', error);
+      alert(`Failed to add KPI: ${error.message}`);
     }
   };
 
-  const handleDeleteKpi = (kpiId) => {
+  // Add useEffect for fetching KPIs
+  useEffect(() => {
+    const fetchKPIs = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/kpis');
+        if (response.ok) {
+          const data = await response.json();
+          setKpis(data);
+        }
+      } catch (error) {
+        console.error('Error fetching KPIs:', error);
+      }
+    };
+
+    fetchKPIs();
+  }, []);
+
+  const handleUpdateKpi = async () => {
+    if (kpiName?.trim() && category && behavior) {
+      try {
+        const updateData = {
+          dKPI_Name: kpiName,
+          dCategory: category,
+          dDescription: description,
+          dCalculationBehavior: behavior
+        };
+
+        const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `Server error: ${response.status}`);
+        }
+
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+
+        resetForm();
+        setActiveTab('viewKPIs');
+        alert('KPI updated successfully!');
+
+      } catch (error) {
+        console.error('Error updating KPI:', error);
+        alert(`Failed to update KPI: ${error.message}`);
+      }
+    }
+  };
+
+  const handleEditClick = async (kpiId) => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const kpi = await response.json();
+        
+        // Set the form data and editing state
+        setEditingKpi(kpi);
+        setKpiName(kpi.dKPI_Name);
+        setCategory(kpi.dCategory);
+        setBehavior(kpi.dCalculationBehavior);
+        setDescription(kpi.dDescription);
+        setDescriptionCount(kpi.dDescription ? kpi.dDescription.length : 0);
+        setActiveTab('addKPI');
+      } catch (error) {
+        console.error('Error fetching KPI for edit:', error);
+        alert('Failed to load KPI data for editing. Please try again.');
+      }
+    };
+
+  const handleSave = async (updatedKpi) => {
+      try {
+        // Set the form values from the currentKpi
+        setKpiName(updatedKpi.name);
+        setCategory(updatedKpi.category);
+        setBehavior(updatedKpi.behavior);
+        setDescription(updatedKpi.description);
+        setEditingKpi({ dKPI_ID: updatedKpi.id }); // Set the ID for update
+
+        // Call handleUpdateKpi which has the API call logic
+        await handleUpdateKpi();
+        
+        // Close the modal
+        setEditModalOpen(false);
+        setCurrentKpi(null);
+        
+      } catch (error) {
+        console.error('Error saving KPI:', error);
+        alert('Failed to save changes. Please try again.');
+      }
+    };
+
+  // Handle adding individual KPI to preview
+  const handleAddToList = () => {
+    if (kpiName.trim() && category && behavior) {
+      setIndividualPreview([{
+        name: kpiName,
+        category: category,
+        behavior: behavior,
+        description: description
+      }]);
+    }
+  };
+  
+  // Handle bulk upload submission
+  const handleBulkUpload = () => {
+    const kpisToAdd = bulkKpis.map((kpi, index) => ({
+      ...kpi,
+      id: kpis.length > 0 ? Math.max(...kpis.map(k => k.id)) + index + 1 : index + 1
+    }));
+    setKpis([...kpis, ...kpisToAdd]);
+    setEditModalOpen(false);
+    setBulkKpis([]);
+    setInvalidKpis([]);
+    setFile(null);
+  };
+  
+  const handleDeleteKpi = async (kpiId) => {
     if (window.confirm('Are you sure you want to delete this KPI?')) {
       try {
         const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`, {
           method: 'DELETE',
         });
-
+  
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
+  
         setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiId));
       } catch (error) {
         console.error('Error deleting KPI:', error);
@@ -212,6 +344,12 @@ const KPIManagement = () => {
     setBehavior('');
     setDescription('');
     setCurrentKpi(null);
+    setEditingKpi(null); // Add this line
+    setIndividualPreview([]);
+  };
+
+  const removeIndividualPreview = () => {
+    setIndividualPreview([]);
   };
 
   return (
@@ -242,62 +380,261 @@ const KPIManagement = () => {
 
         <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
           <div className="form-section">
-            <div className="form-row">
-              <div className="form-group">
-                <label>KPI Name</label>
-                <input
-                  type="text"
-                  value={kpiName}
-                  onChange={(e) => setKpiName(e.target.value)}
+            <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
+            <div className="upload-method-tabs">
+              <button
+                className={`tab-btn ${uploadMethod === 'individual' ? 'active' : ''}`}
+                onClick={() => setUploadMethod('individual')}
+              >
+                Individual Upload
+              </button>
+              <button
+                className={`tab-btn ${uploadMethod === 'bulk' ? 'active' : ''}`}
+                onClick={() => setUploadMethod('bulk')}
+              >
+                Bulk Upload
+              </button>
+            </div>
+
+            {uploadMethod === 'individual' ? (
+              <div className="individual-upload-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>KPI Name</label>
+                    <input
+                      type="text"
+                      value={kpiName}
+                  onChange={handleKpiNameChange}
                   placeholder="Enter KPI name"
-                />
-              </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  maxLength={MAX_NAME_LENGTH}
+
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={`category-${cat}`} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Calculation Behavior</label>
+                    <select
+                      value={behavior}
+                      onChange={(e) => setBehavior(e.target.value)}
+                    >
+                      <option value="">Select behavior</option>
+                      {behaviors.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe what this KPI measures and why it's important"
+                    rows="3"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleFormSubmit}
+                  className="add-to-list-btn"
+                  disabled={!kpiName.trim() || !category || !behavior}
                 >
-                  <option value="">Select category</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  {editingKpi ? 'Save Changes' : '+ Add New KPI'}
+                </button>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Calculation Behavior</label>
-                <select
-                  value={behavior}
-                  onChange={(e) => setBehavior(e.target.value)}
+                {individualPreview.length > 0 && (
+                  <div className="individual-preview">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>KPI Name</th>
+                          <th>Category</th>
+                          <th>Behavior</th>
+                          <th>Description</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {individualPreview.map((kpi, index) => (
+                          <tr key={`individual-preview-${index}`}>
+                            <td>{kpi.name}</td>
+                            <td>{kpi.category}</td>
+                            <td>{kpi.behavior}</td>
+                            <td>{kpi.description}</td>
+                            <td>
+                              <button onClick={removeIndividualPreview} className="delete-btn">
+                                <FaTrash size={12} /> Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button 
+                    onClick={handleAddKpi} 
+                    className="save-btn"
+                    disabled={individualPreview.length === 0}
+                  >
+                    Add KPI
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bulk-upload-form">
+                <div className="bulk-upload-actions">
+                  <h3><FaUpload /> Upload KPIs</h3>
+                  <button onClick={generateTemplate} className="generate-template-btn">
+                    <FaFileDownload /> Generate Template
+                  </button>
+                </div>
+
+                <div
+                  className={`drop-zone ${dragActive ? 'active' : ''}`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
                 >
-                  <option value="">Select behavior</option>
-                  {behaviors.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                  <div className="drop-zone-content">
+                    <p>Drag and drop your file here or</p>
+                    <p>CSV or Excel files only (max 5MB)</p>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileChange}
+                      style={{ display: 'none' }}
+                    />
+                    <label htmlFor="file-upload" className="browse-files-btn">
+                      Browse Files
+                    </label>
+                  </div>
+                </div>
+
+                {file && (
+                  <div className="file-preview">
+                    <span>📄 {file.name}</span>
+                    <button onClick={removeFile} className="remove-file-btn">
+                      <FaTimesCircle />
+                    </button>
+                  </div>
+                )}
+
+                {(bulkKpis.length > 0 || invalidKpis.length > 0) && (
+                  <div className="upload-preview">
+                    <div className="preview-tabs">
+                      <button
+                        className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
+                        onClick={() => setPreviewTab('valid')}
+                        disabled={bulkKpis.length === 0}
+                      >
+                        Valid ({bulkKpis.length})
+                      </button>
+                      <button
+                        className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
+                        onClick={() => setPreviewTab('invalid')}
+                        disabled={invalidKpis.length === 0}
+                      >
+                        Invalid ({invalidKpis.length})
+                      </button>
+                    </div>
+
+                    <div className="preview-content">
+                      {previewTab === 'valid' && bulkKpis.length > 0 && (
+                        <div className="valid-kpis-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>KPI Name</th>
+                                <th>Category</th>
+                                <th>Behavior</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {bulkKpis.map((kpi, index) => (
+                                <tr key={`valid-${index}`}>
+                                  <td>{kpi.name}</td>
+                                  <td>{kpi.category}</td>
+                                  <td>{kpi.behavior}</td>
+                                  <td>{kpi.description}</td>
+                                  <td>
+                                    <button onClick={() => {
+                                      const updatedKpis = [...bulkKpis];
+                                      updatedKpis.splice(index, 1);
+                                      setBulkKpis(updatedKpis);
+                                    }} className="delete-btn">
+                                      <FaTrash size={12} /> Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {previewTab === 'invalid' && invalidKpis.length > 0 && (
+                        <div className="invalid-kpis-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Reason</th>
+                                <th>KPI Name</th>
+                                <th>Category</th>
+                                <th>Behavior</th>
+                                <th>Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invalidKpis.map((kpi, index) => (
+                                <tr key={`invalid-${index}`}>
+                                  <td className="reason-cell">{kpi.reason}</td>
+                                  <td>{kpi.name}</td>
+                                  <td>{kpi.category}</td>
+                                  <td>{kpi.behavior}</td>
+                                  <td>{kpi.description}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button
+                    onClick={handleBulkUpload}
+                    className="save-btn"
+                    disabled={bulkKpis.length === 0}
+                  >
+                    Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what this KPI measures and why it's important"
-                rows="3"
-              />
-            </div>
-
-            <button 
-              onClick={handleAddKpi} 
-              className="add-button"
-              disabled={!kpiName.trim() || !category || !behavior}
-            >
-              + Add New KPI
-            </button>
+            )}
           </div>
         </div>
 
@@ -383,8 +720,10 @@ const KPIManagement = () => {
                   onChange={(e) => setCurrentKpi({...currentKpi, behavior: e.target.value})}
                 >
                   <option value="">Select behavior</option>
-                  {behaviors.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
+                  {behaviors.map((beh) => (
+                    <option key={`behavior-${beh}`} value={beh}>
+                      {beh}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -393,11 +732,18 @@ const KPIManagement = () => {
             <div className="form-group">
               <label>Description</label>
               <textarea
-                value={currentKpi.description}
-                onChange={(e) => setCurrentKpi({...currentKpi, description: e.target.value})}
+                value={description}
+                onChange={handleDescriptionChange}
                 placeholder="Describe what this KPI measures and why it's important"
                 rows="3"
+                maxLength={MAX_CHARS}
               />
+
+              <small className={`char-count ${descriptionCount === MAX_CHARS ? 'limit-reached' : ''}`}>
+                {descriptionCount}/{MAX_CHARS}
+              </small>
+
+
             </div>
 
             <div className="modal-actions">
