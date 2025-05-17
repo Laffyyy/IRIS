@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const otpcontroller = require('../controllers/otpccontroller'); // Import the controller
 
-const otpController = new otpcontroller(); // Instantiate the class
-router.post('/generate', (req, res) => otpController.generateOtp(req, res));
+const OtpControllerClass = require('../controllers/otpcontoller'); // Import the controller class
+
+const otpController = new OtpControllerClass(); // Instantiate the class
+
+router.post('/generate', (req, res) => otpController.sendOtp(req, res));
+
+module.exports = router;

@@ -60,9 +60,15 @@ class LoginService {
             throw new Error('Account has expired');
         }
 
-        // Step 5: If OTP is provided, verify it
+        // Step 5: Handle OTP verification
         if (otp) {
-            await this.otpService.verifyOtp(user.dUser_ID, otp);
+            // Verify the OTP using the OtpService
+            const otpService = new OtpService();
+            const otpVerificationResult = await otpService.verifyOtp(user.dUser_ID, otp);
+
+            if (otpVerificationResult.message === 'OTP expired. A new OTP has been sent to your registered email or phone.') {
+                return otpVerificationResult;
+            }
 
             // Step 6: Generate a token after OTP verification
             const token = jwt.sign(
@@ -76,28 +82,11 @@ class LoginService {
 
             return { message: 'Login successful', token, user: { id: user.dUser_ID, email: user.dEmail, status: user.dStatus || user.dUser_Type } };
         } else {
-            // Step 7: Check OTP status or generate a new OTP if the user does not exist in tbl_otp
-            const [otpRows] = await db.query(
-                'SELECT dOTP_Status FROM tbl_otp WHERE dUser_ID = ? ORDER BY tOTP_Created DESC LIMIT 1',
-                [user.dUser_ID]
-            );
-
-            if (otpRows.length > 0) {
-                if (otpRows[0].dOTP_Status === 0) {
-                    // If OTP status is 0, do not generate a new OTP
-                    return { message: 'OTP already sent. Please check your email or phone.' };
-                } else {
-                    // Generate and send a new OTP if status is 1
-                    const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
-                    console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
-                    return { message: 'OTP sent to your registered email or phone' };
-                }
-            } else {
-                // If no OTP exists for the user, generate a new OTP
-                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
-                console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
-                return { message: 'OTP sent to your registered email or phone' };
-            }
+            // Step 7: Generate a new OTP if none is provided
+            const otpService = new OtpService();
+            const generatedOtp = await otpService.generateOtp(user.dUser_ID);
+            console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
+            return { message: 'OTP sent to your registered email or phone' };
         }
     } catch (error) {
         console.error('Error in loginUser:', error.message);

@@ -36,6 +36,8 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   );
 };
 
+
+
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
@@ -44,6 +46,12 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
+  const [otp, setOtp] = useState('');
+const [userId, setUserId] = useState('');
+const [passwords, setPasswords] = useState({
+  newPassword: '',
+  confirmPassword: ''
+});
 
   const carouselImages = [
     '/assets/stephen1.jpg',
@@ -57,10 +65,42 @@ const Login = ({ onContinue, onForgotPassword }) => {
     }
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onContinue && onContinue(); // Optional if you have external logic
-    navigate('/otp');
+ 
+    // Prepare the payload
+    const payload = {
+      userId : employeeId,
+      password: password,
+      otp: "",
+    };
+    console.log('Payload:', payload);
+    try {
+      // Send POST request to the API
+      const response = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Request successful!');
+        console.log('Response:', data);
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        navigate('/otp'); 
+      } else {
+        alert(`Error: ${data.message}`);
+        console.error('Error:', data);
+      }
+    } catch (error) {
+      console.error('Error during API call:', error);
+      alert('An error occurred while sending the request.');
+    }
   };
 
   const handlePasswordChange = (e) => {

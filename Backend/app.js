@@ -2,6 +2,7 @@ const express = require('express');
 const loginRoutes = require('./routes/loginroutes');
 const helment = require('helmet');
 const cors = require('cors');
+const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 
 const app = express();
 
@@ -17,7 +18,6 @@ app.use(cors({
 
 
 app.use('/api/login', loginRoutes);
-
-
+app.use('/api/otp', otpRoutes); // Add this line to include the OTP routes
 
 module.exports = app;

@@ -72,27 +72,46 @@ class OtpService {
 }
 
   async verifyOtp(userId, otp) {
-    const [rows] = await db.query(
-      "SELECT * FROM tbl_otp WHERE dUser_ID = ? AND dOTP = ? AND dOTP_Status = 0",
-      [userId, otp]
-    );
+    try {
+        const [otpRows] = await db.query(
+            "SELECT * FROM tbl_otp WHERE dUser_ID = ? ORDER BY tOTP_Created DESC LIMIT 1",
+            [userId]
+        );
 
-    if (rows.length === 0) {
-      throw new Error("Invalid or expired OTP");
+        if (otpRows.length === 0) {
+            // Generate a new OTP if none exists
+            const generatedOtp = await this.generateOtp(userId);
+            console.log(`Generated OTP for user ${userId}: ${generatedOtp}`);
+            return { message: 'No OTP found. A new OTP has been sent to your registered email or phone.' };
+        }
+
+        const otpRecord = otpRows[0];
+        const currentTime = new Date();
+
+        // Check if the OTP is expired
+        if (new Date(otpRecord.tOTP_Expires) < currentTime) {
+            // Generate a new OTP if expired
+            const generatedOtp = await this.generateOtp(userId);
+            console.log(`Generated new OTP for user ${userId}: ${generatedOtp}`);
+            return { message: 'OTP expired. A new OTP has been sent to your registered email or phone.' };
+        }
+
+        // Verify the provided OTP
+        if (otp !== otpRecord.dOTP) {
+            throw new Error('Invalid OTP');
+        }
+
+        // Mark OTP as used
+        await db.query("UPDATE tbl_otp SET dOTP_Status = 1 WHERE dOTP_ID = ?", [
+            otpRecord.dOTP_ID,
+        ]);
+
+        return { message: 'OTP verified successfully' };
+    } catch (error) {
+        console.error('Error in verifyOtp:', error.message);
+        throw error;
     }
-
-    const record = rows[0];
-    if (new Date(record.tOTP_Expires) < new Date()) {
-      throw new Error("OTP expired");
-    }
-
-    // Mark OTP as used
-    await db.query("UPDATE tbl_otp SET dOTP_Status = 1 WHERE dOTP_ID = ?", [
-      record.dOTP_ID,
-    ]);
-
-    return true;
-  }
+}
 
   async getUserEmail(userID) {
     try {
