@@ -1,5 +1,5 @@
 // KPIManagement.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './KPIManagement.css';
 
 const KPIManagement = () => {
@@ -17,22 +17,66 @@ const KPIManagement = () => {
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
 
-  const handleAddKpi = () => {
-    if (kpiName.trim() && category && behavior) {
-      const newKpi = {
-        id: kpis.length + 1,
-        name: kpiName,
-        category: category,
-        behavior: behavior,
-        description: description
-      };
-      setKpis([...kpis, newKpi]);
+  const handleAddKpi = async () => {
+  if (kpiName.trim() && category && behavior) {
+    try {
+      const response = await fetch('http://localhost:3000/api/kpis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dKPI_Name: kpiName,
+          dCategory: category,
+          dDescription: description,
+          dCalculationBehavior: behavior,
+          dCreatedBy: '1'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('KPI added successfully:', result);
+
+      // Update the KPIs list with the new data
+      const updatedResponse = await fetch('http://localhost:3000/api/kpis');
+      const updatedData = await updatedResponse.json();
+      setKpis(updatedData);
+
+      // Reset form
       setKpiName('');
       setCategory('');
       setBehavior('');
       setDescription('');
+
+      // Switch to view tab
+      setActiveTab('viewKPIs');
+
+    } catch (error) {
+      console.error('Error adding KPI:', error);
+      alert('Failed to add KPI. Please try again.');
+    }
+  }
+};
+
+useEffect(() => {
+  const fetchKPIs = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/kpis');
+      if (response.ok) {
+        const data = await response.json();
+        setKpis(data);
+      }
+    } catch (error) {
+      console.error('Error fetching KPIs:', error);
     }
   };
+
+  fetchKPIs();
+}, []);
 
   return (
     <div className="kpi-management-container">
@@ -76,9 +120,17 @@ const KPIManagement = () => {
                   onChange={(e) => setCategory(e.target.value)}
                 >
                   <option value="">Select category</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  {categories.map((cat, index) => (
+                  <option key={cat || index} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+
+                {behaviors.map((behavior, index) => (
+                  <option key={behavior || index} value={behavior}>
+                    {behavior}
+                  </option>
+                ))}
                 </select>
               </div>
             </div>
@@ -131,15 +183,15 @@ const KPIManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {kpis.map(kpi => (
-                  <tr key={kpi.id}>
-                    <td>{kpi.id}</td>
-                    <td>{kpi.name}</td>
-                    <td>{kpi.category}</td>
-                    <td>{kpi.behavior}</td>
-                    <td>{kpi.description}</td>
-                  </tr>
-                ))}
+                {kpis.map((kpi, index) => (
+                <tr key={kpi.dKPI_ID || index}>
+                  <td>{kpi.dKPI_ID}</td>
+                  <td>{kpi.dKPI_Name}</td>
+                  <td>{kpi.dCategory}</td>
+                  <td>{kpi.dCalculationBehavior}</td>
+                  <td>{kpi.dDescription}</td>
+                </tr>
+              ))}
               </tbody>
             </table>
           </div>

@@ -24,6 +24,7 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/security-questions" element={<SecurityQuestions />} />
           <Route path="/update-password" element={<UpdatePassword />} />  {/* Add this line for UpdatePassword */}
+          <Route path="*" element={null} />
         </Routes>
       <div className="app-container">
         <Sidebar />
@@ -52,6 +53,8 @@ function App() {
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/apps" element={<AppManagement />} />
               <Route path="/admin/clients" element={<ClientManagement />} />
+              <Route path="/admin/sites" element={<SiteManagement />} />
+              <Route path="/admin/kpis" element={<KPIManagement />} />
               <Route path="/hr" element={<div>HR Page</div>} />
               <Route path="/reports" element={<div>Reports Page</div>} />
               <Route path="/compensation" element={<div>C&B Page</div>} />

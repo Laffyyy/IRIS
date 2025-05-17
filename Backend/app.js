@@ -4,6 +4,7 @@ const loginRoutes = require('./routes/loginroutes');
 const otpRoutes = require('./routes/otpcontoller');
 const changepassRoutes = require('./routes/changepasswordroutes');
 const SiteManagementRoutes = require('./routes/siteManagementRoutes');
+const kpiRoutes = require('./routes/kpiManagementRoutes')
 
 const app = express();
 
@@ -23,5 +24,6 @@ app.use('/api/login', loginRoutes);
 app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/sites', SiteManagementRoutes);
+app.use('/api/kpis', kpiRoutes);
 
 module.exports = app;
