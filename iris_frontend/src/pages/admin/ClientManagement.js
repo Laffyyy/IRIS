@@ -1081,30 +1081,6 @@ const handleDeleteRow = async (type, id) => {
               ))}
             </select>
           </div>
-          <div className="client-name-container">
-              <label>Select Site</label>
-              <select
-                value={filterSiteForSubLob || ''}
-                onChange={(e) => setFilterSiteForSubLob(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">All Sites</option>
-                {/* Filter sites based on the selected client */}
-                {sites
-                  .filter(site => {
-                    if (!filterClientForSubLob) return true; // Show all sites if no client selected
-                    
-                    // Find all LOBs for this client that have this site
-                    return lobs.some(lob => 
-                      lob.clientId === filterClientForSubLob && 
-                      lob.siteId === site.id
-                    );
-                  })
-                  .map(site => (
-                    <option key={site.id} value={site.id}>{site.name}</option>
-                  ))
-                }
-              </select>
-            </div>
 
           <div className="lob-cards-container">
             {lobCardsForLob.map((card, lobCardIndex) => (

@@ -20,7 +20,7 @@ class ClientManagementService {
             
             // Check if client already exists
             const [clientExists] = await db.query(
-                'SELECT dClient_ID FROM tbl_clientsite WHERE dClientName = ? LIMIT 1',
+                'SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? LIMIT 1',
                 [clientName]
             );
             
@@ -30,9 +30,9 @@ class ClientManagementService {
                 // Use existing client ID
                 clientId = clientExists[0].dClient_ID;
             } else {
-                // Generate a new client ID (you might have a different way to do this)
+                // Generate a new client ID
                 const [maxClientId] = await db.query(
-                    'SELECT MAX(dClient_ID) as maxId FROM tbl_clientsite'
+                    'SELECT MAX(dClient_ID) as maxId FROM tbl_clientlob'
                 );
                 
                 clientId = (maxClientId[0].maxId || 0) + 1;
@@ -47,8 +47,8 @@ class ClientManagementService {
             for (const lob of LOBs) {
                 for (const subLOB of lob.subLOBs) {
                     const [result] = await db.query(
-                        'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                        [clientId, clientName, lob.name, subLOB, null, null, createdBy, currentDate]
+                        'INSERT INTO tbl_clientlob (dClient_ID, dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+                        [clientId, clientName, lob.name, subLOB, createdBy, currentDate]
                     );
                     
                     results.push(result.insertId);
@@ -64,10 +64,27 @@ class ClientManagementService {
     
     async getClients() {
         try {
-            // Get all unique clients with their LOBs and Sub LOBs
+            // First, get all client-LOB-SubLOB combinations
             const [rows] = await db.query(
-                'SELECT * FROM tbl_clientsite ORDER BY dClientName, dLOB, dSubLOB'
+                'SELECT * FROM tbl_clientlob ORDER BY dClientName, dLOB, dSubLOB'
             );
+            
+            // Then, get site information for each client
+            const [siteInfo] = await db.query(
+                'SELECT dClientName, dSite_ID, dSiteName FROM tbl_clientsite GROUP BY dClientName, dSite_ID, dSiteName'
+            );
+            
+            // Create a map for quick site lookups
+            const siteMap = new Map();
+            siteInfo.forEach(site => {
+                if (!siteMap.has(site.dClientName)) {
+                    siteMap.set(site.dClientName, []);
+                }
+                siteMap.get(site.dClientName).push({
+                    siteId: site.dSite_ID,
+                    siteName: site.dSiteName
+                });
+            });
             
             // Format the results to organize by client, LOB, and Sub LOB
             const clientsMap = new Map();
@@ -77,10 +94,14 @@ class ClientManagementService {
                 const clientName = row.dClientName;
                 const lob = row.dLOB;
                 const subLOB = row.dSubLOB;
-                const siteId = row.dSite_ID;
-                const siteName = row.dSiteName;
                 const createdBy = row.dCreatedBy;
                 const createdAt = row.tCreatedAt;
+                
+                // Get site info for this client
+                const clientSites = siteMap.get(clientName) || [];
+                // For simplicity, use the first site if available
+                const siteId = clientSites.length > 0 ? clientSites[0].siteId : null;
+                const siteName = clientSites.length > 0 ? clientSites[0].siteName : null;
                 
                 if (!clientsMap.has(clientName)) {
                     clientsMap.set(clientName, {
@@ -146,10 +167,16 @@ class ClientManagementService {
                 throw new Error('Both old and new client names are required');
             }
             
-            // Update the client name
+            // Update the client name in tbl_clientlob
             const [result] = await db.query(
-                'UPDATE tbl_clientsite SET dClientName = ?, dCreatedBy = ? WHERE dClientName = ?',
+                'UPDATE tbl_clientlob SET dClientName = ?, dCreatedBy = ? WHERE dClientName = ?',
                 [newClientName, userId, oldClientName]
+            );
+            
+            // Also update the client name in tbl_clientsite if it exists
+            await db.query(
+                'UPDATE tbl_clientsite SET dClientName = ? WHERE dClientName = ?',
+                [newClientName, oldClientName]
             );
             
             return { 
@@ -172,8 +199,14 @@ class ClientManagementService {
             // Log who deleted the client for audit purposes if needed
             console.log(`Client "${clientName}" deleted by user ID: ${userId}`);
             
-            // Delete all records for the client
+            // Delete all records for the client from tbl_clientlob
             const [result] = await db.query(
+                'DELETE FROM tbl_clientlob WHERE dClientName = ?',
+                [clientName]
+            );
+            
+            // Also delete from tbl_clientsite if it exists
+            await db.query(
                 'DELETE FROM tbl_clientsite WHERE dClientName = ?',
                 [clientName]
             );
@@ -199,7 +232,7 @@ class ClientManagementService {
             
             // Check if the client exists and get its ID
             const [clientExists] = await db.query(
-                'SELECT dClient_ID FROM tbl_clientsite WHERE dClientName = ? LIMIT 1',
+                'SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? LIMIT 1',
                 [clientName]
             );
             
@@ -211,7 +244,7 @@ class ClientManagementService {
             
             // Check if the LOB already exists for this client
             const [lobExists] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
                 [clientName, lobName]
             );
             
@@ -225,15 +258,29 @@ class ClientManagementService {
             // Get site name if siteId is provided
             let siteName = null;
             if (siteId) {
-                // You might need to fetch this from a sites table or set it manually
-                siteName = `Site ${siteId}`;  // Placeholder - replace with actual site name lookup
+                // Fetch site name from tbl_site
+                const [siteData] = await db.query(
+                    'SELECT dSiteName FROM tbl_site WHERE dSite_ID = ? LIMIT 1',
+                    [siteId]
+                );
+                
+                if (siteData.length > 0) {
+                    siteName = siteData[0].dSiteName;
+                } else {
+                    siteName = `Site ${siteId}`;  // Fallback
+                }
+                
+                // Add/update site association in tbl_clientsite
+                await db.query(
+                    'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dSite_ID, dSiteName) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE dSiteName = ?',
+                    [clientId, clientName, siteId, siteName, siteName]
+                );
             }
             
             // Insert the LOB with a temporary placeholder Sub-LOB
-            // This will be replaced by the actual Sub-LOBs when they're added
             const [result] = await db.query(
-                'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [clientId, clientName, lobName, "__temp_placeholder__", siteId, siteName, userId, currentDate]
+                'INSERT INTO tbl_clientlob (dClient_ID, dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+                [clientId, clientName, lobName, "__temp_placeholder__", userId, currentDate]
             );
             
             return { 
@@ -259,7 +306,7 @@ class ClientManagementService {
             
             // Check if the client and old LOB exist
             const [lobExists] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
                 [clientName, oldLOBName]
             );
             
@@ -270,7 +317,7 @@ class ClientManagementService {
             // Check if the new LOB name already exists for this client (if different from old name)
             if (oldLOBName !== newLOBName) {
                 const [newLobExists] = await db.query(
-                    'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ?',
+                    'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
                     [clientName, newLOBName]
                 );
                 
@@ -281,7 +328,7 @@ class ClientManagementService {
             
             // Update the LOB name
             const [result] = await db.query(
-                'UPDATE tbl_clientsite SET dLOB = ?, dCreatedBy = ? WHERE dClientName = ? AND dLOB = ?',
+                'UPDATE tbl_clientlob SET dLOB = ?, dCreatedBy = ? WHERE dClientName = ? AND dLOB = ?',
                 [newLOBName, userId, clientName, oldLOBName]
             );
             
@@ -307,7 +354,7 @@ class ClientManagementService {
             
             // Check if the client and LOB exist
             const [lobExists] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
                 [clientName, lobName]
             );
             
@@ -317,7 +364,7 @@ class ClientManagementService {
             
             // Check if this is the only LOB for the client
             const [distinctLobs] = await db.query(
-                'SELECT COUNT(DISTINCT dLOB) as count FROM tbl_clientsite WHERE dClientName = ?',
+                'SELECT COUNT(DISTINCT dLOB) as count FROM tbl_clientlob WHERE dClientName = ?',
                 [clientName]
             );
             
@@ -327,7 +374,7 @@ class ClientManagementService {
             
             // Delete all records for this LOB
             const [result] = await db.query(
-                'DELETE FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ?',
+                'DELETE FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
                 [clientName, lobName]
             );
             
@@ -352,7 +399,7 @@ class ClientManagementService {
             
             // Check if the client and LOB exist and get client ID
             const [clientLobData] = await db.query(
-                'SELECT dClient_ID, dSite_ID, dSiteName FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? LIMIT 1',
+                'SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? LIMIT 1',
                 [clientName, lobName]
             );
             
@@ -361,18 +408,29 @@ class ClientManagementService {
             }
             
             const clientId = clientLobData[0].dClient_ID;
-            const siteId = clientLobData[0].dSite_ID;
-            const siteName = clientLobData[0].dSiteName;
+            
+            // Get site info for this client if it exists
+            let siteId = null;
+            let siteName = null;
+            const [siteData] = await db.query(
+                'SELECT dSite_ID, dSiteName FROM tbl_clientsite WHERE dClientName = ? LIMIT 1',
+                [clientName]
+            );
+            
+            if (siteData.length > 0) {
+                siteId = siteData[0].dSite_ID;
+                siteName = siteData[0].dSiteName;
+            }
             
             // Check if the placeholder entry exists and delete it
             await db.query(
-                'DELETE FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                'DELETE FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                 [clientName, lobName, "__temp_placeholder__"]
             );
             
             // Check if the Sub LOB already exists for this client and LOB
             const [subLobExists] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                 [clientName, lobName, subLOBName]
             );
             
@@ -385,8 +443,8 @@ class ClientManagementService {
             
             // Insert the new Sub LOB
             const [result] = await db.query(
-                'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [clientId, clientName, lobName, subLOBName, siteId, siteName, userId, currentDate]
+                'INSERT INTO tbl_clientlob (dClient_ID, dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+                [clientId, clientName, lobName, subLOBName, userId, currentDate]
             );
             
             return { 
@@ -413,7 +471,7 @@ class ClientManagementService {
             
             // Check if the client, LOB, and old Sub LOB exist
             const [subLobExists] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                 [clientName, lobName, oldSubLOBName]
             );
             
@@ -424,7 +482,7 @@ class ClientManagementService {
             // Check if the new Sub LOB name already exists for this client and LOB (if different from old name)
             if (oldSubLOBName !== newSubLOBName) {
                 const [newSubLobExists] = await db.query(
-                    'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                    'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                     [clientName, lobName, newSubLOBName]
                 );
                 
@@ -435,7 +493,7 @@ class ClientManagementService {
             
             // Update the Sub LOB name
             const [result] = await db.query(
-                'UPDATE tbl_clientsite SET dSubLOB = ?, dCreatedBy = ? WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                'UPDATE tbl_clientlob SET dSubLOB = ?, dCreatedBy = ? WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                 [newSubLOBName, userId, clientName, lobName, oldSubLOBName]
             );
             
@@ -462,7 +520,7 @@ class ClientManagementService {
             
             // Check if the client, LOB, and Sub LOB exist
             const [subLobExists] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                 [clientName, lobName, subLOBName]
             );
             
@@ -472,7 +530,7 @@ class ClientManagementService {
             
             // Check if this is the only Sub LOB for this LOB
             const [subLobCount] = await db.query(
-                'SELECT COUNT(*) as count FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ?',
+                'SELECT COUNT(*) as count FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
                 [clientName, lobName]
             );
             
@@ -482,7 +540,7 @@ class ClientManagementService {
             
             // Delete the Sub LOB
             const [result] = await db.query(
-                'DELETE FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                'DELETE FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
                 [clientName, lobName, subLOBName]
             );
             
