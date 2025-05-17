@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const login = require('../models/login');
 const OtpService = require('./otpService'); // Import the OtpService
 
+
 class LoginService {
     constructor() {
         this.otpService = new OtpService(); // Initialize OtpService
@@ -21,7 +22,6 @@ class LoginService {
             user = loginRows[0];
             table = 'tbl_login';
         } else {
-            // Step 2: Check if the user exists in tbl_admin
             const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
             if (adminRows.length > 0) {
                 user = adminRows[0];
@@ -33,6 +33,12 @@ class LoginService {
         if (!user) {
             throw new Error('User not found');
         }
+
+         // Check if the account is locked in the database
+         if (user.dStatus === 'LOCKED') {
+            throw new Error('Account is locked. Please contact support.');
+        }
+
 
         // Step 3: Verify the password
         let isMatch = false;
@@ -49,8 +55,34 @@ class LoginService {
         }
 
         if (!isMatch) {
-            throw new Error('Invalid password');
+            // Log the failed login attempt
+            await db.query(
+                'INSERT INTO tbl_logs_useraccess (userID, dLoginResult) VALUES (?, ?)',
+                [userID, 'FAILED']
+            );
+
+            // Count the number of failed attempts in the last 15 minutes
+            const [failedAttempts] = await db.query(
+                `SELECT COUNT(*) AS count 
+                 FROM tbl_logs_useraccess 
+                 WHERE userID = ? AND dLoginResult = 'FAILED' AND timestamp > NOW() - INTERVAL 15 MINUTE`,
+                [userID]
+            );
+
+            if (failedAttempts[0].count >= 3) {
+                // Lock the account
+                await db.query('UPDATE tbl_login SET dStatus = ? WHERE dUser_ID = ?', ['LOCKED', userID]);
+                throw new Error('Account is locked due to too many failed login attempts');
+            }
+
+            throw new Error(`Invalid password. You have ${3 - failedAttempts[0].count} attempts left.`);
         }
+
+        // Log the successful login attempt
+        await db.query(
+            'INSERT INTO tbl_logs_useraccess (userID, dLoginResult) VALUES (?, ?)',
+            [userID, 'SUCCESS']
+        );
 
         // Step 4: Check the user's status (if applicable)
         if (user.dStatus && user.dStatus === 'DEACTIVATED') {

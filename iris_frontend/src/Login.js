@@ -94,8 +94,12 @@ const [passwords, setPasswords] = useState({
         localStorage.setItem('password', password);
         navigate('/otp'); 
       } else {
-        alert(`Error: ${data.message}`);
-        console.error('Error:', data);
+        // Handle login failure
+        if (data.message === 'Account is locked due to too many failed login attempts') {
+          alert('Your account is locked. Please contact support.');
+      } else {
+          alert(data.message || 'Login failed. Please try again.');
+      }
       }
     } catch (error) {
       console.error('Error during API call:', error);
