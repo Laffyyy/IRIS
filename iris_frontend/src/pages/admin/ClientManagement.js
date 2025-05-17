@@ -426,7 +426,7 @@ const ClientManagement = () => {
       }
     };
 
-// Update the handleEditRow function but keep your modal interface
+// Updated handleEditRow function to properly store original names
 const handleEditRow = (type, data) => {
   if (type === 'client') {
     // For clients, use your existing currentClient state and modal
@@ -437,8 +437,10 @@ const handleEditRow = (type, data) => {
     
     setCurrentClient({
       ...data,
-      lobs: clientLobs,
-      subLobs: clientSubLobs
+      lobs: clientLobs.map(lob => ({...lob, originalName: lob.name})),
+      subLobs: clientSubLobs.map(subLob => ({...subLob, originalName: subLob.name})),
+      type: 'client',
+      originalName: data.name
     });
   } else if (type === 'lob') {
     // For LOBs, create a minimal client object with just this LOB
@@ -450,13 +452,16 @@ const handleEditRow = (type, data) => {
     setCurrentClient({
       id: client.id,
       name: client.name,
+      originalName: client.name, // Add this line
       createdBy: client.createdBy || '',
       createdAt: client.createdAt || '',
-      lobs: [data], // Just this one LOB
-      subLobs: lobSubLobs // Just the SubLOBs for this LOB
+      lobs: [{ ...data, originalName: data.name }],
+      subLobs: lobSubLobs.map(subLob => ({ ...subLob, originalName: subLob.name })),
+      type: 'lob',
+      targetId: data.id
     });
   } else if (type === 'sublob') {
-    // For SubLOBs, create a minimal client object with just the parent LOB and this SubLOB
+    // For sublobs, find the client and LOB that own this sublob
     const lob = lobs.find(l => l.id === data.lobId);
     if (!lob) return;
     
@@ -466,78 +471,173 @@ const handleEditRow = (type, data) => {
     setCurrentClient({
       id: client.id,
       name: client.name,
+      originalName: client.name, // Make sure this is set
       createdBy: client.createdBy || '',
       createdAt: client.createdAt || '',
-      lobs: [lob], // Just the parent LOB
-      subLobs: [data] // Just this one SubLOB
+      lobs: [{ ...lob, originalName: lob.name }],
+      subLobs: [{ ...data, originalName: data.name }],
+      type: 'sublob',
+      targetId: data.id
     });
   }
   
   setEditModalOpen(true);
 };
 
-const handleSaveRow = async () => {
+// Fixed handleSave function to properly use the original LOB names
+const handleSave = async (updatedClient) => {
   try {
-    const { type, data } = editRow;
-    
-    if (type === 'client') {
-      // Update client
-      await axios.post('http://localhost:3000/api/clients/update', {
-        oldClientName: data.originalName || data.name,
-        newClientName: data.name
-      });
+    if (updatedClient.type === 'client') {
+      // Update client name if changed
+      if (updatedClient.originalName !== updatedClient.name) {
+        await axios.post('http://localhost:3000/api/clients/update', {
+          oldClientName: updatedClient.originalName,
+          newClientName: updatedClient.name
+        });
+      }
       
-      // Update in local state
-      setClients(clients.map(c => 
-        c.id === data.id ? { ...c, name: data.name } : c
+      // Update client basic info in local state
+      setClients(clients.map(client => 
+        client.id === updatedClient.id ? {
+          ...client,
+          name: updatedClient.name,
+          createdBy: updatedClient.createdBy,
+          createdAt: updatedClient.createdAt
+        } : client
       ));
+      
+      // Update LOBs
+      for (const lob of updatedClient.lobs) {
+        if (lob.originalName !== lob.name) {
+          await axios.post('http://localhost:3000/api/clients/lob/update', {
+            clientName: updatedClient.name,
+            oldLOBName: lob.originalName,
+            newLOBName: lob.name
+          });
+        }
+      }
+      
+      // Update LOBs in local state
+      setLobs(lobs.map(l => {
+        const updatedLob = updatedClient.lobs.find(ul => ul.id === l.id);
+        return updatedLob ? { ...l, name: updatedLob.name } : l;
+      }));
+      
+      // Update SubLOBs
+      for (const subLob of updatedClient.subLobs) {
+        if (subLob.originalName !== subLob.name) {
+          const parentLob = updatedClient.lobs.find(l => l.id === subLob.lobId) || 
+                           lobs.find(l => l.id === subLob.lobId);
+          if (parentLob) {
+            await axios.post('http://localhost:3000/api/clients/sublob/update', {
+              clientName: updatedClient.name,
+              lobName: parentLob.name,
+              oldSubLOBName: subLob.originalName,
+              newSubLOBName: subLob.name
+            });
+          }
+        }
+      }
+      
+      // Update SubLOBs in local state
+      setSubLobs(subLobs.map(s => {
+        const updatedSubLob = updatedClient.subLobs.find(us => us.id === s.id);
+        return updatedSubLob ? { ...s, name: updatedSubLob.name } : s;
+      }));
     } 
-    else if (type === 'lob') {
-      // Update LOB
-      const client = clients.find(c => c.id === data.clientId);
-      if (client) {
+    else if (updatedClient.type === 'lob') {
+      // We're editing a single LOB
+      const lob = updatedClient.lobs[0];
+      
+      // Check if LOB name changed
+      if (lob.originalName !== lob.name) {
         await axios.post('http://localhost:3000/api/clients/lob/update', {
-          clientName: client.name,
-          oldLOBName: data.originalName || data.name,
-          newLOBName: data.name
+          clientName: updatedClient.name,
+          oldLOBName: lob.originalName,
+          newLOBName: lob.name
+        });
+        
+        // Update in local state
+        setLobs(lobs.map(l => l.id === lob.id ? { ...l, name: lob.name } : l));
+      }
+      
+      // Update SubLOBs
+      for (const subLob of updatedClient.subLobs) {
+        if (subLob.originalName !== subLob.name) {
+          await axios.post('http://localhost:3000/api/clients/sublob/update', {
+            clientName: updatedClient.name,
+            lobName: lob.name, // Use the updated LOB name
+            oldSubLOBName: subLob.originalName,
+            newSubLOBName: subLob.name
+          });
+          
+          // Update in local state
+          setSubLobs(subLobs.map(s => 
+            s.id === subLob.id ? { ...s, name: subLob.name } : s
+          ));
+        }
+      }
+    } 
+    else if (updatedClient.type === 'sublob') {
+      // We're editing a single SubLOB
+      const lob = updatedClient.lobs[0];
+      const subLob = updatedClient.subLobs[0];
+      
+      // Check if client name changed
+      if (updatedClient.originalName && updatedClient.originalName !== updatedClient.name) {
+        await axios.post('http://localhost:3000/api/clients/update', {
+          oldClientName: updatedClient.originalName,
+          newClientName: updatedClient.name
+        });
+        
+        // Update in local state
+        setClients(clients.map(c => 
+          c.id === updatedClient.id ? { ...c, name: updatedClient.name } : c
+        ));
+      }
+      
+      // Check if LOB name changed
+      if (lob.originalName !== lob.name) {
+        await axios.post('http://localhost:3000/api/clients/lob/update', {
+          clientName: updatedClient.name,
+          oldLOBName: lob.originalName,
+          newLOBName: lob.name
         });
         
         // Update in local state
         setLobs(lobs.map(l => 
-          l.id === data.id ? { ...l, name: data.name } : l
+          l.id === lob.id ? { ...l, name: lob.name } : l
         ));
       }
-    }
-    else if (type === 'sublob') {
-      // Update SubLOB
-      const lob = lobs.find(l => l.id === data.lobId);
-      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
       
-      if (client && lob) {
+      // Check if SubLOB name changed
+      if (subLob.originalName !== subLob.name) {
         await axios.post('http://localhost:3000/api/clients/sublob/update', {
-          clientName: client.name,
-          lobName: lob.name,
-          oldSubLOBName: data.originalName || data.name,
-          newSubLOBName: data.name
+          clientName: updatedClient.name,
+          lobName: lob.name, // Use the updated LOB name
+          oldSubLOBName: subLob.originalName,
+          newSubLOBName: subLob.name
         });
         
         // Update in local state
         setSubLobs(subLobs.map(s => 
-          s.id === data.id ? { ...s, name: data.name } : s
+          s.id === subLob.id ? { ...s, name: subLob.name } : s
         ));
       }
     }
     
     setEditModalOpen(false);
-    setEditRow({ type: null, data: null });
+    setCurrentClient(null);
     
-    // Success message
-    alert('Update successful!');
+    // Show success message
+    alert('Changes saved successfully!');
   } catch (error) {
-    console.error('Error updating item:', error);
-    alert(`Update failed: ${error.response?.data?.error || error.message}`);
+    console.error('Error saving changes:', error);
+    alert(`Failed to save changes: ${error.response?.data?.error || error.message}`);
   }
 };
+
+
 
 const handleDeleteRow = async (type, id) => {
   try {
@@ -818,41 +918,6 @@ const handleDeleteRow = async (type, id) => {
       subLobs: clientSubLobs
     });
     setEditModalOpen(true);
-  };
-
-  const handleSave = (updatedClient) => {
-    // Update client basic info
-    setClients(clients.map(client => 
-      client.id === updatedClient.id ? {
-        ...client,
-        name: updatedClient.name,
-        createdBy: updatedClient.createdBy,
-        createdAt: updatedClient.createdAt
-      } : client
-    ));
-
-    // Update LOBs
-    const updatedLobs = [...lobs];
-    updatedClient.lobs.forEach(lob => {
-      const index = updatedLobs.findIndex(l => l.id === lob.id);
-      if (index !== -1) {
-        updatedLobs[index] = lob;
-      }
-    });
-    setLobs(updatedLobs);
-
-    // Update Sub LOBs
-    const updatedSubLobs = [...subLobs];
-    updatedClient.subLobs.forEach(subLob => {
-      const index = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
-      if (index !== -1) {
-        updatedSubLobs[index] = subLob;
-      }
-    });
-    setSubLobs(updatedSubLobs);
-
-    setEditModalOpen(false);
-    setCurrentClient(null);
   };
 
   // Filtered data for table
