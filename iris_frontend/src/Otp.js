@@ -13,8 +13,6 @@ import './Otp.css';
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
 
-  
-
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
     const storedUserId = localStorage.getItem('userId');
@@ -47,7 +45,7 @@ import './Otp.css';
     try {
       setLoading(true);
       // API call to resend OTP
-      const response = await fetch('http://localhost:3000/api/otp/generate', {
+      const response = await fetch('http://localhost:3000/api/otp/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +76,6 @@ import './Otp.css';
   const handleInputChange = (e, index) => {
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
- 
 
     if (value.length > 1) return;
 
@@ -91,7 +88,6 @@ import './Otp.css';
       inputsRef.current[index + 1].focus();
       setIsComplete(true);
     }
-    
   };
 
   const handleKeyDown = (e, index) => {
@@ -112,7 +108,6 @@ import './Otp.css';
       filtered.split('').forEach((char, i) => {
         inputsRef.current[i].value = char;
         newOtpValues[i] = char;
-        setIsComplete(true);
       });
       setOtpValues(newOtpValues);
       inputsRef.current[5].focus();
@@ -126,68 +121,21 @@ import './Otp.css';
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async () => {
-  const otp = otpValues.join(''); // Combine OTP values into a single string
-
-  // Retrieve userId and password from localStorage
-  const userId = localStorage.getItem('userId');
-  const password = localStorage.getItem('password');
-
-  if (!userId || !password) {
-    alert('User ID or password is missing. Please log in again.');
-    return;
-  }
-
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
-  };
-
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // Handle successful OTP verification
-      const userStatus = data.data.user.status;
-      localStorage.setItem('token', data.data.token); // Save token to localStorage
-      alert(data.data.message);
-
-      if (userStatus === 'FIRST-TIME') {
-        navigate('../change-password'); // Redirect to change password page
-      } else if (userStatus === 'ACTIVE') {
-        alert('Login successful');
-        navigate('../dashboard'); // Redirect to dashboard or home page
+  const handleSubmit = () => {
+    if (isComplete) {
+      // Trigger onComplete callback if provided
+      if (onComplete) {
+        onComplete();
       }
-    } else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
+      
+      const userStatus = localStorage.getItem('status');
+      if (userStatus === 'FIRST-TIME'){
+        navigate('../change-password');
+      } else if (userStatus === 'ACTIVE'){
+        navigate('/dashboard');
+      }
     }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
-};
- const handleBack = () => {
-    // Clear local storage or any other necessary cleanup
-    localStorage.removeItem('userId');
-    localStorage.removeItem('password');
-    navigate('/'); // Redirect to the login page
-  }
+  };
 
   return (
     <div className="otp-container">
@@ -237,10 +185,7 @@ import './Otp.css';
         </div>
 
         <div className="otp-button-group">
-          <button 
-          className="otp-back" 
-          onClick={handleBack}
-          >Back</button>
+          <button className="otp-back" onClick={onBack}>Back</button>
           <button
             id="otp-submit-button"
             className={`otp-submit ${isComplete ? 'otp-submit-enabled' : ''}`}

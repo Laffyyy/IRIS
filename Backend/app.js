@@ -5,8 +5,6 @@ const otpRoutes = require('./routes/otpcontoller');
 const changepassRoutes = require('./routes/changepasswordroutes');
 const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const kpiRoutes = require('./routes/kpiManagementRoutes')
-const helment = require('helmet');
-
 
 const app = express();
 
@@ -20,14 +18,6 @@ app.use(cors({
 
 // Parse JSON bodies
 app.use(express.json());
-app.use(helment());
-app.use(cors({
-    origin: '*', // Allow all origins
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow specific HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization'] // Allow specific headers
-}));
-
-
 
 
 app.use('/api/login', loginRoutes);
@@ -35,6 +25,5 @@ app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/sites', SiteManagementRoutes);
 app.use('/api/kpis', kpiRoutes);
-app.use('/api/otp', otpRoutes); // Add this line to include the OTP routes
 
 module.exports = app;

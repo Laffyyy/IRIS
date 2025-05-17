@@ -15,103 +15,66 @@ class OtpService {
     });
   }
 
-  async generateOtp(userID) {
-    try {
-        // Generate a new OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // OTP valid for 10 minutes
+  async generateOtp(userId) {
+    const otp = crypto.randomInt(100000, 999999).toString(); // Generate a 6-digit OTP
+    const expiry = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 minutes
 
-        // Check if an OTP already exists for the user
-        const [existingOtpRows] = await db.query(
-            'SELECT * FROM tbl_otp WHERE dUser_ID = ?',
-            [userID]
-        );
+    // Check if an OTP already exists for the user
+    const [existingOtp] = await db.query(
+      "SELECT * FROM tbl_otp WHERE dUser_ID = ?",
+      [userId]
+    );
 
-        if (existingOtpRows.length > 0) {
-            // Update the existing OTP row
-            await db.query(
-                'UPDATE tbl_otp SET dOTP = ?, tOTP_Created = NOW(), tOTP_Expires = ?, dOTP_Status = 0 WHERE dUser_ID = ?',
-                [otp, expiresAt, userID]
-            );
-        } else {
-            // Insert a new OTP row
-            await db.query(
-                'INSERT INTO tbl_otp (dUser_ID, dOTP, tOTP_Created, tOTP_Expires, dOTP_Status) VALUES (?, ?, NOW(), ?, 0)',
-                [userID, otp, expiresAt]
-            );
-        }
-
-        // Retrieve the user's email
-        const [userRows] = await db.query(
-            'SELECT dEmail FROM tbl_login WHERE dUser_ID = ?',
-            [userID]
-        );
-
-        if (userRows.length === 0) {
-            throw new Error('User email not found');
-        }
-
-        const userEmail = userRows[0].dEmail;
-
-        // Send the OTP to the user's email
-        const mailOptions = {
-            from: process.env.EMAIL_USER, // Sender address
-            to: userEmail, // Recipient address
-            subject: 'Your OTP Code', // Subject line
-            text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`, // Plain text body
-        };
-
-        await this.transporter.sendMail(mailOptions);
-
-        console.log(`OTP sent to ${userEmail}`);
-        return otp;
-    } catch (error) {
-        console.error('Error generating OTP:', error.message);
-        throw error;
+    if (existingOtp.length > 0) {
+      // Update the existing OTP
+      await db.query(
+        "UPDATE tbl_otp SET dOTP = ?, tOTP_Expires = ?, dOTP_Status = 0 WHERE dUser_ID = ?",
+        [otp, expiry, userId]
+      );
+    } else {
+      // Insert a new OTP
+      await db.query(
+        "INSERT INTO tbl_otp (dOTP, dUser_ID, dOTP_Status, tOTP_Expires) VALUES (?, ?, ?, ?)",
+        [otp, userId, 0, expiry]
+      );
     }
-}
+
+    // Fetch the user's email
+    const userEmail = await this.getUserEmail(userId);
+
+    // Send OTP via email
+    await this.transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: userEmail,
+      subject: "Your OTP Code",
+      text: `Your OTP code is ${otp}. It is valid for 5 minutes.`,
+    });
+
+    return otp;
+  }
 
   async verifyOtp(userId, otp) {
-    try {
-        const [otpRows] = await db.query(
-            "SELECT * FROM tbl_otp WHERE dUser_ID = ? ORDER BY tOTP_Created DESC LIMIT 1",
-            [userId]
-        );
+    const [rows] = await db.query(
+      "SELECT * FROM tbl_otp WHERE dUser_ID = ? AND dOTP = ? AND dOTP_Status = 0",
+      [userId, otp]
+    );
 
-        if (otpRows.length === 0) {
-            // Generate a new OTP if none exists
-            const generatedOtp = await this.generateOtp(userId);
-            console.log(`Generated OTP for user ${userId}: ${generatedOtp}`);
-            return { message: 'No OTP found. A new OTP has been sent to your registered email or phone.' };
-        }
-
-        const otpRecord = otpRows[0];
-        const currentTime = new Date();
-
-        // Check if the OTP is expired
-        if (new Date(otpRecord.tOTP_Expires) < currentTime) {
-            // Generate a new OTP if expired
-            const generatedOtp = await this.generateOtp(userId);
-            console.log(`Generated new OTP for user ${userId}: ${generatedOtp}`);
-            return { message: 'OTP expired. A new OTP has been sent to your registered email or phone.' };
-        }
-
-        // Verify the provided OTP
-        if (otp !== otpRecord.dOTP) {
-            throw new Error('Invalid OTP');
-        }
-
-        // Mark OTP as used
-        await db.query("UPDATE tbl_otp SET dOTP_Status = 1 WHERE dOTP_ID = ?", [
-            otpRecord.dOTP_ID,
-        ]);
-
-        return { message: 'OTP verified successfully' };
-    } catch (error) {
-        console.error('Error in verifyOtp:', error.message);
-        throw error;
+    if (rows.length === 0) {
+      throw new Error("Invalid or expired OTP");
     }
-}
+
+    const record = rows[0];
+    if (new Date(record.tOTP_Expires) < new Date()) {
+      throw new Error("OTP expired");
+    }
+
+    // Mark OTP as used
+    await db.query("UPDATE tbl_otp SET dOTP_Status = 1 WHERE dOTP_ID = ?", [
+      record.dOTP_ID,
+    ]);
+
+    return true;
+  }
 
   async getUserEmail(userID) {
     try {
