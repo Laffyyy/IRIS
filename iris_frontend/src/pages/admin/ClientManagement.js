@@ -38,6 +38,10 @@ const ClientManagement = () => {
   const [filterClient, setFilterClient] = useState(null);
 
   // Fetch all client data from backend
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentClient, setCurrentClient] = useState(null);
+
   useEffect(() => {
     const fetchClientData = async () => {
       try {
@@ -347,172 +351,6 @@ const ClientManagement = () => {
       }
     };
 
-  // Handle deleting a client, LOB, or SubLOB
-  const handleDelete = async (id, type) => {
-    try {
-      if (type === 'client') {
-        const clientToDelete = clients.find(c => c.id === id);
-        if (!clientToDelete) return;
-        
-        // Call API to delete client
-        await axios.delete('http://localhost:3000/api/clients/delete', { 
-          data: { clientName: clientToDelete.name } 
-        });
-        
-        // UPDATE state
-        setClients(clients.filter(client => client.id !== id));
-        setLobs(lobs.filter(lob => lob.clientId !== id));
-        
-        // Remove any SubLOBs that belong to deleted LOBs
-        const remainingLobIds = lobs.filter(lob => lob.clientId !== id).map(lob => lob.id);
-        setSubLobs(subLobs.filter(subLob => remainingLobIds.includes(subLob.lobId)));
-        
-        alert('Client deleted successfully!');
-      } else if (type === 'lob') {
-        // Get the LOB to delete
-        const lobToDelete = lobs.find(lob => lob.id === id);
-        if (!lobToDelete) return;
-        
-        // Get the client name for this LOB
-        const client = clients.find(c => c.id === lobToDelete.clientId);
-        if (!client) return;
-        
-        try {
-          // Call API to delete LOB
-          await axios.delete('http://localhost:3000/api/clients/lob/delete', {
-            data: { 
-              clientName: client.name,
-              lobName: lobToDelete.name 
-            }
-          });
-          
-          // Update state
-          setLobs(lobs.filter(lob => lob.id !== id));
-          setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
-          
-          alert('LOB deleted successfully!');
-        } catch (error) {
-          console.error('Error deleting LOB:', error);
-          alert(`Failed to delete LOB: ${error.response?.data?.error || error.message}`);
-          return;
-        }
-      } else if (type === 'subLob') {
-        // Get the SubLOB to delete
-        const subLobToDelete = subLobs.find(subLob => subLob.id === id);
-        if (!subLobToDelete) return;
-        
-        // Get the LOB for this SubLOB
-        const lob = lobs.find(l => l.id === subLobToDelete.lobId);
-        if (!lob) return;
-        
-        // Get the client for this LOB
-        const client = clients.find(c => c.id === lob.clientId);
-        if (!client) return;
-        
-        try {
-          // Call API to delete SubLOB
-          await axios.delete('http://localhost:3000/api/clients/sublob/delete', {
-            data: { 
-              clientName: client.name,
-              lobName: lob.name,
-              subLOBName: subLobToDelete.name 
-            }
-          });
-          
-          // Update state
-          setSubLobs(subLobs.filter(subLob => subLob.id !== id));
-          
-          alert('Sub LOB deleted successfully!');
-        } catch (error) {
-          console.error('Error deleting Sub LOB:', error);
-          alert(`Failed to delete Sub LOB: ${error.response?.data?.error || error.message}`);
-          return;
-        }
-      }
-    } catch (error) {
-      console.error(`Error deleting ${type}:`, error);
-      alert(`Failed to delete ${type}: ${error.response?.data?.error || error.message}`);
-    }
-  };
-
-  // Handle editing a client
-  const handleEdit = async (client) => {
-    const newName = prompt('Enter new client name:', client.name);
-    if (newName && newName.trim() !== client.name) {
-      try {
-        // Call API to update client
-        await axios.put('http://localhost:3000/api/clients/update', { 
-          oldClientName: client.name,
-          newClientName: newName.trim() 
-        });
-        
-        // Update state
-        setClients(clients.map(c => c.id === client.id ? {...c, name: newName.trim()} : c));
-        alert('Client updated successfully!');
-      } catch (error) {
-        console.error('Error updating client:', error);
-        alert(`Failed to update client: ${error.response?.data?.error || error.message}`);
-      }
-    }
-  };
-
-  // Handle editing a LOB
-  const handleEditLob = async (lob) => {
-    const newName = prompt('Enter new LOB name:', lob.name);
-    if (newName && newName.trim() !== lob.name) {
-      // Get the client for this LOB
-      const client = clients.find(c => c.id === lob.clientId);
-      if (!client) return;
-      
-      try {
-        // Call API to update LOB
-        await axios.put('http://localhost:3000/api/clients/lob/update', { 
-          clientName: client.name,
-          oldLOBName: lob.name,
-          newLOBName: newName.trim() 
-        });
-        
-        // Update state
-        setLobs(lobs.map(l => l.id === lob.id ? {...l, name: newName.trim()} : l));
-        alert('LOB updated successfully!');
-      } catch (error) {
-        console.error('Error updating LOB:', error);
-        alert(`Failed to update LOB: ${error.response?.data?.error || error.message}`);
-      }
-    }
-  };
-  
-  // Handle editing a SubLOB
-  const handleEditSubLob = async (subLob) => {
-    const newName = prompt('Enter new Sub LOB name:', subLob.name);
-    if (newName && newName.trim() !== subLob.name) {
-      // Get the LOB for this SubLOB
-      const lob = lobs.find(l => l.id === subLob.lobId);
-      if (!lob) return;
-      
-      // Get the client for this LOB
-      const client = clients.find(c => c.id === lob.clientId);
-      if (!client) return;
-      
-      try {
-        // Call API to update SubLOB
-        await axios.put('http://localhost:3000/api/clients/sublob/update', { 
-          clientName: client.name,
-          lobName: lob.name,
-          oldSubLOBName: subLob.name,
-          newSubLOBName: newName.trim() 
-        });
-        
-        // Update state
-        setSubLobs(subLobs.map(sl => sl.id === subLob.id ? {...sl, name: newName.trim()} : sl));
-        alert('Sub LOB updated successfully!');
-      } catch (error) {
-        console.error('Error updating Sub LOB:', error);
-        alert(`Failed to update Sub LOB: ${error.response?.data?.error || error.message}`);
-      }
-    }
-  };
-
   const handleAddAnotherLobCard = () => {
     if (lobCards.length < 4) {
       setLobCards([...lobCards, { lobName: '', subLobNames: [''] }]);
@@ -601,6 +439,71 @@ const ClientManagement = () => {
     if (subLobNames.length < 4) {
       setSubLobNames([...subLobNames, '']);
     }
+  };
+
+  // Common functions
+  const handleDelete = (id, type) => {
+    if (type === 'client') {
+      setClients(clients.filter(client => client.id !== id));
+      const lobIdsToRemove = lobs.filter(lob => lob.clientId === id).map(lob => lob.id);
+      setLobs(lobs.filter(lob => lob.clientId !== id));
+      setSubLobs(subLobs.filter(subLob => !lobIdsToRemove.includes(subLob.lobId)));
+    } else if (type === 'lob') {
+      setLobs(lobs.filter(lob => lob.id !== id));
+      setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
+    } else if (type === 'subLob') {
+      setSubLobs(subLobs.filter(subLob => subLob.id !== id));
+    }
+  };
+
+  const handleEdit = (client) => {
+    // Get the client's LOBs and Sub LOBs
+    const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+    const clientSubLobs = subLobs.filter(subLob => 
+      clientLobs.some(lob => lob.id === subLob.lobId)
+    );
+    
+    setCurrentClient({
+      ...client,
+      lobs: clientLobs,
+      subLobs: clientSubLobs
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSave = (updatedClient) => {
+    // Update client basic info
+    setClients(clients.map(client => 
+      client.id === updatedClient.id ? {
+        ...client,
+        name: updatedClient.name,
+        createdBy: updatedClient.createdBy,
+        createdAt: updatedClient.createdAt
+      } : client
+    ));
+
+    // Update LOBs
+    const updatedLobs = [...lobs];
+    updatedClient.lobs.forEach(lob => {
+      const index = updatedLobs.findIndex(l => l.id === lob.id);
+      if (index !== -1) {
+        updatedLobs[index] = lob;
+      }
+    });
+    setLobs(updatedLobs);
+
+    // Update Sub LOBs
+    const updatedSubLobs = [...subLobs];
+    updatedClient.subLobs.forEach(subLob => {
+      const index = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
+      if (index !== -1) {
+        updatedSubLobs[index] = subLob;
+      }
+    });
+    setSubLobs(updatedSubLobs);
+
+    setEditModalOpen(false);
+    setCurrentClient(null);
   };
 
   // Filtered data for table
@@ -1034,6 +937,114 @@ const ClientManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Client Modal */}
+      {editModalOpen && currentClient && (
+        <div className="modal-overlay">
+          <div className="modal edit-client-modal">
+            <div className="modal-header">
+              <h2>Edit Client</h2>
+              <button onClick={() => setEditModalOpen(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Client ID</label>
+                <input
+                  type="text"
+                  value={`C${currentClient.id}`}
+                  disabled
+                  className="disabled-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Client Name</label>
+                <input
+                  type="text"
+                  value={currentClient.name}
+                  onChange={(e) => setCurrentClient({...currentClient, name: e.target.value})}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-section">
+              <h3>LOBs and Sub LOBs</h3>
+              {currentClient.lobs.map((lob, index) => (
+                <div key={lob.id} className="lob-edit-section">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>LOB Name</label>
+                      <input
+                        type="text"
+                        value={lob.name}
+                        onChange={(e) => {
+                          const updatedLobs = [...currentClient.lobs];
+                          updatedLobs[index] = {...lob, name: e.target.value};
+                          setCurrentClient({...currentClient, lobs: updatedLobs});
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="sub-lobs-container">
+                    {currentClient.subLobs
+                      .filter(subLob => subLob.lobId === lob.id)
+                      .map((subLob, subIndex) => (
+                        <div key={subLob.id} className="form-row">
+                          <div className="form-group">
+                            <label>Sub LOB Name</label>
+                            <input
+                              type="text"
+                              value={subLob.name}
+                              onChange={(e) => {
+                                const updatedSubLobs = [...currentClient.subLobs];
+                                const globalSubIndex = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
+                                updatedSubLobs[globalSubIndex] = {...subLob, name: e.target.value};
+                                setCurrentClient({...currentClient, subLobs: updatedSubLobs});
+                              }}
+                            />
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Created By</label>
+                <input
+                  type="text"
+                  value={currentClient.createdBy || ''}
+                  onChange={(e) => setCurrentClient({...currentClient, createdBy: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Created At</label>
+                <input
+                  type="text"
+                  value={currentClient.createdAt || ''}
+                  onChange={(e) => setCurrentClient({...currentClient, createdAt: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
+              <button 
+                onClick={() => handleSave(currentClient)} 
+                className="save-btn"
+                disabled={!currentClient.name.trim()}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

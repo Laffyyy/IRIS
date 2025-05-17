@@ -189,20 +189,11 @@
   align-items: center;
 }
 
-/* Description column specific styles */
+/* Description column styles */
 .existing-kpis td:nth-child(5) {
-  position: relative;
-}
-
-.existing-kpis td:nth-child(5):hover {
   white-space: normal;
-  overflow: visible;
-  background-color: #fff;
-  position: absolute;
-  z-index: 2;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  border-radius: 4px;
-  min-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Scrollbar Styles */
