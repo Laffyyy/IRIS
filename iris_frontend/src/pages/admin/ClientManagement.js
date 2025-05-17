@@ -1,39 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import './ClientManagement.css';
 import { FaTrash, FaSearch, FaTimes, FaPencilAlt } from 'react-icons/fa';
+import axios from 'axios';
 
 const ClientManagement = () => {
   const [activeTab, setActiveTab] = useState('addClient');
-  const [clients, setClients] = useState([
-    { 
-      id: 1, 
-      name: 'Client A',
-      channel: 'Channel 1',
-      industry: 'Industry A',
-      createdBy: 'John Doe',
-      createdAt: '2024-03-20'
-    },
-    { 
-      id: 2, 
-      name: 'Client B',
-      channel: 'Channel 2',
-      industry: 'Industry B',
-      createdBy: 'Jane Smith',
-      createdAt: '2024-03-21'
-    }
-  ]);
-  const [lobs, setLobs] = useState([
-    { id: 1, name: 'LOB X', clientId: 1, siteId: 1 },
-    { id: 2, name: 'LOB Y', clientId: 2, siteId: 2 }
-  ]);
-  const [subLobs, setSubLobs] = useState([
-    { id: 1, name: 'Sub LOB 1', lobId: 1 },
-    { id: 2, name: 'Sub LOB 2', lobId: 2 }
-  ]);
-  const [sites] = useState([
-    { id: 1, name: 'Site A' },
-    { id: 2, name: 'Site B' }
-  ]);
+  const [clients, setClients] = useState([]);
+  const [lobs, setLobs] = useState([]);
+  const [subLobs, setSubLobs] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Form states for Add Client tab
   const [clientName, setClientName] = useState('');
@@ -58,66 +35,240 @@ const ClientManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClient, setFilterClient] = useState(null);
 
+  // Fetch all client data from backend
   useEffect(() => {
-    let filtered = lobs;
-    if (filterClientForSubLob) {
-      filtered = filtered.filter(lob => lob.clientId === filterClientForSubLob);
-    }
-    if (filterSiteForSubLob) {
-      filtered = filtered.filter(lob => lob.siteId === filterSiteForSubLob);
-    }
-    setFilteredLobs(filtered);
-    
-    if (selectedLobForSubLob && !filtered.some(lob => lob.id === selectedLobForSubLob)) {
-      setSelectedLobForSubLob(null);
-    }
-  }, [filterClientForSubLob, filterSiteForSubLob, lobs, selectedLobForSubLob]);
-
-  // Add Client tab functions
-  const handleAddClient = () => {
-    if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
-      const newClientId = clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1;
-      
-      const newClient = {
-        id: newClientId,
-        name: clientName.trim()
-      };
-      
-      let newLobId = lobs.length > 0 ? Math.max(...lobs.map(l => l.id)) : 0;
-      let newSubLobId = subLobs.length > 0 ? Math.max(...subLobs.map(s => s.id)) : 0;
-      
-      const newLobs = [];
-      const newSubLobs = [];
-      
-      lobCards.forEach(card => {
-        if (card.lobName.trim()) {
-          newLobId++;
-          newLobs.push({
-            id: newLobId,
-            name: card.lobName.trim(),
-            clientId: newClientId,
-            siteId: 1
-          });
+    const fetchClientData = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('http://localhost:3000/api/clients/getAll');
+        
+        if (response.data && response.data.data) {
+          console.log('Client data from API:', response.data.data);
           
-          card.subLobNames.forEach(subLobName => {
-            if (subLobName.trim()) {
-              newSubLobId++;
-              newSubLobs.push({
-                id: newSubLobId,
-                name: subLobName.trim(),
-                lobId: newLobId
+          // Transform API data to match frontend structure
+          const transformedClients = [];
+          const transformedLobs = [];
+          const transformedSubLobs = [];
+          let lobId = 0;
+          let subLobId = 0;
+          
+          response.data.data.forEach((client, clientIndex) => {
+            // Add client
+            const clientId = clientIndex + 1;
+            transformedClients.push({
+              id: clientId,
+              name: client.clientName,
+              createdBy: client.createdBy || '-',
+              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+            });
+            
+            // Add LOBs and SubLOBs
+            if (client.LOBs && Array.isArray(client.LOBs)) {
+              client.LOBs.forEach(lob => {
+                lobId++;
+                transformedLobs.push({
+                  id: lobId,
+                  name: lob.name,
+                  clientId: clientId,
+                  siteId: 1 // Default site ID since API doesn't provide it
+                });
+                
+                // Add SubLOBs
+                if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                  lob.subLOBs.forEach(subLobName => {
+                    subLobId++;
+                    transformedSubLobs.push({
+                      id: subLobId,
+                      name: subLobName,
+                      lobId: lobId
+                    });
+                  });
+                }
               });
             }
           });
+          
+          setClients(transformedClients);
+          setLobs(transformedLobs);
+          setSubLobs(transformedSubLobs);
+          
+          // Fetch sites as well if needed
+          // For now, setting default sites
+          setSites([
+            { id: 1, name: 'Site A' },
+            { id: 2, name: 'Site B' }
+          ]);
         }
-      });
+      } catch (err) {
+        console.error('Error fetching client data:', err);
+        setError('Failed to load clients. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchClientData();
+  }, []);
+  
+  // Handle adding a new client
+  const handleAddClient = async () => {
+    if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
+      try {
+        // Prepare data for API
+        const clientData = {
+          clientName: clientName.trim(),
+          LOBs: []
+        };
+        
+        // Add LOBs and SubLOBs
+        lobCards.forEach(card => {
+          if (card.lobName.trim()) {
+            const lob = {
+              name: card.lobName.trim(),
+              subLOBs: []
+            };
+            
+            // Add SubLOBs
+            card.subLobNames.forEach(subLobName => {
+              if (subLobName.trim()) {
+                lob.subLOBs.push(subLobName.trim());
+              }
+            });
+            
+            // Only add LOB if it has at least one SubLOB
+            if (lob.subLOBs.length > 0) {
+              clientData.LOBs.push(lob);
+            }
+          }
+        });
+        
+        console.log('Sending client data:', clientData);
+        
+        // Send data to API
+        const response = await axios.post('http://localhost:3000/api/clients/add', clientData);
+        console.log('Client added:', response.data);
+        
+        // Refresh client data
+        const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+        
+        // Update state with new data using the same transformation logic
+        // (you could extract this to a reusable function)
+        if (refreshResponse.data && refreshResponse.data.data) {
+          // Same transformation logic as in the useEffect
+          const transformedClients = [];
+          const transformedLobs = [];
+          const transformedSubLobs = [];
+          let lobId = 0;
+          let subLobId = 0;
+          
+          refreshResponse.data.data.forEach((client, clientIndex) => {
+            const clientId = clientIndex + 1;
+            transformedClients.push({
+              id: clientId,
+              name: client.clientName,
+              createdBy: client.createdBy || '-',
+              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+            });
+            
+            if (client.LOBs && Array.isArray(client.LOBs)) {
+              client.LOBs.forEach(lob => {
+                lobId++;
+                transformedLobs.push({
+                  id: lobId,
+                  name: lob.name,
+                  clientId: clientId,
+                  siteId: 1
+                });
+                
+                if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                  lob.subLOBs.forEach(subLobName => {
+                    subLobId++;
+                    transformedSubLobs.push({
+                      id: subLobId,
+                      name: subLobName,
+                      lobId: lobId
+                    });
+                  });
+                }
+              });
+            }
+          });
+          
+          setClients(transformedClients);
+          setLobs(transformedLobs);
+          setSubLobs(transformedSubLobs);
+        }
+        
+        // Reset form
+        setClientName('');
+        setLobCards([{ lobName: '', subLobNames: [''] }]);
+        
+        // Show success message
+        alert('Client added successfully!');
+      } catch (error) {
+        console.error('Error adding client:', error);
+        alert(`Failed to add client: ${error.response?.data?.error || error.message}`);
+      }
+    }
+  };
 
-      setClients([...clients, newClient]);
-      if (newLobs.length > 0) setLobs([...lobs, ...newLobs]);
-      if (newSubLobs.length > 0) setSubLobs([...subLobs, ...newSubLobs]);
-      
-      setClientName('');
-      setLobCards([{ lobName: '', subLobNames: [''] }]);
+  // Handle deleting a client, LOB, or SubLOB
+  const handleDelete = async (id, type) => {
+    try {
+      if (type === 'client') {
+        const clientToDelete = clients.find(c => c.id === id);
+        if (!clientToDelete) return;
+        
+        // Call API to delete client
+        await axios.delete('http://localhost:3000/api/clients/delete', { 
+          data: { clientName: clientToDelete.name } 
+        });
+        
+        // Update state
+        setClients(clients.filter(client => client.id !== id));
+        setLobs(lobs.filter(lob => lob.clientId !== id));
+        
+        // Remove any SubLOBs that belong to deleted LOBs
+        const remainingLobIds = lobs.filter(lob => lob.clientId !== id).map(lob => lob.id);
+        setSubLobs(subLobs.filter(subLob => remainingLobIds.includes(subLob.lobId)));
+        
+        alert('Client deleted successfully!');
+      } else if (type === 'lob') {
+        // For LOB deletion - you would need to implement this endpoint in your backend
+        console.log('Delete LOB:', id);
+        // For now, just update local state
+        setLobs(lobs.filter(lob => lob.id !== id));
+        setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
+      } else if (type === 'subLob') {
+        // For SubLOB deletion - you would need to implement this endpoint in your backend
+        console.log('Delete SubLOB:', id);
+        // For now, just update local state
+        setSubLobs(subLobs.filter(subLob => subLob.id !== id));
+      }
+    } catch (error) {
+      console.error(`Error deleting ${type}:`, error);
+      alert(`Failed to delete ${type}: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // Handle editing a client
+  const handleEdit = async (client) => {
+    const newName = prompt('Enter new client name:', client.name);
+    if (newName && newName.trim() !== client.name) {
+      try {
+        // Call API to update client
+        await axios.put('http://localhost:3000/api/clients/update', { 
+          oldClientName: client.name,
+          newClientName: newName.trim() 
+        });
+        
+        // Update state
+        setClients(clients.map(c => c.id === client.id ? {...c, name: newName.trim()} : c));
+        alert('Client updated successfully!');
+      } catch (error) {
+        console.error('Error updating client:', error);
+        alert(`Failed to update client: ${error.response?.data?.error || error.message}`);
+      }
     }
   };
 
@@ -229,25 +380,6 @@ const ClientManagement = () => {
     if (subLobNames.length < 4) {
       setSubLobNames([...subLobNames, '']);
     }
-  };
-
-  // Common functions
-  const handleDelete = (id, type) => {
-    if (type === 'client') {
-      setClients(clients.filter(client => client.id !== id));
-      const lobIdsToRemove = lobs.filter(lob => lob.clientId === id).map(lob => lob.id);
-      setLobs(lobs.filter(lob => lob.clientId !== id));
-      setSubLobs(subLobs.filter(subLob => !lobIdsToRemove.includes(subLob.lobId)));
-    } else if (type === 'lob') {
-      setLobs(lobs.filter(lob => lob.id !== id));
-      setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
-    } else if (type === 'subLob') {
-      setSubLobs(subLobs.filter(subLob => subLob.id !== id));
-    }
-  };
-
-  const handleEdit = (client) => {
-    console.log('Edit client:', client);
   };
 
   // Filtered data for table
