@@ -20,49 +20,47 @@ const KPIManagement = () => {
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
 
   const handleAddKpi = async () => {
-      if (kpiName?.trim() && category && behavior) {
-          try {
-            const response = await fetch('http://localhost:3000/api/kpis', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                dKPI_Name: kpiName,
-                dCategory: category,
-                dDescription: description,
-                dCalculationBehavior: behavior,
-                dCreatedBy: '1'
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            console.log('KPI added successfully:', result);
-
-            // Update the KPIs list with the new data
-            const updatedResponse = await fetch('http://localhost:3000/api/kpis');
-            const updatedData = await updatedResponse.json();
-            setKpis(updatedData);
-
-            // Reset form
-            setKpiName('');
-            setCategory('');
-            setBehavior('');
-            setDescription('');
-
-            // Switch to view tab
-            setActiveTab('viewKPIs');
-
-          } catch (error) {
-            console.error('Error adding KPI:', error);
-            alert('Failed to add KPI. Please try again.');
-          }
-        }
+    try {
+      const kpiData = {
+        dKPI_Name: kpiName.trim(),
+        dCategory: category,
+        dDescription: description,
+        dCalculationBehavior: behavior,
+        dCreatedBy: '1'
       };
+
+      const response = await fetch('http://localhost:3000/api/kpis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(kpiData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
+
+      // Get the newly created KPI
+      const createdKpi = await response.json();
+
+      // Fetch updated KPI list to ensure we have the latest data
+      const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+      const updatedKpis = await refreshResponse.json();
+      setKpis(updatedKpis);
+
+      // Reset form and switch to view tab
+      resetForm();
+      setActiveTab('viewKPIs');
+      alert('KPI added successfully!');
+
+    } catch (error) {
+      console.error('Error details:', error);
+      alert(`Failed to add KPI: ${error.message}`);
+    }
+  };
 
   useEffect(() => {
       const fetchKPIs = async () => {
@@ -122,47 +120,54 @@ const handleDeleteKpi = async (kpiId) => {
     };
 
   const handleUpdateKpi = async () => {
-  if (kpiName?.trim() && category && behavior) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dKPI_Name: kpiName,
-          dCategory: category,
-          dDescription: description,
-          dCalculationBehavior: behavior
-        }),
-      });
+      if (kpiName?.trim() && category && behavior) {
+        try {
+          const updateData = {
+            dKPI_Name: kpiName,
+            dCategory: category,
+            dDescription: description,
+            dCalculationBehavior: behavior
+          };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+          // Make the update request
+          const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.message || `Server error: ${response.status}`);
+          }
+
+          // Fetch fresh data after update
+          const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+          const updatedKpis = await refreshResponse.json();
+          setKpis(updatedKpis);
+
+          // Reset form and switch to view tab
+          resetForm();
+          setActiveTab('viewKPIs');
+          alert('KPI updated successfully!');
+
+        } catch (error) {
+          console.error('Error updating KPI:', error);
+          alert(`Failed to update KPI: ${error.message}`);
+        }
       }
+    };
 
-      // Fetch updated KPI list
-      const updatedResponse = await fetch('http://localhost:3000/api/kpis');
-      const updatedData = await updatedResponse.json();
-      setKpis(updatedData);
-
-      // Reset form and switch to view tab
-      resetForm();
-      setActiveTab('viewKPIs');
-    } catch (error) {
-      console.error('Error updating KPI:', error);
-      alert('Failed to update KPI. Please try again.');
-    }
-  }
-};
-
-  const resetForm = () => {
-    setKpiName('');
-    setCategory('');
-    setBehavior('');
-    setDescription('');
-    setEditingKpi(null);
-  };
+      const resetForm = () => {
+        setKpiName('');
+        setCategory('');
+        setBehavior('');
+        setDescription('');
+        setEditingKpi(null);
+      };
 
   return (
     <div className="kpi-management-container">
