@@ -222,10 +222,6 @@ class ClientManagementService {
             // Create current timestamp
             const currentDate = new Date();
             
-            // We need to add at least one Sub LOB when creating a LOB
-            // For now, we'll add a placeholder Sub LOB that can be updated later
-            const initialSubLOB = 'Default Sub LOB';
-            
             // Get site name if siteId is provided
             let siteName = null;
             if (siteId) {
@@ -233,9 +229,11 @@ class ClientManagementService {
                 siteName = `Site ${siteId}`;  // Placeholder - replace with actual site name lookup
             }
             
+            // Insert the LOB with a temporary placeholder Sub-LOB
+            // This will be replaced by the actual Sub-LOBs when they're added
             const [result] = await db.query(
                 'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [clientId, clientName, lobName, initialSubLOB, siteId, siteName, userId, currentDate]
+                [clientId, clientName, lobName, "__temp_placeholder__", siteId, siteName, userId, currentDate]
             );
             
             return { 
@@ -244,9 +242,8 @@ class ClientManagementService {
                 lobName, 
                 siteId,
                 siteName,
-                insertId: result.insertId, 
                 createdBy: userId,
-                initialSubLOB
+                insertId: result.insertId
             };
         } catch (error) {
             console.error('Error in ClientManagementService.addLOB:', error);
@@ -366,6 +363,12 @@ class ClientManagementService {
             const clientId = clientLobData[0].dClient_ID;
             const siteId = clientLobData[0].dSite_ID;
             const siteName = clientLobData[0].dSiteName;
+            
+            // Check if the placeholder entry exists and delete it
+            await db.query(
+                'DELETE FROM tbl_clientsite WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                [clientName, lobName, "__temp_placeholder__"]
+            );
             
             // Check if the Sub LOB already exists for this client and LOB
             const [subLobExists] = await db.query(
