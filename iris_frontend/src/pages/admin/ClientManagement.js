@@ -952,11 +952,13 @@ const handleDeleteRow = async (type, id) => {
   };
 
   // Filtered data for table
-  const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterClient ? client.id === filterClient : true;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredClients = clients
+    .filter(client => {
+      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = filterClient ? client.id === filterClient : true;
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => b.id - a.id);
 
   return (
     <div className="client-management-container">
