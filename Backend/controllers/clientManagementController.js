@@ -39,9 +39,6 @@ class ClientManagementController {
             }
             
             // Get the user ID from the authenticated user
-            // If you're using JWT, you might extract it from req.user
-            // If using sessions, it might be in req.session.userId
-            // For now, we'll use a fallback approach
             const userId = getUserIdFromRequest(req);
             
             const result = await this.clientManagementService.addClient(clientData, userId);
@@ -129,6 +126,185 @@ class ClientManagementController {
             console.error('Error deleting client:', error);
             res.status(500).json({ 
                 message: 'Failed to delete client', 
+                error: error.message 
+            });
+        }
+    }
+
+    // New methods for LOB management
+    async addLOB(req, res) {
+        try {
+            console.log("addLOB endpoint called", req.body);
+            const { clientName, lobName, siteId } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName) {
+                return res.status(400).json({ 
+                    message: 'Client name and LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.addLOB(clientName, lobName, siteId, userId);
+            
+            res.status(201).json({ 
+                message: 'LOB added successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error adding LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to add LOB', 
+                error: error.message 
+            });
+        }
+    }
+
+    async updateLOB(req, res) {
+        try {
+            const { clientName, oldLOBName, newLOBName } = req.body;
+            
+            // Validate input
+            if (!clientName || !oldLOBName || !newLOBName) {
+                return res.status(400).json({ 
+                    message: 'Client name, old LOB name, and new LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.updateLOB(clientName, oldLOBName, newLOBName, userId);
+            
+            res.status(200).json({ 
+                message: 'LOB updated successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error updating LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to update LOB', 
+                error: error.message 
+            });
+        }
+    }
+
+    async deleteLOB(req, res) {
+        try {
+            const { clientName, lobName } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName) {
+                return res.status(400).json({ 
+                    message: 'Client name and LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.deleteLOB(clientName, lobName, userId);
+            
+            res.status(200).json({ 
+                message: 'LOB deleted successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error deleting LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to delete LOB', 
+                error: error.message 
+            });
+        }
+    }
+
+    // New methods for Sub LOB management
+    async addSubLOB(req, res) {
+        try {
+            const { clientName, lobName, subLOBName } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName || !subLOBName) {
+                return res.status(400).json({ 
+                    message: 'Client name, LOB name, and Sub LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.addSubLOB(clientName, lobName, subLOBName, userId);
+            
+            res.status(201).json({ 
+                message: 'Sub LOB added successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error adding Sub LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to add Sub LOB', 
+                error: error.message 
+            });
+        }
+    }
+
+    async updateSubLOB(req, res) {
+        try {
+            const { clientName, lobName, oldSubLOBName, newSubLOBName } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName || !oldSubLOBName || !newSubLOBName) {
+                return res.status(400).json({ 
+                    message: 'Client name, LOB name, old Sub LOB name, and new Sub LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.updateSubLOB(
+                clientName, lobName, oldSubLOBName, newSubLOBName, userId
+            );
+            
+            res.status(200).json({ 
+                message: 'Sub LOB updated successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error updating Sub LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to update Sub LOB', 
+                error: error.message 
+            });
+        }
+    }
+
+    async deleteSubLOB(req, res) {
+        try {
+            const { clientName, lobName, subLOBName } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName || !subLOBName) {
+                return res.status(400).json({ 
+                    message: 'Client name, LOB name, and Sub LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.deleteSubLOB(clientName, lobName, subLOBName, userId);
+            
+            res.status(200).json({ 
+                message: 'Sub LOB deleted successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error deleting Sub LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to delete Sub LOB', 
                 error: error.message 
             });
         }

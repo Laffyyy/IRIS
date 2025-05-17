@@ -212,6 +212,180 @@ const ClientManagement = () => {
     }
   };
 
+    // Add LOB tab functions
+    const handleAddLob = async () => {
+      if (selectedClientForLob && selectedSiteForLob && lobNames.some(name => name.trim())) {
+        const client = clients.find(c => c.id === selectedClientForLob);
+        if (!client) return;
+        
+        // Process each LOB name
+        for (const lobName of lobNames) {
+          if (lobName.trim()) {
+            try {
+              // Call API to add LOB
+              const response = await axios.post('http://localhost:3000/api/clients/lob/add', {
+                clientName: client.name,
+                lobName: lobName.trim(),
+                siteId: selectedSiteForLob
+              });
+              console.log('LOB added:', response.data);
+            } catch (error) {
+              console.error('Error adding LOB:', error);
+              alert(`Failed to add LOB "${lobName.trim()}": ${error.response?.data?.error || error.message}`);
+            }
+          }
+        }
+        
+        // Refresh client data to get updated LOBs and SubLOBs
+        try {
+          const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+          if (refreshResponse.data && refreshResponse.data.data) {
+            // Transform API data (same as in useEffect)
+            const transformedClients = [];
+            const transformedLobs = [];
+            const transformedSubLobs = [];
+            let lobId = 0;
+            let subLobId = 0;
+            
+            refreshResponse.data.data.forEach((client, clientIndex) => {
+              const clientId = clientIndex + 1;
+              transformedClients.push({
+                id: clientId,
+                name: client.clientName,
+                createdBy: client.createdBy || '-',
+                createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+              });
+              
+              if (client.LOBs && Array.isArray(client.LOBs)) {
+                client.LOBs.forEach(lob => {
+                  lobId++;
+                  transformedLobs.push({
+                    id: lobId,
+                    name: lob.name,
+                    clientId: clientId,
+                    siteId: selectedSiteForLob
+                  });
+                  
+                  if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                    lob.subLOBs.forEach(subLobName => {
+                      subLobId++;
+                      transformedSubLobs.push({
+                        id: subLobId,
+                        name: subLobName,
+                        lobId: lobId
+                      });
+                    });
+                  }
+                });
+              }
+            });
+            
+            setClients(transformedClients);
+            setLobs(transformedLobs);
+            setSubLobs(transformedSubLobs);
+          }
+        } catch (err) {
+          console.error('Error refreshing client data:', err);
+        }
+        
+        // Reset form
+        setLobNames(['']);
+        setSelectedClientForLob(null);
+        setSelectedSiteForLob(null);
+        
+        alert('LOBs added successfully!');
+      }
+    };
+  
+    // Add Sub LOB tab functions
+    const handleAddSubLob = async () => {
+      if (selectedLobForSubLob && subLobNames.some(name => name.trim())) {
+        const lob = lobs.find(l => l.id === selectedLobForSubLob);
+        if (!lob) return;
+        
+        const client = clients.find(c => c.id === lob.clientId);
+        if (!client) return;
+        
+        // Process each Sub LOB name
+        for (const subLobName of subLobNames) {
+          if (subLobName.trim()) {
+            try {
+              // Call API to add Sub LOB
+              const response = await axios.post('http://localhost:3000/api/clients/sublob/add', {
+                clientName: client.name,
+                lobName: lob.name,
+                subLOBName: subLobName.trim()
+              });
+              console.log('Sub LOB added:', response.data);
+            } catch (error) {
+              console.error('Error adding Sub LOB:', error);
+              alert(`Failed to add Sub LOB "${subLobName.trim()}": ${error.response?.data?.error || error.message}`);
+            }
+          }
+        }
+        
+        // Refresh client data to get updated SubLOBs
+        try {
+          const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+          if (refreshResponse.data && refreshResponse.data.data) {
+            // Transform API data (same as in useEffect)
+            const transformedClients = [];
+            const transformedLobs = [];
+            const transformedSubLobs = [];
+            let lobId = 0;
+            let subLobId = 0;
+            
+            refreshResponse.data.data.forEach((client, clientIndex) => {
+              const clientId = clientIndex + 1;
+              transformedClients.push({
+                id: clientId,
+                name: client.clientName,
+                createdBy: client.createdBy || '-',
+                createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+              });
+              
+              if (client.LOBs && Array.isArray(client.LOBs)) {
+                client.LOBs.forEach(lob => {
+                  lobId++;
+                  transformedLobs.push({
+                    id: lobId,
+                    name: lob.name,
+                    clientId: clientId,
+                    siteId: 1
+                  });
+                  
+                  if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                    lob.subLOBs.forEach(subLobName => {
+                      subLobId++;
+                      transformedSubLobs.push({
+                        id: subLobId,
+                        name: subLobName,
+                        lobId: lobId
+                      });
+                    });
+                  }
+                });
+              }
+            });
+            
+            setClients(transformedClients);
+            setLobs(transformedLobs);
+            setSubLobs(transformedSubLobs);
+          }
+        } catch (err) {
+          console.error('Error refreshing client data:', err);
+        }
+        
+        // Reset form
+        setSubLobNames(['']);
+        setSelectedLobForSubLob(null);
+        setFilterClientForSubLob(null);
+        setFilterSiteForSubLob(null);
+        
+        alert('Sub LOBs added successfully!');
+      }
+    };
+
   // Handle deleting a client, LOB, or SubLOB
   const handleDelete = async (id, type) => {
     try {
@@ -224,7 +398,7 @@ const ClientManagement = () => {
           data: { clientName: clientToDelete.name } 
         });
         
-        // Update state
+        // UPDATE state
         setClients(clients.filter(client => client.id !== id));
         setLobs(lobs.filter(lob => lob.clientId !== id));
         
@@ -234,16 +408,65 @@ const ClientManagement = () => {
         
         alert('Client deleted successfully!');
       } else if (type === 'lob') {
-        // For LOB deletion - you would need to implement this endpoint in your backend
-        console.log('Delete LOB:', id);
-        // For now, just update local state
-        setLobs(lobs.filter(lob => lob.id !== id));
-        setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
+        // Get the LOB to delete
+        const lobToDelete = lobs.find(lob => lob.id === id);
+        if (!lobToDelete) return;
+        
+        // Get the client name for this LOB
+        const client = clients.find(c => c.id === lobToDelete.clientId);
+        if (!client) return;
+        
+        try {
+          // Call API to delete LOB
+          await axios.delete('http://localhost:3000/api/clients/lob/delete', {
+            data: { 
+              clientName: client.name,
+              lobName: lobToDelete.name 
+            }
+          });
+          
+          // Update state
+          setLobs(lobs.filter(lob => lob.id !== id));
+          setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
+          
+          alert('LOB deleted successfully!');
+        } catch (error) {
+          console.error('Error deleting LOB:', error);
+          alert(`Failed to delete LOB: ${error.response?.data?.error || error.message}`);
+          return;
+        }
       } else if (type === 'subLob') {
-        // For SubLOB deletion - you would need to implement this endpoint in your backend
-        console.log('Delete SubLOB:', id);
-        // For now, just update local state
-        setSubLobs(subLobs.filter(subLob => subLob.id !== id));
+        // Get the SubLOB to delete
+        const subLobToDelete = subLobs.find(subLob => subLob.id === id);
+        if (!subLobToDelete) return;
+        
+        // Get the LOB for this SubLOB
+        const lob = lobs.find(l => l.id === subLobToDelete.lobId);
+        if (!lob) return;
+        
+        // Get the client for this LOB
+        const client = clients.find(c => c.id === lob.clientId);
+        if (!client) return;
+        
+        try {
+          // Call API to delete SubLOB
+          await axios.delete('http://localhost:3000/api/clients/sublob/delete', {
+            data: { 
+              clientName: client.name,
+              lobName: lob.name,
+              subLOBName: subLobToDelete.name 
+            }
+          });
+          
+          // Update state
+          setSubLobs(subLobs.filter(subLob => subLob.id !== id));
+          
+          alert('Sub LOB deleted successfully!');
+        } catch (error) {
+          console.error('Error deleting Sub LOB:', error);
+          alert(`Failed to delete Sub LOB: ${error.response?.data?.error || error.message}`);
+          return;
+        }
       }
     } catch (error) {
       console.error(`Error deleting ${type}:`, error);
@@ -268,6 +491,63 @@ const ClientManagement = () => {
       } catch (error) {
         console.error('Error updating client:', error);
         alert(`Failed to update client: ${error.response?.data?.error || error.message}`);
+      }
+    }
+  };
+
+  // Handle editing a LOB
+  const handleEditLob = async (lob) => {
+    const newName = prompt('Enter new LOB name:', lob.name);
+    if (newName && newName.trim() !== lob.name) {
+      // Get the client for this LOB
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) return;
+      
+      try {
+        // Call API to update LOB
+        await axios.put('http://localhost:3000/api/clients/lob/update', { 
+          clientName: client.name,
+          oldLOBName: lob.name,
+          newLOBName: newName.trim() 
+        });
+        
+        // Update state
+        setLobs(lobs.map(l => l.id === lob.id ? {...l, name: newName.trim()} : l));
+        alert('LOB updated successfully!');
+      } catch (error) {
+        console.error('Error updating LOB:', error);
+        alert(`Failed to update LOB: ${error.response?.data?.error || error.message}`);
+      }
+    }
+  };
+  
+  // Handle editing a SubLOB
+  const handleEditSubLob = async (subLob) => {
+    const newName = prompt('Enter new Sub LOB name:', subLob.name);
+    if (newName && newName.trim() !== subLob.name) {
+      // Get the LOB for this SubLOB
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) return;
+      
+      // Get the client for this LOB
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) return;
+      
+      try {
+        // Call API to update SubLOB
+        await axios.put('http://localhost:3000/api/clients/sublob/update', { 
+          clientName: client.name,
+          lobName: lob.name,
+          oldSubLOBName: subLob.name,
+          newSubLOBName: newName.trim() 
+        });
+        
+        // Update state
+        setSubLobs(subLobs.map(sl => sl.id === subLob.id ? {...sl, name: newName.trim()} : sl));
+        alert('Sub LOB updated successfully!');
+      } catch (error) {
+        console.error('Error updating Sub LOB:', error);
+        alert(`Failed to update Sub LOB: ${error.response?.data?.error || error.message}`);
       }
     }
   };
@@ -314,27 +594,6 @@ const ClientManagement = () => {
     setLobCards(updatedLobCards);
   };
 
-  // Add LOB tab functions
-  const handleAddLob = () => {
-    if (selectedClientForLob && selectedSiteForLob) {
-      const newLobs = lobNames
-        .filter(name => name.trim())
-        .map((name, index) => ({
-          id: lobs.length + index + 1,
-          name: name.trim(),
-          clientId: selectedClientForLob,
-          siteId: selectedSiteForLob
-        }));
-
-      if (newLobs.length > 0) {
-        setLobs([...lobs, ...newLobs]);
-        setLobNames(['']);
-        setSelectedClientForLob(null);
-        setSelectedSiteForLob(null);
-      }
-    }
-  };
-
   const handleAddAnotherLob = () => {
     if (lobNames.length < 4) {
       setLobNames([...lobNames, '']);
@@ -353,27 +612,6 @@ const ClientManagement = () => {
     const updatedLobNames = [...lobNames];
     updatedLobNames[index] = value;
     setLobNames(updatedLobNames);
-  };
-
-  // Add Sub LOB tab functions
-  const handleAddSubLob = () => {
-    if (selectedLobForSubLob && subLobNames.some(name => name.trim())) {
-      const newSubLobs = subLobNames
-        .filter(name => name.trim())
-        .map((name, index) => ({
-          id: subLobs.length + index + 1,
-          name: name.trim(),
-          lobId: selectedLobForSubLob
-        }));
-
-      if (newSubLobs.length > 0) {
-        setSubLobs([...subLobs, ...newSubLobs]);
-        setSubLobNames(['']);
-        setSelectedLobForSubLob(null);
-        setFilterClientForSubLob(null);
-        setFilterSiteForSubLob(null);
-      }
-    }
   };
 
   const handleAddAnotherSubLobField = () => {
