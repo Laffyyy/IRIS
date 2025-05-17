@@ -426,7 +426,6 @@ const ClientManagement = () => {
       }
     };
 
-    // Add/update these handle functions
 // Update the handleEditRow function but keep your modal interface
 const handleEditRow = (type, data) => {
   if (type === 'client') {
@@ -546,6 +545,11 @@ const handleDeleteRow = async (type, id) => {
       const client = clients.find(c => c.id === id);
       if (!client) return;
       
+      // Ask for confirmation before deleting client
+      if (!window.confirm(`Are you sure you want to delete client "${client.name}"? This will also delete all its LOBs and Sub LOBs.`)) {
+        return; // User cancelled the operation
+      }
+      
       // Delete client from backend
       await axios.delete(`http://localhost:3000/api/clients/delete`, {
         data: { clientName: client.name }
@@ -565,14 +569,48 @@ const handleDeleteRow = async (type, id) => {
       const client = clients.find(c => c.id === lob.clientId);
       if (!client) return;
       
-      // Delete LOB from backend
-      await axios.delete(`http://localhost:3000/api/clients/lob/delete`, {
-        data: { clientName: client.name, lobName: lob.name }
-      });
+      // Check if this is the only LOB for this client
+      const clientLobs = lobs.filter(l => l.clientId === client.id);
       
-      // Update local state
-      setLobs(lobs.filter(l => l.id !== id));
-      setSubLobs(subLobs.filter(s => s.lobId !== id));
+      if (clientLobs.length <= 1) {
+        // This is the only LOB, ask if they want to delete the client too
+        const confirmDeleteClient = window.confirm(
+          `"${lob.name}" is the last LOB for client "${client.name}". ` +
+          `Deleting this LOB will also delete the client. ` +
+          `Do you want to proceed?`
+        );
+        
+        if (!confirmDeleteClient) {
+          return; // User cancelled the operation
+        }
+        
+        // Delete the client instead (this will cascade delete LOBs and SubLOBs)
+        await axios.delete(`http://localhost:3000/api/clients/delete`, {
+          data: { clientName: client.name }
+        });
+        
+        // Update local state
+        setClients(clients.filter(c => c.id !== client.id));
+        setLobs(lobs.filter(l => l.clientId !== client.id));
+        setSubLobs(subLobs.filter(s => !clientLobs.some(cl => cl.id === s.lobId)));
+        
+        alert(`Client "${client.name}" and all its LOBs have been deleted.`);
+        return;
+      } else {
+        // Not the last LOB, just confirm deletion of this LOB
+        if (!window.confirm(`Are you sure you want to delete LOB "${lob.name}"? This will also delete all its Sub LOBs.`)) {
+          return; // User cancelled the operation
+        }
+        
+        // Delete LOB from backend
+        await axios.delete(`http://localhost:3000/api/clients/lob/delete`, {
+          data: { clientName: client.name, lobName: lob.name }
+        });
+        
+        // Update local state
+        setLobs(lobs.filter(l => l.id !== id));
+        setSubLobs(subLobs.filter(s => s.lobId !== id));
+      }
     }
     else if (type === 'sublob') {
       const sublob = subLobs.find(s => s.id === id);
@@ -584,13 +622,75 @@ const handleDeleteRow = async (type, id) => {
       const client = clients.find(c => c.id === lob.clientId);
       if (!client) return;
       
-      // Delete SubLOB from backend
-      await axios.delete(`http://localhost:3000/api/clients/sublob/delete`, {
-        data: { clientName: client.name, lobName: lob.name, subLOBName: sublob.name }
-      });
+      // Check if this is the only SubLOB for this LOB
+      const lobSubLobs = subLobs.filter(s => s.lobId === lob.id);
       
-      // Update local state
-      setSubLobs(subLobs.filter(s => s.id !== id));
+      if (lobSubLobs.length <= 1) {
+        // This is the only SubLOB, check if this LOB is the last one for the client
+        const clientLobs = lobs.filter(l => l.clientId === client.id);
+        
+        if (clientLobs.length <= 1) {
+          // This is also the last LOB, ask if they want to delete the client
+          const confirmDeleteClient = window.confirm(
+            `"${sublob.name}" is the last Sub LOB of the last LOB for client "${client.name}". ` +
+            `Deleting this Sub LOB will also delete the LOB and the client. ` +
+            `Do you want to proceed?`
+          );
+          
+          if (!confirmDeleteClient) {
+            return; // User cancelled the operation
+          }
+          
+          // Delete the client (this will cascade delete LOBs and SubLOBs)
+          await axios.delete(`http://localhost:3000/api/clients/delete`, {
+            data: { clientName: client.name }
+          });
+          
+          // Update local state
+          setClients(clients.filter(c => c.id !== client.id));
+          setLobs(lobs.filter(l => l.clientId !== client.id));
+          setSubLobs(subLobs.filter(s => !clientLobs.some(cl => cl.id === s.lobId)));
+          
+          alert(`Client "${client.name}" and all its LOBs have been deleted.`);
+          return;
+        } else {
+          // Not the last LOB, but last SubLOB of this LOB
+          const confirmDeleteLob = window.confirm(
+            `"${sublob.name}" is the last Sub LOB for LOB "${lob.name}". ` +
+            `Deleting this Sub LOB will also delete the LOB. ` +
+            `Do you want to proceed?`
+          );
+          
+          if (!confirmDeleteLob) {
+            return; // User cancelled the operation
+          }
+          
+          // Delete the LOB (this will cascade delete the SubLOB)
+          await axios.delete(`http://localhost:3000/api/clients/lob/delete`, {
+            data: { clientName: client.name, lobName: lob.name }
+          });
+          
+          // Update local state
+          setLobs(lobs.filter(l => l.id !== lob.id));
+          setSubLobs(subLobs.filter(s => s.lobId !== lob.id));
+          
+          alert(`LOB "${lob.name}" has been deleted.`);
+          return;
+        }
+      } else {
+        // Not the last SubLOB, just confirm deletion
+        if (!window.confirm(`Are you sure you want to delete Sub LOB "${sublob.name}"?`)) {
+          return; // User cancelled the operation
+        }
+        
+        // Delete just this SubLOB
+        await axios.delete(`http://localhost:3000/api/clients/sublob/delete`, {
+          data: { clientName: client.name, lobName: lob.name, subLOBName: sublob.name }
+        });
+        
+        // Update local state
+        setSubLobs(subLobs.filter(s => s.id !== id));
+      }
     }
     
     alert('Item deleted successfully');
@@ -1155,7 +1255,7 @@ const handleDeleteRow = async (type, id) => {
               </thead>
               <tbody>
                 {activeTableTab === 'clients' ? (
-                  // Show clients with their LOBs in separate rows
+                  // Client view - show each Client-LOB-SubLOB combination in separate rows
                   filteredClients.flatMap(client => {
                     const clientLobs = lobs.filter(lob => lob.clientId === client.id);
                     
@@ -1183,35 +1283,59 @@ const handleDeleteRow = async (type, id) => {
                       )];
                     }
                     
-                    // Show a row for each LOB
-                    return clientLobs.map(lob => {
+                    // Create rows for each LOB-SubLOB combination
+                    return clientLobs.flatMap(lob => {
                       const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                      const subLobsText = lobSubLobs.map(sl => sl.name).join(', ') || '-';
                       
-                      return (
-                        <tr key={`lob-${lob.id}`}>
+                      // If no SubLOBs, show just the LOB
+                      if (lobSubLobs.length === 0) {
+                        return [(
+                          <tr key={`client-${client.id}-lob-${lob.id}`}>
+                            <td>{client.id.toString().padStart(3, '0')}</td>
+                            <td>{client.name}</td>
+                            <td>{lob.name}</td>
+                            <td>-</td>
+                            <td>{client.createdBy || '-'}</td>
+                            <td>{client.createdAt || '-'}</td>
+                            <td>
+                              <div className="action-buttons">
+                                <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
+                                  <FaPencilAlt size={12} /> Edit
+                                </button>
+                                <button onClick={() => handleDeleteRow('lob', lob.id)} className="delete-btn">
+                                  <FaTrash size={12} /> Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )];
+                      }
+                      
+                      // Otherwise create one row for each SubLOB
+                      return lobSubLobs.map(subLob => (
+                        <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
                           <td>{client.id.toString().padStart(3, '0')}</td>
                           <td>{client.name}</td>
                           <td>{lob.name}</td>
-                          <td>{subLobsText}</td>
+                          <td>{subLob.name}</td>
                           <td>{client.createdBy || '-'}</td>
                           <td>{client.createdAt || '-'}</td>
                           <td>
                             <div className="action-buttons">
-                              <button onClick={() => handleEditRow('lob', {...lob, clientName: client.name})} className="edit-btn">
+                              <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                 <FaPencilAlt size={12} /> Edit
                               </button>
-                              <button onClick={() => handleDeleteRow('lob', lob.id)} className="delete-btn">
+                              <button onClick={() => handleDeleteRow('sublob', subLob.id)} className="delete-btn">
                                 <FaTrash size={12} /> Delete
                               </button>
                             </div>
                           </td>
                         </tr>
-                      );
+                      ));
                     });
                   })
                 ) : activeTableTab === 'lobs' ? (
-                  // Show LOBs with their SubLOBs in separate rows
+                  // LOB view - show each LOB-SubLOB combination in separate rows
                   lobs
                     .filter(lob => {
                       const client = clients.find(c => c.id === lob.clientId);
@@ -1219,44 +1343,70 @@ const handleDeleteRow = async (type, id) => {
                             client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
                             (!filterClient || lob.clientId === filterClient);
                     })
-                    .map(lob => {
+                    .flatMap(lob => {
                       const client = clients.find(c => c.id === lob.clientId);
                       const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                      const subLobsText = lobSubLobs.map(sl => sl.name).join(', ') || '-';
                       
-                      return (
-                        <tr key={`lob-view-${lob.id}`}>
+                      // If no SubLOBs, show just the LOB
+                      if (lobSubLobs.length === 0) {
+                        return [(
+                          <tr key={`lob-view-${lob.id}`}>
+                            <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
+                            <td>{client ? client.name : '-'}</td>
+                            <td>{lob.name}</td>
+                            <td>-</td>
+                            <td>{client ? client.createdBy : '-'}</td>
+                            <td>{client ? client.createdAt : '-'}</td>
+                            <td>
+                              <div className="action-buttons">
+                                <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
+                                  <FaPencilAlt size={12} /> Edit
+                                </button>
+                                <button onClick={() => handleDeleteRow('lob', lob.id)} className="delete-btn">
+                                  <FaTrash size={12} /> Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )];
+                      }
+                      
+                      // Otherwise create one row for each SubLOB
+                      return lobSubLobs.map(subLob => (
+                        <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
                           <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
                           <td>{client ? client.name : '-'}</td>
                           <td>{lob.name}</td>
-                          <td>{subLobsText}</td>
+                          <td>{subLob.name}</td>
                           <td>{client ? client.createdBy : '-'}</td>
                           <td>{client ? client.createdAt : '-'}</td>
                           <td>
                             <div className="action-buttons">
-                              <button onClick={() => handleEditRow('lob', {...lob, clientName: client.name})} className="edit-btn">
+                              <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                 <FaPencilAlt size={12} /> Edit
                               </button>
-                              <button onClick={() => handleDeleteRow('lob', lob.id)} className="delete-btn">
+                              <button onClick={() => handleDeleteRow('sublob', subLob.id)} className="delete-btn">
                                 <FaTrash size={12} /> Delete
                               </button>
                             </div>
                           </td>
                         </tr>
-                      );
+                      ));
                     })
                 ) : (
-                  // Show SubLOBs
+                  // SubLOB view - already shows individual rows for each SubLOB
                   subLobs
                     .filter(subLob => {
                       const lob = lobs.find(l => l.id === subLob.lobId);
                       const client = lob ? clients.find(c => c.id === lob.clientId) : null;
                       
-                      return client && 
-                            (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              lob.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              subLob.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                            (!filterClient || (lob && lob.clientId === filterClient));
+                      return (
+                        client && 
+                        (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        lob.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        subLob.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                        (!filterClient || (lob && lob.clientId === filterClient))
+                      );
                     })
                     .map(subLob => {
                       const lob = lobs.find(l => l.id === subLob.lobId);
@@ -1272,10 +1422,7 @@ const handleDeleteRow = async (type, id) => {
                           <td>{client ? client.createdAt : '-'}</td>
                           <td>
                             <div className="action-buttons">
-                              <button 
-                                onClick={() => handleEditRow('sublob', {...subLob, lobName: lob?.name, clientName: client?.name})} 
-                                className="edit-btn"
-                              >
+                              <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                 <FaPencilAlt size={12} /> Edit
                               </button>
                               <button onClick={() => handleDeleteRow('sublob', subLob.id)} className="delete-btn">
