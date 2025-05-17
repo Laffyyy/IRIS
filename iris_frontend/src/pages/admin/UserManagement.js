@@ -102,6 +102,30 @@ const UserManagement = () => {
   // Add a computed variable for password mismatch
   const passwordMismatch = showPasswordFields && (passwordData.newPassword !== passwordData.confirmPassword || !passwordData.newPassword || !passwordData.confirmPassword);
 
+  // Add state for individual add errors and confirmation/result modals
+  const [individualAddError, setIndividualAddError] = useState('');
+  const [showIndividualConfirmModal, setShowIndividualConfirmModal] = useState(false);
+  const [showIndividualResultModal, setShowIndividualResultModal] = useState(false);
+  const [individualResultSuccess, setIndividualResultSuccess] = useState(false);
+  const [individualResultMessage, setIndividualResultMessage] = useState('');
+
+  // Add state for editing index
+  const [editingPreviewIndex, setEditingPreviewIndex] = useState(null);
+  const [editingPreviewUser, setEditingPreviewUser] = useState(null);
+
+  // Add state for editing individual preview modal
+  const [editPreviewModalOpen, setEditPreviewModalOpen] = useState(false);
+  const [editPreviewErrors, setEditPreviewErrors] = useState({});
+
+  // Add loading state for async DB duplicate check
+  const [editPreviewCheckingDb, setEditPreviewCheckingDb] = useState(false);
+
+  // Add a ref to track the latest checked values
+  const lastCheckedRef = useRef({ employeeId: '', email: '' });
+
+  // Store the original preview user for comparison
+  const [originalPreviewUser, setOriginalPreviewUser] = useState(null);
+
   // Fetch users function
   const fetchUsers = async () => {
     try {
@@ -311,6 +335,10 @@ const UserManagement = () => {
       setBulkUsers(validUsers);
       setInvalidUsers(invalidUsers);
       setFile(file);
+      // After setting bulkUsers and invalidUsers in handleFile, switch to invalid tab if no valid users
+      if (validUsers.length === 0 && invalidUsers.length > 0) {
+        setPreviewTab('invalid');
+      }
     };
     if (file.name.endsWith('.csv')) {
       reader.readAsBinaryString(file);
@@ -343,12 +371,53 @@ const UserManagement = () => {
     document.body.removeChild(link);
   };
 
-  // Add user to preview list
-  const handleAddToList = () => {
-    if (newUser.employeeId && newUser.email && newUser.name && newUser.role) {
-      setIndividualPreview(prev => [...prev, { ...newUser, status: 'FIRST-TIME' }]);
-      setNewUser({ employeeId: '', email: '', name: '', role: 'HR' });
+  // Update handleAddToList with validation
+  const handleAddToList = async () => {
+    setIndividualAddError('');
+    const { employeeId, email, name, role } = newUser;
+    // 1. Required fields
+    if (!employeeId || !email || !name || !role) {
+      setIndividualAddError('All fields are required.');
+      return;
     }
+    // 2. Email format
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (!emailRegex.test(email)) {
+      setIndividualAddError('Invalid email format.');
+      return;
+    }
+    // 3. Duplicates in preview
+    if (individualPreview.some(u => u.employeeId === employeeId)) {
+      setIndividualAddError('Duplicate Employee ID in preview.');
+      return;
+    }
+    if (individualPreview.some(u => u.email === email)) {
+      setIndividualAddError('Duplicate Email in preview.');
+      return;
+    }
+    // 4. Duplicates in database
+    try {
+      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
+      });
+      const dbDuplicates = await response.json();
+      if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
+        setIndividualAddError('Duplicate Employee ID in database.');
+        return;
+      }
+      if (dbDuplicates.some(u => u.dEmail === email)) {
+        setIndividualAddError('Duplicate Email in database.');
+        return;
+      }
+    } catch (e) {
+      setIndividualAddError('Error checking duplicates in database.');
+      return;
+    }
+    // If all good, add to preview
+    setIndividualPreview(prev => [...prev, { ...newUser, status: 'FIRST-TIME' }]);
+    setNewUser({ employeeId: '', email: '', name: '', role: 'HR' });
   };
 
   // Submit individual users
@@ -850,6 +919,80 @@ const UserManagement = () => {
     return errors;
   };
 
+  // Update the edit preview modal logic for real-time validation
+  useEffect(() => {
+    if (editPreviewModalOpen && editingPreviewUser) {
+      const errors = {};
+      if (!editingPreviewUser.employeeId) errors.employeeId = 'Employee ID is required';
+      if (!editingPreviewUser.name) errors.name = 'Name is required';
+      if (!editingPreviewUser.email) errors.email = 'Email is required';
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if (editingPreviewUser.email && !emailRegex.test(editingPreviewUser.email)) errors.email = 'Invalid email format';
+      if (!editingPreviewUser.role) errors.role = 'Role is required';
+      // Check for duplicates in preview (excluding self)
+      if (individualPreview.some((u, i) => i !== editingPreviewIndex && u.employeeId === editingPreviewUser.employeeId)) errors.employeeId = 'Duplicate Employee ID in preview.';
+      if (individualPreview.some((u, i) => i !== editingPreviewIndex && u.email === editingPreviewUser.email)) errors.email = 'Duplicate Email in preview.';
+      setEditPreviewErrors(errors);
+    }
+  }, [editingPreviewUser, editPreviewModalOpen, individualPreview, editingPreviewIndex]);
+
+  // Add async DB duplicate check for Employee ID and Email in edit preview modal
+  useEffect(() => {
+    let isMounted = true;
+    async function checkDbDuplicates() {
+      if (!editPreviewModalOpen || !editingPreviewUser || !originalPreviewUser) return;
+      setEditPreviewCheckingDb(true);
+      const checkedEmployeeId = editingPreviewUser.employeeId;
+      const checkedEmail = editingPreviewUser.email;
+      let errors = { ...editPreviewErrors };
+      // Only check for duplicates if value is changed from original
+      const employeeIdChanged = checkedEmployeeId !== originalPreviewUser.employeeId;
+      const emailChanged = checkedEmail !== originalPreviewUser.email;
+      // Preview duplicate check (only if changed)
+      if (employeeIdChanged && individualPreview.some((u, i) => i !== editingPreviewIndex && u.employeeId === checkedEmployeeId)) {
+        errors.employeeId = 'Duplicate Employee ID in preview.';
+      }
+      if (emailChanged && individualPreview.some((u, i) => i !== editingPreviewIndex && u.email === checkedEmail)) {
+        errors.email = 'Duplicate Email in preview.';
+      }
+      // DB duplicate check (only if changed)
+      if ((employeeIdChanged && checkedEmployeeId) || (emailChanged && checkedEmail)) {
+        try {
+          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeIds: employeeIdChanged ? [checkedEmployeeId] : [], emails: emailChanged ? [checkedEmail] : [] })
+          });
+          const dbDuplicates = await response.json();
+          if (employeeIdChanged && dbDuplicates.some(u => u.dUser_ID === checkedEmployeeId)) {
+            errors.employeeId = 'Duplicate Employee ID in database.';
+          }
+          if (emailChanged && dbDuplicates.some(u => u.dEmail === checkedEmail)) {
+            errors.email = 'Duplicate Email in database.';
+          }
+        } catch (e) {
+          // Optionally show DB error
+        }
+      }
+      // Only update errors if the checked values still match the current input
+      if (
+        isMounted &&
+        editingPreviewUser &&
+        editingPreviewUser.employeeId === checkedEmployeeId &&
+        editingPreviewUser.email === checkedEmail
+      ) {
+        setEditPreviewErrors(errors);
+        setEditPreviewCheckingDb(false);
+      }
+    }
+    checkDbDuplicates();
+    return () => { isMounted = false; };
+  // eslint-disable-next-line
+  }, [editPreviewModalOpen, editingPreviewUser, originalPreviewUser, individualPreview, editingPreviewIndex]);
+
+  // Determine modal size based on preview data
+  const shouldExpandModal = (bulkUsers.length > 10 || invalidUsers.length > 10);
+
   return (
     <div className="user-management-container">
       <div className="white-card">
@@ -1013,7 +1156,12 @@ const UserManagement = () => {
       {/* Add User Modal */}
       {addModalOpen && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: '900px' }}>
+          <div
+            className="modal"
+            style={shouldExpandModal
+              ? { width: '900px', maxHeight: 'calc(100vh - 40px)', height: 'calc(100vh - 40px)', overflow: 'auto', margin: '20px auto' }
+              : { width: '900px' }}
+          >
             <div className="modal-header">
               <h2>Add User</h2>
               <button onClick={() => setAddModalOpen(false)} className="close-btn">
@@ -1100,10 +1248,14 @@ const UserManagement = () => {
                   </button>
                 </div>
 
+                {individualAddError && (
+                  <div style={{ color: 'red', marginBottom: 8 }}>{individualAddError}</div>
+                )}
+
                 {individualPreview.length > 0 && (
-                  <div className="individual-preview">
+                  <div className="individual-preview" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto' }}>
                     <table>
-                      <thead>
+                      <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
                         <tr>
                           <th>Employee ID</th>
                           <th>Name</th>
@@ -1120,12 +1272,7 @@ const UserManagement = () => {
                             <td>{user.email}</td>
                             <td>{user.role}</td>
                             <td>
-                              <button
-                                className="remove-btn"
-                                onClick={() => handleRemoveFromPreview(user.employeeId)}
-                              >
-                                <FaTimes />
-                              </button>
+                              <button className="remove-btn" onClick={() => handleRemoveFromPreview(user.employeeId)}><FaTimes /></button>
                             </td>
                           </tr>
                         ))}
@@ -1135,14 +1282,7 @@ const UserManagement = () => {
                 )}
 
                 <div className="modal-actions">
-                  <button onClick={() => setAddModalOpen(false)} className="cancel-btn">Cancel</button>
-                  <button
-                    onClick={handleAddIndividual}
-                    className="save-btn"
-                    disabled={individualPreview.length === 0}
-                  >
-                    Add User
-                  </button>
+                  <button onClick={() => setShowIndividualConfirmModal(true)} className="save-btn" disabled={individualPreview.length === 0}>Add User</button>
                 </div>
               </div>
             ) : (
@@ -1257,9 +1397,9 @@ const UserManagement = () => {
                       )}
 
                       {previewTab === 'invalid' && invalidUsers.length > 0 && (
-                        <div className="invalid-users-table">
+                        <div className="invalid-users-table" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto' }}>
                           <table>
-                            <thead>
+                            <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
                               <tr>
                                 <th>Reason</th>
                                 <th>Employee ID</th>
@@ -1270,30 +1410,27 @@ const UserManagement = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {invalidUsers
-                                .slice()
-                                .sort((a, b) => (a.notEditable === b.notEditable ? 0 : a.notEditable ? 1 : -1))
-                                .map((user, index) => (
-                                  <tr key={`invalid-${index}`}>
-                                    <td className="reason-cell" title={user.reasons && user.reasons.join(', ')}>
-                                      {user.reasons && user.reasons.join(', ')}
-                                    </td>
-                                    <td title={user.employeeId}>{user.employeeId}</td>
-                                    <td title={user.name}>{user.name}</td>
-                                    <td title={user.email}>{user.email}</td>
-                                    <td title={user.role}>{user.role}</td>
-                                    <td>
-                                      {!user.notEditable && (
-                                        <button
-                                          className="edit-btn"
-                                          onClick={() => handleEditInvalidUser(index)}
-                                        >
-                                          <FaEdit /> Edit
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
+                              {invalidUsers.map((user, index) => (
+                                <tr key={`invalid-${index}`}>
+                                  <td className="reason-cell" title={user.reasons && user.reasons.join(', ')}>
+                                    {user.reasons && user.reasons.join(', ')}
+                                  </td>
+                                  <td title={user.employeeId}>{user.employeeId}</td>
+                                  <td title={user.name}>{user.name}</td>
+                                  <td title={user.email}>{user.email}</td>
+                                  <td title={user.role}>{user.role}</td>
+                                  <td>
+                                    {!user.notEditable && (
+                                      <button
+                                        className="edit-btn"
+                                        onClick={() => handleEditInvalidUser(index)}
+                                      >
+                                        <FaEdit /> Edit
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
@@ -1833,6 +1970,81 @@ const UserManagement = () => {
             <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
             <div className="modal-actions">
               <button onClick={() => setShowEditResultModal(false)} className="save-btn">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal */}
+      {showIndividualConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>Confirm Add User</h2>
+              <button onClick={() => setShowIndividualConfirmModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>Are you sure you want to add {individualPreview.length} user(s)?</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowIndividualConfirmModal(false)} className="cancel-btn">No</button>
+              <button
+                className="save-btn"
+                onClick={async () => {
+                  setShowIndividualConfirmModal(false);
+                  try {
+                    const response = await fetch('http://localhost:5000/api/users/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        users: individualPreview.map(user => ({
+                          ...user,
+                          password: 'defaultPass123',
+                          createdBy: 'admin'
+                        }))
+                      })
+                    });
+                    let result = null;
+                    try {
+                      result = await response.json();
+                    } catch (e) {}
+                    if (!response.ok) {
+                      setShowIndividualResultModal(true);
+                      setIndividualResultSuccess(false);
+                      setIndividualResultMessage('Add user error: ' + (result && result.message ? result.message : 'Failed to add users'));
+                      return;
+                    }
+                    setShowIndividualResultModal(true);
+                    setIndividualResultSuccess(true);
+                    setIndividualResultMessage('Users added successfully!');
+                    setIndividualPreview([]);
+                  } catch (error) {
+                    setShowIndividualResultModal(true);
+                    setIndividualResultSuccess(false);
+                    setIndividualResultMessage('Add user error: ' + (error.message || 'Unknown error'));
+                  }
+                }}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Result modal */}
+      {showIndividualResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{individualResultSuccess ? 'Add Successful' : 'Add Failed'}</h2>
+              <button onClick={() => setShowIndividualResultModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>{individualResultMessage}</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowIndividualResultModal(false)} className="save-btn">OK</button>
             </div>
           </div>
         </div>
