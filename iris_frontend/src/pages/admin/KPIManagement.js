@@ -1,7 +1,7 @@
 // KPIManagement.js
 import React, { useState } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
 
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
@@ -14,7 +14,10 @@ const KPIManagement = () => {
   const [category, setCategory] = useState('');
   const [behavior, setBehavior] = useState('');
   const [description, setDescription] = useState('');
-  const [editingKpi, setEditingKpi] = useState(null);
+  
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentKpi, setCurrentKpi] = useState(null);
 
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
@@ -40,29 +43,16 @@ const KPIManagement = () => {
   };
 
   const handleEditClick = (kpi) => {
-    setEditingKpi(kpi);
-    setKpiName(kpi.name);
-    setCategory(kpi.category);
-    setBehavior(kpi.behavior);
-    setDescription(kpi.description);
-    setActiveTab('addKPI');
+    setCurrentKpi(kpi);
+    setEditModalOpen(true);
   };
 
-  const handleUpdateKpi = () => {
-    if (kpiName.trim() && category && behavior) {
-      setKpis(kpis.map(kpi => 
-        kpi.id === editingKpi.id 
-          ? {
-              ...kpi,
-              name: kpiName.trim(),
-              category: category,
-              behavior: behavior,
-              description: description
-            }
-          : kpi
-      ));
-      resetForm();
-    }
+  const handleSave = (updatedKpi) => {
+    setKpis(kpis.map(kpi => 
+      kpi.id === updatedKpi.id ? updatedKpi : kpi
+    ));
+    setEditModalOpen(false);
+    setCurrentKpi(null);
   };
 
   const resetForm = () => {
@@ -70,7 +60,7 @@ const KPIManagement = () => {
     setCategory('');
     setBehavior('');
     setDescription('');
-    setEditingKpi(null);
+    setCurrentKpi(null);
   };
 
   return (
@@ -86,7 +76,7 @@ const KPIManagement = () => {
             className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
             onClick={() => setActiveTab('addKPI')}
           >
-            {editingKpi ? 'Edit KPI' : 'Add New KPI'}
+            {currentKpi ? 'Edit KPI' : 'Add New KPI'}
           </div>
           <div 
             className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
@@ -150,28 +140,13 @@ const KPIManagement = () => {
               />
             </div>
 
-            {editingKpi ? (
-              <div className="button-group">
-                <button 
-                  onClick={handleUpdateKpi} 
-                  className="add-button"
-                  disabled={!kpiName.trim() || !category || !behavior}
-                >
-                  Update KPI
-                </button>
-                <button onClick={resetForm} className="cancel-button">
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button 
-                onClick={handleAddKpi} 
-                className="add-button"
-                disabled={!kpiName.trim() || !category || !behavior}
-              >
-                + Add New KPI
-              </button>
-            )}
+            <button 
+              onClick={handleAddKpi} 
+              className="add-button"
+              disabled={!kpiName.trim() || !category || !behavior}
+            >
+              + Add New KPI
+            </button>
           </div>
         </div>
 
@@ -213,6 +188,80 @@ const KPIManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit KPI Modal */}
+      {editModalOpen && currentKpi && (
+        <div className="modal-overlay">
+          <div className="modal edit-kpi-modal">
+            <div className="modal-header">
+              <h2>Edit KPI</h2>
+              <button onClick={() => setEditModalOpen(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>KPI Name</label>
+                <input
+                  type="text"
+                  value={currentKpi.name}
+                  onChange={(e) => setCurrentKpi({...currentKpi, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <select
+                  value={currentKpi.category}
+                  onChange={(e) => setCurrentKpi({...currentKpi, category: e.target.value})}
+                >
+                  <option value="">Select category</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Calculation Behavior</label>
+                <select
+                  value={currentKpi.behavior}
+                  onChange={(e) => setCurrentKpi({...currentKpi, behavior: e.target.value})}
+                >
+                  <option value="">Select behavior</option>
+                  {behaviors.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Description</label>
+                              <textarea
+                value={currentKpi.description}
+                onChange={(e) => setCurrentKpi({...currentKpi, description: e.target.value})}
+                placeholder="Describe what this KPI measures and why it's important"
+                rows="3"
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
+              <button 
+                onClick={() => handleSave(currentKpi)} 
+                className="save-btn"
+                disabled={!currentKpi.name.trim() || !currentKpi.category || !currentKpi.behavior}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

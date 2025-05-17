@@ -658,24 +658,12 @@ const UserManagement = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Employee ID:</label>
-                <input
-                  type="text"
-                  name="employeeId"
-                  value={currentUser.employeeId}
-                  onChange={(e) => setCurrentUser({...currentUser, employeeId: e.target.value})}
-                  required
-                />
+                                <input                  type="text"                  name="employeeId"                  value={currentUser.employeeId}                  onChange={(e) => setCurrentUser({...currentUser, employeeId: e.target.value})}                  required                />
               </div>
 
               <div className="form-group">
                 <label>Name:</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={currentUser.name}
-                  onChange={(e) => setCurrentUser({...currentUser, name: e.target.value})}
-                  required
-                />
+                                <input                  type="text"                  name="name"                  value={currentUser.name}                  onChange={(e) => setCurrentUser({...currentUser, name: e.target.value})}                  required                />
               </div>
             </div>
 

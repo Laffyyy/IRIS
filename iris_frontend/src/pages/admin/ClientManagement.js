@@ -60,6 +60,10 @@ const ClientManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterClient, setFilterClient] = useState(null);
 
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentClient, setCurrentClient] = useState(null);
+
   useEffect(() => {
     let filtered = lobs;
     if (filterClientForSubLob) {
@@ -294,7 +298,53 @@ const ClientManagement = () => {
   };
 
   const handleEdit = (client) => {
-    console.log('Edit client:', client);
+    // Get the client's LOBs and Sub LOBs
+    const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+    const clientSubLobs = subLobs.filter(subLob => 
+      clientLobs.some(lob => lob.id === subLob.lobId)
+    );
+    
+    setCurrentClient({
+      ...client,
+      lobs: clientLobs,
+      subLobs: clientSubLobs
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSave = (updatedClient) => {
+    // Update client basic info
+    setClients(clients.map(client => 
+      client.id === updatedClient.id ? {
+        ...client,
+        name: updatedClient.name,
+        createdBy: updatedClient.createdBy,
+        createdAt: updatedClient.createdAt
+      } : client
+    ));
+
+    // Update LOBs
+    const updatedLobs = [...lobs];
+    updatedClient.lobs.forEach(lob => {
+      const index = updatedLobs.findIndex(l => l.id === lob.id);
+      if (index !== -1) {
+        updatedLobs[index] = lob;
+      }
+    });
+    setLobs(updatedLobs);
+
+    // Update Sub LOBs
+    const updatedSubLobs = [...subLobs];
+    updatedClient.subLobs.forEach(subLob => {
+      const index = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
+      if (index !== -1) {
+        updatedSubLobs[index] = subLob;
+      }
+    });
+    setSubLobs(updatedSubLobs);
+
+    setEditModalOpen(false);
+    setCurrentClient(null);
   };
 
   // Filtered data for table
@@ -728,6 +778,114 @@ const ClientManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Client Modal */}
+      {editModalOpen && currentClient && (
+        <div className="modal-overlay">
+          <div className="modal edit-client-modal">
+            <div className="modal-header">
+              <h2>Edit Client</h2>
+              <button onClick={() => setEditModalOpen(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Client ID</label>
+                <input
+                  type="text"
+                  value={`C${currentClient.id}`}
+                  disabled
+                  className="disabled-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Client Name</label>
+                <input
+                  type="text"
+                  value={currentClient.name}
+                  onChange={(e) => setCurrentClient({...currentClient, name: e.target.value})}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-section">
+              <h3>LOBs and Sub LOBs</h3>
+              {currentClient.lobs.map((lob, index) => (
+                <div key={lob.id} className="lob-edit-section">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>LOB Name</label>
+                      <input
+                        type="text"
+                        value={lob.name}
+                        onChange={(e) => {
+                          const updatedLobs = [...currentClient.lobs];
+                          updatedLobs[index] = {...lob, name: e.target.value};
+                          setCurrentClient({...currentClient, lobs: updatedLobs});
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="sub-lobs-container">
+                    {currentClient.subLobs
+                      .filter(subLob => subLob.lobId === lob.id)
+                      .map((subLob, subIndex) => (
+                        <div key={subLob.id} className="form-row">
+                          <div className="form-group">
+                            <label>Sub LOB Name</label>
+                            <input
+                              type="text"
+                              value={subLob.name}
+                              onChange={(e) => {
+                                const updatedSubLobs = [...currentClient.subLobs];
+                                const globalSubIndex = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
+                                updatedSubLobs[globalSubIndex] = {...subLob, name: e.target.value};
+                                setCurrentClient({...currentClient, subLobs: updatedSubLobs});
+                              }}
+                            />
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Created By</label>
+                <input
+                  type="text"
+                  value={currentClient.createdBy || ''}
+                  onChange={(e) => setCurrentClient({...currentClient, createdBy: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Created At</label>
+                <input
+                  type="text"
+                  value={currentClient.createdAt || ''}
+                  onChange={(e) => setCurrentClient({...currentClient, createdAt: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
+              <button 
+                onClick={() => handleSave(currentClient)} 
+                className="save-btn"
+                disabled={!currentClient.name.trim()}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

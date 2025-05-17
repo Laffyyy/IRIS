@@ -828,3 +828,44 @@
 .remove-sub-lob-field-btn .times-icon {
   font-size: 14px;
 }
+
+.modal.edit-client-modal {
+  width: 700px;
+  max-width: 90%;
+}
+
+.form-section {
+  margin: 20px 0;
+}
+
+.form-section h3 {
+  font-size: 14px;
+  color: #004D8D;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.lob-edit-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.lob-edit-section:last-child {
+  margin-bottom: 0;
+}
+
+.disabled-input {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.sub-lobs-container {
+  margin-left: 20px;
+  padding-left: 15px;
+  border-left: 2px solid #e2e8f0;
+  margin-top: 10px;
+}
