@@ -23,6 +23,8 @@ router.post('/manage', (req, res) => {
         return siteManagementController.addClientToSite(req, res);
       case 'getClientSiteMappings':
         return siteManagementController.getClientSiteMappings(req, res);
+      case 'removeClientFromSite':
+        return siteManagementController.removeClientFromSite(req, res);
       default:
         return res.status(400).json({ 
           message: 'Invalid operation type. Must be "add", "edit", or "delete"' 

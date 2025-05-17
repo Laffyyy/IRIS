@@ -32,6 +32,47 @@ const SiteManagement = () => {
     fetchClientSiteMappings();
   }, []);
 
+  // Generic site management API function
+  const manageSite = async (operation, data) => {
+    setError(null);
+    
+    if (operation === 'getAll') {
+      setIsFetching(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+    
+    try {
+      const userId = localStorage.getItem('userId') || '0001'; // Default if not available
+      
+      const response = await fetch('http://localhost:3000/api/sites/manage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          operation, // 'add', 'edit', or 'delete'
+          ...data,   // Data specific to the operation
+          userID: userId // Always include userID
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      return await response.json();
+      
+    } catch (error) {
+      console.error(`Failed to ${operation} site:`, error);
+      setError(`Failed to ${operation} site. Please try again.`);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   const fetchSites = async () => {
     setIsFetching(true);
     setError(null);
@@ -91,47 +132,6 @@ const SiteManagement = () => {
     }
   };
 
-  // Generic site management API function
-  const manageSite = async (operation, data) => {
-    setError(null);
-    
-    if (operation === 'getAll') {
-      setIsFetching(true);
-    } else {
-      setIsLoading(true);
-    }
-    setError(null);
-    
-    try {
-      const userId = localStorage.getItem('userId') || '0001'; // Default if not available
-      
-      const response = await fetch('http://localhost:3000/api/sites/manage', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          operation, // 'add', 'edit', or 'delete'
-          ...data,   // Data specific to the operation
-          userID: userId // Always include userID
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      
-      return await response.json();
-      
-    } catch (error) {
-      console.error(`Failed to ${operation} site:`, error);
-      setError(`Failed to ${operation} site. Please try again.`);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleAddSite = async () => {
     if (!newSiteName.trim()) return;
   
@@ -149,31 +149,6 @@ const SiteManagement = () => {
       setNewSiteName('');
       fetchSites();
       
-    } catch (error) {
-      // Error already handled in manageSite
-    }
-  };
-
-  const handleUpdateSite = async () => {
-    if (!editSiteName.trim() || !editingSite) return;
-    
-    try {
-      await manageSite('edit', { 
-        siteId: editingSite.id, 
-        siteName: editSiteName
-      });
-      
-      // Update local state
-      setSites(sites.map(site => 
-        site.id === editingSite.id 
-          ? { ...site, name: editSiteName.trim() }
-          : site
-      ));
-      
-      setEditingSite(null);
-      setEditSiteName('');
-      setActiveTab('addSite');
-      fetchSites();
     } catch (error) {
       // Error already handled in manageSite
     }
@@ -238,6 +213,33 @@ const SiteManagement = () => {
         // Error is already handled in manageSite function
         console.error('Failed to assign client to site:', error);
       }
+    }
+  };
+
+  const handleEditMapping = (mapping) => {
+    // Pre-select the client and site in the form above
+    const site = sites.find(s => s.id === mapping.dSite_ID);
+    setSelectedSite(site || null);
+    setSelectedClientId(mapping.dClient_ID.toString());
+    
+    // Optionally scroll to the top of the form
+    document.querySelector('.form-row').scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  const handleDeleteMapping = async (clientId) => {
+    if (!window.confirm('Are you sure you want to remove this client-site assignment?')) return;
+    
+    try {
+      await manageSite('removeClientFromSite', { clientId });
+      
+      // After successful API call, refresh the data
+      fetchClientSiteMappings();
+      fetchSites();
+      
+      // Show success message
+      alert('Client site assignment removed successfully!');
+    } catch (error) {
+      console.error('Failed to remove client-site assignment:', error);
     }
   };
 
@@ -433,10 +435,10 @@ const SiteManagement = () => {
                   <th>Client Name</th>
                   <th>Site ID</th>
                   <th>Site Name</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {/* Filter to only show clients with assigned sites (dSite_ID exists and is not empty) */}
                 {clientSiteMappings
                   .filter(mapping => mapping.dSite_ID)
                   .map((mapping, index) => (
@@ -445,11 +447,21 @@ const SiteManagement = () => {
                       <td>{mapping.dClientName}</td>
                       <td>{mapping.dSite_ID}</td>
                       <td>{mapping.dSiteName}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button onClick={() => handleEditMapping(mapping)} className="edit-btn">
+                            <FaPencilAlt size={12} /> Edit
+                          </button>
+                          <button onClick={() => handleDeleteMapping(mapping.dClient_ID)} className="delete-btn">
+                            <FaTrash size={12} /> Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 {clientSiteMappings.filter(mapping => mapping.dSite_ID).length === 0 && (
                   <tr>
-                    <td colSpan="4">No client-site assignments found</td>
+                    <td colSpan="5">No client-site assignments found</td>
                   </tr>
                 )}
               </tbody>

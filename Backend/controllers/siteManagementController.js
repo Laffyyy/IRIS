@@ -161,24 +161,52 @@ class SiteManagementController {
     }
 
     // In SiteManagementController.js, add this new method:
-async getClientSiteMappings(req, res) {
-    try {
-        // Call the service to get all client-site mappings
-        const result = await this.SiteManagementService.getClientSiteMappings();
-        
-        // Return success response
-        res.status(200).json({ 
-            message: 'Client-site mappings retrieved successfully',
-            mappings: result
-        });
-    } catch (error) {
-        console.error('Error retrieving client-site mappings:', error);
-        res.status(500).json({ 
-            message: 'Failed to retrieve client-site mappings', 
-            error: error.message 
-        });
+    async getClientSiteMappings(req, res) {
+        try {
+            // Call the service to get all client-site mappings
+            const result = await this.SiteManagementService.getClientSiteMappings();
+            
+            // Return success response
+            res.status(200).json({ 
+                message: 'Client-site mappings retrieved successfully',
+                mappings: result
+            });
+        } catch (error) {
+            console.error('Error retrieving client-site mappings:', error);
+            res.status(500).json({ 
+                message: 'Failed to retrieve client-site mappings', 
+                error: error.message 
+            });
+        }
     }
-}
+
+    async removeClientFromSite(req, res) {
+        try {
+            const { clientId } = req.body;
+            
+            // Validate input
+            if (!clientId) {
+                return res.status(400).json({ 
+                    message: 'Client ID is required' 
+                });
+            }
+            
+            // Call the service to remove the client's site assignment
+            const result = await this.SiteManagementService.removeClientFromSite(clientId);
+            
+            // Return success response
+            res.status(200).json({ 
+                message: 'Client removed from site successfully',
+                affectedRows: result.affectedRows
+            });
+        } catch (error) {
+            console.error('Error removing client from site:', error);
+            res.status(500).json({ 
+                message: 'Failed to remove client from site', 
+                error: error.message 
+            });
+        }
+    }
     
 }
 
