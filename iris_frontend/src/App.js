@@ -35,6 +35,8 @@ function App() {
               <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/admin/apps" element={<AppManagement />} />
               <Route path="/admin/clients" element={<ClientManagement />} />
+              <Route path="/admin/sites" element={<SiteManagement />} />
+              <Route path="/admin/kpis" element={<KPIManagement />} />
               <Route path="/hr" element={<div>HR Page</div>} />
               <Route path="/reports" element={<div>Reports Page</div>} />
               <Route path="/compensation" element={<div>C&B Page</div>} />

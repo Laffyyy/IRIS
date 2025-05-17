@@ -1,28 +1,15 @@
 // Updated SiteManagement.js
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import './SiteManagement.css';
 import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
 
 const SiteManagement = () => {
-  const [sites, setSites] = useState([
-    { id: 1, name: 'Site A', clients: 2 },
-    { id: 2, name: 'Site B', clients: 1 },
-    { id: 3, name: 'Site C', clients: 0 }
-  ]);
-  
-  // Add clients state
-  const [clients, setClients] = useState([
-    { id: 1, name: 'Client A' },
-    { id: 2, name: 'Client B' },
-    { id: 3, name: 'Client C' }
-  ]);
-  
-  // Add siteClients state to track which clients belong to which sites
-  const [siteClients, setSiteClients] = useState([
-    { siteId: 1, clientId: 1 },
-    { siteId: 1, clientId: 2 },
-    { siteId: 2, clientId: 3 }
-  ]);
+  const [sites, setSites] = useState([]);
+  const [clients, setClients] = useState([]); 
+  const [siteClients, setSiteClients] = useState([]);
+  const [editingSite, setEditingSite] = useState(null);
+  const [editSiteName, setEditSiteName] = useState('');
 
   const [newSiteName, setNewSiteName] = useState('');
   const [selectedSite, setSelectedSite] = useState(null);
@@ -33,18 +20,159 @@ const SiteManagement = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentSite, setCurrentSite] = useState(null);
 
-  const handleAddSite = () => {
-    if (newSiteName.trim()) {
-      const newSite = {
-        id: sites.length + 1,
-        name: newSiteName,
-        clients: 0
-      };
-      setSites([...sites, newSite]);
-      setNewSiteName('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Fetch sites when component mounts
+    fetchSites();
+  }, []);
+
+  const fetchSites = async () => {
+    setIsFetching(true);
+    setError(null);
+    
+    try {
+      // Use the existing manageSite function with 'getAll' operation
+      const data = await manageSite('getAll', {});
+      
+      if (data && data.sites) {
+        // Format sites data the same way
+        const formattedSites = data.sites.map(site => ({
+          id: site.dSite_ID,
+          name: site.dSiteName,
+          clients: site.clientCount || 0
+        }));
+        
+        setSites(formattedSites);
+      }
+    } catch (error) {
+      // Error is already logged and set in manageSite
+      console.error('Failed to fetch sites:', error);
+      setError('Failed to load sites. Please try again.');
+    } finally {
+      setIsFetching(false);
     }
   };
 
+  // Add after your fetchSites function
+  const fetchClients = async () => {
+    // For now, let's use dummy data
+    setClients([
+      { id: 1, name: 'Client A' },
+      { id: 2, name: 'Client B' },
+      { id: 3, name: 'Client C' }
+    ]);
+  };
+
+  // Call this in your useEffect
+  useEffect(() => {
+    fetchSites();
+    fetchClients();
+  }, []);
+
+  // Generic site management API function
+  const manageSite = async (operation, data) => {
+    setIsLoading(true);
+    setError(null);
+    
+    if (operation !== 'getAll') {
+      setIsLoading(true);
+    }
+    setError(null);
+    
+    try {
+      const userId = localStorage.getItem('userId') || '0001'; // Default if not available
+      
+      const response = await fetch('http://localhost:3000/api/sites/manage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          operation, // 'add', 'edit', or 'delete'
+          ...data,   // Data specific to the operation
+          userID: userId // Always include userID
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      return await response.json();
+      
+    } catch (error) {
+      console.error(`Failed to ${operation} site:`, error);
+      setError(`Failed to ${operation} site. Please try again.`);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddSite = async () => {
+    if (!newSiteName.trim()) return;
+  
+    try {
+      const data = await manageSite('add', { siteName: newSiteName });
+      
+      // Add the new site to the state with ID from database
+      const newSite = {
+        id: data.siteId,
+        name: newSiteName,
+        clients: 0
+      };
+      
+      setSites([...sites, newSite]);
+      setNewSiteName('');
+      fetchSites();
+      
+    } catch (error) {
+      // Error already handled in manageSite
+    }
+  };
+
+  const handleUpdateSite = async () => {
+    if (!editSiteName.trim() || !editingSite) return;
+    
+    try {
+      await manageSite('edit', { 
+        siteId: editingSite.id, 
+        siteName: editSiteName
+      });
+      
+      // Update local state
+      setSites(sites.map(site => 
+        site.id === editingSite.id 
+          ? { ...site, name: editSiteName.trim() }
+          : site
+      ));
+      
+      setEditingSite(null);
+      setEditSiteName('');
+      setActiveTab('addSite');
+      fetchSites();
+    } catch (error) {
+      // Error already handled in manageSite
+    }
+  };
+
+  const handleDeleteSite = async (siteId) => {
+    if (!window.confirm('Are you sure you want to delete this site?')) return;
+    
+    try {
+      await manageSite('delete', { siteId });
+      
+      // Remove site from local state
+      setSites(sites.filter(site => site.id !== siteId));
+      fetchSites();
+    } catch (error) {
+      // Error already handled in manageSite
+    }
+  };
+  
   const handleAddClient = () => {
     if (selectedSite && selectedClientId) {
       // Check if client is already assigned to this site
@@ -70,14 +198,6 @@ const SiteManagement = () => {
         // Reset selection
         setSelectedClientId('');
       }
-    }
-  };
-
-  const handleDeleteSite = (siteId) => {
-    if (window.confirm('Are you sure you want to delete this site?')) {
-      setSites(sites.filter(site => site.id !== siteId));
-      // Also remove all client associations for this site
-      setSiteClients(siteClients.filter(sc => sc.siteId !== siteId));
     }
   };
 
@@ -152,10 +272,15 @@ const SiteManagement = () => {
               </button>
             </div>
           ) : (
-            <button onClick={handleAddSite} className="add-button" disabled={!newSiteName.trim()}>
-              + Add New Site
+            <button 
+              onClick={handleAddSite} 
+              className="add-button" 
+              disabled={!newSiteName.trim() || isLoading}
+            >
+              {isLoading ? 'Adding...' : '+ Add New Site'}
             </button>
           )}
+          {error && <p className="error-message">{error}</p>}
         </div>
 
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>

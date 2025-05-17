@@ -55,6 +55,20 @@ class SiteManagementService {
             throw error;
         }
     }
+
+    async getAllSites() {
+        try {
+            // Get all sites from the database
+            const [result] = await db.query(
+                'SELECT * FROM tbl_site ORDER BY dSite_ID ASC'
+            );
+            
+            return result;
+        } catch (error) {
+            console.error('Error in SiteManagementService.getAllSites:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = SiteManagementService;

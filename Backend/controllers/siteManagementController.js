@@ -90,6 +90,25 @@ class SiteManagementController {
             });
         }
     }
+
+    async getAllSites(req, res) {
+        try {
+            // Call the service to get all sites
+            const result = await this.SiteManagementService.getAllSites();
+            
+            // Return success response
+            res.status(200).json({ 
+                message: 'Sites retrieved successfully',
+                sites: result
+            });
+        } catch (error) {
+            console.error('Error retrieving sites:', error);
+            res.status(500).json({ 
+                message: 'Failed to retrieve sites', 
+                error: error.message 
+            });
+        }
+    }
 }
 
 module.exports = SiteManagementController;

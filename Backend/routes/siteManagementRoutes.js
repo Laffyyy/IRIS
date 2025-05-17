@@ -4,8 +4,24 @@ const SiteManagementController = require('../controllers/siteManagementControlle
 
 const siteManagementController = new SiteManagementController(); // Instantiate the class
 
-router.post('/addsite', (req, res) => siteManagementController.addSite(req, res));
-router.post('/editsite', (req, res) => siteManagementController.editSite(req, res));
-router.post('/deletesite', (req, res) => siteManagementController.deleteSite(req, res));
+router.post('/manage', (req, res) => {
+    const { operation } = req.body;
+    
+    // Route to the appropriate controller method based on operation
+    switch (operation) {
+      case 'add':
+        return siteManagementController.addSite(req, res);
+      case 'edit':
+        return siteManagementController.editSite(req, res);
+      case 'delete':
+        return siteManagementController.deleteSite(req, res);
+      case 'getAll':
+        return siteManagementController.getAllSites(req, res);
+      default:
+        return res.status(400).json({ 
+          message: 'Invalid operation type. Must be "add", "edit", or "delete"' 
+        });
+    }
+  });
 
 module.exports = router;
