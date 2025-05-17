@@ -867,10 +867,10 @@ const handleDeleteRow = async (type, id) => {
   };
 
   // Correct implementation
-  const handleSubLobNameChange = (index, value) => {
-    const updatedSubLobNames = [...subLobNames];
-    updatedSubLobNames[index] = value;
-    setSubLobNames(updatedSubLobNames);
+  const handleSubLobNameChange = (lobCardIndex, subLobIndex, value) => {
+    const updatedLobCards = [...lobCards];
+    updatedLobCards[lobCardIndex].subLobNames[subLobIndex] = value;
+    setLobCards(updatedLobCards);
   };
 
   const handleAddAnotherLobCardForLob = () => {
@@ -1289,7 +1289,7 @@ const handleDeleteRow = async (type, id) => {
             <button 
               onClick={handleAddSubLob} 
               className="add-button"
-              disabled={!subLobNames.some(name => name.trim()) || !selectedLobForSubLob}
+              disabled={!subLobNames.some(name => name && name.length > 0) || !selectedLobForSubLob}
             >
               + Add Sub LOB(s)
             </button>
