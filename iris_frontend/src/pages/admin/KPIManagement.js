@@ -6,6 +6,7 @@ import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
 
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
+  const [editingKpi, setEditingKpi] = useState(null);
   const [kpis, setKpis] = useState([
     { id: 1, name: 'Revenue Growth', category: 'Financial', behavior: 'Increase', description: 'Measures growth in total revenue' }
   ]);
@@ -28,6 +29,14 @@ const KPIManagement = () => {
 
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
+
+  const handleFormSubmit = () => {
+  if (editingKpi) {
+    handleUpdateKpi();
+  } else {
+    handleAddKpi();
+  }
+};
 
   const handleAddKpi = async () => {
     try {
@@ -72,41 +81,148 @@ const KPIManagement = () => {
     }
   };
 
+  // Add useEffect for fetching KPIs
   useEffect(() => {
-      const fetchKPIs = async () => {
-        try {
-          const response = await fetch('http://localhost:3000/api/kpis');
-          if (response.ok) {
-            const data = await response.json();
-            setKpis(data);
-          }
-        } catch (error) {
-          console.error('Error fetching KPIs:', error);
+    const fetchKPIs = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/kpis');
+        if (response.ok) {
+          const data = await response.json();
+          setKpis(data);
         }
-      };
+      } catch (error) {
+        console.error('Error fetching KPIs:', error);
+      }
+    };
 
-          fetchKPIs(); // Add this line to call the function
-    }, []);
+    fetchKPIs();
+  }, []);
 
-  const handleEditClick = (kpi) => {
-    setCurrentKpi(kpi);
-    setEditModalOpen(true);
+  const handleUpdateKpi = async () => {
+    if (kpiName?.trim() && category && behavior) {
+      try {
+        const updateData = {
+          dKPI_Name: kpiName,
+          dCategory: category,
+          dDescription: description,
+          dCalculationBehavior: behavior
+        };
+
+        const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `Server error: ${response.status}`);
+        }
+
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+
+        resetForm();
+        setActiveTab('viewKPIs');
+        alert('KPI updated successfully!');
+
+      } catch (error) {
+        console.error('Error updating KPI:', error);
+        alert(`Failed to update KPI: ${error.message}`);
+      }
+    }
   };
 
-  const handleSave = (updatedKpi) => {
-    setKpis(kpis.map(kpi => 
-      kpi.id === updatedKpi.id ? updatedKpi : kpi
-    ));
-    setEditModalOpen(false);
-    setCurrentKpi(null);
+  const handleEditClick = async (kpiId) => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const kpi = await response.json();
+        
+        // Set the form data and editing state
+        setEditingKpi(kpi);
+        setKpiName(kpi.dKPI_Name);
+        setCategory(kpi.dCategory);
+        setBehavior(kpi.dCalculationBehavior);
+        setDescription(kpi.dDescription);
+        setDescriptionCount(kpi.dDescription ? kpi.dDescription.length : 0);
+        setActiveTab('addKPI');
+      } catch (error) {
+        console.error('Error fetching KPI for edit:', error);
+        alert('Failed to load KPI data for editing. Please try again.');
+      }
+    };
+
+  const handleSave = async (updatedKpi) => {
+      try {
+        // Set the form values from the currentKpi
+        setKpiName(updatedKpi.name);
+        setCategory(updatedKpi.category);
+        setBehavior(updatedKpi.behavior);
+        setDescription(updatedKpi.description);
+        setEditingKpi({ dKPI_ID: updatedKpi.id }); // Set the ID for update
+
+        // Call handleUpdateKpi which has the API call logic
+        await handleUpdateKpi();
+        
+        // Close the modal
+        setEditModalOpen(false);
+        setCurrentKpi(null);
+        
+      } catch (error) {
+        console.error('Error saving KPI:', error);
+        alert('Failed to save changes. Please try again.');
+      }
+    };
+
+  const handleDeleteKpi = async (kpiId) => {
+    if (window.confirm('Are you sure you want to delete this KPI?')) {
+      try {
+        const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiId));
+      } catch (error) {
+        console.error('Error deleting KPI:', error);
+        alert('Failed to delete KPI. Please try again.');
+      }
+    }
+  };
+
+  const handleDescriptionChange = (e) => {
+    const text = e.target.value;
+    if (text.length <= MAX_CHARS) {
+      setDescription(text);
+      setDescriptionCount(text.length);
+    }
+  };
+
+  const handleKpiNameChange = (e) => {
+    const text = e.target.value;
+    if (text.length <= MAX_NAME_LENGTH) {
+      setKpiName(text);
+    }
   };
 
   const resetForm = () => {
     setKpiName('');
+    setDescriptionCount(0);
     setCategory('');
     setBehavior('');
     setDescription('');
     setCurrentKpi(null);
+    setEditingKpi(null); // Add this line
   };
 
   return (
@@ -122,7 +238,7 @@ const KPIManagement = () => {
             className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
             onClick={() => setActiveTab('addKPI')}
           >
-            {currentKpi ? 'Edit KPI' : 'Add New KPI'}
+            {editingKpi ? 'Edit KPI' : 'Add New KPI'}
           </div>
           <div 
             className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
@@ -200,11 +316,11 @@ const KPIManagement = () => {
           </div>
 
             <button 
-              onClick={handleAddKpi} 
+              onClick={handleFormSubmit} 
               className="add-button"
               disabled={!kpiName.trim() || !category || !behavior}
             >
-              + Add New KPI
+              {editingKpi ? 'Save Changes' : '+ Add New KPI'}
             </button>
           </div>
         </div>
