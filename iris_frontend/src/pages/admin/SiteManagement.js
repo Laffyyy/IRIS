@@ -1,6 +1,7 @@
 // Updated SiteManagement.js
 import React, { useState } from 'react';
 import './SiteManagement.css';
+import { FaTrash, FaPencilAlt } from 'react-icons/fa';
 
 const SiteManagement = () => {
   const [sites, setSites] = useState([
@@ -12,6 +13,8 @@ const SiteManagement = () => {
   const [selectedSite, setSelectedSite] = useState(null);
   const [newClient, setNewClient] = useState('');
   const [activeTab, setActiveTab] = useState('addSite'); // 'addSite' or 'addClient'
+  const [editingSite, setEditingSite] = useState(null);
+  const [editSiteName, setEditSiteName] = useState('');
 
   const handleAddSite = () => {
     if (newSiteName.trim()) {
@@ -37,6 +40,31 @@ const SiteManagement = () => {
     }
   };
 
+  const handleDeleteSite = (siteId) => {
+    if (window.confirm('Are you sure you want to delete this site?')) {
+      setSites(sites.filter(site => site.id !== siteId));
+    }
+  };
+
+  const handleEditClick = (site) => {
+    setEditingSite(site);
+    setEditSiteName(site.name);
+    setActiveTab('addSite');
+  };
+
+  const handleUpdateSite = () => {
+    if (editSiteName.trim()) {
+      setSites(sites.map(site => 
+        site.id === editingSite.id 
+          ? { ...site, name: editSiteName.trim() }
+          : site
+      ));
+      setEditingSite(null);
+      setEditSiteName('');
+      setActiveTab('addSite');
+    }
+  };
+
   return (
     <div className="site-management-container">
       <div className="white-card">
@@ -50,11 +78,15 @@ const SiteManagement = () => {
             className={`tab ${activeTab === 'addSite' ? 'active' : ''}`}
             onClick={() => setActiveTab('addSite')}
           >
-            Add New Site
+            {editingSite ? 'Edit Site' : 'Add New Site'}
           </div>
           <div 
             className={`tab ${activeTab === 'addClient' ? 'active' : ''}`}
-            onClick={() => setActiveTab('addClient')}
+            onClick={() => {
+              setActiveTab('addClient');
+              setEditingSite(null);
+              setEditSiteName('');
+            }}
           >
             Add Client to Site
           </div>
@@ -63,18 +95,32 @@ const SiteManagement = () => {
         <div className={`tab-content ${activeTab === 'addSite' ? 'active' : ''}`}>
           <div className="form-row">
             <div className="form-group">
-              <label>Site Name</label>
+              <label>{editingSite ? 'Edit Site Name' : 'Site Name'}</label>
               <input
                 type="text"
-                value={newSiteName}
-                onChange={(e) => setNewSiteName(e.target.value)}
+                value={editingSite ? editSiteName : newSiteName}
+                onChange={(e) => editingSite ? setEditSiteName(e.target.value) : setNewSiteName(e.target.value)}
                 placeholder="Enter site name"
               />
             </div>
           </div>
-          <button onClick={handleAddSite} className="add-button">
-            + Add New Site
-          </button>
+          {editingSite ? (
+            <div className="button-group">
+              <button onClick={handleUpdateSite} className="add-button" disabled={!editSiteName.trim()}>
+                Update Site
+              </button>
+              <button onClick={() => {
+                setEditingSite(null);
+                setEditSiteName('');
+              }} className="cancel-button">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleAddSite} className="add-button" disabled={!newSiteName.trim()}>
+              + Add New Site
+            </button>
+          )}
         </div>
 
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
@@ -123,6 +169,7 @@ const SiteManagement = () => {
                 <th>ID</th>
                 <th>Site Name</th>
                 <th>Clients</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -131,6 +178,16 @@ const SiteManagement = () => {
                   <td>{site.id}</td>
                   <td>{site.name}</td>
                   <td>{site.clients}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button onClick={() => handleEditClick(site)} className="edit-btn">
+                        <FaPencilAlt size={12} /> Edit
+                      </button>
+                      <button onClick={() => handleDeleteSite(site.id)} className="delete-btn">
+                        <FaTrash size={12} /> Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

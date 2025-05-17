@@ -113,29 +113,116 @@
 
 .existing-kpis {
   margin-top: 20px;
+  overflow-x: auto;
+  max-height: 500px;
+  border: 1px solid #eee;
+  border-radius: 8px;
 }
 
-table {
+.existing-kpis table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
   font-size: 13px;
+  table-layout: fixed;
 }
 
-th, td {
+.existing-kpis th,
+.existing-kpis td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-th {
+/* Column Widths */
+.existing-kpis th:nth-child(1),
+.existing-kpis td:nth-child(1) {
+  width: 80px;  /* ID column */
+}
+
+.existing-kpis th:nth-child(2),
+.existing-kpis td:nth-child(2) {
+  width: 20%;  /* KPI Name column */
+}
+
+.existing-kpis th:nth-child(3),
+.existing-kpis td:nth-child(3) {
+  width: 120px;  /* Category column */
+}
+
+.existing-kpis th:nth-child(4),
+.existing-kpis td:nth-child(4) {
+  width: 150px;  /* Calculation Behavior column */
+}
+
+.existing-kpis th:nth-child(5),
+.existing-kpis td:nth-child(5) {
+  width: 30%;  /* Description column */
+}
+
+.existing-kpis th:nth-child(6),
+.existing-kpis td:nth-child(6) {
+  width: 160px;  /* Actions column */
+  text-align: center;
+}
+
+.existing-kpis th {
   background-color: #f8f8f8;
   font-weight: 600;
   color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-tr:hover {
+.existing-kpis tr:hover {
   background-color: #f5f5f5;
+}
+
+.existing-kpis .action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Description column specific styles */
+.existing-kpis td:nth-child(5) {
+  position: relative;
+}
+
+.existing-kpis td:nth-child(5):hover {
+  white-space: normal;
+  overflow: visible;
+  background-color: #fff;
+  position: absolute;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  min-width: 200px;
+}
+
+/* Scrollbar Styles */
+.existing-kpis::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.existing-kpis::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.existing-kpis::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.existing-kpis::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 @media (max-width: 768px) {
@@ -160,4 +247,67 @@ tr:hover {
     border-bottom: none;
     border-left: 2px solid #004D8D;
   }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.edit-btn,
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.edit-btn {
+  color: #4299e1;
+}
+
+.edit-btn:hover {
+  background-color: #ebf8ff;
+  transform: scale(1.05);
+}
+
+.delete-btn {
+  color: #e53e3e;
+}
+
+.delete-btn:hover {
+  background-color: #fff5f5;
+  transform: scale(1.05);
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cancel-button {
+  background-color: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.cancel-button:hover {
+  background-color: #cbd5e0;
+}
+
+td:last-child {
+  white-space: nowrap;
 }

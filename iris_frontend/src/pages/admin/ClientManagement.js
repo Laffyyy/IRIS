@@ -19,9 +19,11 @@ const ClientManagement = () => {
   ]);
 
   // Form states for Add LOB tab
-  const [lobNames, setLobNames] = useState(['']);
   const [selectedClientForLob, setSelectedClientForLob] = useState(null);
   const [selectedSiteForLob, setSelectedSiteForLob] = useState(null);
+  const [lobCardsForLob, setLobCardsForLob] = useState([
+    { lobName: '', subLobNames: [''] }
+  ]);
 
   // Form states for Add Sub LOB tab
   const [subLobNames, setSubLobNames] = useState(['']);
@@ -213,90 +215,49 @@ const ClientManagement = () => {
   };
 
     // Add LOB tab functions
-    const handleAddLob = async () => {
-      if (selectedClientForLob && selectedSiteForLob && lobNames.some(name => name.trim())) {
-        const client = clients.find(c => c.id === selectedClientForLob);
-        if (!client) return;
+    const handleAddLob = () => {
+      if (selectedClientForLob && selectedSiteForLob && lobCardsForLob.some(card => card.lobName.trim())) {
+        let newLobId = lobs.length > 0 ? Math.max(...lobs.map(l => l.id)) : 0;
+        let newSubLobId = subLobs.length > 0 ? Math.max(...subLobs.map(s => s.id)) : 0;
         
-        // Process each LOB name
-        for (const lobName of lobNames) {
-          if (lobName.trim()) {
-            try {
-              // Call API to add LOB
-              const response = await axios.post('http://localhost:3000/api/clients/lob/add', {
-                clientName: client.name,
-                lobName: lobName.trim(),
-                siteId: selectedSiteForLob
-              });
-              console.log('LOB added:', response.data);
-            } catch (error) {
-              console.error('Error adding LOB:', error);
-              alert(`Failed to add LOB "${lobName.trim()}": ${error.response?.data?.error || error.message}`);
-            }
-          }
-        }
+        const newLobs = [];
+        const newSubLobs = [];
         
-        // Refresh client data to get updated LOBs and SubLOBs
-        try {
-          const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-          if (refreshResponse.data && refreshResponse.data.data) {
-            // Transform API data (same as in useEffect)
-            const transformedClients = [];
-            const transformedLobs = [];
-            const transformedSubLobs = [];
-            let lobId = 0;
-            let subLobId = 0;
+        lobCardsForLob.forEach(card => {
+          if (card.lobName.trim()) {
+            newLobId++;
+            newLobs.push({
+              id: newLobId,
+              name: card.lobName.trim(),
+              clientId: selectedClientForLob,
+              siteId: selectedSiteForLob
+            });
             
-            refreshResponse.data.data.forEach((client, clientIndex) => {
-              const clientId = clientIndex + 1;
-              transformedClients.push({
-                id: clientId,
-                name: client.clientName,
-                createdBy: client.createdBy || '-',
-                createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-              });
-              
-              if (client.LOBs && Array.isArray(client.LOBs)) {
-                client.LOBs.forEach(lob => {
-                  lobId++;
-                  transformedLobs.push({
-                    id: lobId,
-                    name: lob.name,
-                    clientId: clientId,
-                    siteId: selectedSiteForLob
-                  });
-                  
-                  if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                    lob.subLOBs.forEach(subLobName => {
-                      subLobId++;
-                      transformedSubLobs.push({
-                        id: subLobId,
-                        name: subLobName,
-                        lobId: lobId
-                      });
-                    });
-                  }
+            card.subLobNames.forEach(subLobName => {
+              if (subLobName.trim()) {
+                newSubLobId++;
+                newSubLobs.push({
+                  id: newSubLobId,
+                  name: subLobName.trim(),
+                  lobId: newLobId
                 });
               }
             });
-            
-            setClients(transformedClients);
-            setLobs(transformedLobs);
-            setSubLobs(transformedSubLobs);
           }
-        } catch (err) {
-          console.error('Error refreshing client data:', err);
+        });
+  
+        if (newLobs.length > 0) {
+          setLobs([...lobs, ...newLobs]);
+          if (newSubLobs.length > 0) {
+            setSubLobs([...subLobs, ...newSubLobs]);
+          }
+          setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
+          setSelectedClientForLob(null);
+          setSelectedSiteForLob(null);
         }
-        
-        // Reset form
-        setLobNames(['']);
-        setSelectedClientForLob(null);
-        setSelectedSiteForLob(null);
-        
-        alert('LOBs added successfully!');
       }
     };
-  
+    
     // Add Sub LOB tab functions
     const handleAddSubLob = async () => {
       if (selectedLobForSubLob && subLobNames.some(name => name.trim())) {
@@ -580,11 +541,11 @@ const ClientManagement = () => {
     }
   };
 
-  const handleRemoveSubLobField = (index) => {
-    if (subLobNames.length > 1) {
-      const updatedSubLobNames = [...subLobNames];
-      updatedSubLobNames.splice(index, 1);
-      setSubLobNames(updatedSubLobNames);
+  const handleRemoveSubLobField = (lobCardIndex, subLobIndex) => {
+    if (lobCards[lobCardIndex].subLobNames.length > 1) {
+      const updatedLobCards = [...lobCards];
+      updatedLobCards[lobCardIndex].subLobNames.splice(subLobIndex, 1);
+      setLobCards(updatedLobCards);
     }
   };
 
@@ -594,24 +555,46 @@ const ClientManagement = () => {
     setLobCards(updatedLobCards);
   };
 
-  const handleAddAnotherLob = () => {
-    if (lobNames.length < 4) {
-      setLobNames([...lobNames, '']);
+  const handleAddAnotherLobCardForLob = () => {
+    if (lobCardsForLob.length < 4) {
+      setLobCardsForLob([...lobCardsForLob, { lobName: '', subLobNames: [''] }]);
     }
   };
 
-  const handleRemoveLobField = (index) => {
-    if (lobNames.length > 1) {
-      const updatedLobNames = [...lobNames];
-      updatedLobNames.splice(index, 1);
-      setLobNames(updatedLobNames);
+  const handleRemoveLobCardForLob = (index) => {
+    if (lobCardsForLob.length > 1) {
+      const updatedLobCards = [...lobCardsForLob];
+      updatedLobCards.splice(index, 1);
+      setLobCardsForLob(updatedLobCards);
     }
   };
 
-  const handleLobNameChangeInTab = (index, value) => {
-    const updatedLobNames = [...lobNames];
-    updatedLobNames[index] = value;
-    setLobNames(updatedLobNames);
+  const handleLobNameChangeForLob = (index, value) => {
+    const updatedLobCards = [...lobCardsForLob];
+    updatedLobCards[index].lobName = value;
+    setLobCardsForLob(updatedLobCards);
+  };
+
+  const handleAddAnotherSubLobForLob = (lobCardIndex) => {
+    if (lobCardsForLob[lobCardIndex].subLobNames.length < 4) {
+      const updatedLobCards = [...lobCardsForLob];
+      updatedLobCards[lobCardIndex].subLobNames.push('');
+      setLobCardsForLob(updatedLobCards);
+    }
+  };
+
+  const handleRemoveSubLobFieldForLob = (lobCardIndex, subLobIndex) => {
+    if (lobCardsForLob[lobCardIndex].subLobNames.length > 1) {
+      const updatedLobCards = [...lobCardsForLob];
+      updatedLobCards[lobCardIndex].subLobNames.splice(subLobIndex, 1);
+      setLobCardsForLob(updatedLobCards);
+    }
+  };
+
+  const handleSubLobNameChangeForLob = (lobCardIndex, subLobIndex, value) => {
+    const updatedLobCards = [...lobCardsForLob];
+    updatedLobCards[lobCardIndex].subLobNames[subLobIndex] = value;
+    setLobCardsForLob(updatedLobCards);
   };
 
   const handleAddAnotherSubLobField = () => {
@@ -690,7 +673,7 @@ const ClientManagement = () => {
                         {subLobIndex > 0 && (
                           <button 
                             className="remove-sub-lob-field-btn"
-                            onClick={() => handleRemoveSubLobField(subLobIndex)}
+                            onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
                           >
                             <FaTimes size={10} />
                           </button>
@@ -731,132 +714,94 @@ const ClientManagement = () => {
 
         {/* Add LOB Tab */}
         <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Select Client</label>
-              <select
-                value={selectedClientForLob || ''}
-                onChange={(e) => setSelectedClientForLob(Number(e.target.value))}
-              >
-                <option value="">Select a client</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Select Site</label>
-              <select
-                value={selectedSiteForLob || ''}
-                onChange={(e) => setSelectedSiteForLob(Number(e.target.value))}
-              >
-                <option value="">Select a site</option>
-                {sites.map(site => (
-                  <option key={site.id} value={site.id}>{site.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="lob-name-fields-container">
-            <div className="lob-name-fields-row">
-              {/* LOB Name 1 */}
-              <div className="lob-name-field">
-                <div className="form-group">
-                  <label>LOB Name</label>
-                  <div className="lob-input-container">
-                    <input
-                      type="text"
-                      value={lobNames[0]}
-                      onChange={(e) => handleLobNameChangeInTab(0, e.target.value)}
-                      disabled={!selectedClientForLob || !selectedSiteForLob}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* LOB Name 2 */}
-              {lobNames.length > 1 && (
-                <div className="lob-name-field">
-                  <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveLobField(1)}>
-                      <FaTimes className="times-icon" />
-                    </button>
-                    <label>LOB Name 2</label>
-                    <div className="lob-input-container">
-                      <input
-                        type="text"
-                        value={lobNames[1]}
-                        onChange={(e) => handleLobNameChangeInTab(1, e.target.value)}
-                        disabled={!selectedClientForLob || !selectedSiteForLob}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="lob-name-fields-row">
-              {/* LOB Name 3 */}
-              {lobNames.length > 2 && (
-                <div className="lob-name-field">
-                  <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveLobField(2)}>
-                      <FaTimes className="times-icon" />
-                    </button>
-                    <label>LOB Name 3</label>
-                    <div className="lob-input-container">
-                      <input
-                        type="text"
-                        value={lobNames[2]}
-                        onChange={(e) => handleLobNameChangeInTab(2, e.target.value)}
-                        disabled={!selectedClientForLob || !selectedSiteForLob}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* LOB Name 4 */}
-              {lobNames.length > 3 && (
-                <div className="lob-name-field">
-                  <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveLobField(3)}>
-                      <FaTimes className="times-icon" />
-                    </button>
-                    <label>LOB Name 4</label>
-                    <div className="lob-input-container">
-                      <input
-                        type="text"
-                        value={lobNames[3]}
-                        onChange={(e) => handleLobNameChangeInTab(3, e.target.value)}
-                        disabled={!selectedClientForLob || !selectedSiteForLob}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="lob-actions">
-            <button 
-              onClick={handleAddLob} 
-              className="add-button"
-              disabled={!lobNames.some(name => name.trim()) || !selectedClientForLob || !selectedSiteForLob}
+          <div className="client-name-container">
+            <label>Select Client</label>
+            <select
+              value={selectedClientForLob || ''}
+              onChange={(e) => setSelectedClientForLob(Number(e.target.value))}
             >
-              + Add LOB(s)
-            </button>
-            {lobNames.length < 4 && (
-              <button 
-                onClick={handleAddAnotherLob} 
-                className="add-another-button"
-                disabled={!selectedClientForLob || !selectedSiteForLob}
-              >
-                + Add Another LOB
-              </button>
+              <option value="">Select a client</option>
+              {clients.map(client => (
+                <option key={client.id} value={client.id}>{client.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="lob-cards-container">
+            {lobCardsForLob.map((card, lobCardIndex) => (
+              <div key={`lob-card-${lobCardIndex}`} className="lob-card">
+                {lobCardIndex > 0 && (
+                  <button className="remove-lob-card-btn" onClick={() => handleRemoveLobCardForLob(lobCardIndex)}>
+                    <FaTimes size={10} className="times-icon" />
+                  </button>
+                )}
+                
+                <div className="form-group inline-form-group">
+                  <label>LOB Name:</label>
+                  <input
+                    type="text"
+                    value={card.lobName}
+                    onChange={(e) => handleLobNameChangeForLob(lobCardIndex, e.target.value)}
+                    disabled={!selectedClientForLob}
+                  />
+                </div>
+
+                <div className="sub-lobs-container">
+                  {card.subLobNames.map((subLobName, subLobIndex) => (
+                    <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
+                      <label>Sub LOB {subLobIndex + 1}:</label>
+                      <div className="sub-lob-input-container">
+                        <input
+                          type="text"
+                          value={subLobName}
+                          onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, e.target.value)}
+                          disabled={!selectedClientForLob}
+                        />
+                        {subLobIndex > 0 && (
+                          <button 
+                            className="remove-sub-lob-field-btn"
+                            onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
+                          >
+                            <FaTimes size={10} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {card.subLobNames.length < 4 && (
+                  <button 
+                    onClick={() => handleAddAnotherSubLobForLob(lobCardIndex)} 
+                    className="add-another-button"
+                    disabled={!selectedClientForLob}
+                  >
+                    + Add Sub LOB
+                  </button>
+                )}
+              </div>
+            ))}
+            
+            {lobCardsForLob.length < 4 && (
+              <div className="add-lob-card-container">
+                <button 
+                  onClick={handleAddAnotherLobCardForLob} 
+                  className="add-lob-card-button"
+                  disabled={!selectedClientForLob}
+                >
+                  + Add LOB Card
+                </button>
+              </div>
             )}
           </div>
+
+          <button 
+            onClick={handleAddLob} 
+            className="submit-button"
+            disabled={!selectedClientForLob || !lobCardsForLob.some(card => card.lobName.trim())}
+          >
+            Submit LOB(s)
+          </button>
         </div>
 
         {/* Add Sub LOB Tab */}
@@ -924,7 +869,7 @@ const ClientManagement = () => {
               {subLobNames.length > 1 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(1)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(0, 1)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 2</label>
@@ -946,7 +891,7 @@ const ClientManagement = () => {
               {subLobNames.length > 2 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(2)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(0, 2)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 3</label>
@@ -966,7 +911,7 @@ const ClientManagement = () => {
               {subLobNames.length > 3 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(3)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(0, 3)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 4</label>

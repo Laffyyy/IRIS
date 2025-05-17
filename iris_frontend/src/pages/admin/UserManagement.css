@@ -93,37 +93,206 @@
 .table-container {
   overflow-x: auto;
   margin-top: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  max-height: 500px;
+  overflow-y: auto;
 }
 
-table {
+.table-container table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
+  table-layout: fixed;
 }
 
-th, td {
-  padding: 10px 12px;
+.table-container th,
+.table-container td {
+  padding: 12px 15px;
   text-align: left;
-  vertical-align: middle;
   border-bottom: 1px solid #e0e0e0;
-  height: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 48px;
   box-sizing: border-box;
 }
 
-th {
-  background-color: #f8fafc;
-  font-weight: 500;
-  color: #004D8D;
-  font-size: 13px;
-  height: 40px;
+.employee-id-col {
+  width: 120px;
 }
 
-.name-col { width: 22%; min-width: 150px; }
-.email-col { width: 25%; min-width: 180px; }
-.role-col { width: 15%; min-width: 100px; }
-.status-col { width: 15%; min-width: 100px; }
-.actions-col { width: 15%; min-width: 120px; }
+.name-col {
+  width: 25%;
+  min-width: 200px;
+}
+
+.email-col {
+  width: 30%;
+  min-width: 250px;
+}
+
+.role-col {
+  width: 120px;
+}
+
+.status-col {
+  width: 100px;
+  text-align: center !important;
+}
+
+.actions-col {
+  width: 160px;
+  text-align: center !important;
+}
+
+.table-container th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table-container tr:hover {
+  background-color: #f5f5f5;
+}
+
+.table-container .action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.status-col {
+  font-weight: 500;
+}
+
+.table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.individual-preview table,
+.valid-users-table table,
+.invalid-users-table table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.individual-preview th,
+.individual-preview td,
+.valid-users-table th,
+.valid-users-table td,
+.invalid-users-table th,
+.invalid-users-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.individual-preview th:nth-child(1),
+.valid-users-table th:nth-child(1),
+.invalid-users-table th:nth-child(1),
+.individual-preview td:nth-child(1),
+.valid-users-table td:nth-child(1),
+.invalid-users-table td:nth-child(1) {
+  width: 120px;
+}
+
+.individual-preview th:nth-child(2),
+.valid-users-table th:nth-child(2),
+.invalid-users-table th:nth-child(2),
+.individual-preview td:nth-child(2),
+.valid-users-table td:nth-child(2),
+.invalid-users-table td:nth-child(2) {
+  width: 25%;
+}
+
+.individual-preview th:nth-child(3),
+.valid-users-table th:nth-child(3),
+.invalid-users-table th:nth-child(3),
+.individual-preview td:nth-child(3),
+.valid-users-table td:nth-child(3),
+.invalid-users-table td:nth-child(3) {
+  width: 30%;
+}
+
+.individual-preview th:nth-child(4),
+.valid-users-table th:nth-child(4),
+.invalid-users-table th:nth-child(4),
+.individual-preview td:nth-child(4),
+.valid-users-table td:nth-child(4),
+.invalid-users-table td:nth-child(4) {
+  width: 120px;
+}
+
+.individual-preview th:nth-child(5),
+.valid-users-table th:nth-child(5),
+.invalid-users-table th:nth-child(5),
+.individual-preview td:nth-child(5),
+.valid-users-table td:nth-child(5),
+.invalid-users-table td:nth-child(5) {
+  width: 100px;
+  text-align: center;
+}
+
+.individual-preview th:nth-child(6),
+.valid-users-table th:nth-child(6),
+.invalid-users-table th:nth-child(6),
+.individual-preview td:nth-child(6),
+.valid-users-table td:nth-child(6),
+.invalid-users-table td:nth-child(6) {
+  width: 160px;
+  text-align: center;
+}
+
+.individual-preview,
+.valid-users-table,
+.invalid-users-table {
+  margin-top: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.individual-preview th,
+.valid-users-table th,
+.invalid-users-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.invalid-users-table .reason-cell {
+  color: #d32f2f;
+  font-weight: 500;
+  text-align: left;
+}
 
 .action-buttons {
   display: flex;

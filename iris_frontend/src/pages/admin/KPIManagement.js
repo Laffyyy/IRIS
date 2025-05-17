@@ -1,6 +1,7 @@
 // KPIManagement.js
 import React, { useState } from 'react';
 import './KPIManagement.css';
+import { FaTrash, FaPencilAlt } from 'react-icons/fa';
 
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
@@ -13,6 +14,7 @@ const KPIManagement = () => {
   const [category, setCategory] = useState('');
   const [behavior, setBehavior] = useState('');
   const [description, setDescription] = useState('');
+  const [editingKpi, setEditingKpi] = useState(null);
 
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
@@ -27,11 +29,48 @@ const KPIManagement = () => {
         description: description
       };
       setKpis([...kpis, newKpi]);
-      setKpiName('');
-      setCategory('');
-      setBehavior('');
-      setDescription('');
+      resetForm();
     }
+  };
+
+  const handleDeleteKpi = (kpiId) => {
+    if (window.confirm('Are you sure you want to delete this KPI?')) {
+      setKpis(kpis.filter(kpi => kpi.id !== kpiId));
+    }
+  };
+
+  const handleEditClick = (kpi) => {
+    setEditingKpi(kpi);
+    setKpiName(kpi.name);
+    setCategory(kpi.category);
+    setBehavior(kpi.behavior);
+    setDescription(kpi.description);
+    setActiveTab('addKPI');
+  };
+
+  const handleUpdateKpi = () => {
+    if (kpiName.trim() && category && behavior) {
+      setKpis(kpis.map(kpi => 
+        kpi.id === editingKpi.id 
+          ? {
+              ...kpi,
+              name: kpiName.trim(),
+              category: category,
+              behavior: behavior,
+              description: description
+            }
+          : kpi
+      ));
+      resetForm();
+    }
+  };
+
+  const resetForm = () => {
+    setKpiName('');
+    setCategory('');
+    setBehavior('');
+    setDescription('');
+    setEditingKpi(null);
   };
 
   return (
@@ -47,11 +86,14 @@ const KPIManagement = () => {
             className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
             onClick={() => setActiveTab('addKPI')}
           >
-            Add New KPI
+            {editingKpi ? 'Edit KPI' : 'Add New KPI'}
           </div>
           <div 
             className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
-            onClick={() => setActiveTab('viewKPIs')}
+            onClick={() => {
+              setActiveTab('viewKPIs');
+              resetForm();
+            }}
           >
             Existing KPIs
           </div>
@@ -108,13 +150,28 @@ const KPIManagement = () => {
               />
             </div>
 
-            <button 
-              onClick={handleAddKpi} 
-              className="add-button"
-              disabled={!kpiName.trim() || !category || !behavior}
-            >
-              + Add New KPI
-            </button>
+            {editingKpi ? (
+              <div className="button-group">
+                <button 
+                  onClick={handleUpdateKpi} 
+                  className="add-button"
+                  disabled={!kpiName.trim() || !category || !behavior}
+                >
+                  Update KPI
+                </button>
+                <button onClick={resetForm} className="cancel-button">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={handleAddKpi} 
+                className="add-button"
+                disabled={!kpiName.trim() || !category || !behavior}
+              >
+                + Add New KPI
+              </button>
+            )}
           </div>
         </div>
 
@@ -128,6 +185,7 @@ const KPIManagement = () => {
                   <th>Category</th>
                   <th>Calculation Behavior</th>
                   <th>Description</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -138,6 +196,16 @@ const KPIManagement = () => {
                     <td>{kpi.category}</td>
                     <td>{kpi.behavior}</td>
                     <td>{kpi.description}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button onClick={() => handleEditClick(kpi)} className="edit-btn">
+                          <FaPencilAlt size={12} /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteKpi(kpi.id)} className="delete-btn">
+                          <FaTrash size={12} /> Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
