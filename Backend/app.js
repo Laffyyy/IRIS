@@ -1,6 +1,7 @@
 const express = require('express');
 const loginRoutes = require('./routes/loginroutes');
 const securityRoutes = require('./routes/securityRoutes');
+const forgotPasswordRoutes = require('./routes/forgotPasswordRoutes');
 const helment = require('helmet');
 const cors = require('cors');
 
@@ -16,5 +17,6 @@ app.use(cors({
 
 app.use('/api/login', loginRoutes);
 app.use('/api/security', securityRoutes);
+app.use('/api/password', forgotPasswordRoutes);
 
 module.exports = app;

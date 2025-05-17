@@ -15,54 +15,32 @@ const SecurityQuestions = () => {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState([]);
 
-  useEffect(() => {
-    if (!email) return;
+useEffect(() => {
+  if (!email) return;
 
-    fetch(
-      `http://localhost:3000/api/security/get-security-questions?email=${encodeURIComponent(
-        email
-      )}`
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error("No questions found");
-        return res.json();
-      })
-      .then((data) => {
-        const q = [];
-        const a = [];
-
-        if (data.dSecurity_Question1 && data.dAnswer_1) {
-          q.push(data.dSecurity_Question1);
-          a.push(data.dAnswer_1);
-        }
-        if (data.dSecurity_Question2 && data.dAnswer_2) {
-          q.push(data.dSecurity_Question2);
-          a.push(data.dAnswer_2);
-        }
-        if (data.dSecurity_Question3 && data.dAnswer_3) {
-          q.push(data.dSecurity_Question3);
-          a.push(data.dAnswer_3);
-        }
-
-        if (q.length === 0) {
-          alert("No security questions configured for this account");
-          navigate("/");
-        } else {
-          setQuestions(q);
-          setAnswers(a);
-
-          // Only set initial question if coming from update password flow
-          if (isVerified) {
-            setSelectedQuestion(location.state?.selectedQuestion || q[0]);
-            setAnswer(location.state?.answer || "");
-          }
-        }
-      })
-      .catch(() => {
-        alert("No security questions found for this account");
+  fetch(
+    `http://localhost:3000/api/security/get-security-question?email=${encodeURIComponent(
+      email
+    )}`
+  )
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.question1 && data.question2 && data.question3) {
+        const qList = [data.question1, data.question2, data.question3];
+        const aList = [data.answer1, data.answer2, data.answer3];
+        setQuestions(qList);
+        setAnswers(aList);
+      } else {
+        alert("No security questions found.");
         navigate("/");
-      });
-  }, [email, fromOtp, isVerified, navigate, location.state]);
+      }
+    })
+    .catch(() => {
+      alert("No security questions found for this account");
+      navigate("/");
+    });
+}, [email, fromOtp, isVerified, navigate, location.state]);
+
 
   const handleQuestionChange = (e) => {
     setSelectedQuestion(e.target.value);
@@ -151,7 +129,7 @@ const SecurityQuestions = () => {
               Cancel
             </button>
             <button type="submit" className="save-btn">
-              {isVerified ? "Continue" : "Verify Answer"}
+              Save Changes
             </button>
           </div>
         </form>

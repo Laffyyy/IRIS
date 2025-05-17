@@ -44,11 +44,7 @@ const UpdatePassword = () => {
   };
 
   const handleCancel = () => {
-    // Save current state before navigating back
-    localStorage.setItem('iris_selected_question', selectedQuestion);
-    localStorage.setItem('iris_answer_field', answer);
-    localStorage.setItem('iris_email', email);
-
+    
     navigate('/security-questions', {
       state: {
         email,
@@ -59,49 +55,64 @@ const UpdatePassword = () => {
     });
   };
 
-  const handleSaveChanges = (e) => {
-    e.preventDefault();
-    
-    // Password validation
-    if (passwords.newPassword !== passwords.confirmPassword) {
-      alert("Passwords don't match");
-      return;
-    }
+const handleSaveChanges = async (e) => {
+  e.preventDefault();
 
-    if (passwords.newPassword.length < 8) {
-      alert("Password must be at least 8 characters long");
-      return;
-    }
+  if (passwords.newPassword !== passwords.confirmPassword) {
+    alert("Passwords don't match");
+    return;
+  }
 
-    // Submit the new password to your backend
-    fetch("http://localhost:3000/update-password", {
+  if (passwords.newPassword.length < 8) {
+    alert("Password must be at least 8 characters long");
+    return;
+  }
+
+  try {
+    const response = await fetch("http://localhost:3000/api/password/forgot", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        email,
+        email: email,
         newPassword: passwords.newPassword,
       }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          alert("Password updated successfully");
-          // Clear localStorage on successful password update
-          localStorage.removeItem('iris_selected_question');
-          localStorage.removeItem('iris_answer_field');
-          localStorage.removeItem('iris_email');
-          navigate("/");
-        } else {
-          alert("Failed to update password: " + (data.message || "Unknown error"));
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        alert("Failed to update password");
-      });
-  };
+    });
+
+    const contentType = response.headers.get("Content-Type");
+
+    let data;
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      throw new Error("Unexpected server response: " + text);
+    }
+
+    if (!response.ok) {
+      // Handle specific server message
+      if (data.message === "Password is the same as the past 3 passwords") {
+        alert("Password is the same as the past 3 passwords");
+      } else {
+        alert("Password is the same as the past 3 passwords");
+      }
+      return;
+    }
+
+    if (data.success) {
+      alert("Password updated successfully");
+      localStorage.removeItem('iris_selected_question');
+      localStorage.removeItem('iris_answer_field');
+      localStorage.removeItem('iris_email');
+      navigate("/");
+    }
+
+  } catch (error) {
+    alert("Failed to update password: " + error.message);
+  }
+};
+
 
   return (
     <div className="update-password-container">
