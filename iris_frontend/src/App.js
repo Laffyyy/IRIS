@@ -8,7 +8,6 @@ import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
 import './App.css';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
