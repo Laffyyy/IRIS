@@ -284,3 +284,51 @@
 td:last-child {
   white-space: nowrap;
 }
+
+.form-section {
+  margin: 20px 0;
+}
+
+.form-section h3 {
+  font-size: 14px;
+  color: #004D8D;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.assigned-clients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.assigned-client {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f0f7ff;
+  border: 1px solid #cce3ff;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.assigned-client span {
+  font-size: 13px;
+  color: #0066cc;
+}
+
+.remove-client-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-client-btn:hover {
+  color: #d32f2f;
+}
