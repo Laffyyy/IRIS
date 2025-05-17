@@ -27,6 +27,7 @@ const SiteManagement = () => {
   useEffect(() => {
     // Fetch sites when component mounts
     fetchSites();
+    fetchClients();
   }, []);
 
   const fetchSites = async () => {
@@ -58,26 +59,31 @@ const SiteManagement = () => {
 
   // Add after your fetchSites function
   const fetchClients = async () => {
-    // For now, let's use dummy data
-    setClients([
-      { id: 1, name: 'Client A' },
-      { id: 2, name: 'Client B' },
-      { id: 3, name: 'Client C' }
-    ]);
+    try {
+      const data = await manageSite('getClients', {}); // Use 'getClients' operation
+      
+      if (data && data.clients) {
+        // Map the DB fields to your component's data structure
+        const formattedClients = data.clients.map(client => ({
+          id: client.dClient_ID,
+          name: client.dClientName
+        }));
+        
+        setClients(formattedClients);
+      }
+    } catch (error) {
+      console.error('Failed to fetch clients:', error);
+      // Error already handled in manageSite
+    }
   };
-
-  // Call this in your useEffect
-  useEffect(() => {
-    fetchSites();
-    fetchClients();
-  }, []);
 
   // Generic site management API function
   const manageSite = async (operation, data) => {
-    setIsLoading(true);
     setError(null);
     
-    if (operation !== 'getAll') {
+    if (operation === 'getAll') {
+      setIsFetching(true);
+    } else {
       setIsLoading(true);
     }
     setError(null);
@@ -173,30 +179,49 @@ const SiteManagement = () => {
     }
   };
   
-  const handleAddClient = () => {
+  const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
-      // Check if client is already assigned to this site
-      const isClientAlreadyAssigned = siteClients.some(
-        sc => sc.siteId === selectedSite.id && sc.clientId === parseInt(selectedClientId)
-      );
-
-      if (!isClientAlreadyAssigned) {
-        // Add to siteClients
-        setSiteClients([...siteClients, {
-          siteId: selectedSite.id,
-          clientId: parseInt(selectedClientId)
-        }]);
-
-        // Update site's client count
-        const updatedSites = sites.map(site => 
-          site.id === selectedSite.id 
-            ? { ...site, clients: site.clients + 1 } 
-            : site
+      try {
+        // Call the API to add client to site
+        await manageSite('addClientToSite', { 
+          clientId: parseInt(selectedClientId), 
+          siteId: parseInt(selectedSite.id)
+        });
+        
+        // After successful API call, update the local state
+        // Check if client is already assigned to this site
+        const isClientAlreadyAssigned = siteClients.some(
+          sc => sc.siteId === selectedSite.id && sc.clientId === parseInt(selectedClientId)
         );
-        setSites(updatedSites);
+  
+        if (!isClientAlreadyAssigned) {
+          // Add to siteClients
+          setSiteClients([...siteClients, {
+            siteId: parseInt(selectedSite.id),
+            clientId: parseInt(selectedClientId)
+          }]);
+  
+          // Update site's client count
+          const updatedSites = sites.map(site => 
+            site.id === selectedSite.id 
+              ? { ...site, clients: site.clients + 1 } 
+              : site
+          );
+          setSites(updatedSites);
+        }
         
         // Reset selection
         setSelectedClientId('');
+        
+        // Show success message
+        alert('Client has been assigned to the site successfully!');
+        
+        // Refresh data from server to ensure UI is in sync
+        fetchSites();
+        
+      } catch (error) {
+        // Error is already handled in manageSite function
+        console.error('Failed to assign client to site:', error);
       }
     }
   };
@@ -206,12 +231,30 @@ const SiteManagement = () => {
     setEditModalOpen(true);
   };
 
-  const handleSave = (updatedSite) => {
-    setSites(sites.map(site => 
-      site.id === updatedSite.id ? updatedSite : site
-    ));
-    setEditModalOpen(false);
-    setCurrentSite(null);
+  const handleSave = async (updatedSite) => {
+    try {
+      // Call the API to update the site
+      await manageSite('edit', { 
+        siteId: updatedSite.id, 
+        siteName: updatedSite.name 
+      });
+      
+      // Update local state after successful API call
+      setSites(sites.map(site => 
+        site.id === updatedSite.id ? updatedSite : site
+      ));
+      
+      // Refresh site data from server
+      fetchSites();
+      
+      // Close modal and reset current site
+      setEditModalOpen(false);
+      setCurrentSite(null);
+      
+    } catch (error) {
+      console.error('Failed to update site:', error);
+      // Error is already handled in manageSite function
+    }
   };
 
   // Get available clients for a site (clients not already assigned to the site)
@@ -292,7 +335,7 @@ const SiteManagement = () => {
                 onChange={(e) => setSelectedClientId(e.target.value)}
                 disabled={!selectedSite}
               >
-                <option value="">Select a client</option>
+                <option key="default-client" value="">Select a client</option>
                 {selectedSite && getAvailableClients(selectedSite.id).map(client => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -310,7 +353,7 @@ const SiteManagement = () => {
                   setSelectedClientId(''); // Reset client selection when site changes
                 }}
               >
-                <option value="">Select a site</option>
+                <option key="default-site" value="">Select a site</option>
                 {sites.map(site => (
                   <option key={site.id} value={site.id}>
                     {site.name}

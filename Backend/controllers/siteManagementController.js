@@ -109,6 +109,57 @@ class SiteManagementController {
             });
         }
     }
+
+    async getAllClients(req, res) {
+        try {
+            // Call the service to get all clients
+            const result = await this.SiteManagementService.getAllClients();
+            
+            // Return success response
+            res.status(200).json({ 
+                message: 'Clients retrieved successfully',
+                clients: result
+            });
+        } catch (error) {
+            console.error('Error retrieving clients:', error);
+            res.status(500).json({ 
+                message: 'Failed to retrieve clients', 
+                error: error.message 
+            });
+        }
+    }
+
+    async addClientToSite(req, res) {
+        try {
+            console.log("Received in controller:", req.body);
+            const { clientId, siteId } = req.body;
+            
+            console.log("Extracted values:", { clientId, siteId });
+
+            // Validate input
+            if (!clientId || !siteId) {
+                return res.status(400).json({ 
+                    message: 'Client ID and Site ID are required' 
+                });
+            }
+            
+            // Call the service to update the client's site
+            const result = await this.SiteManagementService.addClientToSite(clientId, siteId);
+            
+            // Return success response
+            res.status(200).json({ 
+                message: 'Client assigned to site successfully',
+                affectedRows: result.affectedRows
+            });
+        } catch (error) {
+            console.error('Error assigning client to site:', error);
+            res.status(500).json({ 
+                message: 'Failed to assign client to site', 
+                error: error.message 
+            });
+        }
+    }
+    
 }
 
 module.exports = SiteManagementController;
