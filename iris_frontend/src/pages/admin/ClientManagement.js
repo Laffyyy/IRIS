@@ -866,10 +866,11 @@ const handleDeleteRow = async (type, id) => {
     }
   };
 
-  const handleSubLobNameChange = (lobCardIndex, subLobIndex, value) => {
-    const updatedLobCards = [...lobCards];
-    updatedLobCards[lobCardIndex].subLobNames[subLobIndex] = value;
-    setLobCards(updatedLobCards);
+  // Correct implementation
+  const handleSubLobNameChange = (index, value) => {
+    const updatedSubLobNames = [...subLobNames];
+    updatedSubLobNames[index] = value;
+    setSubLobNames(updatedSubLobNames);
   };
 
   const handleAddAnotherLobCardForLob = () => {
