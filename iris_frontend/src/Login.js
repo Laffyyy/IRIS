@@ -57,11 +57,35 @@ const Login = ({ onContinue, onForgotPassword }) => {
     }
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onContinue && onContinue(); // Optional if you have external logic
-    navigate('/otp');
-  };
+
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: employeeId, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Login successful
+            alert('Login successful');
+            navigate('/otp');
+        } else {
+            // Login failed
+            if (data.message === 'Account is locked due to too many failed login attempts') {
+                alert('Your account is locked. Please contact support.');
+            } else {
+                alert(data.message || 'Login failed. Please try again.');
+            }
+        }
+    } catch (error) {
+        console.error('Error during login:', error);
+        alert('An error occurred. Please try again later.');
+    }
+};
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;

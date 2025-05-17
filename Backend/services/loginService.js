@@ -3,6 +3,14 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const login = require('../models/login');
 const OtpService = require('./otpService'); // Import the OtpService
+const redis = require('redis');
+const client = redis.createClient();
+
+client.on('error', (err) => {
+    console.error('Redis error:', err);
+});
+
+const MAX_ATTEMPTS = 3; // Maximum allowed login attempts
 
 class LoginService {
     constructor() {
@@ -10,10 +18,23 @@ class LoginService {
     }
 
     
+    
     async loginUser(userID, password, otp = null) {
     try {
         let user = null;
         let table = null;
+
+        //Check if the account is locked in Redis
+        const isLocked = await new Promise((resolve, reject) => {
+            client.get(`lock:${userID}`, (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            });
+        });
+
+        if (isLocked) {
+            throw new Error('Account is locked due to too many failed login attempts');
+        }
 
         // Step 1: Check if the user exists in tbl_login
         const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
@@ -34,8 +55,9 @@ class LoginService {
             throw new Error('User not found');
         }
 
-        // Step 3: Verify the password
+        /// Step 3: Verify the password
         let isMatch = false;
+
         if (table === 'tbl_login') {
             if (!user.dPassword1_hash) {
                 throw new Error('Password hash is missing for tbl_login');
@@ -49,8 +71,25 @@ class LoginService {
         }
 
         if (!isMatch) {
-            throw new Error('Invalid password');
+            // === Your Redis login attempt logic ===
+            const attempts = await new Promise((resolve, reject) => {
+                client.incr(`attempts:${userID}`, (err, result) => {
+                    if (err) reject(err);
+                    resolve(result);
+                });
+            });
+
+            if (attempts >= MAX_ATTEMPTS) {
+                client.set(`lock:${userID}`, true);
+                throw new Error('Account is locked due to too many failed login attempts');
+            }
+
+            throw new Error(`Invalid password. You have ${MAX_ATTEMPTS - attempts} attempts left.`);
         }
+
+        //Reset failed attempts on successful login
+        client.del(`attempts:${userID}`);
+
 
         // Step 4: Check the user's status (if applicable)
         if (user.dStatus && user.dStatus === 'DEACTIVATED') {
