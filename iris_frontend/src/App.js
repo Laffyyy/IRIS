@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
+import SiteManagement from './pages/admin/SiteManagement';
+import KPIManagement from './pages/admin/KPIManagement';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';
