@@ -8,14 +8,13 @@ const SiteManagement = () => {
   const [sites, setSites] = useState([]);
   const [clients, setClients] = useState([]); 
   const [siteClients, setSiteClients] = useState([]);
-  const [editingSite, setEditingSite] = useState(null);
-  const [editSiteName, setEditSiteName] = useState('');
   const [clientSiteMappings, setClientSiteMappings] = useState([]);
 
   const [newSiteName, setNewSiteName] = useState('');
   const [selectedSite, setSelectedSite] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [activeTab, setActiveTab] = useState('addSite');
+  
   
   // Edit modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -217,15 +216,30 @@ const SiteManagement = () => {
   };
 
   const handleEditMapping = (mapping) => {
-    // Pre-select the client and site in the form above
+    // Find the site from the mapping
     const site = sites.find(s => s.id === mapping.dSite_ID);
-    setSelectedSite(site || null);
-    setSelectedClientId(mapping.dClient_ID.toString());
     
-    // Optionally scroll to the top of the form
-    document.querySelector('.form-row').scrollIntoView({ behavior: 'smooth' });
+    if (site) {
+      // Set the current site for the modal
+      setCurrentSite(site);
+      
+      // Add the client-site mapping to siteClients if not already there
+      const clientId = mapping.dClient_ID;
+      const siteId = mapping.dSite_ID;
+      
+      // Check if this mapping already exists in siteClients
+      if (!siteClients.some(sc => sc.siteId === siteId && sc.clientId === clientId)) {
+        setSiteClients([
+          ...siteClients, 
+          { siteId: siteId, clientId: clientId }
+        ]);
+      }
+      
+      // Open the edit modal
+      setEditModalOpen(true);
+    }
   };
-  
+
   const handleDeleteMapping = async (clientId) => {
     if (!window.confirm('Are you sure you want to remove this client-site assignment?')) return;
     
@@ -241,11 +255,6 @@ const SiteManagement = () => {
     } catch (error) {
       console.error('Failed to remove client-site assignment:', error);
     }
-  };
-
-  const handleEditClick = (site) => {
-    setCurrentSite(site);
-    setEditModalOpen(true);
   };
 
   const handleSave = async (updatedSite) => {
@@ -296,7 +305,7 @@ const SiteManagement = () => {
             className={`tab ${activeTab === 'addSite' ? 'active' : ''}`}
             onClick={() => setActiveTab('addSite')}
           >
-            {currentSite ? 'Edit Site' : 'Add New Site'}
+            Add New Site
           </div>
           <div 
             className={`tab ${activeTab === 'addClient' ? 'active' : ''}`}
@@ -313,26 +322,14 @@ const SiteManagement = () => {
         <div className={`tab-content ${activeTab === 'addSite' ? 'active' : ''}`}>
         <div className="form-row">
           <div className="form-group">
-            <label>{currentSite ? 'Edit Site Name' : 'Site Name'}</label>
+            <label>Site Name</label>
             <input
               type="text"
-              value={currentSite ? currentSite.name : newSiteName}
-              onChange={(e) => currentSite ? setCurrentSite({...currentSite, name: e.target.value}) : setNewSiteName(e.target.value)}
+              value={newSiteName}
+              onChange={(e) => setNewSiteName(e.target.value)}
             />
           </div>
         </div>
-        {currentSite ? (
-          <div className="button-group">
-            <button onClick={() => handleSave(currentSite)} className="add-button" disabled={!currentSite.name.trim()}>
-              Update Site
-            </button>
-            <button onClick={() => {
-              setCurrentSite(null);
-            }} className="cancel-button">
-              Cancel
-            </button>
-          </div>
-        ) : (
           <button 
             onClick={handleAddSite} 
             className="add-button" 
@@ -340,10 +337,9 @@ const SiteManagement = () => {
           >
             {isLoading ? 'Adding...' : '+ Add New Site'}
           </button>
-        )}
         {error && <p className="error-message">{error}</p>}
 
-          {/* Move Existing Sites table here */}
+
           <div className="existing-sites">
             <h2>Existing Sites</h2>
             <table>
@@ -363,7 +359,10 @@ const SiteManagement = () => {
                     {/* Removed Clients column data */}
                     <td>
                       <div className="action-buttons">
-                        <button onClick={() => handleEditClick(site)} className="edit-btn">
+                        <button onClick={() => {
+                          setCurrentSite(site);
+                          setEditModalOpen(true);
+                        }} className="edit-btn">
                           <FaPencilAlt size={12} /> Edit
                         </button>
                         <button onClick={() => handleDeleteSite(site.id)} className="delete-btn">
@@ -371,7 +370,7 @@ const SiteManagement = () => {
                         </button>
                       </div>
                     </td>
-                  </tr>
+                </tr>
                 ))}
               </tbody>
             </table>
@@ -422,6 +421,7 @@ const SiteManagement = () => {
           >
             + Add Client to Site
           </button>
+
           {/* New Client-Site Mappings Table */}
           <div className="client-site-mappings">
           <h2>Client Site Assignments</h2>
@@ -491,34 +491,6 @@ const SiteManagement = () => {
                   onChange={(e) => setCurrentSite({...currentSite, name: e.target.value})}
                   required
                 />
-              </div>
-            </div>
-
-            <div className="form-section">
-              <h3>Assigned Clients</h3>
-              <div className="assigned-clients">
-                {siteClients
-                  .filter(sc => sc.siteId === currentSite.id)
-                  .map(sc => {
-                    const client = clients.find(c => c.id === sc.clientId);
-                    return client ? (
-                      <div key={sc.clientId} className="assigned-client">
-                        <span>{client.name}</span>
-                        <button
-                          onClick={() => {
-                            setSiteClients(siteClients.filter(s => !(s.siteId === currentSite.id && s.clientId === client.id)));
-                            setCurrentSite({
-                              ...currentSite,
-                              clients: currentSite.clients - 1
-                            });
-                          }}
-                          className="remove-client-btn"
-                        >
-                          <FaTimes size={12} />
-                        </button>
-                      </div>
-                    ) : null;
-                  })}
               </div>
             </div>
 
