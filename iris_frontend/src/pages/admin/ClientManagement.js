@@ -85,7 +85,7 @@ const ClientManagement = () => {
           
           response.data.data.forEach((client, clientIndex) => {
             // Add client
-            const clientId = clientIndex + 1;
+            const clientId = client.clientId; 
             transformedClients.push({
               id: clientId,
               name: client.clientName,
@@ -1371,7 +1371,7 @@ const handleDeleteRow = async (type, id) => {
                     if (clientLobs.length === 0) {
                       return [(
                         <tr key={`client-${client.id}`}>
-                          <td>{client.id.toString().padStart(3, '0')}</td>
+                          <td>{client.id}</td>
                           <td>{client.name}</td>
                           <td>-</td>
                           <td>-</td>
@@ -1399,7 +1399,7 @@ const handleDeleteRow = async (type, id) => {
                       if (lobSubLobs.length === 0) {
                         return [(
                           <tr key={`client-${client.id}-lob-${lob.id}`}>
-                            <td>{client.id.toString().padStart(3, '0')}</td>
+                            <td>{client.id}</td>
                             <td>{client.name}</td>
                             <td>{lob.name}</td>
                             <td>-</td>
@@ -1422,7 +1422,7 @@ const handleDeleteRow = async (type, id) => {
                       // Otherwise create one row for each SubLOB
                       return lobSubLobs.map(subLob => (
                         <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
-                          <td>{client.id.toString().padStart(3, '0')}</td>
+                          <td>{client.id}</td>
                           <td>{client.name}</td>
                           <td>{lob.name}</td>
                           <td>{subLob.name}</td>
