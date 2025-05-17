@@ -77,6 +77,8 @@ class ClientManagementService {
                 const clientName = row.dClientName;
                 const lob = row.dLOB;
                 const subLOB = row.dSubLOB;
+                const siteId = row.dSite_ID;
+                const siteName = row.dSiteName;
                 const createdBy = row.dCreatedBy;
                 const createdAt = row.tCreatedAt;
                 
@@ -93,11 +95,15 @@ class ClientManagementService {
                 const lobsMap = clientData.lobsMap;
                 
                 if (!lobsMap.has(lob)) {
-                    lobsMap.set(lob, []);
+                    lobsMap.set(lob, {
+                        subLOBs: [],
+                        siteId: siteId,
+                        siteName: siteName
+                    });
                 }
                 
-                if (!lobsMap.get(lob).includes(subLOB)) {
-                    lobsMap.get(lob).push(subLOB);
+                if (!lobsMap.get(lob).subLOBs.includes(subLOB)) {
+                    lobsMap.get(lob).subLOBs.push(subLOB);
                 }
             });
             
@@ -113,10 +119,12 @@ class ClientManagementService {
                     createdAt: clientData.createdAt
                 };
                 
-                clientData.lobsMap.forEach((subLOBs, lobName) => {
+                clientData.lobsMap.forEach((lobData, lobName) => {
                     client.LOBs.push({
                         name: lobName,
-                        subLOBs: subLOBs
+                        subLOBs: lobData.subLOBs,
+                        siteId: lobData.siteId,
+                        siteName: lobData.siteName
                     });
                 });
                 

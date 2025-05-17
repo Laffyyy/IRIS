@@ -45,6 +45,27 @@ const ClientManagement = () => {
   // Add these new state variables at the top with your other states
   const [editRow, setEditRow] = useState({ type: null, data: null });
 
+  // Insert the new useEffect here
+  useEffect(() => {
+    // Filter LOBs based on selected client and site
+    let filtered = [...lobs];
+    
+    if (filterClientForSubLob) {
+      filtered = filtered.filter(lob => lob.clientId === filterClientForSubLob);
+    }
+    
+    if (filterSiteForSubLob) {
+      filtered = filtered.filter(lob => lob.siteId === filterSiteForSubLob);
+    }
+    
+    setFilteredLobs(filtered);
+    
+    // Reset selected LOB if it's no longer in the filtered list
+    if (selectedLobForSubLob && !filtered.find(lob => lob.id === selectedLobForSubLob)) {
+      setSelectedLobForSubLob(null);
+    }
+  }, [filterClientForSubLob, filterSiteForSubLob, lobs, selectedLobForSubLob]);
+
   useEffect(() => {
     const fetchClientData = async () => {
       try {
@@ -58,6 +79,7 @@ const ClientManagement = () => {
           const transformedClients = [];
           const transformedLobs = [];
           const transformedSubLobs = [];
+          const sitesMap = new Map(); // To collect unique sites
           let lobId = 0;
           let subLobId = 0;
           
@@ -71,18 +93,26 @@ const ClientManagement = () => {
               createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
             });
             
-            // Add LOBs and SubLOBs
             if (client.LOBs && Array.isArray(client.LOBs)) {
               client.LOBs.forEach(lob => {
                 lobId++;
+                
+                // Extract site info from LOB
+                if (lob.siteId && lob.siteName) {
+                  sitesMap.set(lob.siteId, {
+                    id: lob.siteId,
+                    name: lob.siteName
+                  });
+                }
+                
                 transformedLobs.push({
                   id: lobId,
                   name: lob.name,
                   clientId: clientId,
-                  siteId: 1 // Default site ID since API doesn't provide it
+                  siteId: lob.siteId || null,
+                  siteName: lob.siteName || null
                 });
                 
-                // Add SubLOBs
                 if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
                   lob.subLOBs.forEach(subLobName => {
                     subLobId++;
@@ -101,9 +131,9 @@ const ClientManagement = () => {
           setLobs(transformedLobs);
           setSubLobs(transformedSubLobs);
           
-          // Fetch sites as well if needed
-          // For now, setting default sites
-          setSites([
+          // Set sites from collected site data
+          const transformedSites = Array.from(sitesMap.values());
+          setSites(transformedSites.length > 0 ? transformedSites : [
             { id: 1, name: 'Site A' },
             { id: 2, name: 'Site B' }
           ]);
