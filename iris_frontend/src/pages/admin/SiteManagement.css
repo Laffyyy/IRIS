@@ -332,3 +332,41 @@ td:last-child {
 .remove-client-btn:hover {
   color: #d32f2f;
 }
+
+/* Add to SiteManagement.css */
+.client-site-mappings {
+  margin-top: 30px;
+  overflow-x: auto;
+  max-height: 400px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.client-site-mappings h2 {
+  font-size: 14px;
+  color: #333;
+  margin: 15px 0;
+  font-weight: 500;
+  padding: 0 15px;
+}
+
+.client-site-mappings table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.client-site-mappings th,
+.client-site-mappings td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.client-site-mappings th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+}
+
+.client-site-mappings tr:hover {
+  background-color: #f5f5f5;
+}

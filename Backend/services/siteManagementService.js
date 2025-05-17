@@ -115,6 +115,20 @@ class SiteManagementService {
         }
     }
     
+    // In SiteManagementService.js, add this method:
+    async getClientSiteMappings() {
+    try {
+        // Get all client-site mappings
+        const [result] = await db.query(
+            'SELECT DISTINCT dClient_ID, dClientName, dSite_ID, dSiteName FROM tbl_clientsite ORDER BY dClientName ASC'
+        );
+        
+        return result;
+    } catch (error) {
+        console.error('Error in SiteManagementService.getClientSiteMappings:', error);
+        throw error;
+    }
+}
 }
 
 module.exports = SiteManagementService;

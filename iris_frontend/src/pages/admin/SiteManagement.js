@@ -10,6 +10,7 @@ const SiteManagement = () => {
   const [siteClients, setSiteClients] = useState([]);
   const [editingSite, setEditingSite] = useState(null);
   const [editSiteName, setEditSiteName] = useState('');
+  const [clientSiteMappings, setClientSiteMappings] = useState([]);
 
   const [newSiteName, setNewSiteName] = useState('');
   const [selectedSite, setSelectedSite] = useState(null);
@@ -28,6 +29,7 @@ const SiteManagement = () => {
     // Fetch sites when component mounts
     fetchSites();
     fetchClients();
+    fetchClientSiteMappings();
   }, []);
 
   const fetchSites = async () => {
@@ -54,6 +56,18 @@ const SiteManagement = () => {
       setError('Failed to load sites. Please try again.');
     } finally {
       setIsFetching(false);
+    }
+  };
+
+  const fetchClientSiteMappings = async () => {
+    try {
+      const data = await manageSite('getClientSiteMappings', {});
+      
+      if (data && data.mappings) {
+        setClientSiteMappings(data.mappings);
+      }
+    } catch (error) {
+      console.error('Failed to fetch client-site mappings:', error);
     }
   };
 
@@ -218,6 +232,7 @@ const SiteManagement = () => {
         
         // Refresh data from server to ensure UI is in sync
         fetchSites();
+        fetchClientSiteMappings();
         
       } catch (error) {
         // Error is already handled in manageSite function
@@ -291,41 +306,77 @@ const SiteManagement = () => {
             Add Client to Site
           </div>
         </div>
-
+        
+        {/* Add Site Section */}
         <div className={`tab-content ${activeTab === 'addSite' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>{currentSite ? 'Edit Site Name' : 'Site Name'}</label>
-              <input
-                type="text"
-                value={currentSite ? currentSite.name : newSiteName}
-                onChange={(e) => currentSite ? setCurrentSite({...currentSite, name: e.target.value}) : setNewSiteName(e.target.value)}
-              />
-            </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>{currentSite ? 'Edit Site Name' : 'Site Name'}</label>
+            <input
+              type="text"
+              value={currentSite ? currentSite.name : newSiteName}
+              onChange={(e) => currentSite ? setCurrentSite({...currentSite, name: e.target.value}) : setNewSiteName(e.target.value)}
+            />
           </div>
-          {currentSite ? (
-            <div className="button-group">
-              <button onClick={() => handleSave(currentSite)} className="add-button" disabled={!currentSite.name.trim()}>
-                Update Site
-              </button>
-              <button onClick={() => {
-                setCurrentSite(null);
-              }} className="cancel-button">
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={handleAddSite} 
-              className="add-button" 
-              disabled={!newSiteName.trim() || isLoading}
-            >
-              {isLoading ? 'Adding...' : '+ Add New Site'}
-            </button>
-          )}
-          {error && <p className="error-message">{error}</p>}
         </div>
+        {currentSite ? (
+          <div className="button-group">
+            <button onClick={() => handleSave(currentSite)} className="add-button" disabled={!currentSite.name.trim()}>
+              Update Site
+            </button>
+            <button onClick={() => {
+              setCurrentSite(null);
+            }} className="cancel-button">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={handleAddSite} 
+            className="add-button" 
+            disabled={!newSiteName.trim() || isLoading}
+          >
+            {isLoading ? 'Adding...' : '+ Add New Site'}
+          </button>
+        )}
+        {error && <p className="error-message">{error}</p>}
 
+          {/* Move Existing Sites table here */}
+          <div className="existing-sites">
+            <h2>Existing Sites</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Site Name</th>
+                  {/* Removed Clients column */}
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sites.map(site => (
+                  <tr key={site.id}>
+                    <td>{site.id}</td>
+                    <td>{site.name}</td>
+                    {/* Removed Clients column data */}
+                    <td>
+                      <div className="action-buttons">
+                        <button onClick={() => handleEditClick(site)} className="edit-btn">
+                          <FaPencilAlt size={12} /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteSite(site.id)} className="delete-btn">
+                          <FaTrash size={12} /> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        {/* Add Client to Site */}
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
           <div className="form-row">
             <div className="form-group">
@@ -369,43 +420,42 @@ const SiteManagement = () => {
           >
             + Add Client to Site
           </button>
-        </div>
-
-        <div className="existing-sites">
-          <h2>Existing Sites</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Site Name</th>
-                <th>Clients</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sites.map(site => (
-                <tr key={site.id}>
-                  <td>{site.id}</td>
-                  <td>{site.name}</td>
-                  <td>
-                    {siteClients.filter(sc => sc.siteId === site.id).map(sc => 
-                      clients.find(c => c.id === sc.clientId)?.name
-                    ).join(', ') || '-'}
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button onClick={() => handleEditClick(site)} className="edit-btn">
-                        <FaPencilAlt size={12} /> Edit
-                      </button>
-                      <button onClick={() => handleDeleteSite(site.id)} className="delete-btn">
-                        <FaTrash size={12} /> Delete
-                      </button>
-                    </div>
-                  </td>
+          {/* New Client-Site Mappings Table */}
+          <div className="client-site-mappings">
+          <h2>Client Site Assignments</h2>
+          {isFetching ? (
+            <p>Loading client-site mappings...</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Client ID</th>
+                  <th>Client Name</th>
+                  <th>Site ID</th>
+                  <th>Site Name</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {/* Filter to only show clients with assigned sites (dSite_ID exists and is not empty) */}
+                {clientSiteMappings
+                  .filter(mapping => mapping.dSite_ID)
+                  .map((mapping, index) => (
+                    <tr key={index}>
+                      <td>{mapping.dClient_ID}</td>
+                      <td>{mapping.dClientName}</td>
+                      <td>{mapping.dSite_ID}</td>
+                      <td>{mapping.dSiteName}</td>
+                    </tr>
+                  ))}
+                {clientSiteMappings.filter(mapping => mapping.dSite_ID).length === 0 && (
+                  <tr>
+                    <td colSpan="4">No client-site assignments found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
         </div>
       </div>
 

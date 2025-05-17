@@ -159,6 +159,26 @@ class SiteManagementController {
             });
         }
     }
+
+    // In SiteManagementController.js, add this new method:
+async getClientSiteMappings(req, res) {
+    try {
+        // Call the service to get all client-site mappings
+        const result = await this.SiteManagementService.getClientSiteMappings();
+        
+        // Return success response
+        res.status(200).json({ 
+            message: 'Client-site mappings retrieved successfully',
+            mappings: result
+        });
+    } catch (error) {
+        console.error('Error retrieving client-site mappings:', error);
+        res.status(500).json({ 
+            message: 'Failed to retrieve client-site mappings', 
+            error: error.message 
+        });
+    }
+}
     
 }
 
