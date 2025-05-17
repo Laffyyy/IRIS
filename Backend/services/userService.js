@@ -44,3 +44,75 @@ exports.deleteUsers = async (userIds) => {
   );
   return result;
 };
+
+exports.updateUser = async ({ userId, employeeId, name, email, role, status, hashedPassword, securityQuestions }) => {
+  let query = `UPDATE iris.tbl_login SET dUser_ID=?, dName=?, dEmail=?, dUser_Type=?, dStatus=?`;
+  const params = [employeeId, name, email, role, status];
+  if (hashedPassword) {
+    query += ', dPassword1_hash=?';
+    params.push(hashedPassword);
+  }
+  query += ' WHERE dLogin_ID=?';
+  params.push(userId);
+  const [result] = await pool.query(query, params);
+  return result; // So controller can check affectedRows
+};
+
+exports.getUserByLoginId = async (loginId) => {
+  const [rows] = await pool.query('SELECT * FROM iris.tbl_login WHERE dLogin_ID=?', [loginId]);
+  return rows[0] || null;
+};
+
+exports.updateUserDynamic = async (userId, updateData) => {
+  const fields = [];
+  const params = [];
+  if (updateData.employeeId !== undefined) {
+    fields.push('dUser_ID=?');
+    params.push(updateData.employeeId);
+  }
+  if (updateData.name !== undefined) {
+    fields.push('dName=?');
+    params.push(updateData.name);
+  }
+  if (updateData.email !== undefined) {
+    fields.push('dEmail=?');
+    params.push(updateData.email);
+  }
+  if (updateData.role !== undefined) {
+    fields.push('dUser_Type=?');
+    params.push(updateData.role);
+  }
+  if (updateData.status !== undefined) {
+    fields.push('dStatus=?');
+    params.push(updateData.status);
+  }
+  if (updateData.hashedPassword !== undefined) {
+    fields.push('dPassword1_hash=?');
+    params.push(updateData.hashedPassword);
+  }
+  // Add securityQuestions if you have a column for it
+  if (updateData.securityQuestions !== undefined) {
+    fields.push('securityQuestions=?');
+    params.push(JSON.stringify(updateData.securityQuestions));
+  }
+  if (fields.length === 0) return { affectedRows: 0 };
+  const query = `UPDATE iris.tbl_login SET ${fields.join(', ')} WHERE dLogin_ID=?`;
+  params.push(userId);
+  const [result] = await pool.query(query, params);
+  return result;
+};
+
+exports.updateUserSecurityQuestions = async (loginId, questions) => {
+  // questions: [{question, answer}, ...]
+  const q1 = questions[0]?.question || '';
+  const q2 = questions[1]?.question || '';
+  const q3 = questions[2]?.question || '';
+  const a1 = questions[0]?.answer || '';
+  const a2 = questions[1]?.answer || '';
+  const a3 = questions[2]?.answer || '';
+  const [result] = await pool.query(
+    'UPDATE iris.tbl_login SET dSecurity_Question1=?, dSecurity_Question2=?, dSecurity_Question3=?, dAnswer_1=?, dAnswer_2=?, dAnswer_3=? WHERE dLogin_ID=?',
+    [q1, q2, q3, a1, a2, a3, loginId]
+  );
+  return result;
+};

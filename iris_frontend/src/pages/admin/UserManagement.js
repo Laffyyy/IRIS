@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash } from 'react-icons/fa';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash, FaLock } from 'react-icons/fa';
 import { FaKey, FaShieldAlt, FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import './UserManagement.css';
@@ -33,6 +33,7 @@ const UserManagement = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [originalUser, setOriginalUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -77,6 +78,15 @@ const UserManagement = () => {
   const [bulkResultMessage, setBulkResultMessage] = useState('');
   const [bulkResultSuccess, setBulkResultSuccess] = useState(false);
 
+  // Add state for confirmation modal
+  const [showEditConfirmModal, setShowEditConfirmModal] = useState(false);
+  const [pendingEditUser, setPendingEditUser] = useState(null);
+
+  // Add state for edit result modal
+  const [showEditResultModal, setShowEditResultModal] = useState(false);
+  const [editResultSuccess, setEditResultSuccess] = useState(false);
+  const [editResultMessage, setEditResultMessage] = useState('');
+
   // Security question options
   const securityQuestionOptions = [
     "What was your first pet's name?",
@@ -86,21 +96,35 @@ const UserManagement = () => {
     "What was your childhood nickname?"
   ];
 
-  // Fetch users on component mount
+  // In the Edit User Modal, add a checkbox to enable editing of Employee ID
+  const [employeeIdEditable, setEmployeeIdEditable] = useState(false);
+
+  // Add a computed variable for password mismatch
+  const passwordMismatch = showPasswordFields && (passwordData.newPassword !== passwordData.confirmPassword || !passwordData.newPassword || !passwordData.confirmPassword);
+
+  // Fetch users function
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/users");
+      const data = await response.json();
+      setUsers(data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  // Polling: fetch users every second, but not if a modal is open
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/users");
-        const data = await response.json();
-        setUsers(data);
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
+    fetchUsers(); // Initial fetch
+    const interval = setInterval(() => {
+      if (!editModalOpen && !addModalOpen && !editInvalidModalOpen && !editValidModalOpen) {
+        fetchUsers();
       }
-    };
-    fetchUsers();
-  }, []);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [editModalOpen, addModalOpen, editInvalidModalOpen, editValidModalOpen]);
 
   // Filter users based on search term and role
   const filteredUsers = users.filter(user => {
@@ -202,8 +226,13 @@ const UserManagement = () => {
         if (!name) reasons.push('Missing Name');
         if (!email) reasons.push('Missing Email');
         if (!role) reasons.push('Missing Role');
-        if (role && !allowedRoles.includes(role.trim().toUpperCase())) {
+        const roleStr = typeof role === 'string' ? role : String(role || '');
+        if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
           reasons.push('Invalid role');
+        }
+        const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        if (email && !emailRegex.test(email)) {
+          reasons.unshift('Invalid email format');
         }
         if (reasons.length > 0) {
           parsedUsers.push({
@@ -421,6 +450,7 @@ const UserManagement = () => {
   // Edit user handler
   const handleEdit = (user) => {
     setCurrentUser(user);
+    setOriginalUser(user);
     setPasswordData({
       currentPassword: '',
       newPassword: '',
@@ -465,42 +495,133 @@ const UserManagement = () => {
   // Save user changes
   const handleSave = async (updatedUser) => {
     try {
-      // Only update password if fields are filled and match
+      const changedFields = { dLogin_ID: updatedUser.dLogin_ID };
+      const changes = [];
+      if (originalUser.dUser_ID !== updatedUser.dUser_ID) {
+        changedFields.employeeId = updatedUser.dUser_ID;
+        changes.push(`Employee ID changed from '${originalUser.dUser_ID}' to '${updatedUser.dUser_ID}'`);
+      }
+      if (originalUser.dName !== updatedUser.dName) {
+        changedFields.name = updatedUser.dName;
+        changes.push(`Name changed from '${originalUser.dName}' to '${updatedUser.dName}'`);
+      }
+      if (originalUser.dEmail !== updatedUser.dEmail) {
+        changedFields.email = updatedUser.dEmail;
+        changes.push(`Email changed from '${originalUser.dEmail}' to '${updatedUser.dEmail}'`);
+      }
+      if (originalUser.dUser_Type !== updatedUser.dUser_Type) {
+        changedFields.role = updatedUser.dUser_Type;
+        changes.push(`Role changed from '${originalUser.dUser_Type}' to '${updatedUser.dUser_Type}'`);
+      }
+      if (originalUser.dStatus !== updatedUser.dStatus) {
+        changedFields.status = updatedUser.dStatus;
+        changes.push(`Status changed from '${originalUser.dStatus}' to '${updatedUser.dStatus}'`);
+      }
       if (showPasswordFields && passwordData.newPassword && passwordData.newPassword === passwordData.confirmPassword) {
-        updatedUser.password = passwordData.newPassword;
+        changedFields.password = passwordData.newPassword;
+        changes.push('Password changed');
       }
-
-      // Update security questions if modified
+      // Check if security questions changed
+      let securityQuestionsChanged = false;
       if (showSecurityQuestions) {
-        updatedUser.securityQuestions = securityQuestionsData;
+        for (let i = 0; i < 3; i++) {
+          const origQ = originalUser[`dSecurity_Question${i+1}`] || '';
+          const origA = originalUser[`dAnswer_${i+1}`] || '';
+          const newQ = securityQuestionsData[i]?.question || '';
+          const newA = securityQuestionsData[i]?.answer || '';
+          if (origQ !== newQ || origA !== newA) {
+            changes.push(`Security Question ${i+1} changed`);
+            securityQuestionsChanged = true;
+          }
+        }
+        if (securityQuestionsChanged) {
+          await fetch(`http://localhost:5000/api/users/${updatedUser.dLogin_ID}/security-questions`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions: securityQuestionsData })
+          });
+        }
       }
-
-      const response = await fetch(`http://localhost:5000/api/users/${updatedUser.dUser_ID}`, {
+      // If no user fields changed, but security questions did
+      if (Object.keys(changedFields).length === 1 && securityQuestionsChanged) {
+        setEditModalOpen(false);
+        setEditResultSuccess(true);
+        setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
+        setShowEditResultModal(true);
+        return;
+      }
+      // If nothing changed
+      if (Object.keys(changedFields).length === 1 && !securityQuestionsChanged) {
+        setEditResultSuccess(false);
+        setEditResultMessage('No changes were made.');
+        setShowEditResultModal(true);
+        return;
+      }
+      // Otherwise, update user fields
+      const response = await fetch(`http://localhost:5000/api/users/${updatedUser.dLogin_ID}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUser)
+        body: JSON.stringify(changedFields)
       });
-
-      if (!response.ok) throw new Error('Failed to update user');
-
-      setUsers(users.map(user => user.dUser_ID === updatedUser.dUser_ID ? updatedUser : user));
+      let result = null;
+      try {
+        result = await response.json();
+      } catch (e) {}
+      if (!response.ok) {
+        setEditResultSuccess(false);
+        setEditResultMessage(result && result.message ? result.message : 'Failed to update user');
+        setShowEditResultModal(true);
+        return;
+      }
+      setUsers(users.map(user => user.dLogin_ID === updatedUser.dLogin_ID ? { ...user, ...changedFields } : user));
       setEditModalOpen(false);
+      setEditResultSuccess(true);
+      setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
+      setShowEditResultModal(true);
     } catch (error) {
-      console.error('Error saving user:', error);
+      setEditResultSuccess(false);
+      setEditResultMessage(error.message || 'Failed to update user');
+      setShowEditResultModal(true);
     }
   };
 
+  // Helper to format changes for the result modal
+  function formatEditResultMessage(changes) {
+    if (!changes || changes.length === 0) return '';
+    const userDetailChanges = changes.filter(c => !c.startsWith('Security Question'));
+    const securityQChanges = changes.filter(c => c.startsWith('Security Question') || c.startsWith('Answer'));
+    let msg = '';
+    if (userDetailChanges.length > 0) {
+      msg += `<b style='display:block;margin-bottom:4px;'>User details:</b><ul style='margin:0 0 8px 18px'>`;
+      userDetailChanges.forEach(c => { msg += `<li>${c}</li>`; });
+      msg += '</ul>';
+    }
+    if (securityQChanges.length > 0) {
+      msg += `<b style='display:block;margin-bottom:4px;'>Security Questions:</b><ul style='margin:0 0 8px 18px'>`;
+      securityQChanges.forEach(c => { msg += `<li>${c}</li>`; });
+      msg += '</ul>';
+    }
+    return msg;
+  }
+
   // Handler to open modal for editing invalid user
   const handleEditInvalidUser = (index) => {
-    setEditingInvalidUser({ ...invalidUsers[index] });
+    const user = { ...invalidUsers[index] };
+    setEditingInvalidUser(user);
     setEditingInvalidUserIndex(index);
+    setEditInvalidErrors(validateEditingInvalidUser(user));
     setEditInvalidModalOpen(true);
   };
 
   // Handler for editing fields in the modal
   const handleEditingInvalidUserChange = (e) => {
     const { name, value } = e.target;
-    setEditingInvalidUser(prev => ({ ...prev, [name]: value }));
+    setEditingInvalidUser(prev => {
+      const updated = { ...prev, [name]: value };
+      const errors = validateEditingInvalidUser(updated);
+      setEditInvalidErrors(errors);
+      return updated;
+    });
   };
 
   // Handler to save the edited invalid user
@@ -515,8 +636,8 @@ const UserManagement = () => {
     if (!name) { errors.name = 'Name is required'; reasons.push('Missing Name'); }
     if (!email) { errors.email = 'Email is required'; reasons.push('Missing Email'); }
     if (!role) { errors.role = 'Role is required'; reasons.push('Missing Role'); }
-    const trimmedRole = role.trim().toUpperCase();
-    const isValidRole = allowedRoles.some(allowed => trimmedRole === allowed);
+    const roleStr = typeof role === 'string' ? role : String(role || '');
+    const isValidRole = allowedRoles.some(allowed => roleStr.trim().toUpperCase() === allowed);
     if (!isValidRole) {
       errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
       reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
@@ -560,6 +681,12 @@ const UserManagement = () => {
       reasons.push('Duplicate Email in database');
     }
 
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (email && !emailRegex.test(email)) {
+      errors.email = 'Invalid email format';
+      reasons.push('Invalid email format');
+    }
+
     setEditInvalidErrors(errors);
 
     if (Object.keys(errors).length === 0 && reasons.length === 0) {
@@ -598,27 +725,45 @@ const UserManagement = () => {
   // Handler for editing fields in the valid modal
   const handleEditingValidUserChange = (e) => {
     const { name, value } = e.target;
-    setEditingValidUser(prev => ({ ...prev, [name]: value }));
+    setEditingValidUser(prev => {
+      const updated = { ...prev, [name]: value };
+      const errors = validateEditingValidUser(updated);
+      setEditValidErrors(errors);
+      return updated;
+    });
   };
 
   // Handler to save the edited valid user
   const handleSaveEditedValidUser = async () => {
     const { employeeId, name, email, role } = editingValidUser;
-    const errors = {};
-    if (!employeeId) errors.employeeId = 'Employee ID is required';
-    if (!name) errors.name = 'Name is required';
-    if (!email) errors.email = 'Email is required';
-    if (!role) errors.role = 'Role is required';
+    const errors = validateEditingValidUser(editingValidUser);
+
     setEditValidErrors(errors);
-    if (Object.keys(errors).length === 0) {
-      const updatedValids = bulkUsers.map((user, i) =>
-        i === editingValidUserIndex ? { employeeId, name, email, role, valid: true } : user
-      );
-      await revalidateAllUsers([...updatedValids, ...invalidUsers]);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    const updatedValids = bulkUsers.map((user, i) =>
+      i === editingValidUserIndex ? { employeeId, name, email, role, valid: true } : user
+    );
+
+    // Get the new valid/invalid lists
+    const { validUsers, invalidUsers } = await revalidateAllUsers([...updatedValids, ...invalidUsers]);
+
+    // Check if the edited user is still valid
+    const stillValid = validUsers.some(
+      user => user.employeeId === employeeId && user.email === email
+    );
+
+    if (stillValid) {
       setEditValidModalOpen(false);
       setEditingValidUser(null);
       setEditingValidUserIndex(null);
       setEditValidErrors({});
+    } else {
+      // Optionally, show a message that the user is now invalid (e.g., due to backend duplicate)
+      setEditValidErrors({ general: 'User is now invalid due to backend validation. Please check errors.' });
     }
   };
 
@@ -668,6 +813,41 @@ const UserManagement = () => {
     }
     setBulkUsers(validUsers);
     setInvalidUsers(invalidUsers);
+    return { validUsers, invalidUsers };
+  };
+
+  const validateEditingValidUser = (user) => {
+    const errors = {};
+    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+    if (!user.employeeId) errors.employeeId = 'Employee ID is required';
+    if (!user.name) errors.name = 'Name is required';
+    if (!user.email) errors.email = 'Email is required';
+    if (user.email && !emailRegex.test(user.email)) errors.email = 'Invalid email format';
+    if (!user.role) errors.role = 'Role is required';
+    const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
+    if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
+      errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
+    }
+    return errors;
+  };
+
+  const validateEditingInvalidUser = (user) => {
+    const errors = {};
+    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+    if (!user.employeeId) errors.employeeId = 'Employee ID is required';
+    if (!user.name) errors.name = 'Name is required';
+    if (!user.email) errors.email = 'Email is required';
+    if (user.email && !emailRegex.test(user.email)) errors.email = 'Invalid email format';
+    if (!user.role) errors.role = 'Role is required';
+    const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
+    if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
+      errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
+    }
+    return errors;
   };
 
   return (
@@ -1090,25 +1270,30 @@ const UserManagement = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {invalidUsers.map((user, index) => (
-                                <tr key={`invalid-${index}`}>
-                                  <td className="reason-cell">{user.reasons && user.reasons.join(', ')}</td>
-                                  <td>{user.employeeId}</td>
-                                  <td>{user.name}</td>
-                                  <td>{user.email}</td>
-                                  <td>{user.role}</td>
-                                  <td>
-                                    {!user.notEditable && (
-                                      <button
-                                        className="edit-btn"
-                                        onClick={() => handleEditInvalidUser(index)}
-                                      >
-                                        <FaEdit /> Edit
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
+                              {invalidUsers
+                                .slice()
+                                .sort((a, b) => (a.notEditable === b.notEditable ? 0 : a.notEditable ? 1 : -1))
+                                .map((user, index) => (
+                                  <tr key={`invalid-${index}`}>
+                                    <td className="reason-cell" title={user.reasons && user.reasons.join(', ')}>
+                                      {user.reasons && user.reasons.join(', ')}
+                                    </td>
+                                    <td title={user.employeeId}>{user.employeeId}</td>
+                                    <td title={user.name}>{user.name}</td>
+                                    <td title={user.email}>{user.email}</td>
+                                    <td title={user.role}>{user.role}</td>
+                                    <td>
+                                      {!user.notEditable && (
+                                        <button
+                                          className="edit-btn"
+                                          onClick={() => handleEditInvalidUser(index)}
+                                        >
+                                          <FaEdit /> Edit
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
                             </tbody>
                           </table>
                         </div>
@@ -1200,16 +1385,30 @@ const UserManagement = () => {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Employee ID:</label>
+                <div className="employee-id-label-row">
+                  <label htmlFor="employee-id-input">
+                    Employee ID:
+                  </label>
+                  {!employeeIdEditable && (
+                    <FaLock className="locked-indicator" title="Enable editing to change Employee ID" />
+                  )}
+                </div>
                 <input
+                  id="employee-id-input"
                   type="text"
                   name="employeeId"
                   value={currentUser.dUser_ID}
-                  onChange={(e) => setCurrentUser({...currentUser, dUser_ID: e.target.value})}
+                  onChange={(e) => setCurrentUser({ ...currentUser, dUser_ID: e.target.value })}
+                  readOnly={!employeeIdEditable}
+                  className={!employeeIdEditable ? 'disabled-input' : ''}
                   required
+                  style={{
+                    background: !employeeIdEditable ? '#f5f5f5' : undefined,
+                    color: !employeeIdEditable ? '#aaa' : undefined,
+                    cursor: !employeeIdEditable ? 'not-allowed' : undefined,
+                  }}
                 />
               </div>
-
               <div className="form-group">
                 <label>Name:</label>
                 <input
@@ -1220,6 +1419,18 @@ const UserManagement = () => {
                   required
                 />
               </div>
+            </div>
+            <div className="employee-id-checkbox-row">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                <input
+                  type="checkbox"
+                  id="edit-employee-id"
+                  checked={employeeIdEditable}
+                  onChange={() => setEmployeeIdEditable((v) => !v)}
+                  style={{ margin: 0 }}
+                />
+                Enable editing of Employee ID
+              </label>
             </div>
 
             <div className="form-row">
@@ -1257,6 +1468,7 @@ const UserManagement = () => {
                   value={currentUser.dStatus}
                   onChange={(e) => setCurrentUser({...currentUser, dStatus: e.target.value})}
                 >
+                  {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
@@ -1280,25 +1492,6 @@ const UserManagement = () => {
                 {showPasswordFields && (
                   <div className="password-fields">
                     <div className="form-group">
-                      <label>Current Password</label>
-                      <div className="password-input-container">
-                        <input
-                          type={showCurrentPassword ? "text" : "password"}
-                          name="currentPassword"
-                          value={passwordData.currentPassword}
-                          onChange={handlePasswordChange}
-                          placeholder="Enter current password"
-                        />
-                        <button
-                          className="toggle-password-btn"
-                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        >
-                          {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="form-group">
                       <label>New Password</label>
                       <div className="password-input-container">
                         <input
@@ -1316,7 +1509,6 @@ const UserManagement = () => {
                         </button>
                       </div>
                     </div>
-
                     <div className="form-group">
                       <label>Confirm New Password</label>
                       <div className="password-input-container">
@@ -1335,11 +1527,9 @@ const UserManagement = () => {
                         </button>
                       </div>
                     </div>
-
-                    {passwordData.newPassword && passwordData.confirmPassword &&
-                      passwordData.newPassword !== passwordData.confirmPassword && (
-                        <p className="error-message">Passwords do not match</p>
-                      )}
+                    {passwordMismatch && (
+                      <p className="error-message" style={{ color: 'red' }}>Passwords do not match</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1392,7 +1582,13 @@ const UserManagement = () => {
 
             <div className="modal-actions">
               <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
-              <button onClick={() => handleSave(currentUser)} className="save-btn">Save Changes</button>
+              <button
+                onClick={() => { setPendingEditUser(currentUser); setShowEditConfirmModal(true); }}
+                className="save-btn"
+                disabled={passwordMismatch}
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -1463,7 +1659,13 @@ const UserManagement = () => {
             </div>
             <div className="modal-actions">
               <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); }} className="cancel-btn">Cancel</button>
-              <button onClick={handleSaveEditedInvalidUser} className="save-btn">Save</button>
+              <button
+                onClick={handleSaveEditedInvalidUser}
+                className="save-btn"
+                disabled={Object.keys(editInvalidErrors).length > 0}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
@@ -1517,19 +1719,30 @@ const UserManagement = () => {
             </div>
             <div className="form-group">
               <label>Role</label>
-              <input
-                type="text"
+              <select
                 name="role"
                 value={editingValidUser.role}
                 onChange={handleEditingValidUserChange}
-              />
+              >
+                <option value="">Select Role</option>
+                <option value="HR">HR</option>
+                <option value="REPORTS">REPORTS</option>
+                <option value="ADMIN">ADMIN</option>
+                <option value="CNB">CNB</option>
+              </select>
               {editValidErrors.role && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.role}</div>
               )}
             </div>
             <div className="modal-actions">
               <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); }} className="cancel-btn">Cancel</button>
-              <button onClick={handleSaveEditedValidUser} className="save-btn">Save</button>
+              <button
+                onClick={handleSaveEditedValidUser}
+                className="save-btn"
+                disabled={Object.keys(editValidErrors).length > 0}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
@@ -1575,6 +1788,51 @@ const UserManagement = () => {
             <p>{bulkResultMessage}</p>
             <div className="modal-actions">
               <button onClick={() => setShowBulkResultModal(false)} className="save-btn">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Confirmation Modal */}
+      {showEditConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>Confirm Edit</h2>
+              <button onClick={() => setShowEditConfirmModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>Are you sure you want to save changes to this user?</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowEditConfirmModal(false)} className="cancel-btn">No</button>
+              <button
+                className="save-btn"
+                onClick={async () => {
+                  setShowEditConfirmModal(false);
+                  await handleSave(pendingEditUser);
+                }}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Result Modal */}
+      {showEditResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{editResultSuccess ? 'Edit Successful' : 'Edit Failed'}</h2>
+              <button onClick={() => setShowEditResultModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
+            <div className="modal-actions">
+              <button onClick={() => setShowEditResultModal(false)} className="save-btn">OK</button>
             </div>
           </div>
         </div>

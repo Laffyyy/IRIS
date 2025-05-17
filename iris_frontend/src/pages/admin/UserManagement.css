@@ -4,6 +4,35 @@
   font-family: 'Inter', sans-serif;
 }
 
+.invalid-users-table td,
+.invalid-users-table th {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+.invalid-users-table .reason-cell {
+  color: #d32f2f;
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 220px;
+}
+
+.invalid-users-table tr {
+  border-bottom: 1px solid #eee;
+}
+
+.invalid-users-table td {
+  position: relative;
+}
+
+.invalid-users-table td[title] {
+  cursor: pointer;
+}
+
 .white-card {
   background: white;
   border-radius: 8px;
@@ -523,6 +552,47 @@ th {
   background-color: #003366;
 }
 
+button:disabled,
+.save-btn:disabled,
+.cancel-btn:disabled,
+.edit-btn:disabled,
+.remove-btn:disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+  /* Remove hover background for disabled buttons */
+  background: #e0e0e0 !important;
+  color: #999 !important;
+}
+
+.disabled-input {
+  background: #f5f5f5 !important;
+  color: #aaa !important;
+  cursor: not-allowed !important;
+  border: 1px solid #ddd !important;
+}
+
+.locked-indicator {
+  font-size: 1em;
+  color: #aaa;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.employee-id-checkbox-row {
+  margin-top: 0;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  /* Remove width restrictions so it spans the modal */
+}
+
+.employee-id-checkbox-row label {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
+}
+
 @media (max-width: 768px) {
   .controls {
     flex-direction: column;
@@ -694,4 +764,31 @@ th {
   .password-security-container {
     flex-direction: column;
   }
+}
+
+.employee-id-label-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.locked-indicator {
+  font-size: 1em;
+  color: #aaa;
+  margin-left: 2px;
+  position: relative;
+  top: -2px;
+}
+
+.employee-id-checkbox-row {
+  margin-top: 2px;
+  margin-bottom: 0;
+  display: block;
+}
+
+.employee-id-checkbox-row label {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
 }
