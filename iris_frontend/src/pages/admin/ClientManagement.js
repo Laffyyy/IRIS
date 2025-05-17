@@ -667,8 +667,6 @@ const handleSave = async (updatedClient) => {
   }
 };
 
-
-
 const handleDeleteRow = async (type, id) => {
   try {
     if (type === 'client') {
@@ -871,6 +869,13 @@ const handleDeleteRow = async (type, id) => {
     const updatedLobCards = [...lobCards];
     updatedLobCards[lobCardIndex].subLobNames[subLobIndex] = value;
     setLobCards(updatedLobCards);
+  };
+
+  // Replace your current handleSubLobNameChange function with this:
+  const handleSubLobNameChange2 = (index, value) => {
+    const updatedSubLobNames = [...subLobNames];
+    updatedSubLobNames[index] = value;
+    setSubLobNames(updatedSubLobNames);
   };
 
   const handleAddAnotherLobCardForLob = () => {
@@ -1076,6 +1081,30 @@ const handleDeleteRow = async (type, id) => {
               ))}
             </select>
           </div>
+          <div className="client-name-container">
+              <label>Select Site</label>
+              <select
+                value={filterSiteForSubLob || ''}
+                onChange={(e) => setFilterSiteForSubLob(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">All Sites</option>
+                {/* Filter sites based on the selected client */}
+                {sites
+                  .filter(site => {
+                    if (!filterClientForSubLob) return true; // Show all sites if no client selected
+                    
+                    // Find all LOBs for this client that have this site
+                    return lobs.some(lob => 
+                      lob.clientId === filterClientForSubLob && 
+                      lob.siteId === site.id
+                    );
+                  })
+                  .map(site => (
+                    <option key={site.id} value={site.id}>{site.name}</option>
+                  ))
+                }
+              </select>
+            </div>
 
           <div className="lob-cards-container">
             {lobCardsForLob.map((card, lobCardIndex) => (
@@ -1220,7 +1249,7 @@ const handleDeleteRow = async (type, id) => {
                     <input
                       type="text"
                       value={subLobNames[0]}
-                      onChange={(e) => handleSubLobNameChange(0, e.target.value)}
+                      onChange={(e) => handleSubLobNameChange2(0, e.target.value)}
                       disabled={!selectedLobForSubLob}
                     />
                   </div>
@@ -1239,7 +1268,7 @@ const handleDeleteRow = async (type, id) => {
                       <input
                         type="text"
                         value={subLobNames[1]}
-                        onChange={(e) => handleSubLobNameChange(1, e.target.value)}
+                        onChange={(e) => handleSubLobNameChange2(1, e.target.value)}
                         disabled={!selectedLobForSubLob}
                       />
                     </div>
@@ -1261,7 +1290,7 @@ const handleDeleteRow = async (type, id) => {
                       <input
                         type="text"
                         value={subLobNames[2]}
-                        onChange={(e) => handleSubLobNameChange(2, e.target.value)}
+                        onChange={(e) => handleSubLobNameChange2(2, e.target.value)}
                         disabled={!selectedLobForSubLob}
                       />
                     </div>
@@ -1281,7 +1310,7 @@ const handleDeleteRow = async (type, id) => {
                       <input
                         type="text"
                         value={subLobNames[3]}
-                        onChange={(e) => handleSubLobNameChange(3, e.target.value)}
+                        onChange={(e) => handleSubLobNameChange2(3, e.target.value)}
                         disabled={!selectedLobForSubLob}
                       />
                     </div>
