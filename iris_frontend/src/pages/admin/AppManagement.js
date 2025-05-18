@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './AppManagement.css';
 
 const AppManagement = () => {
@@ -7,6 +8,8 @@ const AppManagement = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationText, setConfirmationText] = useState('');
   const [understood, setUnderstood] = useState(false);
+  const [currentProcessingMonth, setCurrentProcessingMonth] = useState(null);
+  const [error, setError] = useState(null);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -20,17 +23,60 @@ const AppManagement = () => {
   const currentMonth = months[currentDate.getMonth()];
   const currentYear = currentDate.getFullYear().toString();
 
-  const handleSave = () => {
-    setShowConfirmation(true);
+  useEffect(() => {
+    fetchCurrentProcessingMonth();
+  }, []);
+
+  const fetchCurrentProcessingMonth = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/processing-month');
+      const { dMonth, dYear } = response.data;
+      setCurrentProcessingMonth({
+        month: months[dMonth - 1],
+        year: dYear.toString()
+      });
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching processing month:', error);
+      setError('Error fetching current processing month');
+      setCurrentProcessingMonth(null);
+    }
   };
 
-  const handleConfirm = () => {
+  const handleSave = () => {
+    // Validate that selected date is not in the future
+    const selectedMonthIndex = months.indexOf(month) + 1;
+    const selectedYear = parseInt(year);
+    const currentMonthNum = currentDate.getMonth() + 1;
+    const currentYearNum = currentDate.getFullYear();
+
+    if (selectedYear > currentYearNum || 
+        (selectedYear === currentYearNum && selectedMonthIndex > currentMonthNum)) {
+      setError('Cannot set processing month to a future date');
+      return;
+    }
+
+    setShowConfirmation(true);
+    setError(null);
+  };
+
+  const handleConfirm = async () => {
     if (confirmationText === 'CONFIRM' && understood) {
-      console.log('Processing month set to:', { month, year });
-      alert('Processing month configured successfully!');
-      setShowConfirmation(false);
-      setConfirmationText('');
-      setUnderstood(false);
+      try {
+        await axios.post('http://localhost:3000/api/processing-month', {
+          month,
+          year
+        });
+        
+        await fetchCurrentProcessingMonth();
+        setShowConfirmation(false);
+        setConfirmationText('');
+        setUnderstood(false);
+        setError(null);
+      } catch (error) {
+        console.error('Error setting processing month:', error);
+        setError(error.response?.data?.message || 'Error setting processing month');
+      }
     }
   };
 
@@ -43,6 +89,8 @@ const AppManagement = () => {
   return (
     <div className="app-management-container">
       <div className="white-card">
+        {error && <div className="error-message">{error}</div>}
+        
         <div className="app-management-header">
           <h1>App Management</h1>
           <p className="subtitle">
@@ -62,7 +110,9 @@ const AppManagement = () => {
 
           <h2>Current Processing Month</h2>
           <div className="processing-month-value">
-            {month} {year}
+            {currentProcessingMonth 
+              ? `${currentProcessingMonth.month} ${currentProcessingMonth.year}`
+              : 'Not configured'}
           </div>
         </div>
 
@@ -95,7 +145,6 @@ const AppManagement = () => {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       {showConfirmation && (
         <div className="modal-overlay">
           <div className="modal">
@@ -103,7 +152,7 @@ const AppManagement = () => {
               <h3>Confirmation Required</h3>
               
               <div className="warning">
-                <p>Warning: Processing month will be set to <strong>{month} {year}</strong>. It cannot be change after it has been configured.</p>
+                <p>Warning: Processing month will be set to <strong>{month} {year}</strong>. It cannot be changed after it has been configured.</p>
               </div>
               
               <div className="confirmation-checkbox">
