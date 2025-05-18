@@ -47,6 +47,7 @@ const SiteManagement = () => {
    * @returns {Promise<object>} - Response data from the API
    */
   const manageSite = async (operation, data) => {
+    
     setError(null);
     
     if (operation === 'getAll') {
@@ -208,13 +209,13 @@ const SiteManagement = () => {
   const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
       const clientName = clients.find(c => c.id == selectedClientId)?.name;
-      
+  
       const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
       const lobName = selectedLob ? selectedLob.name : null;
-      
+  
       const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
       const subLobName = selectedSubLob ? selectedSubLob.name : null;
-      
+  
       let confirmMessage = "";
       if (lobName && subLobName) {
         confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" to site "${selectedSite.name}"?`;
@@ -223,39 +224,30 @@ const SiteManagement = () => {
       } else {
         confirmMessage = `Are you sure you want to add client "${clientName}" with all its LOBs and Sub LOBs to site "${selectedSite.name}"?`;
       }
-      
+  
       if (!window.confirm(confirmMessage)) return;
-      
+  
       try {
-        await manageSite('addClientToSite', { 
-          clientId: parseInt(selectedClientId), 
+        await manageSite('addClientToSite', {
+          clientId: parseInt(selectedClientId),
           siteId: parseInt(selectedSite.id),
           lobName: lobName,
           subLobName: subLobName
         });
-        
-        let successMessage = "";
-        if (lobName && subLobName) {
-          successMessage = `Client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" has been added to site "${selectedSite.name}"`;
-        } else if (lobName) {
-          successMessage = `Client "${clientName}" with LOB "${lobName}" and all its Sub LOBs has been added to site "${selectedSite.name}"`;
-        } else {
-          successMessage = `Client "${clientName}" with all its LOBs and Sub LOBs has been added to site "${selectedSite.name}"`;
-        }
-        
-        alert(successMessage);
-        
+  
+        alert(`Client "${clientName}" successfully added to site "${selectedSite.name}"`);
+  
         setSelectedClientId('');
         setSelectedLobId('');
         setSelectedSubLobId('');
         setClientLobs([]);
         setClientSubLobs([]);
-        
+  
         await fetchSiteClients();
         await fetchSites();
         await fetchExistingAssignments(selectedSite.id);
       } catch (error) {
-        // Error handling
+        console.error('Error adding client to site:', error);
       }
     }
   };
@@ -313,16 +305,25 @@ const SiteManagement = () => {
    */
   const getAvailableClients = (siteId) => {
     const numericSiteId = parseInt(siteId);
-    
+  
     return clients.filter(client => {
-      const relevantCombinations = siteClients.filter(sc => 
-        parseInt(sc.siteId) === numericSiteId && 
+      const clientLobs = siteClients.filter(sc =>
+        parseInt(sc.siteId) === numericSiteId &&
         parseInt(sc.clientId) === parseInt(client.id)
       );
-      
-      const assignedCombinations = relevantCombinations.map(sc => `${sc.lobName}-${sc.subLobName}`);
-      
-      return true;
+  
+      const unassignedLobs = clientLobs.some(sc => {
+        const lob = clientLobs.find(l => l.name === sc.lobName);
+        if (!lob) return true;
+  
+        const assignedSubLobs = siteClients
+          .filter(sc => sc.lobName === lob.name && sc.siteId === numericSiteId)
+          .map(sc => sc.subLobName);
+  
+        return lob.subLobs.some(subLob => !assignedSubLobs.includes(subLob.name));
+      });
+  
+      return unassignedLobs || clientLobs.length === 0;
     });
   };
   
@@ -337,25 +338,25 @@ const SiteManagement = () => {
         setClientSubLobs([]);
         return;
       }
-
+  
       const response = await manageSite('getClientLobs', { clientId });
       const allLobs = response.lobs || [];
-      
+  
       // Filter out LOBs and Sub LOBs that are already assigned to the selected site
       const filteredLobs = allLobs.map(lob => {
         const existingSubLobs = existingAssignments
-          .filter(assignment => 
+          .filter(assignment =>
             assignment.dClientName === clients.find(c => c.id == clientId)?.name &&
             assignment.dLOB === lob.name
           )
           .map(assignment => assignment.dSubLOB);
-
+  
         return {
           ...lob,
           subLobs: lob.subLobs.filter(subLob => !existingSubLobs.includes(subLob.name))
         };
-      }).filter(lob => lob.subLobs.length > 0);
-
+      }).filter(lob => lob.subLobs.length > 0 || !existingAssignments.some(assignment => assignment.dLOB === lob.name));
+  
       setClientLobs(filteredLobs);
       setClientSubLobs([]);
       setSelectedLobId('');
@@ -407,11 +408,13 @@ const SiteManagement = () => {
         setExistingAssignments([]);
         return;
       }
-      
+  
       const response = await manageSite('getExistingAssignments', { 
-        siteId: parseInt(siteId)
+        siteId: parseInt(siteId) // Ensure siteId is a valid number
       });
-      
+
+      console.log('Fetching existing assignments for siteId:', siteId);
+  
       if (response && response.assignments) {
         setExistingAssignments(response.assignments);
       } else {

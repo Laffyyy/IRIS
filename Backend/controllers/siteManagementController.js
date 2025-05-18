@@ -255,69 +255,22 @@ class SiteManagementController {
         }
     }
 
-    async manageSite(req, res) {
+    async getExistingAssignments(req, res) {
         try {
-            const { operation, ...data } = req.body;
-            
-            switch (operation) {
-                case 'getAll':
-                    const sites = await this.SiteManagementService.getAllSites();
-                    res.json({ sites });
-                    break;
-                    
-                case 'getClients':
-                    const clients = await this.SiteManagementService.getAllClients();
-                    res.json({ clients });
-                    break;
-                    
-                case 'getSiteClients':
-                    const siteClients = await this.SiteManagementService.getSiteClients();
-                    res.json({ siteClients });
-                    break;
-                    
-                case 'getClientLobs':
-                    const lobs = await this.SiteManagementService.getClientLobs(data.clientId);
-                    res.json({ lobs });
-                    break;
-                    
-                case 'getExistingAssignments':
-                    const assignments = await this.SiteManagementService.getExistingAssignments(data.siteId);
-                    res.json({ assignments });
-                    break;
-                    
-                case 'add':
-                    const result = await this.SiteManagementService.addSite(data.siteName, data.userID);
-                    res.json({ siteId: result.insertId });
-                    break;
-                    
-                case 'edit':
-                    await this.SiteManagementService.editSite(data.siteId, data.siteName, data.updateClientSiteTable);
-                    res.json({ message: 'Site updated successfully' });
-                    break;
-                    
-                case 'delete':
-                    await this.SiteManagementService.deleteSite(data.siteId);
-                    res.json({ message: 'Site deleted successfully' });
-                    break;
-                    
-                case 'addClientToSite':
-                    await this.SiteManagementService.addClientToSite(data.clientId, data.siteId, data.lobName, data.subLobName);
-                    res.json({ message: 'Client added to site successfully' });
-                    break;
-                    
-                case 'removeClientFromSite':
-                    await this.SiteManagementService.removeClientFromSite(data.clientId);
-                    res.json({ message: 'Client removed from site successfully' });
-                    break;
-                    
-                default:
-                    res.status(400).json({ error: 'Invalid operation' });
+            const { siteId } = req.body;
+    
+            if (!siteId) {
+                return res.status(400).json({ message: 'Site ID is required' });
             }
+    
+            const assignments = await this.SiteManagementService.getExistingAssignments(siteId);
+            res.status(200).json({ assignments });
         } catch (error) {
-            console.error('Error in siteManagementController:', error);
-            res.status(500).json({ error: error.message });
+            console.error('Error in getExistingAssignments:', error);
+            res.status(500).json({ message: 'Failed to fetch existing assignments', error: error.message });
         }
     }
+
 }
 
 module.exports = SiteManagementController;

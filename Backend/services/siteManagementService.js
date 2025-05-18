@@ -266,20 +266,20 @@ class SiteManagementService {
         }
       }
 
-    async getExistingAssignments(siteId) {
+      async getExistingAssignments(siteId) {
         try {
-            const [assignments] = await db.query(
-                `SELECT DISTINCT dClientName, dLOB, dSubLOB 
-                FROM tbl_clientsite 
-                WHERE dSite_ID = ?`,
-                [siteId]
-            );
-            return assignments;
+          const [assignments] = await db.query(
+            `SELECT DISTINCT dClientName, dLOB, dSubLOB 
+             FROM tbl_clientsite 
+             WHERE dSite_ID = ?`,
+            [siteId]
+          );
+          return assignments;
         } catch (error) {
-            console.error('Error in SiteManagementService.getExistingAssignments:', error);
-            return [];
+          console.error('Error in SiteManagementService.getExistingAssignments:', error);
+          return [];
         }
-    }
+      }
 
     async getClientLobs(clientId) {
         try {

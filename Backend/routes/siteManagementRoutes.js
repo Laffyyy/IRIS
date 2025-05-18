@@ -29,11 +29,13 @@ router.post('/manage', (req, res) => {
         return siteManagementController.updateClientSite(req, res);
       case 'getClientLobs':
         return siteManagementController.getClientLobs(req, res);
+      case 'getExistingAssignments': // Add this case
+        return siteManagementController.getExistingAssignments(req, res);
       default:
         return res.status(400).json({ 
-            message: 'Invalid operation type. Valid operations include "add", "edit", "delete", "getAll", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", and "updateClientSite"' 
+            message: 'Invalid operation type. Valid operations include "add", "edit", "delete", "getAll", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", "updateClientSite", "getClientLobs", and "getExistingAssignments"' 
         });
     }
-  });
+});
 
 module.exports = router;
