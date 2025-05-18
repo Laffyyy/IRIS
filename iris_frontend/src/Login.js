@@ -99,7 +99,7 @@ const [passwords, setPasswords] = useState({
         localStorage.setItem('password', password);
         navigate('/otp'); 
       } else {
-        alert(`Error: ${data.message}`);
+        alert(`Error: ${data.error}`);
         console.error('Error:', data);
       }
     } catch (error) {
