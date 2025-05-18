@@ -209,53 +209,91 @@ class SiteManagementService {
         }
     }
 
-    async removeClientFromSite(clientId) {
+    async removeClientFromSite(clientSiteId) {
         try {
-            // Delete the client from tbl_clientsite instead of just setting fields to null
-            const [result] = await db.query(
-                'DELETE FROM tbl_clientsite WHERE dClient_ID = ?',
-                [clientId]
-            );
-            
-            return result;
-        } catch (error) {
-            console.error('Error in SiteManagementService.removeClientFromSite:', error);
-            throw error;
-        }
-    }
-
-    async updateClientSite(clientId, clientName, siteId) {
-        try {
-            // First, get the site name for the selected site
-            const [siteResult] = await db.query(
-                'SELECT dSiteName FROM tbl_site WHERE dSite_ID = ?',
-                [siteId]
-            );
-            
-            if (siteResult.length === 0) {
-                throw new Error('Site not found');
-            }
-            
-            const siteName = siteResult[0].dSiteName;
-            
-            // Update the client name and site assignment
-            const [result] = await db.query(
-                'UPDATE tbl_clientsite SET dClientName = ?, dSite_ID = ?, dSiteName = ? WHERE dClient_ID = ?',
-                [clientName, siteId, siteName, clientId]
-            );
-            
-            return result;
-        } catch (error) {
-            console.error('Error in SiteManagementService.updateClientSite:', error);
-            throw error;
-        }
-    }
-
-    async getSiteClients() {
-        try {
-          // Include LOB and SubLOB data
+          // Use clientSiteId instead of clientId
           const [result] = await db.query(
-            'SELECT DISTINCT dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB FROM tbl_clientsite WHERE dSite_ID IS NOT NULL'
+            'DELETE FROM tbl_clientsite WHERE dClientSite_ID = ?',
+            [clientSiteId]
+          );
+          
+          return result;
+        } catch (error) {
+          console.error('Error in SiteManagementService.removeClientFromSite:', error);
+          throw error;
+        }
+    }
+
+    async updateClientSite(clientSiteId, clientId, siteId, lobName = null, subLobName = null) {
+        try {
+          // First, get the site name for the selected site
+          const [siteResult] = await db.query(
+            'SELECT dSiteName FROM tbl_site WHERE dSite_ID = ?',
+            [siteId]
+          );
+          
+          if (siteResult.length === 0) {
+            throw new Error('Site not found');
+          }
+          
+          const siteName = siteResult[0].dSiteName;
+          
+          // Get client name
+          const [clientResult] = await db.query(
+            'SELECT dClientName FROM tbl_clientlob WHERE dClient_ID = ? LIMIT 1',
+            [clientId]
+          );
+          
+          if (clientResult.length === 0) {
+            throw new Error('Client not found');
+          }
+          
+          const clientName = clientResult[0].dClientName;
+          
+          // Update the client-site assignment
+          let query = 'UPDATE tbl_clientsite SET dClient_ID = ?, dClientName = ?, dSite_ID = ?, dSiteName = ?';
+          let params = [clientId, clientName, siteId, siteName];
+          
+          // Add LOB and Sub LOB if provided
+          if (lobName !== null) {
+            query += ', dLOB = ?';
+            params.push(lobName);
+          }
+          
+          if (subLobName !== null) {
+            query += ', dSubLOB = ?';
+            params.push(subLobName);
+          }
+          
+          query += ' WHERE dClientSite_ID = ?';
+          params.push(clientSiteId);
+          
+          const [result] = await db.query(query, params);
+          
+          return result;
+        } catch (error) {
+          console.error('Error in SiteManagementService.updateClientSite:', error);
+          throw error;
+        }
+      }
+
+      async getSiteClients() {
+        try {
+          // First, update any rows that have dClientName but no dClient_ID
+          await db.query(`
+            UPDATE tbl_clientsite cs
+            JOIN (
+              SELECT DISTINCT dClient_ID, dClientName 
+              FROM tbl_clientlob 
+              WHERE dClient_ID IS NOT NULL
+            ) cl ON cs.dClientName = cl.dClientName
+            SET cs.dClient_ID = cl.dClient_ID
+            WHERE cs.dClient_ID IS NULL
+          `);
+          
+          // Then retrieve all records with the updated data
+          const [result] = await db.query(
+            'SELECT DISTINCT dClientSite_ID, dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
           );
           
           return result;

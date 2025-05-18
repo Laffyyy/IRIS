@@ -162,17 +162,17 @@ class SiteManagementController {
 
     async removeClientFromSite(req, res) {
         try {
-            const { clientId } = req.body;
+            const { clientSiteId } = req.body; // Change from clientId to clientSiteId
             
             // Validate input
-            if (!clientId) {
+            if (!clientSiteId) {
                 return res.status(400).json({ 
-                    message: 'Client ID is required' 
+                    message: 'Client Site ID is required' 
                 });
             }
             
             // Call the service to remove the client's site assignment
-            const result = await this.SiteManagementService.removeClientFromSite(clientId);
+            const result = await this.SiteManagementService.removeClientFromSite(clientSiteId);
             
             // Return success response
             res.status(200).json({ 
@@ -190,29 +190,30 @@ class SiteManagementController {
 
     async updateClientSite(req, res) {
         try {
-            const { clientId, clientName, siteId } = req.body;
-            
-            if (!clientId || !clientName || !siteId) {
-                return res.status(400).json({ 
-                    message: 'Client ID, Client Name and Site ID are required' 
-                });
-            }
-            
-            const result = await this.SiteManagementService.updateClientSite(
-                clientId, clientName, siteId);
-            
-            res.status(200).json({ 
-                message: 'Client-site assignment updated successfully',
-                affectedRows: result.affectedRows
+          const { clientSiteId, clientId, siteId, lobName, subLobName } = req.body;
+          
+          if (!clientSiteId || !siteId) {
+            return res.status(400).json({ 
+              message: 'Client Site ID and Site ID are required' 
             });
+          }
+          
+          const result = await this.SiteManagementService.updateClientSite(
+            clientSiteId, clientId, siteId, lobName, subLobName
+          );
+          
+          res.status(200).json({ 
+            message: 'Client-site assignment updated successfully',
+            affectedRows: result.affectedRows
+          });
         } catch (error) {
-            console.error('Error updating client-site assignment:', error);
-            res.status(500).json({ 
-                message: 'Failed to update client-site assignment', 
-                error: error.message 
-            });
+          console.error('Error updating client-site assignment:', error);
+          res.status(500).json({ 
+            message: 'Failed to update client-site assignment', 
+            error: error.message 
+          });
         }
-    }
+      }
 
     async getSiteClients(req, res) {
         try {

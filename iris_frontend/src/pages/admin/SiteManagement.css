@@ -367,3 +367,24 @@ td:last-child {
 .existing-sites-table tr:nth-child(even) {
   background-color: #f9f9f9;
 }
+
+.required-field {
+  color: #e53e3e;
+  margin-left: 3px;
+}
+
+.validation-error {
+  border: 1px solid #e53e3e !important;
+  background-color: #fff5f5;
+}
+
+.validation-warning {
+  border: 1px solid #ecc94b;
+  background-color: #fffff0;
+}
+
+.error-message {
+  color: #e53e3e;
+  font-size: 12px;
+  margin-top: 4px;
+}

@@ -17,6 +17,15 @@ const SiteManagement = () => {
   const [selectedLobId, setSelectedLobId] = useState('');
   const [selectedSubLobId, setSelectedSubLobId] = useState('');
   const [existingAssignment, setExistingAssignment] = useState(null);
+
+  const [clientSiteEditModalOpen, setClientSiteEditModalOpen] = useState(false);
+  const [currentClientSite, setCurrentClientSite] = useState(null);
+  const [editClientLobs, setEditClientLobs] = useState([]);
+  const [editClientSubLobs, setEditClientSubLobs] = useState([]);
+  const [editSelectedClientId, setEditSelectedClientId] = useState('');
+  const [editSelectedSiteId, setEditSelectedSiteId] = useState('');
+  const [editSelectedLobId, setEditSelectedLobId] = useState('');
+  const [editSelectedSubLobId, setEditSelectedSubLobId] = useState('');
   
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentSite, setCurrentSite] = useState(null);
@@ -113,14 +122,17 @@ const SiteManagement = () => {
   const fetchClients = async () => {
     try {
       const data = await manageSite('getClients', {});
+      console.log('Fetched clients data:', data?.clients);
+      
       if (data?.clients) {
         setClients(data.clients.map(client => ({
           id: client.dClient_ID,
           name: client.dClientName
         })));
+        console.log('Mapped clients:', clients);
       }
     } catch (error) {
-      // Error handling
+      console.error('Error fetching clients:', error);
     }
   };
 
@@ -134,11 +146,14 @@ const SiteManagement = () => {
       if (data?.siteClients) {
         setSiteClients(data.siteClients.map(sc => ({
           dClientSite_ID: sc.dClientSite_ID,
+          dClient_ID: sc.dClient_ID,  // Make sure this field is included
           dClientName: sc.dClientName,
           dLOB: sc.dLOB,
           dSubLOB: sc.dSubLOB,
+          dSite_ID: sc.dSite_ID,  // Make sure this field is included
           dSiteName: sc.dSiteName,
         })));
+        console.log("Fetched site clients:", data.siteClients); // For debugging
       }
     } catch (error) {
       console.error('Error fetching site clients:', error);
@@ -255,18 +270,26 @@ const SiteManagement = () => {
    * @param {number} clientId - The ID of the client to remove
    * @param {string} clientName - The name of the client (for display purposes)
    */
-  const handleRemoveClient = async (clientId, clientName) => {
+  const handleRemoveClient = async (clientSiteId, clientName) => {
+    if (!window.confirm(`Are you sure you want to remove "${clientName}" from this site?`)) {
+      return;
+    }
+    
     try {
-      await manageSite('removeClientFromSite', { clientId });
+      // Update the parameter name to match what the backend expects
+      await manageSite('removeClientFromSite', { clientSiteId });
       
-      setSiteClients(siteClients.filter(sc => !(sc.clientId === clientId)));
+      // Update local state
+      setSiteClients(siteClients.filter(sc => sc.dClientSite_ID !== clientSiteId));
       
+      // Refresh data
       fetchSites();
       fetchSiteClients();
       
       alert(`Client "${clientName}" successfully removed from site`);
     } catch (error) {
-      // Error handling
+      console.error('Error removing client from site:', error);
+      alert('Error removing client from site');
     }
   };
 
@@ -423,6 +446,273 @@ const SiteManagement = () => {
     } catch (error) {
       console.error('Error fetching existing assignments:', error);
       setExistingAssignments([]);
+    }
+  };
+
+  /**
+   * Opens the edit modal for a client-site assignment
+   * @param {object} clientSite - The client-site object to edit
+   */
+  const handleEditClientSite = async (clientSite) => {
+    console.log("Editing client-site:", clientSite);
+    
+    // Set the current client-site being edited
+    setCurrentClientSite(clientSite);
+    
+    // Set the selected site ID - ensure it's a number
+    const siteId = typeof clientSite.dSite_ID === 'string' ? parseInt(clientSite.dSite_ID) : clientSite.dSite_ID;
+    setEditSelectedSiteId(siteId);
+  
+    // Find the matching client using the client name as a fallback
+    let clientToUse = null;
+    
+    // First, try to find by client ID if available
+    if (clientSite.dClient_ID) {
+      const clientId = typeof clientSite.dClient_ID === 'string' ? parseInt(clientSite.dClient_ID) : clientSite.dClient_ID;
+      clientToUse = clients.find(c => c.id === clientId);
+    }
+    
+    // If not found by ID, try to find by name
+    if (!clientToUse) {
+      clientToUse = clients.find(c => c.name === clientSite.dClientName);
+    }
+  
+    console.log("Client to use:", clientToUse);
+    
+    // Set the selected client ID (if available)
+    if (clientToUse) {
+      setEditSelectedClientId(clientToUse.id.toString()); // Convert to string to ensure consistent comparison
+      
+      // Set LOB and Sub LOB if they exist
+      if (clientSite.dLOB) {
+        try {
+          await fetchClientLobsForEdit(clientToUse.id, clientSite.dLOB, clientSite.dSubLOB);
+        } catch (error) {
+          console.error("Error fetching LOBs for edit:", error);
+        }
+      } else {
+        setEditClientLobs([]);
+        setEditClientSubLobs([]);
+        setEditSelectedLobId('');
+        setEditSelectedSubLobId('');
+      }
+    } else {
+      console.error("Could not find client for:", clientSite.dClientName);
+      setEditSelectedClientId('');
+      setEditClientLobs([]);
+      setEditClientSubLobs([]);
+      setEditSelectedLobId('');
+      setEditSelectedSubLobId('');
+    }
+    
+    // Open the modal
+    setClientSiteEditModalOpen(true);
+  };
+
+  /**
+   * Fetches LOBs for a client when editing
+   * @param {number} clientId - The client ID
+   * @param {string} initialLob - The initial LOB to select
+   * @param {string} initialSubLob - The initial Sub LOB to select
+   */
+  const fetchClientLobsForEdit = async (clientId, initialLob = null, initialSubLob = null) => {
+    try {
+      if (!clientId) {
+        setEditClientLobs([]);
+        setEditClientSubLobs([]);
+        return;
+      }
+  
+      console.log("Fetching LOBs for client:", clientId, "Initial LOB:", initialLob, "Initial Sub LOB:", initialSubLob);
+      
+      const response = await manageSite('getClientLobs', { clientId });
+      const allLobs = response.lobs || [];
+      console.log("Retrieved LOBs:", allLobs);
+      
+      setEditClientLobs(allLobs);
+      
+      // Handle initial LOB selection
+      if (initialLob && allLobs.length > 0) {
+        // First try exact match
+        let selectedLob = allLobs.find(lob => lob.name === initialLob);
+        
+        // If not found, try case-insensitive match
+        if (!selectedLob) {
+          selectedLob = allLobs.find(lob => 
+            lob.name.toLowerCase() === initialLob.toLowerCase()
+          );
+        }
+        
+        // If still not found, try trimmed match
+        if (!selectedLob) {
+          selectedLob = allLobs.find(lob => 
+            lob.name.trim() === initialLob.trim()
+          );
+        }
+        
+        if (selectedLob) {
+          console.log("Selected LOB:", selectedLob);
+          setEditSelectedLobId(selectedLob.id);
+          
+          // Set initial Sub LOB if available
+          if (initialSubLob && selectedLob.subLobs && selectedLob.subLobs.length > 0) {
+            // First try exact match
+            let selectedSubLob = selectedLob.subLobs.find(
+              subLob => subLob.name === initialSubLob
+            );
+            
+            // If not found, try case-insensitive match
+            if (!selectedSubLob) {
+              selectedSubLob = selectedLob.subLobs.find(
+                subLob => subLob.name.toLowerCase() === initialSubLob.toLowerCase()
+              );
+            }
+            
+            // If still not found, try trimmed match
+            if (!selectedSubLob) {
+              selectedSubLob = selectedLob.subLobs.find(
+                subLob => subLob.name.trim() === initialSubLob.trim()
+              );
+            }
+            
+            if (selectedSubLob) {
+              console.log("Selected Sub LOB:", selectedSubLob);
+              setEditSelectedSubLobId(selectedSubLob.id);
+            } else {
+              console.log("Sub LOB not found:", initialSubLob);
+              setEditSelectedSubLobId('');
+            }
+            
+            setEditClientSubLobs(selectedLob.subLobs);
+          } else {
+            setEditClientSubLobs([]);
+            setEditSelectedSubLobId('');
+          }
+        } else {
+          console.log("LOB not found:", initialLob);
+          setEditSelectedLobId('');
+          setEditClientSubLobs([]);
+          setEditSelectedSubLobId('');
+        }
+      } else {
+        setEditSelectedLobId('');
+        setEditClientSubLobs([]);
+        setEditSelectedSubLobId('');
+      }
+    } catch (error) {
+      console.error('Error fetching client LOBs for edit:', error);
+      setEditClientLobs([]);
+      setEditClientSubLobs([]);
+      setEditSelectedLobId('');
+      setEditSelectedSubLobId('');
+    }
+  };
+
+  /**
+   * Handles client dropdown change in the edit modal
+   */
+  const handleEditClientChange = (e) => {
+    const clientId = e.target.value;
+    setEditSelectedClientId(clientId);
+    setEditSelectedLobId('');
+    setEditSelectedSubLobId('');
+    setEditClientSubLobs([]);
+    
+    if (clientId) {
+      fetchClientLobsForEdit(clientId);
+    } else {
+      setEditClientLobs([]);
+    }
+  };
+
+  /**
+   * Handles LOB dropdown change in the edit modal
+   */
+  const handleEditLobChange = (e) => {
+    const lobId = e.target.value;
+    setEditSelectedLobId(lobId);
+    setEditSelectedSubLobId('');
+    
+    if (lobId) {
+      const selectedLob = editClientLobs.find(lob => lob.id === lobId);
+      if (selectedLob && Array.isArray(selectedLob.subLobs)) {
+        setEditClientSubLobs(selectedLob.subLobs);
+      } else {
+        setEditClientSubLobs([]);
+      }
+    } else {
+      setEditClientSubLobs([]);
+    }
+  };
+
+  /**
+   * Handles Sub LOB dropdown change in the edit modal
+   */
+  const handleEditSubLobChange = (e) => {
+    setEditSelectedSubLobId(e.target.value);
+  };
+
+  /**
+   * Saves changes to a client-site assignment
+   */
+  const handleSaveClientSite = async () => {
+    // Reset any previous warnings
+    let hasErrors = false;
+    let warningMessage = '';
+  
+    if (!editSelectedSiteId) {
+      warningMessage += '• Site is required\n';
+      hasErrors = true;
+    }
+  
+    if (!editSelectedClientId) {
+      warningMessage += '• Client is required\n';
+      hasErrors = true;
+    }
+  
+    if (!editSelectedLobId && editClientLobs.length > 0) {
+      warningMessage += '• LOB is recommended\n';
+    }
+  
+    if (!editSelectedSubLobId && editClientSubLobs.length > 0) {
+      warningMessage += '• Sub LOB is recommended\n';
+    }
+  
+    if (hasErrors) {
+      alert('Please correct the following issues:\n\n' + warningMessage);
+      return;
+    }
+  
+    try {
+      const selectedClient = clients.find(c => c.id == editSelectedClientId);
+      const selectedSite = sites.find(s => s.id == editSelectedSiteId);
+      
+      const selectedLob = editClientLobs.find(lob => lob.id === editSelectedLobId);
+      const lobName = selectedLob ? selectedLob.name : null;
+      
+      const selectedSubLob = editClientSubLobs.find(subLob => subLob.id === editSelectedSubLobId);
+      const subLobName = selectedSubLob ? selectedSubLob.name : null;
+      
+      // Call API to update the client-site assignment
+      await manageSite('updateClientSite', {
+        clientSiteId: currentClientSite.dClientSite_ID,
+        clientId: editSelectedClientId,
+        siteId: editSelectedSiteId,
+        lobName: lobName,
+        subLobName: subLobName
+      });
+  
+      // Refresh the table
+      await fetchSiteClients();
+      
+      // Close the modal
+      setClientSiteEditModalOpen(false);
+      setCurrentClientSite(null);
+      
+      alert('Client-site assignment updated successfully');
+    } catch (error) {
+      console.error('Error updating client-site assignment:', error);
+      alert('Error updating client-site assignment');
     }
   };
 
@@ -639,7 +929,7 @@ const SiteManagement = () => {
                     <div className="action-buttons">
                       <button
                         className="edit-btn"
-                        onClick={() => handleEditClick(clientSite)}
+                        onClick={() => handleEditClientSite(clientSite)}
                       >
                         <FaPencilAlt size={12} /> Edit
                       </button>
@@ -702,6 +992,124 @@ const SiteManagement = () => {
       </div>
     </div>
   )}
+
+    {clientSiteEditModalOpen && currentClientSite && (
+      <div className="modal-overlay">
+        <div className="modal edit-clientsite-modal">
+          <div className="modal-header">
+            <h2>Edit Client-Site Assignment</h2>
+            <button 
+              onClick={() => {
+                setClientSiteEditModalOpen(false);
+                setCurrentClientSite(null);
+              }} 
+              className="close-btn"
+            >
+              <FaTimes />
+            </button>
+          </div>
+
+          <div className="form-row">
+          <div className="form-group">
+            <label>Select Site <span className="required-field">*</span></label>
+            <select
+              value={editSelectedSiteId}
+              onChange={(e) => setEditSelectedSiteId(e.target.value)}
+              className={!editSelectedSiteId ? "validation-error" : ""}
+            >
+              <option value="">Select a site</option>
+              {sites.map(site => (
+                <option key={site.dSite_ID} value={site.dSite_ID}>
+                  {site.dSiteName}
+                </option>
+              ))}
+            </select>
+            {!editSelectedSiteId && <div className="error-message">Site is required</div>}
+          </div>
+          
+          <div className="form-group">
+            <label>Select Client <span className="required-field">*</span></label>
+            <select
+              value={editSelectedClientId}
+              onChange={handleEditClientChange}
+              className={!editSelectedClientId ? "validation-error" : ""}
+            >
+              <option value="">Select a client</option>
+              {clients.map(client => (
+                <option key={client.id} value={client.id.toString()}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+            {!editSelectedClientId && <div className="error-message">Client is required</div>}
+          </div>
+        </div>
+
+        <div className="form-row">
+        <div className="form-group">
+          <label>Select LOB</label>
+          <select
+            value={editSelectedLobId}
+            onChange={handleEditLobChange}
+            disabled={!editSelectedClientId}
+            className={editSelectedClientId && !editSelectedLobId && editClientLobs.length > 0 ? "validation-warning" : ""}
+          >
+            <option value="">Select a LOB</option>
+            {Array.isArray(editClientLobs) && editClientLobs.length > 0 ? (
+              editClientLobs.map(lob => (
+                <option key={lob.id} value={lob.id}>
+                  {lob.name}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>No LOBs available</option>
+            )}
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label>Select Sub LOB</label>
+          <select
+            value={editSelectedSubLobId}
+            onChange={handleEditSubLobChange}
+            disabled={!editSelectedLobId}
+            className={editSelectedLobId && !editSelectedSubLobId && editClientSubLobs.length > 0 ? "validation-warning" : ""}
+          >
+            <option value="">Select a Sub LOB</option>
+            {Array.isArray(editClientSubLobs) && editClientSubLobs.length > 0 ? (
+              editClientSubLobs.map(subLob => (
+                <option key={subLob.id} value={subLob.id}>
+                  {subLob.name}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>No Sub LOBs available</option>
+            )}
+          </select>
+        </div>
+      </div>
+
+          <div className="modal-actions">
+            <button 
+              onClick={() => {
+                setClientSiteEditModalOpen(false);
+                setCurrentClientSite(null);
+              }} 
+              className="cancel-btn"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSaveClientSite} 
+              className="save-btn"
+              disabled={!editSelectedSiteId || !editSelectedClientId}
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 };
