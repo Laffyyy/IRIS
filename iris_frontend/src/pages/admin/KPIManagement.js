@@ -43,7 +43,22 @@ const KPIManagement = () => {
   if (editingKpi) {
     handleUpdateKpi();
   } else {
-    handleAddKpi();
+    // Add to preview by appending to existing array
+    setIndividualPreview([
+      ...individualPreview,
+      {
+        name: kpiName,
+        category: category,
+        behavior: behavior,
+        description: description
+      }
+    ]);
+    // Clear form for next entry
+    setKpiName('');
+    setCategory('');
+    setBehavior('');
+    setDescription('');
+    setDescriptionCount(0);
   }
 };
 
@@ -137,15 +152,17 @@ const KPIManagement = () => {
 
   const handleAddKpi = async () => {
     try {
-      if (kpiName.trim() && category && behavior) {
+      // Create array of promises for each KPI
+      const promises = individualPreview.map(kpi => {
         const kpiData = {
-          dKPI_Name: kpiName,
-          dCategory: category,
-          dCalculationBehavior: behavior,
-          dDescription: description
+          dKPI_Name: kpi.name,
+          dCategory: kpi.category,
+          dCalculationBehavior: kpi.behavior,
+          dDescription: kpi.description,
+          dCreatedBy: '2505170018'
         };
 
-        const response = await fetch('http://localhost:3000/api/kpis', {
+        return fetch('http://localhost:3000/api/kpis', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -153,28 +170,24 @@ const KPIManagement = () => {
           },
           body: JSON.stringify(kpiData)
         });
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Server error: ${response.status}`);
-        }
+      // Wait for all KPIs to be created
+      await Promise.all(promises);
 
-        // Get the newly created KPI
-        const createdKpi = await response.json();
+      // Fetch updated KPI list
+      const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+      const updatedKpis = await refreshResponse.json();
+      setKpis(updatedKpis);
 
-        // Fetch updated KPI list to ensure we have the latest data
-        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        const updatedKpis = await refreshResponse.json();
-        setKpis(updatedKpis);
+      // Reset form and preview
+      resetForm();
+      setActiveTab('viewKPIs');
+      alert('KPIs added successfully!');
 
-        // Reset form and switch to view tab
-        resetForm();
-        setActiveTab('viewKPIs');
-        alert('KPI added successfully!');
-      }
     } catch (error) {
       console.error('Error details:', error);
-      alert(`Failed to add KPI: ${error.message}`);
+      alert(`Failed to add KPIs: ${error.message}`);
     }
   };
 
@@ -348,8 +361,8 @@ const KPIManagement = () => {
     setIndividualPreview([]);
   };
 
-  const removeIndividualPreview = () => {
-    setIndividualPreview([]);
+  const removeFromPreview = (index) => {
+  setIndividualPreview(individualPreview.filter((_, i) => i !== index));
   };
 
   return (
@@ -477,7 +490,10 @@ const KPIManagement = () => {
                             <td>{kpi.behavior}</td>
                             <td>{kpi.description}</td>
                             <td>
-                              <button onClick={removeIndividualPreview} className="delete-btn">
+                              <button 
+                                onClick={() => removeFromPreview(index)} 
+                                className="delete-btn"
+                              >
                                 <FaTrash size={12} /> Delete
                               </button>
                             </td>
