@@ -41,17 +41,8 @@ class OtpService {
             );
         }
 
-        // Retrieve the user's email
-        const [userRows] = await db.query(
-            'SELECT dEmail FROM tbl_login WHERE dUser_ID = ?',
-            [userID]
-        );
-
-        if (userRows.length === 0) {
-            throw new Error('User email not found');
-        }
-
-        const userEmail = userRows[0].dEmail;
+        // Retrieve the user's email using the helper function
+        const userEmail = await this.getUserEmail(userID);
 
         // Send the OTP to the user's email
         const mailOptions = {
@@ -114,19 +105,31 @@ class OtpService {
 }
 
   async getUserEmail(userID) {
-    try {
-      const [rows] = await db.query(
-        "SELECT dEmail FROM tbl_login WHERE dUser_ID = ?",
-        [userID]
-      );
-      if (rows.length === 0) {
-        throw new Error("User not found");
-      }
+  try {
+    // Check tbl_login first
+    let [rows] = await db.query(
+      "SELECT dEmail FROM tbl_login WHERE dUser_ID = ?",
+      [userID]
+    );
+    if (rows.length > 0 && rows[0].dEmail) {
       return rows[0].dEmail;
-    } catch (error) {
-      throw error;
     }
+
+    // If not found, check tbl_admin
+    [rows] = await db.query(
+      "SELECT dEmail FROM tbl_admin WHERE dUser_ID = ?",
+      [userID]
+    );
+    if (rows.length > 0 && rows[0].dEmail) {
+      return rows[0].dEmail;
+    }
+
+    throw new Error("User email not found");
+  } catch (error) {
+    throw error;
   }
+}
+
 }
 
 module.exports = OtpService;

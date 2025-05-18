@@ -26,6 +26,7 @@ class LoginService {
             if (adminRows.length > 0) {
                 user = adminRows[0];
                 table = 'tbl_admin';
+                user.dUser_Type = 'admin'; // Set user type for admin
             }
         }
 

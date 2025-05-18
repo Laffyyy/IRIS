@@ -13,6 +13,9 @@ import Otp from './Otp';
 import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
+import  ProtectedRoute  from './utilities/ProtectedRoute';
+import Unauthorize from './utilities/Unautorize';
+import AdminPage from './adminpagecollection';
 
 function App() {
   return (
@@ -33,16 +36,19 @@ function App() {
               <Sidebar />
               <main className="main-content">
                 <Routes>
-                  <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="admin/users" element={<UserManagement />} />
-                  <Route path="admin/apps" element={<AppManagement />} />
-                  <Route path="admin/clients" element={<ClientManagement />} />
-                  <Route path="admin/sites" element={<SiteManagement />} />
-                  <Route path="admin/kpis" element={<KPIManagement />} />
+                <Route
+                  path="admin/*"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  }
+                />
                   <Route path="hr" element={<div>HR Page</div>} />
                   <Route path="reports" element={<div>Reports Page</div>} />
                   <Route path="compensation" element={<div>C&B Page</div>} />
                   <Route path="faqs" element={<div>FAQs Page</div>} />
+                  <Route path="unauthorized" element={<Unauthorize />} />
                 </Routes>
               </main>
             </div>
