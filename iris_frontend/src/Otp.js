@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Otp.css';
+import { jwtDecode } from 'jwt-decode';
 
   const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
@@ -12,6 +13,7 @@ import './Otp.css';
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
+  
 
   
 
@@ -158,18 +160,36 @@ import './Otp.css';
     const data = await response.json();
 
     if (response.ok) {
-      // Handle successful OTP verification
-      const userStatus = data.data.user.status;
-      localStorage.setItem('token', data.data.token); // Save token to localStorage
-      alert(data.data.message);
+  // Handle successful OTP verification
+  const userStatus = data.data.user.status;
+  localStorage.setItem('token', data.data.token); // Save token to localStorage
+  alert(data.data.message);
 
-      if (userStatus === 'FIRST-TIME') {
-        navigate('../change-password'); // Redirect to change password page
-      } else if (userStatus === 'ACTIVE') {
-        alert('Login successful');
-        navigate('../dashboard'); // Redirect to dashboard or home page
-      }
+  // Decode token to get user roles
+  const decoded = jwtDecode(data.data.token);
+  const roles = decoded.roles
+    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+    : decoded.role
+      ? [decoded.role]
+      : [];
+
+  if (userStatus === 'FIRST-TIME') {
+    navigate('../change-password');
+  } else if (userStatus === 'ACTIVE') {
+    alert('Login successful');
+    if (roles.includes('admin')) {
+      navigate('../dashboard');
+    } else if (roles.includes('HR')) {
+      navigate('../hr');
+    } else if (roles.includes('REPORTS')) {
+      navigate('../reports');
+    } else if (roles.includes('CNB')) {
+      navigate('../cb');
     } else {
+      navigate('/'); // fallback
+    }
+  }
+} else {
       // Handle failed OTP verification
       alert(data.data.message || 'Failed to verify OTP. Please try again.');
     }

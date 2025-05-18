@@ -15,25 +15,9 @@ import appManagementIcon from '../assets/icons/apps.png';
 import siteManagementIcon from '../assets/icons/sites.png';
 import clientManagementIcon from '../assets/icons/clients.png';
 import kpiManagementIcon from '../assets/icons/kpis.png';
+import { getUserRoles } from '../utilities/auth'; 
 
-const navItems = [
-  { name: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
-  { 
-    name: 'Admin', 
-    icon: adminIcon,
-    subItems: [
-      { name: 'User Management', path: '/admin/users', icon: userManagementIcon },
-      { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
-      { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
-      { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
-      { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
-    ]
-  },
-  { name: 'HR', path: '/hr', icon: hrIcon },
-  { name: 'Reports', path: '/reports', icon: reportsIcon },
-  { name: 'C&B', path: '/cb', icon: cbIcon },
-  { name: 'FAQs', path: '/faqs', icon: faqsIcon }
-];
+
 
 const Sidebar = () => {
   const [isHovered, setIsHovered] = useState(false);
@@ -41,6 +25,36 @@ const Sidebar = () => {
   const [expandedItems, setExpandedItems] = useState([]);
 
   const shouldShowExpanded = isLocked || isHovered;
+  const userRoles = getUserRoles();
+
+  const navItems = [
+  ...(userRoles.includes('admin') ? [
+    { name: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
+    { 
+      name: 'Admin', 
+      icon: adminIcon,
+      subItems: [
+        { name: 'User Management', path: '/admin/users', icon: userManagementIcon },
+        { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
+        { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
+        { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
+        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
+      ]
+    }
+  ] : []),
+  ...(userRoles.includes('HR') ? [
+    { name: 'HR', path: '/hr', icon: hrIcon }
+  ] : []),
+  ...(userRoles.includes('REPORTS') ? [
+    { name: 'Reports', path: '/reports', icon: reportsIcon }
+  ] : []),
+  ...(userRoles.includes('CNB') ? [
+    { name: 'C&B', path: '/cb', icon: cbIcon }
+  ] : []),
+  { name: 'FAQs', path: '/faqs', icon: faqsIcon }
+];
+
+
 
   const toggleSubMenu = (itemName) => {
     if (expandedItems.includes(itemName)) {
