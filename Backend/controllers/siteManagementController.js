@@ -67,8 +67,6 @@ class SiteManagementController {
 
     async deleteSite(req, res) {
         try {
-            console.log('DELETE REQUEST BODY:', req.body);
-            console.log('DELETE REQUEST HEADERS:', req.headers);
             const { siteId } = req.body;
             
             // Validate input
@@ -133,14 +131,12 @@ class SiteManagementController {
         }
     }
 
+    // In siteManagementController.js - update the addClientToSite method
     async addClientToSite(req, res) {
         try {
-            console.log("Received in controller:", req.body);
-            const { clientId, siteId } = req.body;
-            
-            console.log("Extracted values:", { clientId, siteId });
+            const { clientId, siteId, lobName, subLobName } = req.body;
 
-            // Validate input
+            // Validate required input
             if (!clientId || !siteId) {
                 return res.status(400).json({ 
                     message: 'Client ID and Site ID are required' 
@@ -148,7 +144,7 @@ class SiteManagementController {
             }
             
             // Call the service to update the client's site
-            const result = await this.SiteManagementService.addClientToSite(clientId, siteId);
+            const result = await this.SiteManagementService.addClientToSite(clientId, siteId, lobName, subLobName);
             
             // Return success response
             res.status(200).json({ 
@@ -233,9 +229,9 @@ class SiteManagementController {
             error: error.message 
           });
         }
-      }
+    }
 
-      // Add to your SiteManagementController.js
+    // Add to your SiteManagementController.js
     async getClientLobs(req, res) {
         try {
         const { clientId } = req.body;
@@ -258,7 +254,6 @@ class SiteManagementController {
         });
         }
     }
-    
 }
 
 module.exports = SiteManagementController;

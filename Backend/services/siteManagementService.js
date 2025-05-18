@@ -102,7 +102,7 @@ class SiteManagementService {
         }
     }
 
-    async addClientToSite(clientId, siteId) {
+    async addClientToSite(clientId, siteId, lobName = null, subLobName = null) {
         try {
             // Get the site name for the selected site ID
             const [siteResult] = await db.query(
@@ -130,31 +130,37 @@ class SiteManagementService {
             
             const clientName = clientNameResult[0].dClientName;
             
-            // Now get ALL instances of this client (by name) from tbl_clientlob
-            const [clientInstances] = await db.query(
-                'SELECT dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry FROM tbl_clientlob WHERE dClientName = ?',
-                [clientName]
-            );
+            // Build the query based on what's selected
+            let query = 'SELECT dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry FROM tbl_clientlob WHERE dClientName = ?';
+            let params = [clientName];
+            
+            // Case 1: LOB & Sub LOB provided - most specific
+            if (lobName && subLobName) {
+                query += ' AND dLOB = ? AND dSubLOB = ?';
+                params.push(lobName, subLobName);
+            } 
+            // Case 2: Only LOB provided - medium specificity
+            else if (lobName) {
+                query += ' AND dLOB = ?';
+                params.push(lobName);
+            }
+            // Case 3: Neither provided - least specific, get all (existing behavior)
+            
+            // Get the client instances based on the constructed query
+            const [clientInstances] = await db.query(query, params);
             
             if (clientInstances.length === 0) {
-                throw new Error('No instances of client found in tbl_clientlob');
+                throw new Error('No instances of client found in tbl_clientlob matching the specified criteria');
             }
-            
-            console.log(`Found ${clientInstances.length} instances of client ${clientName} to add to site ${siteName}`);
             
             // Using a transaction to ensure all operations succeed or fail together
             await db.query('START TRANSACTION');
             
-            // Instead, check for existing records with the same client name and site ID
+            // Check for existing records with the same client name and site ID (for logging)
             const [existingRecords] = await db.query(
                 'SELECT dClient_ID FROM tbl_clientsite WHERE dClientName = ? AND dSite_ID = ?',
                 [clientName, siteId]
             );
-            
-            if (existingRecords.length > 0) {
-                // Client already exists in this site, but we'll continue to add new LOB instances
-                console.log(`Client ${clientName} already exists in site ${siteName}, adding additional instances`);
-            }
             
             // Insert all instances with the new site information
             for (const instance of clientInstances) {
@@ -239,9 +245,9 @@ class SiteManagementService {
 
     async getSiteClients() {
         try {
-          // Use DISTINCT to get only unique client-site relationships
+          // Include LOB and SubLOB data
           const [result] = await db.query(
-            'SELECT DISTINCT dClient_ID, dClientName, dSite_ID, dSiteName FROM tbl_clientsite WHERE dSite_ID IS NOT NULL'
+            'SELECT DISTINCT dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB FROM tbl_clientsite WHERE dSite_ID IS NOT NULL'
           );
           
           return result;

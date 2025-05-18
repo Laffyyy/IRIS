@@ -126,7 +126,7 @@ import './Otp.css';
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
   const otp = otpValues.join(''); // Combine OTP values into a single string
 
   // Retrieve userId and password from localStorage
