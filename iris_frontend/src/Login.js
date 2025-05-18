@@ -1,17 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate from react-router-dom
+import { useNavigate } from 'react-router-dom';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
-  const navigate = useNavigate();  // Initialize the navigate function
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(email);
-    // Navigate to the OTP page after submission
-    navigate('/otp');  // Adjust the path to match your routing setup
+    navigate('/otp');
   };
 
   return (
@@ -37,6 +36,8 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   );
 };
 
+
+
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
@@ -45,6 +46,12 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
+  const [otp, setOtp] = useState('');
+  const [userId, setUserId] = useState('');
+  const [passwords, setPasswords] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
 
   const carouselImages = [
     '/assets/stephen1.jpg',
@@ -59,22 +66,41 @@ const Login = ({ onContinue, onForgotPassword }) => {
   }, []);
 
   const handleSubmit = async (e) => {
-    localStorage.setItem('userId', employeeId);
     e.preventDefault();
-    onContinue();
-    
-    const response = await fetch('http://localhost:3000/api/login/fetchStatus', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: employeeId,
-      }),
-    });
+ 
+    // Prepare the payload
+    const payload = {
+      userId : employeeId,
+      password: password,
+      otp: "",
+    };
+    console.log('Payload:', payload);
+    try {
+      // Send POST request to the API
+      const response = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const data = await response.json();
-    localStorage.setItem('status', data.status);
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Request successful!');
+        console.log('Response:', data);
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        navigate('/otp'); 
+      } else {
+        alert(`Error: ${data.message}`);
+        console.error('Error:', data);
+      }
+    } catch (error) {
+      console.error('Error during API call:', error);
+      alert('An error occurred while sending the request.');
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -201,7 +227,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
           onClose={() => setShowModal(false)}
           onSubmit={(email) => {
             setShowModal(false);
-            console.log('Sending OTP to:', email); // Hook to backend
+            console.log('Sending OTP to:', email);
             alert(`OTP sent to ${email}`);
           }}
         />

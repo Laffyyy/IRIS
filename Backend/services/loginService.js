@@ -8,41 +8,88 @@ class LoginService {
     constructor() {
         this.otpService = new OtpService(); // Initialize OtpService
     }
-    async loginUser(userID, password,otp = null) {
+
+    
+    async loginUser(userID, password, otp = null) {
         try {
-            const [rows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
-            if (rows.length === 0) {
+            let user = null;
+            let table = null;
+
+            // Step 1: Check if the user exists in tbl_login
+            const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
+            if (loginRows.length > 0) {
+                user = loginRows[0];
+                table = 'tbl_login';
+            } else {
+                // Step 2: Check if the user exists in tbl_admin
+                const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
+                if (adminRows.length > 0) {
+                    user = adminRows[0];
+                    table = 'tbl_admin';
+                }
+            }
+
+            // If user is not found in either table
+            if (!user) {
                 throw new Error('User not found');
             }
-            const user = rows[0];
-            const isMatch = await bcrypt.compare(password, user.dPassword_hash);
+
+            // Step 3: Verify the password
+            let isMatch = false;
+            if (table === 'tbl_login') {
+                if (!user.dPassword1_hash) {
+                    throw new Error('Password hash is missing for tbl_login');
+                }
+                isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+            } else if (table === 'tbl_admin') {
+                if (!user.dPassword1_hash) {
+                    throw new Error('Password hash is missing for tbl_admin');
+                }
+                isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+            }
+
             if (!isMatch) {
                 throw new Error('Invalid password');
             }
 
-            // If OTP is provided, verify it
+            // Step 4: Check the user's status (if applicable)
+            if (user.dStatus && user.dStatus === 'DEACTIVATED') {
+                throw new Error('Account is deactivated');
+            }
+            if (user.dStatus && user.dStatus === 'EXPIRED') {
+                throw new Error('Account has expired');
+            }
+
+            // Step 5: Handle OTP verification
             if (otp) {
-                await this.otpService.verifyOtp(user.dUser_ID, otp);
+                // Verify the OTP using the OtpService
+                const otpService = new OtpService();
+                const otpVerificationResult = await otpService.verifyOtp(user.dUser_ID, otp);
+
+                if (otpVerificationResult.message === 'OTP expired. A new OTP has been sent to your registered email or phone.') {
+                    return otpVerificationResult;
+                }
+
+                // Step 6: Generate a token after OTP verification
+                const token = jwt.sign(
+                    { id: user.dUser_ID, role: user.dUser_Type || user.dStatus },
+                    process.env.JWT_SECRET,
+                    { expiresIn: '1h' }
+                );
+
+                // Update the last login time
+                await db.query(`UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ?`, [userID]);
+
+                return { message: 'Login successful', token, user: { id: user.dUser_ID, email: user.dEmail, status: user.dStatus || user.dUser_Type } };
             } else {
-                // Generate and send OTP if not provided
-                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
-                // Here, you would send the OTP to the user via email/SMS
+                // Step 7: Generate a new OTP if none is provided
+                const otpService = new OtpService();
+                const generatedOtp = await otpService.generateOtp(user.dUser_ID);
                 console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
                 return { message: 'OTP sent to your registered email or phone' };
             }
-
-            // Include the user's role in the token payload
-            const token = jwt.sign(
-                { id: user.dUser_ID, role: user.dUser_Type },
-                process.env.JWT_SECRET,
-                { expiresIn: '1h' }
-            );
-
-            await db.query('UPDATE tbl_login SET dLast_Login = NOW() WHERE dUser_ID = ?', [userID]);
-
-            return { token, user: { id: user.dUser_ID, email: user.dEmail, user_type: user.dUser_Type } };
-
         } catch (error) {
+            console.error('Error in loginUser:', error.message);
             throw error;
         }
     }
@@ -58,6 +105,33 @@ class LoginService {
             
             const status = rows[0].dStatus;
             return status;
+        } catch (error) {
+            throw error;
+        }
+        
+    }
+    //wrong file
+    async changesecurityQuestion(userID, newSecurityQuestions) {
+        try {
+            const normalizedSecurityAnswers = [
+                newSecurityQuestions.Security_Answer,
+                newSecurityQuestions.Security_Answer2,
+                newSecurityQuestions.Security_Answer3
+            ].map(answer => answer.toLowerCase());
+
+            await db.query(
+                'UPDATE tbl_login SET dSecurity_Question1 = ?, dSecurity_Question2 = ?, dSecurity_Question3 = ?, dAnswer_1 = ?, dAnswer_2 = ?, dAnswer_3 = ? WHERE dUser_ID = ?',
+                [
+                    newSecurityQuestions.Security_Question,
+                    newSecurityQuestions.Security_Question2,
+                    newSecurityQuestions.Security_Question3,
+                    normalizedSecurityAnswers[0],
+                    normalizedSecurityAnswers[1],
+                    normalizedSecurityAnswers[2],
+                    userID
+                ]
+            );
+            return { message: 'Security questions updated successfully' };
         } catch (error) {
             throw error;
         }

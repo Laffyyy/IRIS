@@ -11,39 +11,44 @@ import './App.css';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
-import SecurityQuestions from './SecurityQuestions';  // Import SecurityQuestions
-import UpdatePassword from './UpdatePassword';  // Import UpdatePassword
+import SecurityQuestions from './SecurityQuestions';
+import UpdatePassword from './UpdatePassword';
 
 function App() {
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/otp" element={<Otp />} />
-          <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/security-questions" element={<SecurityQuestions />} />
-          <Route path="/update-password" element={<UpdatePassword />} />  {/* Add this line for UpdatePassword */}
-        </Routes> 
-      </div>
-        <div className="app-container">
-          <Sidebar />
-          <main className="main-content">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin/users" element={<UserManagement />} />
-              <Route path="/admin/apps" element={<AppManagement />} />
-              <Route path="/admin/clients" element={<ClientManagement />} />
-              <Route path="/admin/sites" element={<SiteManagement />} />
-              <Route path="/admin/kpis" element={<KPIManagement />} />
-              <Route path="/hr" element={<div>HR Page</div>} />
-              <Route path="/reports" element={<div>Reports Page</div>} />
-              <Route path="/compensation" element={<div>C&B Page</div>} />
-              <Route path="/faqs" element={<div>FAQs Page</div>} />
-            </Routes>
-          </main>
-        </div>
+      <Routes>
+        {/* Auth routes - no sidebar */}
+        <Route path="/" element={<Login />} />
+        <Route path="/otp" element={<Otp />} />
+        <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/security-questions" element={<SecurityQuestions />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
+
+        {/* Dashboard/admin routes - with sidebar */}
+        <Route
+          path="/*"
+          element={
+            <div className="app-container">
+              <Sidebar />
+              <main className="main-content">
+                <Routes>
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="admin/users" element={<UserManagement />} />
+                  <Route path="admin/apps" element={<AppManagement />} />
+                  <Route path="admin/clients" element={<ClientManagement />} />
+                  <Route path="admin/sites" element={<SiteManagement />} />
+                  <Route path="admin/kpis" element={<KPIManagement />} />
+                  <Route path="hr" element={<div>HR Page</div>} />
+                  <Route path="reports" element={<div>Reports Page</div>} />
+                  <Route path="compensation" element={<div>C&B Page</div>} />
+                  <Route path="faqs" element={<div>FAQs Page</div>} />
+                </Routes>
+              </main>
+            </div>
+          }
+        />
+      </Routes>
     </Router>
   );
 }
