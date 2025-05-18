@@ -43,6 +43,12 @@ const KPIManagement = () => {
   if (editingKpi) {
     handleUpdateKpi();
   } else {
+    // Check for duplicates in existing KPIs
+    if (isDuplicateKPI(kpiName, category, behavior)) {
+      alert('This KPI already exists. Please check the existing KPIs.');
+      return;
+    }
+
     // Add to preview by appending to existing array
     setIndividualPreview([
       ...individualPreview,
@@ -89,46 +95,97 @@ const KPIManagement = () => {
   };
 
   // Simulate file processing
-  const handleFile = (file) => {
-    setFile(file);
-    // Mock data
-    const mockValidKpis = [
-      {
-        name: 'Customer Satisfaction',
-        category: 'Customer',
-        behavior: 'Increase',
-        description: 'Measures overall customer satisfaction score',
-        valid: true
-      },
-      {
-        name: 'Employee Turnover',
-        category: 'Employee',
-        behavior: 'Decrease',
-        description: 'Tracks employee turnover rate',
-        valid: true
-      }
-    ];
-    const mockInvalidKpis = [
-      {
-        name: 'Invalid KPI',
-        category: 'Unknown',
-        behavior: 'Invalid',
-        description: 'Invalid description',
-        valid: false,
-        reason: 'Invalid Category'
-      },
-      {
-        name: 'Duplicate KPI',
-        category: 'Financial',
-        behavior: 'Increase',
-        description: 'Duplicate description',
-        valid: false,
-        reason: 'Duplicate Entry'
-      }
-    ];
-    setBulkKpis(mockValidKpis);
-    setInvalidKpis(mockInvalidKpis);
-    setPreviewTab('valid');
+  const handleFile = async (file) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const text = e.target.result;
+        const allRows = text.split('\n');
+        
+        // Find the index where notes section begins
+        const notesIndex = allRows.findIndex(row => row.trim().startsWith('Note:'));
+        
+        // Only process rows before the notes section
+        const dataRows = notesIndex !== -1 
+          ? allRows.slice(0, notesIndex) 
+          : allRows;
+        
+        // Filter empty rows and split into columns
+        const rows = dataRows
+          .filter(row => row.trim() !== '')
+          .map(row => row.split(','));
+
+        const headers = rows[0];
+        const validKpis = [];
+        const invalidKpis = [];
+
+        // Process each row (skip header)
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          // Skip empty rows
+          if (!row[0]?.trim()) continue;
+
+          const kpi = {
+            name: row[0]?.trim(),
+            category: row[1]?.trim(),
+            behavior: row[2]?.trim(),
+            description: row[3]?.trim()
+          };
+
+          // Validate required fields
+          if (!kpi.name || !kpi.category || !kpi.behavior) {
+            invalidKpis.push({
+              ...kpi,
+              reason: 'Missing required fields'
+            });
+            continue;
+        }
+
+          // Validate category
+          if (!categories.some(cat => cat.toLowerCase() === kpi.category?.toLowerCase())) {
+            invalidKpis.push({
+              ...kpi,
+              reason: 'Invalid category'
+            });
+            continue;
+          }
+
+          // Validate behavior
+          if (!behaviors.some(beh => beh.toLowerCase() === kpi.behavior?.toLowerCase())) {
+            invalidKpis.push({
+              ...kpi,
+              reason: 'Invalid behavior'
+            });
+            continue;
+          }
+
+          // Check for duplicates
+          if (isDuplicateKPI(kpi.name, kpi.category, kpi.behavior)) {
+            invalidKpis.push({
+              ...kpi,
+              reason: 'Duplicate KPI'
+            });
+            continue;
+          }
+
+          validKpis.push({
+            ...kpi,
+            category: capitalizeFirstLetter(kpi.category),
+            behavior: capitalizeFirstLetter(kpi.behavior)
+          });
+        }
+
+        setBulkKpis(validKpis);
+        setInvalidKpis(invalidKpis);
+        setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
+      };
+
+      reader.readAsText(file);
+      setFile(file);
+    } catch (error) {
+      console.error('Error processing file:', error);
+      alert('Error processing file. Please check the file format.');
+    }
   };
 
   // Remove uploaded file
@@ -140,15 +197,32 @@ const KPIManagement = () => {
 
   // Generate template for bulk upload
   const generateTemplate = () => {
-    const csvContent = "KPI Name,Category,Behavior,Description\nRevenue Growth,Financial,Increase,Measures growth in total revenue";
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', 'kpi_upload_template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+      const csvHeader = "KPI Name,Category,Behavior,Description";
+      const exampleData = [
+        "Revenue Growth,Financial,Increase,Measures growth in total revenue",
+        "Customer Satisfaction,Customer,Increase,Measures overall customer satisfaction",
+        "Employee Turnover,Employee,Decrease,Tracks employee turnover rate"
+      ];
+      
+      // Create separate sections
+      const templateData = [csvHeader, ...exampleData].join('\n');
+      const notes = [
+        "",
+        "Note: Valid Categories: Financial, Operational, Customer, Employee",
+        "Valid Behaviors: Increase, Decrease, Maintain, Target"
+      ].join('\n');
+
+      // Combine template and notes with a clear separator
+      const fileContent = `${templateData}\n${notes}`;
+
+      const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', 'kpi_upload_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+};
 
   const handleAddKpi = async () => {
     try {
@@ -213,9 +287,9 @@ const KPIManagement = () => {
       try {
         const updateData = {
           dKPI_Name: kpiName,
-          dCategory: category,
+          dCategory: capitalizeFirstLetter(category),
           dDescription: description,
-          dCalculationBehavior: behavior
+          dCalculationBehavior: capitalizeFirstLetter(behavior)
         };
 
         const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
@@ -232,12 +306,19 @@ const KPIManagement = () => {
           throw new Error(errorData?.message || `Server error: ${response.status}`);
         }
 
+        // Fetch updated KPI list
         const refreshResponse = await fetch('http://localhost:3000/api/kpis');
         const updatedKpis = await refreshResponse.json();
         setKpis(updatedKpis);
 
+        // Reset all states
         resetForm();
         setActiveTab('viewKPIs');
+        setUploadMethod('individual');
+        setBulkKpis([]);
+        setInvalidKpis([]);
+        setFile(null);
+        
         alert('KPI updated successfully!');
 
       } catch (error) {
@@ -248,26 +329,35 @@ const KPIManagement = () => {
   };
 
   const handleEditClick = async (kpiId) => {
-      try {
-        const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const kpi = await response.json();
-        
-        // Set the form data and editing state
-        setEditingKpi(kpi);
-        setKpiName(kpi.dKPI_Name);
-        setCategory(kpi.dCategory);
-        setBehavior(kpi.dCalculationBehavior);
-        setDescription(kpi.dDescription);
-        setDescriptionCount(kpi.dDescription ? kpi.dDescription.length : 0);
-        setActiveTab('addKPI');
-      } catch (error) {
-        console.error('Error fetching KPI for edit:', error);
-        alert('Failed to load KPI data for editing. Please try again.');
+    try {
+      const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    };
+      const kpi = await response.json();
+      
+      // Set the form data and editing state
+      setEditingKpi(kpi);
+      setKpiName(kpi.dKPI_Name);
+      setCategory(kpi.dCategory);
+      setBehavior(kpi.dCalculationBehavior);
+      setDescription(kpi.dDescription || '');
+      setDescriptionCount(kpi.dDescription ? kpi.dDescription.length : 0);
+      
+      // Force individual upload method when editing
+      setUploadMethod('individual');
+      setActiveTab('addKPI');
+      
+      // Clear any bulk upload state
+      setBulkKpis([]);
+      setInvalidKpis([]);
+      setFile(null);
+      
+    } catch (error) {
+      console.error('Error fetching KPI for edit:', error);
+      alert('Failed to load KPI data for editing. Please try again.');
+    }
+  };
 
   const handleSave = async (updatedKpi) => {
       try {
@@ -304,17 +394,58 @@ const KPIManagement = () => {
   };
   
   // Handle bulk upload submission
-  const handleBulkUpload = () => {
-    const kpisToAdd = bulkKpis.map((kpi, index) => ({
-      ...kpi,
-      id: kpis.length > 0 ? Math.max(...kpis.map(k => k.id)) + index + 1 : index + 1
-    }));
-    setKpis([...kpis, ...kpisToAdd]);
-    setEditModalOpen(false);
-    setBulkKpis([]);
-    setInvalidKpis([]);
-    setFile(null);
-  };
+  const handleBulkUpload = async () => {
+      try {
+        // Create array of promises for each valid KPI
+        const promises = bulkKpis.map(kpi => {
+          const kpiData = {
+            dKPI_Name: kpi.name,
+            dCategory: kpi.category,
+            dCalculationBehavior: kpi.behavior,
+            dDescription: kpi.description || '',
+            dCreatedBy: '2505170018' // Replace with actual user ID
+          };
+
+          return fetch('http://localhost:3000/api/kpis', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(kpiData)
+          });
+        });
+
+        // Wait for all KPIs to be created
+        const responses = await Promise.all(promises);
+        
+        // Check if any requests failed
+        const failedResponses = responses.filter(response => !response.ok);
+        if (failedResponses.length > 0) {
+          throw new Error(`Failed to add ${failedResponses.length} KPIs`);
+        }
+
+        // Fetch updated KPI list
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        if (!refreshResponse.ok) {
+          throw new Error('Failed to refresh KPI list');
+        }
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+
+        // Reset bulk upload state
+        setBulkKpis([]);
+        setInvalidKpis([]);
+        setFile(null);
+        setActiveTab('viewKPIs');
+        
+        alert(`Successfully added ${bulkKpis.length} KPIs`);
+
+      } catch (error) {
+        console.error('Bulk upload error:', error);
+        alert(`Failed to upload KPIs: ${error.message}`);
+      }
+    };
   
   const handleDeleteKpi = async (kpiId) => {
     if (window.confirm('Are you sure you want to delete this KPI?')) {
@@ -333,6 +464,18 @@ const KPIManagement = () => {
         alert('Failed to delete KPI. Please try again.');
       }
     }
+  };
+
+  const capitalizeFirstLetter = (string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+  };
+
+  const isDuplicateKPI = (kpiName, category, behavior) => {
+    return kpis.some(existingKpi => 
+      existingKpi.dKPI_Name.toLowerCase() === kpiName.toLowerCase() &&
+      existingKpi.dCategory.toLowerCase() === category.toLowerCase() &&
+      existingKpi.dCalculationBehavior.toLowerCase() === behavior.toLowerCase()
+    );
   };
 
   const handleDescriptionChange = (e) => {
