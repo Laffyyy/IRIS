@@ -36,6 +36,8 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   );
 };
 
+
+
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
@@ -44,6 +46,12 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
+  const [otp, setOtp] = useState('');
+const [userId, setUserId] = useState('');
+const [passwords, setPasswords] = useState({
+  newPassword: '',
+  confirmPassword: ''
+});
 
   const carouselImages = [
     '/assets/stephen1.jpg',
@@ -59,48 +67,39 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+ 
+    // Prepare the payload
+    const payload = {
+      userId : employeeId,
+      password: password,
+      otp: "",
+    };
+    console.log('Payload:', payload);
     try {
-      // Check if password has expired
-      const response = await fetch('http://localhost:3000/api/login', {
+      // Send POST request to the API
+      const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId: employeeId,
-          password: password,
-          otp: ""
-        }),
+        body: JSON.stringify(payload)
       });
-  
-      if (!response.ok) {
-        console.error('Server returned error:', response.status);
-        throw new Error('Failed to check password expiration');
-      }
-      
+
       const data = await response.json();
-      console.log('Login response:', data); // Debug log to see structure
-      
-      // Check for expired password in the correct location (data.data.expired)
-      if (data.data && data.data.expired) {
-        const confirmChange = window.confirm('Your password has expired. Change password?');
-        if (confirmChange) {
-          localStorage.setItem('userId', employeeId);
-          navigate('/change-password');
-        } else {
-          // Stay on the login page if user declines to change password
-          return;
-        }
-        return; // Stop the login flow regardless
+
+      if (response.ok) {
+        alert('Request successful!');
+        console.log('Response:', data);
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        navigate('/otp'); 
+      } else {
+        alert(`Error: ${data.message}`);
+        console.error('Error:', data);
       }
-    
-      // Only reach here if password is not expired
-      localStorage.setItem('userId', employeeId);
-      navigate('/otp');
     } catch (error) {
-      console.error('Error checking password expiration:', error);
-      alert('Unable to verify account status. Please try again or contact support.');
+      console.error('Error during API call:', error);
+      alert('An error occurred while sending the request.');
     }
   };
 

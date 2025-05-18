@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helment = require('helmet');
 const loginRoutes = require('./routes/loginroutes');
 const otpRoutes = require('./routes/otpcontoller');
 
@@ -15,6 +16,14 @@ app.use(cors({
 
 // Parse JSON bodies
 app.use(express.json());
+app.use(helment());
+app.use(cors({
+    origin: 'http://localhost:3001', // Replace with your frontend URL
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow specific HTTP methods
+    allowedHeaders: ['Content-Type', 'Authorization'] // Allow specific headers
+}));
+
+
 
 
 app.use('/api/login', loginRoutes);
