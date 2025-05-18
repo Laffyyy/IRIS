@@ -339,3 +339,31 @@ td:last-child {
   font-size: 13px;
   padding: 8px 0;
 }
+
+.existing-client-site-table,
+.existing-sites-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-size: 13px;
+}
+
+.existing-client-site-table th,
+.existing-sites-table th,
+.existing-client-site-table td,
+.existing-sites-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.existing-client-site-table th,
+.existing-sites-table th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+}
+
+.existing-client-site-table tr:nth-child(even),
+.existing-sites-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}

@@ -93,18 +93,17 @@ const SiteManagement = () => {
   const fetchSites = async () => {
     try {
       const data = await manageSite('getAll', {});
+      console.log('Sites data from API:', data?.sites);
       
-      if (data && data.sites) {
-        const formattedSites = data.sites.map(site => ({
-          id: site.dSite_ID,
-          name: site.dSiteName,
-          clients: site.clientCount || 0
-        }));
-        
-        setSites(formattedSites);
+      if (data?.sites) {
+        // Store the exact structure returned from the backend
+        setSites(data.sites);
+      } else {
+        setSites([]); // Clear the table if no sites are returned
       }
     } catch (error) {
-      // Error handling
+      console.error('Error fetching sites:', error);
+      setSites([]); // Clear the table in case of an error
     }
   };
 
@@ -132,23 +131,17 @@ const SiteManagement = () => {
   const fetchSiteClients = async () => {
     try {
       const data = await manageSite('getSiteClients', {});
-      
       if (data?.siteClients) {
-        const formattedSiteClients = data.siteClients.map(sc => ({
-          siteId: parseInt(sc.dSite_ID),
-          clientId: parseInt(sc.dClient_ID),
-          siteName: sc.dSiteName,
-          clientName: sc.dClientName,
-          lobName: sc.dLOB,
-          subLobName: sc.dSubLOB
-        }));
-        
-        setSiteClients(formattedSiteClients);
-        return formattedSiteClients;
+        setSiteClients(data.siteClients.map(sc => ({
+          dClientSite_ID: sc.dClientSite_ID,
+          dClientName: sc.dClientName,
+          dLOB: sc.dLOB,
+          dSubLOB: sc.dSubLOB,
+          dSiteName: sc.dSiteName,
+        })));
       }
-      return [];
     } catch (error) {
-      return [];
+      console.error('Error fetching site clients:', error);
     }
   };
 
@@ -177,7 +170,10 @@ const SiteManagement = () => {
    * @param {object} site - The site object to edit
    */
   const handleEditClick = (site) => {
-    setCurrentSite(site);
+    setCurrentSite({
+      ...site,
+      name: site.dSiteName || '', // Ensure the name property is always defined
+    });
     setEditModalOpen(true);
   };
 
@@ -186,19 +182,21 @@ const SiteManagement = () => {
    * @param {number} siteId - The ID of the site to delete
    */
   const handleDeleteSite = async (siteId) => {
-    const siteName = sites.find(site => site.id === siteId)?.name;
+    const site = sites.find(s => s.dSite_ID === siteId);
+    const siteName = site ? site.dSiteName : '';
     
-    if (!window.confirm('Deleting the site will also remove the associated clients to that site. Continue?')) return;
+    if (!window.confirm(`Deleting site "${siteName}" will also remove all associated client relationships. Continue?`)) return;
     
     try {
       await manageSite('delete', { siteId });
-      setSites(sites.filter(site => site.id !== siteId));
+      
+      // Refresh both tables
       fetchSites();
       fetchSiteClients();
       
-      alert(`Site "${siteName}" Successfully Deleted`);
+      alert(`Site "${siteName}" Successfully Deleted with all its client associations`);
     } catch (error) {
-      // Error already handled
+      console.error('Error deleting site:', error);
     }
   };
   
@@ -277,23 +275,25 @@ const SiteManagement = () => {
    * @param {object} updatedSite - The updated site object with new values
    */
   const handleSave = async (updatedSite) => {
+    if (!updatedSite?.name?.trim()) {
+      alert('Site name cannot be empty.');
+      return;
+    }
+  
     try {
       await manageSite('edit', { 
-        siteId: updatedSite.id, 
+        siteId: updatedSite.id || updatedSite.dSite_ID, // Ensure correct ID is used
         siteName: updatedSite.name,
-        updateClientSiteTable: true
+        updateClientSiteTable: true, // This ensures tbl_clientsite is also updated
       });
-      
-      setSites(sites.map(site => 
-        site.id === updatedSite.id ? updatedSite : site
-      ));
-      
+  
       fetchSites();
-      
+      fetchSiteClients(); // Add this line to refresh the client-site table after editing
+  
       setEditModalOpen(false);
       setCurrentSite(null);
     } catch (error) {
-      // Error handling
+      console.error('Error saving site:', error);
     }
   };
 
@@ -453,66 +453,65 @@ const SiteManagement = () => {
         </div>
         
         <div className={`tab-content ${activeTab === 'addSite' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Site Name</label>
-              <input
-                type="text"
-                value={newSiteName}
-                onChange={(e) => setNewSiteName(e.target.value)}
-              />
-            </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Site Name</label>
+            <input
+              type="text"
+              value={newSiteName}
+              onChange={(e) => setNewSiteName(e.target.value)}
+            />
           </div>
-          <button 
-            onClick={handleAddSite} 
-            className="add-button" 
-            disabled={!newSiteName.trim() || isLoading}
-          >
-            {isLoading ? 'Adding...' : '+ Add New Site'}
-          </button>
-          {error && <p className="error-message">{error}</p>}
+        </div>
+        <button 
+          onClick={handleAddSite} 
+          className="add-button" 
+          disabled={!newSiteName.trim() || isLoading}
+        >
+          {isLoading ? 'Adding...' : '+ Add New Site'}
+        </button>
+        {error && <p className="error-message">{error}</p>}
 
-          <div className="existing-sites">
-            <h2>Existing Sites</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Site Name</th>
-                  <th>Clients</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sites.map(site => (
-                  <tr key={site.id}>
-                    <td>{site.id}</td>
-                    <td>{site.name}</td>
-                    <td>
-                      {Array.from(new Set(siteClients
-                        .filter(sc => sc.siteId === site.id)
-                        .map(sc => {
-                          const client = clients.find(c => c.id === sc.clientId);
-                          return client?.name;
-                        })
-                        .filter(Boolean)
-                      )).join(', ') || '-'}
-                    </td>
+        <h2>Existing Sites</h2>
+          <table className="existing-sites-table">
+            <thead>
+              <tr>
+                <th>Site ID</th>
+                <th>Site Name</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sites.length > 0 ? (
+                sites.map(site => (
+                  <tr key={site.dSite_ID}>
+                    <td>{site.dSite_ID}</td>
+                    <td>{site.dSiteName}</td>
                     <td>
                       <div className="action-buttons">
-                        <button onClick={() => handleEditClick(site)} className="edit-btn">
+                        <button
+                          className="edit-btn"
+                          onClick={() => handleEditClick(site)}
+                        >
                           <FaPencilAlt size={12} /> Edit
                         </button>
-                        <button onClick={() => handleDeleteSite(site.id)} className="delete-btn">
+                        <button
+                          className="delete-btn"
+                          onClick={() => handleDeleteSite(site.dSite_ID)}
+                        >
                           <FaTrash size={12} /> Delete
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="3" style={{ textAlign: 'center' }}>No sites available</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
         
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
@@ -615,125 +614,94 @@ const SiteManagement = () => {
         >
           + Add Client to Site
         </button>
-
-          <div className="existing-sites">
-            <h2>Existing Sites</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Site Name</th>
-                  <th>Clients</th>
-                  <th>Actions</th>
+        <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
+          <h2>Existing Client-Site Assignments</h2>
+          <table className="existing-client-site-table">
+            <thead>
+              <tr>
+                <th>Client Site ID</th>
+                <th>Client Name</th>
+                <th>LOB</th>
+                <th>Sub LOB</th>
+                <th>Site Name</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {siteClients.map(clientSite => (
+                <tr key={clientSite.dClientSite_ID}>
+                  <td>{clientSite.dClientSite_ID}</td>
+                  <td>{clientSite.dClientName}</td>
+                  <td>{clientSite.dLOB || '-'}</td>
+                  <td>{clientSite.dSubLOB || '-'}</td>
+                  <td>{clientSite.dSiteName}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEditClick(clientSite)}
+                      >
+                        <FaPencilAlt size={12} /> Edit
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() =>
+                          handleRemoveClient(clientSite.dClientSite_ID, clientSite.dClientName)
+                        }
+                      >
+                        <FaTrash size={12} /> Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {sites.map(site => (
-                  <tr key={site.id}>
-                    <td>{site.id}</td>
-                    <td>{site.name}</td>
-                    <td>
-                      {Array.from(new Set(siteClients
-                        .filter(sc => sc.siteId === site.id)
-                        .map(sc => {
-                          const client = clients.find(c => c.id === sc.clientId);
-                          return client?.name;
-                        })
-                        .filter(Boolean)
-                      )).join(', ') || '-'}
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button onClick={() => handleEditClick(site)} className="edit-btn">
-                          <FaPencilAlt size={12} /> Edit
-                        </button>
-                        <button onClick={() => handleDeleteSite(site.id)} className="delete-btn">
-                          <FaTrash size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
+    </div>
 
-      {editModalOpen && currentSite && (
-        <div className="modal-overlay">
-          <div className="modal edit-site-modal">
-            <div className="modal-header">
-              <h2>Edit Site</h2>
-              <button onClick={() => {
-                setEditModalOpen(false);
-                setCurrentSite(null);
-              }} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
+    {editModalOpen && currentSite && (
+    <div className="modal-overlay">
+      <div className="modal edit-site-modal">
+        <div className="modal-header">
+          <h2>Edit Site</h2>
+          <button onClick={() => {
+            setEditModalOpen(false);
+            setCurrentSite(null);
+          }} className="close-btn">
+            <FaTimes />
+          </button>
+        </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Site Name</label>
-                <input
-                  type="text"
-                  value={currentSite.name}
-                  onChange={(e) => setCurrentSite({...currentSite, name: e.target.value})}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-section">
-              <h3>Assigned Clients</h3>
-              <div className="assigned-clients">
-                {siteClients
-                  .filter(sc => sc.siteId === currentSite.id)
-                  .map(sc => {
-                    const client = clients.find(c => c.id === sc.clientId);
-                    return client ? (
-                      <div key={sc.clientId} className="assigned-client">
-                        <span>{client.name}</span>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Are you sure you want to remove ${client.name} from this site?`)) {
-                              handleRemoveClient(client.id, client.name);
-                              setCurrentSite({
-                                ...currentSite,
-                                clients: currentSite.clients - 1
-                              });
-                            }
-                          }}
-                          className="remove-client-btn"
-                        >
-                          <FaTimes size={12} />
-                        </button>
-                      </div>
-                    ) : null;
-                  })}
-                {siteClients.filter(sc => sc.siteId === currentSite.id).length === 0 && (
-                  <div className="no-clients">No clients assigned to this site</div>
-                )}
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button onClick={() => {
-                setEditModalOpen(false);
-                setCurrentSite(null);
-              }} className="cancel-btn">Cancel</button>
-              <button 
-                onClick={() => handleSave(currentSite)} 
-                className="save-btn"
-                disabled={!currentSite.name.trim()}
-              >
-                Save Changes
-              </button>
-            </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Site Name</label>
+            <input
+              type="text"
+              value={currentSite.name}
+              onChange={(e) => setCurrentSite({...currentSite, name: e.target.value})}
+              required
+            />
           </div>
         </div>
-      )}
+
+        <div className="modal-actions">
+          <button onClick={() => {
+            setEditModalOpen(false);
+            setCurrentSite(null);
+          }} className="cancel-btn">Cancel</button>
+          <button 
+            onClick={() => handleSave(currentSite)} 
+            className="save-btn"
+            disabled={!currentSite.name?.trim()}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
     </div>
   );
 };

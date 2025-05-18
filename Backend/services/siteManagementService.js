@@ -25,54 +25,53 @@ class SiteManagementService {
 
     async editSite(siteId, siteName, updateClientSiteTable = false) {
         try {
-            // Update the site name in tbl_site
-            const [result] = await db.query(
-                'UPDATE tbl_site SET dSiteName = ? WHERE dSite_ID = ?',
-                [siteName, siteId]
-            );
-            
-            // If flag is true, also update site name in tbl_clientsite
-            if (updateClientSiteTable) {
-                await db.query(
-                    'UPDATE tbl_clientsite SET dSiteName = ? WHERE dSite_ID = ?',
-                    [siteName, siteId]
-                );
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('Error in SiteManagementService.editSite:', error);
-            throw error;
-        }
-    }
-
-    async deleteSite(siteId) {
-        try {
-            // Using a transaction to ensure all operations succeed or fail together
-            await db.query('START TRANSACTION');
-            
-            // First, remove any client-site relationships for this site
+          // Update tbl_site
+          const [result] = await db.query(
+            'UPDATE tbl_site SET dSiteName = ? WHERE dSite_ID = ?',
+            [siteName, siteId]
+          );
+          
+          // Also update tbl_clientsite if flag is true
+          if (updateClientSiteTable) {
             await db.query(
-                'DELETE FROM tbl_clientsite WHERE dSite_ID = ?',
-                [siteId]
+              'UPDATE tbl_clientsite SET dSiteName = ? WHERE dSite_ID = ?',
+              [siteName, siteId]
             );
-            
-            // Then delete the site from the database
-            const [result] = await db.query(
-                'DELETE FROM tbl_site WHERE dSite_ID = ?',
-                [siteId]
-            );
-            
-            await db.query('COMMIT');
-            
-            return result;
+          }
+          
+          return result;
         } catch (error) {
-            // Rollback the transaction if there was an error
-            await db.query('ROLLBACK');
-            console.error('Error in SiteManagementService.deleteSite:', error);
-            throw error;
+          console.error('Error in SiteManagementService.editSite:', error);
+          throw error;
         }
-    }
+      }
+
+      async deleteSite(siteId) {
+        try {
+          // Using a transaction to ensure all operations succeed or fail together
+          await db.query('START TRANSACTION');
+          
+          // First, delete from tbl_clientsite
+          await db.query(
+            'DELETE FROM tbl_clientsite WHERE dSite_ID = ?',
+            [siteId]
+          );
+          
+          // Then delete from tbl_site
+          const [result] = await db.query(
+            'DELETE FROM tbl_site WHERE dSite_ID = ?',
+            [siteId]
+          );
+          
+          await db.query('COMMIT');
+          
+          return result;
+        } catch (error) {
+          await db.query('ROLLBACK');
+          console.error('Error in SiteManagementService.deleteSite:', error);
+          throw error;
+        }
+      }
 
     async getAllSites() {
         try {
