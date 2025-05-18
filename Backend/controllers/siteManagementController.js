@@ -234,6 +234,30 @@ class SiteManagementController {
           });
         }
       }
+
+      // Add to your SiteManagementController.js
+    async getClientLobs(req, res) {
+        try {
+        const { clientId } = req.body;
+        
+        if (!clientId) {
+            return res.status(400).json({ message: 'Client ID is required' });
+        }
+        
+        const lobs = await this.SiteManagementService.getClientLobs(clientId);
+        
+        return res.status(200).json({
+            message: 'Client LOBs retrieved successfully',
+            lobs
+        });
+        } catch (error) {
+        console.error('Error in getClientLobs:', error);
+        return res.status(500).json({
+            message: 'Failed to retrieve client LOBs',
+            error: error.message
+        });
+        }
+    }
     
 }
 

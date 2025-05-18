@@ -250,6 +250,69 @@ class SiteManagementService {
           throw error;
         }
       }
+
+     // Updated getClientLobs method in SiteManagementService.js
+    async getClientLobs(clientId) {
+        try {
+            // First get the client name
+            const [clientNameResult] = await db.query(
+                'SELECT dClientName FROM tbl_clientlob WHERE dClient_ID = ? LIMIT 1',
+                [clientId]
+            );
+            
+            if (clientNameResult.length === 0) {
+                throw new Error('Client not found in tbl_clientlob');
+            }
+            
+            const clientName = clientNameResult[0].dClientName;
+            
+            // Now get ALL LOBs for this client name (not just for the specific ID)
+            const [lobsResult] = await db.query(
+                'SELECT DISTINCT dLOB FROM tbl_clientlob WHERE dClientName = ? ORDER BY dLOB',
+                [clientName]
+            );
+            
+            // Create the hierarchical structure with all LOBs
+            const lobs = [];
+            
+            // For each LOB, get its Sub LOBs
+            for (let i = 0; i < lobsResult.length; i++) {
+                const lobName = lobsResult[i].dLOB;
+                const lobId = `lob_${i + 1}`;
+                
+                // Get distinct Sub LOBs for this client name and LOB
+                const [subLobsResult] = await db.query(
+                    'SELECT DISTINCT dSubLOB FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB IS NOT NULL AND dSubLOB != "" ORDER BY dSubLOB',
+                    [clientName, lobName]
+                );
+                
+                // Create the LOB object with its Sub LOBs
+                const lob = { 
+                    id: lobId, 
+                    name: lobName, 
+                    subLobs: [] 
+                };
+                
+                // Add all Sub LOBs to this LOB
+                subLobsResult.forEach((subLob, subIndex) => {
+                    if (subLob.dSubLOB) {
+                        lob.subLobs.push({
+                            id: `sublob_${lobId}_${subIndex + 1}`,
+                            name: subLob.dSubLOB,
+                            lobId: lobId
+                        });
+                    }
+                });
+                
+                lobs.push(lob);
+            }
+            
+            return lobs;
+        } catch (error) {
+            console.error('Error in SiteManagementService.getClientLobs:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = SiteManagementService;

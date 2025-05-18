@@ -12,6 +12,11 @@ const SiteManagement = () => {
   const [selectedSite, setSelectedSite] = useState(null);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [activeTab, setActiveTab] = useState('addSite');
+
+  const [clientLobs, setClientLobs] = useState([]);
+  const [clientSubLobs, setClientSubLobs] = useState([]);
+  const [selectedLobId, setSelectedLobId] = useState('');
+  const [selectedSubLobId, setSelectedSubLobId] = useState('');
   
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentSite, setCurrentSite] = useState(null);
@@ -232,6 +237,38 @@ const SiteManagement = () => {
     return clients.filter(client => !assignedClientIds.includes(client.id));
   };
 
+  // Add this function to fetch LOBs and Sub LOBs when a client is selected
+  const fetchClientLobsAndSubLobs = async (clientId) => {
+    try {
+      const data = await manageSite('getClientLobs', { clientId });
+      if (data?.lobs) {
+        setClientLobs(data.lobs);
+        // Reset selected LOB and Sub LOB when client changes
+        setSelectedLobId('');
+        setSelectedSubLobId('');
+        setClientSubLobs([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch client LOBs:', error);
+    }
+  };
+
+  const handleLobChange = (e) => {
+    const lobId = e.target.value;
+    setSelectedLobId(lobId);
+    
+    if (lobId) {
+      // Filter sub LOBs based on selected LOB
+      const lob = clientLobs.find(l => l.id === lobId);
+      if (lob && lob.subLobs) {
+        setClientSubLobs(lob.subLobs);
+      }
+    } else {
+      setClientSubLobs([]);
+    }
+    setSelectedSubLobId('');
+  };
+
   return (
     <div className="site-management-container">
       <div className="white-card">
@@ -322,48 +359,96 @@ const SiteManagement = () => {
         </div>
         
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Select Client</label>
-              <select
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                disabled={!selectedSite}
-              >
-                <option value="">Select a client</option>
-                {selectedSite && getAvailableClients(selectedSite.id).map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Select Site</label>
-              <select
-                value={selectedSite ? selectedSite.id : ''}
-                onChange={(e) => {
-                  const site = sites.find(s => s.id === parseInt(e.target.value));
-                  setSelectedSite(site || null);
-                  setSelectedClientId('');
-                }}
-              >
-                <option value="">Select a site</option>
-                {sites.map(site => (
-                  <option key={site.id} value={site.id}>
-                    {site.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Select Client</label>
+            <select
+              value={selectedClientId}
+              onChange={(e) => {
+                setSelectedClientId(e.target.value);
+                if (e.target.value) {
+                  fetchClientLobsAndSubLobs(e.target.value);
+                } else {
+                  setClientLobs([]);
+                  setClientSubLobs([]);
+                  setSelectedLobId('');
+                  setSelectedSubLobId('');
+                }
+              }}
+              disabled={!selectedSite}
+            >
+              <option value="">Select a client</option>
+              {selectedSite && getAvailableClients(selectedSite.id).map(client => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
           </div>
-          <button 
-            onClick={handleAddClient} 
-            className="add-button"
-            disabled={!selectedSite || !selectedClientId}
-          >
-            + Add Client to Site
-          </button>
+          <div className="form-group">
+            <label>Select Site</label>
+            <select
+              value={selectedSite ? selectedSite.id : ''}
+              onChange={(e) => {
+                const site = sites.find(s => s.id === parseInt(e.target.value));
+                setSelectedSite(site || null);
+                setSelectedClientId('');
+                setClientLobs([]);
+                setClientSubLobs([]);
+                setSelectedLobId('');
+                setSelectedSubLobId('');
+              }}
+            >
+              <option value="">Select a site</option>
+              {sites.map(site => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label>Select LOB</label>
+            <select
+              value={selectedLobId}
+              onChange={handleLobChange}
+              disabled={!selectedClientId}
+            >
+              <option value="">Select a LOB</option>
+              {clientLobs.map(lob => (
+                <option key={lob.id} value={lob.id}>
+                  {lob.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Select Sub LOB</label>
+            <select
+              value={selectedSubLobId}
+              onChange={(e) => setSelectedSubLobId(e.target.value)}
+              disabled={!selectedLobId}
+            >
+              <option value="">Select a Sub LOB</option>
+              {clientSubLobs.map(subLob => (
+                <option key={subLob.id} value={subLob.id}>
+                  {subLob.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <button 
+          onClick={handleAddClient} 
+          className="add-button"
+          disabled={!selectedSite || !selectedClientId}
+        >
+          + Add Client to Site
+        </button>
 
           <div className="existing-sites">
             <h2>Existing Sites</h2>

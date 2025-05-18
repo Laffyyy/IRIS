@@ -27,6 +27,8 @@ router.post('/manage', (req, res) => {
         return siteManagementController.removeClientFromSite(req, res);
       case 'updateClientSite':
         return siteManagementController.updateClientSite(req, res);
+      case 'getClientLobs':
+        return siteManagementController.getClientLobs(req, res);
       default:
         return res.status(400).json({ 
             message: 'Invalid operation type. Valid operations include "add", "edit", "delete", "getAll", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", and "updateClientSite"' 
