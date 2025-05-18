@@ -38,6 +38,7 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSelectedIndex, setLastSelectedIndex] = useState(null);
+  const [anchorSelectedIndex, setAnchorSelectedIndex] = useState(null);
   
   // Add user modal state
   const [newUser, setNewUser] = useState({
@@ -100,7 +101,9 @@ const UserManagement = () => {
   const [employeeIdEditable, setEmployeeIdEditable] = useState(false);
 
   // Add a computed variable for password mismatch
-  const passwordMismatch = showPasswordFields && (passwordData.newPassword !== passwordData.confirmPassword || !passwordData.newPassword || !passwordData.confirmPassword);
+  const passwordMismatch =
+    (passwordData.newPassword || passwordData.confirmPassword) &&
+    (passwordData.newPassword !== passwordData.confirmPassword);
 
   // Add state for individual add errors and confirmation/result modals
   const [individualAddError, setIndividualAddError] = useState('');
@@ -126,6 +129,129 @@ const UserManagement = () => {
   // Store the original preview user for comparison
   const [originalPreviewUser, setOriginalPreviewUser] = useState(null);
 
+  // --- Sorting and Filtering State ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+  const [statusFilter, setStatusFilter] = useState('All');
+  // For preview tables
+  const [individualSortConfig, setIndividualSortConfig] = useState({ key: null, direction: null });
+  const [individualSearchTerm, setIndividualSearchTerm] = useState('');
+  const [individualRoleFilter, setIndividualRoleFilter] = useState('All');
+  const [individualStatusFilter, setIndividualStatusFilter] = useState('All');
+  const [bulkSortConfig, setBulkSortConfig] = useState({ key: null, direction: null });
+  const [bulkSearchTerm, setBulkSearchTerm] = useState('');
+  const [bulkRoleFilter, setBulkRoleFilter] = useState('All');
+  const [bulkStatusFilter, setBulkStatusFilter] = useState('All');
+
+  // --- Sorting Handlers ---
+  const handleSort = (key) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key: null, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+  const handleIndividualSort = (key) => {
+    setIndividualSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key: null, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+  const handleBulkSort = (key) => {
+    setBulkSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key: null, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  // --- Filtering and Sorting Logic ---
+  const filteredUsers = users.filter(user => {
+    const matchesSearch =
+      (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.dName && user.dName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesRole =
+      roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
+    const matchesStatus =
+      statusFilter === 'All' || (user.dStatus && user.dStatus === statusFilter);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+  const sortedUsers = React.useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return filteredUsers;
+    const sorted = [...filteredUsers].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredUsers, sortConfig]);
+
+  // --- Individual Preview Filtering/Sorting ---
+  const filteredIndividualPreview = individualPreview.filter(user => {
+    const matchesSearch =
+      (user.employeeId && user.employeeId.toString().toLowerCase().includes(individualSearchTerm.toLowerCase())) ||
+      (user.name && user.name.toLowerCase().includes(individualSearchTerm.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(individualSearchTerm.toLowerCase()));
+    const matchesRole =
+      individualRoleFilter === 'All' || (user.role && user.role === individualRoleFilter);
+    const matchesStatus =
+      individualStatusFilter === 'All' || (user.status && user.status === individualStatusFilter);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+  const sortedIndividualPreview = React.useMemo(() => {
+    if (!individualSortConfig.key || !individualSortConfig.direction) return filteredIndividualPreview;
+    const sorted = [...filteredIndividualPreview].sort((a, b) => {
+      let aValue = a[individualSortConfig.key];
+      let bValue = b[individualSortConfig.key];
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+      if (aValue < bValue) return individualSortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return individualSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredIndividualPreview, individualSortConfig]);
+
+  // --- Bulk Preview Filtering/Sorting ---
+  const filteredBulkUsers = bulkUsers.filter(user => {
+    const matchesSearch =
+      (user.employeeId && user.employeeId.toString().toLowerCase().includes(bulkSearchTerm.toLowerCase())) ||
+      (user.name && user.name.toLowerCase().includes(bulkSearchTerm.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(bulkSearchTerm.toLowerCase()));
+    const matchesRole =
+      bulkRoleFilter === 'All' || (user.role && user.role === bulkRoleFilter);
+    const matchesStatus =
+      bulkStatusFilter === 'All' || (user.status && user.status === bulkStatusFilter);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+  const sortedBulkUsers = React.useMemo(() => {
+    if (!bulkSortConfig.key || !bulkSortConfig.direction) return filteredBulkUsers;
+    const sorted = [...filteredBulkUsers].sort((a, b) => {
+      let aValue = a[bulkSortConfig.key];
+      let bValue = b[bulkSortConfig.key];
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+      if (aValue < bValue) return bulkSortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return bulkSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredBulkUsers, bulkSortConfig]);
+
   // Fetch users function
   const fetchUsers = async () => {
     try {
@@ -149,19 +275,6 @@ const UserManagement = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, [editModalOpen, addModalOpen, editInvalidModalOpen, editValidModalOpen]);
-
-  // Filter users based on search term and role
-  const filteredUsers = users.filter(user => {
-    const matchesSearch =
-      (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.dName && user.dName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    const matchesRole =
-      roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
-
-    return matchesSearch && matchesRole;
-  });
 
   // File drag and drop handlers
   const handleDrag = useCallback((e) => {
@@ -301,12 +414,16 @@ const UserManagement = () => {
       // 2. Check for duplicates in the database
       let dbDuplicates = [];
       try {
+        const adminEmployeeIds = parsedUsers.filter(u => u.role && u.role.toUpperCase() === 'ADMIN').map(u => u.employeeId);
+        const adminEmails = parsedUsers.filter(u => u.role && u.role.toUpperCase() === 'ADMIN').map(u => u.email);
         const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             employeeIds: parsedUsers.map(u => u.employeeId),
-            emails: parsedUsers.map(u => u.email)
+            emails: parsedUsers.map(u => u.email),
+            adminEmployeeIds,
+            adminEmails
           })
         });
         dbDuplicates = await response.json();
@@ -395,21 +512,40 @@ const UserManagement = () => {
       setIndividualAddError('Duplicate Email in preview.');
       return;
     }
-    // 4. Duplicates in database
+    // 4. Duplicates in database (tbl_login and tbl_admin for Admin)
     try {
-      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
-      });
-      const dbDuplicates = await response.json();
-      if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-        setIndividualAddError('Duplicate Employee ID in database.');
-        return;
-      }
-      if (dbDuplicates.some(u => u.dEmail === email)) {
-        setIndividualAddError('Duplicate Email in database.');
-        return;
+      let dbDuplicates = [];
+      // Check both tables for admin
+      if (role && role.toUpperCase() === 'ADMIN') {
+        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeIds: [employeeId], emails: [email], admin: true })
+        });
+        dbDuplicates = await response.json();
+        if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
+          setIndividualAddError('Duplicate Employee ID in database (Admin).');
+          return;
+        }
+        if (dbDuplicates.some(u => u.dEmail === email)) {
+          setIndividualAddError('Duplicate Email in database (Admin).');
+          return;
+        }
+      } else {
+        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
+        });
+        dbDuplicates = await response.json();
+        if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
+          setIndividualAddError('Duplicate Employee ID in database.');
+          return;
+        }
+        if (dbDuplicates.some(u => u.dEmail === email)) {
+          setIndividualAddError('Duplicate Email in database.');
+          return;
+        }
       }
     } catch (e) {
       setIndividualAddError('Error checking duplicates in database.');
@@ -504,14 +640,29 @@ const UserManagement = () => {
           body: JSON.stringify({ userIds: selectedUsers })
         });
 
-        if (!response.ok) throw new Error('Failed to delete users');
-        
+        let result = null;
+        try {
+          result = await response.json();
+        } catch (e) {}
+
+        if (!response.ok) {
+          setShowDeleteResultModal(true);
+          setDeleteResultSuccess(false);
+          setDeleteResultMessage(result && result.message ? result.message : 'Failed to delete users');
+          return;
+        }
+
         setUsers(prev => prev.filter(user => !selectedUsers.includes(user.dUser_ID)));
         setSelectedUsers([]);
         setShowDeleteModal(false);
         setDeleteConfirmText('');
+        setShowDeleteResultModal(true);
+        setDeleteResultSuccess(true);
+        setDeleteResultMessage('Users deleted successfully!');
       } catch (error) {
-        console.error('Error deleting users:', error);
+        setShowDeleteResultModal(true);
+        setDeleteResultSuccess(false);
+        setDeleteResultMessage('Delete error: ' + (error.message || 'Unknown error'));
       }
     }
   };
@@ -589,6 +740,16 @@ const UserManagement = () => {
       if (showPasswordFields && passwordData.newPassword && passwordData.newPassword === passwordData.confirmPassword) {
         changedFields.password = passwordData.newPassword;
         changes.push('Password changed');
+      }
+      // Reset Account logic
+      if (resetConfirmed) {
+        changedFields.password = 'defaultPassword123'; // or your default password
+        changedFields.securityQuestions = [
+          { question: '', answer: '' },
+          { question: '', answer: '' },
+          { question: '', answer: '' }
+        ];
+        changes.push('Account reset: password set to default and security questions cleared');
       }
       // Check if security questions changed
       let securityQuestionsChanged = false;
@@ -993,6 +1154,69 @@ const UserManagement = () => {
   // Determine modal size based on preview data
   const shouldExpandModal = (bulkUsers.length > 10 || invalidUsers.length > 10);
 
+  // Add state for delete result modal
+  const [showDeleteResultModal, setShowDeleteResultModal] = useState(false);
+  const [deleteResultSuccess, setDeleteResultSuccess] = useState(false);
+  const [deleteResultMessage, setDeleteResultMessage] = useState('');
+
+  // Add state for reset account in Edit User modal
+  const [showResetDropdown, setShowResetDropdown] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetConfirmed, setResetConfirmed] = useState(false);
+
+  // Add validation state for edit modal
+  const [editUserErrors, setEditUserErrors] = useState({});
+
+  // Validation function for edit modal
+  function validateEditUser(user) {
+    const errors = {};
+    if (!user.dUser_ID) errors.dUser_ID = 'Employee ID is required.';
+    if (!user.dName) errors.dName = 'Name is required.';
+    if (!user.dEmail) errors.dEmail = 'Email is required.';
+    else {
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if (!emailRegex.test(user.dEmail)) errors.dEmail = 'Invalid email format.';
+    }
+    if (!user.dUser_Type) errors.dUser_Type = 'Role is required.';
+    if (!user.dStatus) errors.dStatus = 'Status is required.';
+    return errors;
+  }
+
+  // Watch for changes in currentUser in edit modal
+  useEffect(() => {
+    if (editModalOpen && currentUser) {
+      const handler = setTimeout(() => {
+        const newErrors = validateEditUser(currentUser);
+        setEditUserErrors(prevErrors => {
+          // Only update if errors actually changed
+          const prevKeys = Object.keys(prevErrors);
+          const newKeys = Object.keys(newErrors);
+          if (
+            prevKeys.length !== newKeys.length ||
+            prevKeys.some(key => prevErrors[key] !== newErrors[key])
+          ) {
+            return newErrors;
+          }
+          return prevErrors;
+        });
+      }, 150); // 150ms debounce
+
+      return () => clearTimeout(handler);
+    }
+  }, [editModalOpen, currentUser]);
+
+  // Add a function to check if there are changes between currentUser and originalUser
+  function isUserChanged(current, original) {
+    if (!current || !original) return false;
+    return (
+      current.dUser_ID !== original.dUser_ID ||
+      current.dName !== original.dName ||
+      current.dEmail !== original.dEmail ||
+      current.dUser_Type !== original.dUser_Type ||
+      current.dStatus !== original.dStatus
+    );
+  }
+
   return (
     <div className="user-management-container">
       <div className="white-card">
@@ -1013,6 +1237,16 @@ const UserManagement = () => {
           </div>
 
           <div className="filter-container">
+            <label>Filter by Status:</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="All">All Status</option>
+              <option value="FIRST-TIME">FIRST-TIME</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+
+          <div className="filter-container">
             <label>Filter by Role:</label>
             <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
               <option value="All">All Roles</option>
@@ -1028,25 +1262,35 @@ const UserManagement = () => {
           </button>
         </div>
 
-        <div className="table-container">
+        <div className="table-container" style={{ maxHeight: 'min(720px, 74vh)', overflowY: 'auto' }}>
           <table>
-            <thead>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: '#f8f8f8' }}>
               <tr>
-                <th className="employee-id-col">Employee ID</th>
-                <th className="name-col">Name</th>
-                <th className="email-col">Email</th>
-                <th className="role-col">Role</th>
-                <th className="status-col">Status</th>
+                <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                  Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                </th>
+                <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                  Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                </th>
+                <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                  Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                </th>
+                <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                  Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                </th>
+                <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                  Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                </th>
                 <th className="actions-col">
                   <div className="actions-header">
                     Actions
                     <div className="select-all-container">
                       <input
                         type="checkbox"
-                        checked={selectedUsers.length > 0 && selectedUsers.length === filteredUsers.length}
+                        checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedUsers(filteredUsers.map(user => user.dUser_ID));
+                            setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
                           } else {
                             setSelectedUsers([]);
                           }
@@ -1061,40 +1305,58 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user, index) => {
+              {sortedUsers.map((user, index) => {
                 const isSelected = selectedUsers.includes(user.dUser_ID);
                 return (
                   <tr
                     key={user.dUser_ID}
                     className={isSelected ? 'selected-row' : ''}
                     onClick={(e) => {
-                      if (e.target.tagName !== 'BUTTON' && 
-                          e.target.tagName !== 'svg' && 
-                          e.target.tagName !== 'path' && 
-                          e.target.type !== 'checkbox') {
-                        if (e.shiftKey && lastSelectedIndex !== null) {
-                          const start = Math.min(lastSelectedIndex, index);
-                          const end = Math.max(lastSelectedIndex, index);
-                          const newSelectedUsers = [...selectedUsers];
-                          
-                          filteredUsers.slice(start, end + 1).forEach(rangeUser => {
-                            const userId = rangeUser.dUser_ID;
-                            if (isSelected) {
-                              const i = newSelectedUsers.indexOf(userId);
-                              if (i > -1) newSelectedUsers.splice(i, 1);
-                            } else if (!newSelectedUsers.includes(userId)) {
-                              newSelectedUsers.push(userId);
-                            }
-                          });
-                          
-                          setSelectedUsers(newSelectedUsers);
+                      if (
+                        e.target.tagName !== 'BUTTON' &&
+                        e.target.tagName !== 'svg' &&
+                        e.target.tagName !== 'path' &&
+                        e.target.type !== 'checkbox'
+                      ) {
+                        if (e.shiftKey && anchorSelectedIndex !== null) {
+                          const clickedIsSelected = isSelected;
+                          if (clickedIsSelected) {
+                            // Multi-deselect: from lastSelectedIndex to clicked row (inclusive)
+                            const start = Math.min(lastSelectedIndex, index);
+                            const end = Math.max(lastSelectedIndex, index);
+                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                            setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
+                            setLastSelectedIndex(index);
+                          } else {
+                            // Multi-select: from anchor to clicked row (inclusive)
+                            const start = Math.min(anchorSelectedIndex, index);
+                            const end = Math.max(anchorSelectedIndex, index);
+                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                            setSelectedUsers(prev => {
+                              const newSet = new Set(prev);
+                              rangeUserIds.forEach(id => newSet.add(id));
+                              return Array.from(newSet);
+                            });
+                            setLastSelectedIndex(index);
+                          }
                         } else {
-                          setSelectedUsers(prev => 
-                            isSelected 
-                              ? prev.filter(id => id !== user.dUser_ID) 
+                          setSelectedUsers(prev =>
+                            isSelected
+                              ? prev.filter(id => id !== user.dUser_ID)
                               : [...prev, user.dUser_ID]
                           );
-                          setLastSelectedIndex(index);
+                          // Set anchorSelectedIndex if this is the first selection
+                          if (!isSelected && selectedUsers.length === 0) {
+                            setAnchorSelectedIndex(index);
+                            setLastSelectedIndex(index);
+                          }
+                          if (isSelected && selectedUsers.length === 1) {
+                            setAnchorSelectedIndex(null);
+                            setLastSelectedIndex(null);
+                          }
+                          if (!isSelected && selectedUsers.length > 0) {
+                            setLastSelectedIndex(index);
+                          }
                         }
                       }
                     }}
@@ -1124,11 +1386,17 @@ const UserManagement = () => {
                           checked={isSelected}
                           onChange={(e) => {
                             e.stopPropagation();
-                            setSelectedUsers(prev => 
-                              e.target.checked 
-                                ? [...prev, user.dUser_ID] 
+                            setSelectedUsers(prev =>
+                              e.target.checked
+                                ? [...prev, user.dUser_ID]
                                 : prev.filter(id => id !== user.dUser_ID)
                             );
+                            // Set anchorSelectedIndex if this is the first selection
+                            if (!e.target.checked && selectedUsers.length === 1) {
+                              setAnchorSelectedIndex(null);
+                            } else if (e.target.checked && selectedUsers.length === 0) {
+                              setAnchorSelectedIndex(index);
+                            }
                             setLastSelectedIndex(index);
                           }}
                         />
@@ -1139,8 +1407,8 @@ const UserManagement = () => {
               })}
             </tbody>
           </table>
-
-          {selectedUsers.length > 0 && (
+        </div>
+        {selectedUsers.length > 0 && (
             <div className="bulk-actions-container">
               <button
                 className="bulk-delete-btn"
@@ -1150,7 +1418,6 @@ const UserManagement = () => {
               </button>
             </div>
           )}
-        </div>
       </div>
 
       {/* Add User Modal */}
@@ -1164,7 +1431,7 @@ const UserManagement = () => {
           >
             <div className="modal-header">
               <h2>Add User</h2>
-              <button onClick={() => setAddModalOpen(false)} className="close-btn">
+              <button onClick={() => { setAddModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -1253,32 +1520,59 @@ const UserManagement = () => {
                 )}
 
                 {individualPreview.length > 0 && (
-                  <div className="individual-preview" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto' }}>
-                    <table>
-                      <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
-                        <tr>
-                          <th>Employee ID</th>
-                          <th>Name</th>
-                          <th>Email</th>
-                          <th>Role</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {individualPreview.map((user, index) => (
-                          <tr key={`individual-preview-${index}`}>
-                            <td>{user.employeeId}</td>
-                            <td>{user.name}</td>
-                            <td>{user.email}</td>
-                            <td>{user.role}</td>
-                            <td>
-                              <button className="remove-btn" onClick={() => handleRemoveFromPreview(user.employeeId)}><FaTimes /></button>
-                            </td>
+                  <>
+                    {/* Controls above the table, only shown if there are users */}
+                    <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-start' }}>
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={individualSearchTerm}
+                        onChange={e => setIndividualSearchTerm(e.target.value)}
+                        style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
+                      />
+                      <select value={individualRoleFilter} onChange={e => setIndividualRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
+                        <option value="All">All Roles</option>
+                        <option value="Admin">Admin</option>
+                        <option value="HR">HR</option>
+                        <option value="REPORTS">REPORTS</option>
+                        <option value="CNB">CNB</option>
+                      </select>
+                    </div>
+                    <div className="individual-preview" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+                      <table>
+                        <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
+                          <tr>
+                            <th onClick={() => handleIndividualSort('employeeId')} style={{ cursor: 'pointer' }}>
+                              Employee ID {individualSortConfig.key === 'employeeId' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                            </th>
+                            <th onClick={() => handleIndividualSort('name')} style={{ cursor: 'pointer' }}>
+                              Name {individualSortConfig.key === 'name' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                            </th>
+                            <th onClick={() => handleIndividualSort('email')} style={{ cursor: 'pointer' }}>
+                              Email {individualSortConfig.key === 'email' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                            </th>
+                            <th onClick={() => handleIndividualSort('role')} style={{ cursor: 'pointer' }}>
+                              Role {individualSortConfig.key === 'role' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                            </th>
+                            <th>Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {sortedIndividualPreview.map((user, index) => (
+                            <tr key={`individual-preview-${index}`}>
+                              <td>{user.employeeId}</td>
+                              <td>{user.name}</td>
+                              <td>{user.email}</td>
+                              <td>{user.role}</td>
+                              <td>
+                                <button className="remove-btn" onClick={() => handleRemoveFromPreview(user.employeeId)}><FaTimes /></button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
 
                 <div className="modal-actions">
@@ -1335,112 +1629,142 @@ const UserManagement = () => {
                 )}
 
                 {(bulkUsers.length > 0 || invalidUsers.length > 0) && (
-                  <div className="upload-preview">
-                    <div className="preview-tabs">
-                      <button
-                        className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
-                        onClick={() => setPreviewTab('valid')}
-                        disabled={bulkUsers.length === 0}
-                      >
-                        Valid ({bulkUsers.length})
-                      </button>
-                      <button
-                        className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
-                        onClick={() => setPreviewTab('invalid')}
-                        disabled={invalidUsers.length === 0}
-                      >
-                        Invalid ({invalidUsers.length})
-                      </button>
+                  <>
+                    {/* Controls above the table, only shown if there are users */}
+                    <div style={{ marginBottom: -25, display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-start' }}>
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={bulkSearchTerm}
+                        onChange={e => setBulkSearchTerm(e.target.value)}
+                        style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
+                      />
+                      <select value={bulkRoleFilter} onChange={e => setBulkRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
+                        <option value="All">All Roles</option>
+                        <option value="Admin">Admin</option>
+                        <option value="HR">HR</option>
+                        <option value="REPORTS">REPORTS</option>
+                        <option value="CNB">CNB</option>
+                      </select>
                     </div>
+                    <div className="upload-preview">
+                      <div className="preview-tabs">
+                        <button
+                          className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
+                          onClick={() => setPreviewTab('valid')}
+                          disabled={bulkUsers.length === 0}
+                        >
+                          Valid ({bulkUsers.length})
+                        </button>
+                        <button
+                          className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
+                          onClick={() => setPreviewTab('invalid')}
+                          disabled={invalidUsers.length === 0}
+                        >
+                          Invalid ({invalidUsers.length})
+                        </button>
+                      </div>
 
-                    <div className="preview-content">
-                      {previewTab === 'valid' && bulkUsers.length > 0 && (
-                        <div className="valid-users-table">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Employee ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {bulkUsers.map((user, index) => (
-                                <tr key={`valid-${index}`}>
-                                  <td>{user.employeeId}</td>
-                                  <td>{user.name}</td>
-                                  <td>{user.email}</td>
-                                  <td>{user.role}</td>
-                                  <td>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <button
-                                        className="edit-btn"
-                                        onClick={() => handleEditValidUser(index)}
-                                      >
-                                        <FaEdit /> Edit
-                                      </button>
-                                      <button
-                                        className="remove-btn"
-                                        onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
-                                      >
-                                        <FaTimes />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                      <div className="preview-content">
+                        {previewTab === 'valid' && bulkUsers.length > 0 && (
+                          <>
+                            {/* Controls above the table, only shown if there are users */}
+                            <div className="valid-users-table" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th onClick={() => handleBulkSort('employeeId')} style={{ cursor: 'pointer' }}>
+                                      Employee ID {bulkSortConfig.key === 'employeeId' ? (bulkSortConfig.direction === 'asc' ? '▲' : bulkSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                                    </th>
+                                    <th onClick={() => handleBulkSort('name')} style={{ cursor: 'pointer' }}>
+                                      Name {bulkSortConfig.key === 'name' ? (bulkSortConfig.direction === 'asc' ? '▲' : bulkSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                                    </th>
+                                    <th onClick={() => handleBulkSort('email')} style={{ cursor: 'pointer' }}>
+                                      Email {bulkSortConfig.key === 'email' ? (bulkSortConfig.direction === 'asc' ? '▲' : bulkSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                                    </th>
+                                    <th onClick={() => handleBulkSort('role')} style={{ cursor: 'pointer' }}>
+                                      Role {bulkSortConfig.key === 'role' ? (bulkSortConfig.direction === 'asc' ? '▲' : bulkSortConfig.direction === 'desc' ? '▼' : '') : ''}
+                                    </th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sortedBulkUsers.map((user, index) => (
+                                    <tr key={`valid-${index}`}>
+                                      <td>{user.employeeId}</td>
+                                      <td>{user.name}</td>
+                                      <td>{user.email}</td>
+                                      <td>{user.role}</td>
+                                      <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <button
+                                            className="edit-btn"
+                                            onClick={() => handleEditValidUser(index)}
+                                          >
+                                            <FaEdit /> Edit
+                                          </button>
+                                          <button
+                                            className="remove-btn"
+                                            onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
+                                          >
+                                            <FaTimes />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        )}
 
-                      {previewTab === 'invalid' && invalidUsers.length > 0 && (
-                        <div className="invalid-users-table" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto' }}>
-                          <table>
-                            <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
-                              <tr>
-                                <th>Reason</th>
-                                <th>Employee ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {invalidUsers.map((user, index) => (
-                                <tr key={`invalid-${index}`}>
-                                  <td className="reason-cell" title={user.reasons && user.reasons.join(', ')}>
-                                    {user.reasons && user.reasons.join(', ')}
-                                  </td>
-                                  <td title={user.employeeId}>{user.employeeId}</td>
-                                  <td title={user.name}>{user.name}</td>
-                                  <td title={user.email}>{user.email}</td>
-                                  <td title={user.role}>{user.role}</td>
-                                  <td>
-                                    {!user.notEditable && (
-                                      <button
-                                        className="edit-btn"
-                                        onClick={() => handleEditInvalidUser(index)}
-                                      >
-                                        <FaEdit /> Edit
-                                      </button>
-                                    )}
-                                  </td>
+                        {previewTab === 'invalid' && invalidUsers.length > 0 && (
+                          <div className="invalid-users-table" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto' }}>
+                            <table>
+                              <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
+                                <tr>
+                                  <th>Reason</th>
+                                  <th>Employee ID</th>
+                                  <th>Name</th>
+                                  <th>Email</th>
+                                  <th>Role</th>
+                                  <th>Actions</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                              </thead>
+                              <tbody>
+                                {invalidUsers.map((user, index) => (
+                                  <tr key={`invalid-${index}`}>
+                                    <td className="reason-cell" title={user.reasons && user.reasons.join(', ')}>
+                                      {user.reasons && user.reasons.join(', ')}
+                                    </td>
+                                    <td title={user.employeeId}>{user.employeeId}</td>
+                                    <td title={user.name}>{user.name}</td>
+                                    <td title={user.email}>{user.email}</td>
+                                    <td title={user.role}>{user.role}</td>
+                                    <td>
+                                      {!user.notEditable && (
+                                        <button
+                                          className="edit-btn"
+                                          onClick={() => handleEditInvalidUser(index)}
+                                        >
+                                          <FaEdit /> Edit
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
 
                 <div className="modal-actions">
-                  <button onClick={() => setAddModalOpen(false)} className="cancel-btn">Cancel</button>
+                  <button onClick={() => { setAddModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="cancel-btn">Cancel</button>
                   <button
                     onClick={() => setShowBulkConfirmModal(true)}
                     className="save-btn"
@@ -1463,32 +1787,39 @@ const UserManagement = () => {
               <FaTrash /> Confirm Deletion
             </h3>
             <p>
-              You are about to delete {selectedUsers.length} user(s). 
+              You are about to delete {selectedUsers.length} user(s).
               This action cannot be undone. Type <strong>CONFIRM</strong> to proceed.
             </p>
-            
             {selectedUsers.length > 0 && (
-              <ul>
-                {users
-                  .filter(user => selectedUsers.includes(user.dUser_ID))
-                  .map(user => (
-                    <li key={user.dUser_ID}>
-                      <span>{user.dName}</span>
-                      <span className="user-id">{user.dUser_ID}</span>
-                    </li>
-                  ))}
-              </ul>
+              <div style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
+                border: '1px solid #eee',
+                background: '#fafbfc',
+                borderRadius: '4px',
+                margin: '10px 0',
+                padding: '8px 12px',
+              }}>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                  {users
+                    .filter(user => selectedUsers.includes(user.dUser_ID))
+                    .map(user => (
+                      <li key={user.dUser_ID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid #f0f0f0' }}>
+                        <span>{user.dName}</span>
+                        <span className="user-id" style={{ color: '#888', fontSize: '12px', marginLeft: 8 }}>{user.dUser_ID}</span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
             )}
-            
             <input
               type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="Type CONFIRM to delete"
             />
-            
             <div className="delete-modal-actions">
-              <button 
+              <button
                 className="cancel-btn"
                 onClick={() => {
                   setShowDeleteModal(false);
@@ -1515,7 +1846,7 @@ const UserManagement = () => {
           <div className="modal edit-user-modal">
             <div className="modal-header">
               <h2>Edit User</h2>
-              <button onClick={() => setEditModalOpen(false)} className="close-btn">
+              <button onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -1545,6 +1876,7 @@ const UserManagement = () => {
                     cursor: !employeeIdEditable ? 'not-allowed' : undefined,
                   }}
                 />
+                {editUserErrors.dUser_ID && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_ID}</div>}
               </div>
               <div className="form-group">
                 <label>Name:</label>
@@ -1555,6 +1887,7 @@ const UserManagement = () => {
                   onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value})}
                   required
                 />
+                {editUserErrors.dName && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dName}</div>}
               </div>
             </div>
             <div className="employee-id-checkbox-row">
@@ -1580,6 +1913,7 @@ const UserManagement = () => {
                   onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value})}
                   required
                 />
+                {editUserErrors.dEmail && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dEmail}</div>}
               </div>
 
               <div className="form-group">
@@ -1594,6 +1928,7 @@ const UserManagement = () => {
                   <option value="REPORTS">REPORTS</option>
                   <option value="CNB">CNB</option>
                 </select>
+                {editUserErrors.dUser_Type && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_Type}</div>}
               </div>
             </div>
 
@@ -1605,10 +1940,21 @@ const UserManagement = () => {
                   value={currentUser.dStatus}
                   onChange={(e) => setCurrentUser({...currentUser, dStatus: e.target.value})}
                 >
-                  {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
+                  {currentUser.dStatus === 'RESET-DONE' ? (
+                    <>
+                      <option value="RESET-DONE">RESET-DONE</option>
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                    </>
+                  ) : (
+                    <>
+                      {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                    </>
+                  )}
                 </select>
+                {editUserErrors.dStatus && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dStatus}</div>}
               </div>
             </div>
 
@@ -1673,56 +2019,53 @@ const UserManagement = () => {
 
               <div className="security-questions-section">
                 <h3 className="section-header">
-                  <FaShieldAlt size={14} /> Security Questions
+                  <FaShieldAlt size={14} /> Reset Account
                 </h3>
-
                 <button
                   className="visibility-toggle"
-                  onClick={() => setShowSecurityQuestions(!showSecurityQuestions)}
+                  onClick={() => setShowResetDropdown(v => !v)}
+                  style={{ marginBottom: 8 }}
                 >
-                  {showSecurityQuestions ? <FaChevronDown /> : <FaChevronRight />}
-                  {showSecurityQuestions ? 'Hide Security Questions' : 'Change Security Questions'}
+                  {showResetDropdown ? <FaChevronDown /> : <FaChevronRight />}
+                  {showResetDropdown ? 'Hide Reset Account' : 'Reset Account'}
                 </button>
-
-                {showSecurityQuestions && (
-                  <div className="security-questions-fields">
-                    {securityQuestionsData.map((question, index) => (
-                      <div key={`question-${index}`} className="security-question-group">
-                        <div className="form-group">
-                          <label>Question {index + 1}</label>
-                          <select
-                            value={question.question}
-                            onChange={(e) => handleSecurityQuestionChange(index, 'question', e.target.value)}
-                          >
-                            <option value="">Select a question</option>
-                            {securityQuestionOptions.map((opt, i) => (
-                              <option key={`opt-${i}`} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="form-group">
-                          <label>Answer</label>
-                          <input
-                            type="text"
-                            value={question.answer}
-                            onChange={(e) => handleSecurityQuestionChange(index, 'answer', e.target.value)}
-                            placeholder="Enter your answer"
-                          />
-                        </div>
-                      </div>
-                    ))}
+                {showResetDropdown && !resetConfirmed && (
+                  <div style={{ marginTop: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Type RESET to confirm"
+                      value={resetConfirmText}
+                      onChange={e => setResetConfirmText(e.target.value)}
+                      style={{ padding: 6, border: '1px solid #ccc', borderRadius: 4, marginRight: 8 }}
+                    />
+                    <button
+                      className="save-btn"
+                      style={{ padding: '6px 14px', fontSize: 13 }}
+                      disabled={resetConfirmText !== 'RESET'}
+                      onClick={() => setResetConfirmed(true)}
+                    >
+                      Confirm Reset
+                    </button>
+                  </div>
+                )}
+                {resetConfirmed && (
+                  <div style={{ color: '#0a7', marginTop: 8, fontWeight: 500 }}>
+                    Reset Confirmation is set. The account will be reset when you save changes.
                   </div>
                 )}
               </div>
             </div>
 
             <div className="modal-actions">
-              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
+              <button onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="cancel-btn">Cancel</button>
               <button
                 onClick={() => { setPendingEditUser(currentUser); setShowEditConfirmModal(true); }}
                 className="save-btn"
-                disabled={passwordMismatch}
+                disabled={
+                  passwordMismatch ||
+                  Object.keys(editUserErrors).length > 0 ||
+                  !isUserChanged(currentUser, originalUser)
+                }
               >
                 Save Changes
               </button>
@@ -2045,6 +2388,24 @@ const UserManagement = () => {
             <p>{individualResultMessage}</p>
             <div className="modal-actions">
               <button onClick={() => setShowIndividualResultModal(false)} className="save-btn">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Result Modal */}
+      {showDeleteResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{deleteResultSuccess ? 'Delete Successful' : 'Delete Failed'}</h2>
+              <button onClick={() => setShowDeleteResultModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>{deleteResultMessage}</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowDeleteResultModal(false)} className="save-btn">OK</button>
             </div>
           </div>
         </div>

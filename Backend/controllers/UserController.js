@@ -23,15 +23,27 @@ exports.createUser = async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const userId = await userService.insertUser({
-      employeeId,
-      name,
-      email,
-      hashedPassword,
-      role,
-      status,
-      createdBy
-    });
+    let userId;
+      if (role && role.toUpperCase() === 'ADMIN') {
+        userId = await userService.insertAdminUser({
+          employeeId,
+          name,
+          email,
+          hashedPassword,
+          status,
+          createdBy
+        });
+      } else {
+        userId = await userService.insertUser({
+          employeeId,
+          name,
+          email,
+          hashedPassword,
+          role,
+          status,
+          createdBy
+        });
+      }
     res.status(201).json({ id: userId, message: 'User created successfully' });
   } catch (error) {
     console.error('Error creating user:', error);
@@ -41,9 +53,24 @@ exports.createUser = async (req, res) => {
 
 exports.checkDuplicates = async (req, res) => {
   try {
-    const { employeeIds, emails } = req.body;
-    const existing = await userService.findExistingEmployeeIdsEmailsOrNames(employeeIds, emails);
-    res.json(existing);
+    const { employeeIds, emails, adminEmployeeIds, adminEmails, admin } = req.body;
+    let existing = await userService.findExistingEmployeeIdsEmailsOrNames(employeeIds || [], emails || []);
+    // If admin check is requested, also check tbl_admin
+    let adminExisting = [];
+    if (admin || (adminEmployeeIds && adminEmployeeIds.length > 0) || (adminEmails && adminEmails.length > 0)) {
+      adminExisting = await userService.findExistingAdminEmployeeIdsEmails(
+        (adminEmployeeIds && adminEmployeeIds.length > 0) ? adminEmployeeIds : (admin ? employeeIds : []),
+        (adminEmails && adminEmails.length > 0) ? adminEmails : (admin ? emails : [])
+      );
+    }
+    // Merge results (avoid duplicates)
+    const allExisting = [...existing];
+    adminExisting.forEach(adminUser => {
+      if (!allExisting.some(u => u.dUser_ID === adminUser.dUser_ID && u.dEmail === adminUser.dEmail)) {
+        allExisting.push(adminUser);
+      }
+    });
+    res.json(allExisting);
   } catch (err) {
     res.status(500).json({ message: err.sqlMessage || err.message || 'Internal Server Error' });
   }
@@ -89,7 +116,16 @@ exports.addUsersBulk = async (req, res) => {
       hashedPassword: await bcrypt.hash(user.password, 10)
     })));
 
-    const insertedIds = await userService.insertUsersBulk(processedUsers);
+    const adminUsers = processedUsers.filter(u => u.role && u.role.toUpperCase() === 'ADMIN');
+    const normalUsers = processedUsers.filter(u => !u.role || u.role.toUpperCase() !== 'ADMIN');
+
+    let insertedIds = [];
+    if (normalUsers.length > 0) {
+      insertedIds = insertedIds.concat(await userService.insertUsersBulk(normalUsers));
+    }
+    if (adminUsers.length > 0) {
+      insertedIds = insertedIds.concat(await userService.insertAdminUsersBulk(adminUsers));
+    }
     res.status(201).json({ message: 'Users added successfully', users: insertedIds });
   } catch (err) {
     console.error(err);
@@ -136,6 +172,24 @@ exports.updateUser = async (req, res) => {
       const bcrypt = require('bcrypt');
       updateData.hashedPassword = await bcrypt.hash(updateData.password, 10);
       delete updateData.password;
+    }
+    // If securityQuestions is present and is an array of empty questions/answers, clear them
+    if (Array.isArray(updateData.securityQuestions)) {
+      const allEmpty = updateData.securityQuestions.every(q => !q.question && !q.answer);
+      if (allEmpty) {
+        // Clear security questions in DB
+        await userService.updateUserSecurityQuestions(userId, [
+          { question: '', answer: '' },
+          { question: '', answer: '' },
+          { question: '', answer: '' }
+        ]);
+        updateData.status = 'RESET-DONE';
+        // Always set password to '1234' (hashed)
+        const bcrypt = require('bcrypt');
+        updateData.hashedPassword = await bcrypt.hash('1234', 10);
+        delete updateData.password;
+        delete updateData.securityQuestions;
+      }
     }
     const result = await userService.updateUserDynamic(userId, updateData);
     if (result.affectedRows === 0) {

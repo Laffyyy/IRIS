@@ -36,6 +36,27 @@ exports.insertUsersBulk = async (users) => {
   return results.map(result => result[0].insertId);
 };
 
+exports.insertAdminUser = async ({ employeeId, name, email, hashedPassword, status, createdBy }) => {
+  const [result] = await pool.query(
+    `INSERT INTO iris.tbl_admin (dUser_ID, dName, dEmail, dPassword1_hash, dStatus, dCreatedBy)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [employeeId, name, email, hashedPassword, status, createdBy]
+  );
+  return result.insertId;
+};
+
+exports.insertAdminUsersBulk = async (users) => {
+  const insertPromises = users.map(user =>
+    pool.query(
+      `INSERT INTO iris.tbl_admin (dUser_ID, dName, dEmail, dPassword1_hash, dStatus, dCreatedBy)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [user.employeeId, user.name, user.email, user.hashedPassword, user.status, user.createdBy]
+    )
+  );
+  const results = await Promise.all(insertPromises);
+  return results.map(result => result[0].insertId);
+};
+
 exports.deleteUsers = async (userIds) => {
   const placeholders = userIds.map(() => '?').join(', ');
   const [result] = await pool.query(
@@ -115,4 +136,13 @@ exports.updateUserSecurityQuestions = async (loginId, questions) => {
     [q1, q2, q3, a1, a2, a3, loginId]
   );
   return result;
+};
+
+exports.findExistingAdminEmployeeIdsEmails = async (employeeIds, emails) => {
+  if ((!employeeIds || employeeIds.length === 0) && (!emails || emails.length === 0)) return [];
+  const [rows] = await pool.query(
+    `SELECT dUser_ID, dEmail FROM iris.tbl_admin WHERE (dUser_ID IN (?) OR dEmail IN (?))`,
+    [employeeIds.length ? employeeIds : [''], emails.length ? emails : ['']]
+  );
+  return rows;
 };
