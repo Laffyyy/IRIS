@@ -27,9 +27,14 @@ const Sidebar = () => {
   const shouldShowExpanded = isLocked || isHovered;
   const userRoles = getUserRoles();
 
+  if (!userRoles || userRoles.length === 0) {
+    return null;
+  }
+
+
   const navItems = [
   ...(userRoles.includes('admin') ? [
-    { name: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
+    { name: 'Dashboard', path: '/admin/dashboard', icon: dashboardIcon },
     { 
       name: 'Admin', 
       icon: adminIcon,
@@ -42,14 +47,14 @@ const Sidebar = () => {
       ]
     }
   ] : []),
-  ...(userRoles.includes('HR') ? [
+  ...((userRoles.includes('HR') || userRoles.includes('admin')) ? [
     { name: 'HR', path: '/hr', icon: hrIcon }
   ] : []),
-  ...(userRoles.includes('REPORTS') ? [
+  ...((userRoles.includes('REPORTS') || userRoles.includes('admin')) ? [
     { name: 'Reports', path: '/reports', icon: reportsIcon }
   ] : []),
-  ...(userRoles.includes('CNB') ? [
-    { name: 'C&B', path: '/cb', icon: cbIcon }
+  ...((userRoles.includes('CNB')|| userRoles.includes('admin')) ? [
+    { name: 'C&B', path: '/compensation', icon: cbIcon }
   ] : []),
   { name: 'FAQs', path: '/faqs', icon: faqsIcon }
 ];

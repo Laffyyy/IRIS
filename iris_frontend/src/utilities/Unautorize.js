@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const styles = {
     container: {
@@ -46,6 +47,8 @@ const styles = {
 };
 
 function Unauthorize() {
+    const navigate = useNavigate();
+
     return (
         <div style={styles.container}>
             <div style={styles.card}>
@@ -55,7 +58,12 @@ function Unauthorize() {
                     You do not have permission to view this page.<br />
                     Please login or contact the administrator.
                 </div>
-                <a href="/" style={styles.button}>Go Home</a>
+                <button
+                    style={styles.button}
+                    onClick={() => navigate(-1)}
+                >
+                    Go Back
+                </button>
             </div>
         </div>
     );

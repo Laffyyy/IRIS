@@ -65,6 +65,11 @@ const [passwords, setPasswords] = useState({
     }
   }, []);
 
+  useEffect(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
  
