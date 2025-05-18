@@ -24,7 +24,7 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/security-questions" element={<SecurityQuestions />} />
           <Route path="/update-password" element={<UpdatePassword />} />  {/* Add this line for UpdatePassword */}
-        </Routes>
+        </Routes> 
       </div>
         <div className="app-container">
           <Sidebar />

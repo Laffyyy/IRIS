@@ -35,7 +35,7 @@ class SiteManagementController {
 
     async editSite(req, res) {
         try {
-            const { siteId, siteName } = req.body;
+            const { siteId, siteName, updateClientSiteTable } = req.body;
             
             // Validate input
             if (!siteId || !siteName) {
@@ -45,7 +45,11 @@ class SiteManagementController {
             }
             
             // Call the service to edit the site
-            const result = await this.SiteManagementService.editSite(siteId, siteName);
+            const result = await this.SiteManagementService.editSite(
+                siteId, 
+                siteName, 
+                updateClientSiteTable
+            );
             
             // Return success response
             res.status(200).json({ 
@@ -160,26 +164,6 @@ class SiteManagementController {
         }
     }
 
-    // In SiteManagementController.js, add this new method:
-    async getClientSiteMappings(req, res) {
-        try {
-            // Call the service to get all client-site mappings
-            const result = await this.SiteManagementService.getClientSiteMappings();
-            
-            // Return success response
-            res.status(200).json({ 
-                message: 'Client-site mappings retrieved successfully',
-                mappings: result
-            });
-        } catch (error) {
-            console.error('Error retrieving client-site mappings:', error);
-            res.status(500).json({ 
-                message: 'Failed to retrieve client-site mappings', 
-                error: error.message 
-            });
-        }
-    }
-
     async removeClientFromSite(req, res) {
         try {
             const { clientId } = req.body;
@@ -207,6 +191,49 @@ class SiteManagementController {
             });
         }
     }
+
+    async updateClientSite(req, res) {
+        try {
+            const { clientId, clientName, siteId } = req.body;
+            
+            if (!clientId || !clientName || !siteId) {
+                return res.status(400).json({ 
+                    message: 'Client ID, Client Name and Site ID are required' 
+                });
+            }
+            
+            const result = await this.SiteManagementService.updateClientSite(
+                clientId, clientName, siteId);
+            
+            res.status(200).json({ 
+                message: 'Client-site assignment updated successfully',
+                affectedRows: result.affectedRows
+            });
+        } catch (error) {
+            console.error('Error updating client-site assignment:', error);
+            res.status(500).json({ 
+                message: 'Failed to update client-site assignment', 
+                error: error.message 
+            });
+        }
+    }
+
+    async getSiteClients(req, res) {
+        try {
+          const result = await this.SiteManagementService.getSiteClients();
+          
+          res.status(200).json({ 
+            message: 'Site-client relationships retrieved successfully',
+            siteClients: result
+          });
+        } catch (error) {
+          console.error('Error retrieving site-client relationships:', error);
+          res.status(500).json({ 
+            message: 'Failed to retrieve site-client relationships', 
+            error: error.message 
+          });
+        }
+      }
     
 }
 

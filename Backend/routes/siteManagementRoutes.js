@@ -21,13 +21,15 @@ router.post('/manage', (req, res) => {
         return siteManagementController.getAllClients(req, res);
       case 'addClientToSite':
         return siteManagementController.addClientToSite(req, res);
-      case 'getClientSiteMappings':
-        return siteManagementController.getClientSiteMappings(req, res);
+      case 'getSiteClients':
+        return siteManagementController.getSiteClients(req, res);
       case 'removeClientFromSite':
         return siteManagementController.removeClientFromSite(req, res);
+      case 'updateClientSite':
+        return siteManagementController.updateClientSite(req, res);
       default:
         return res.status(400).json({ 
-          message: 'Invalid operation type. Must be "add", "edit", or "delete"' 
+            message: 'Invalid operation type. Valid operations include "add", "edit", "delete", "getAll", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", and "updateClientSite"' 
         });
     }
   });
