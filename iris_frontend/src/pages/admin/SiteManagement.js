@@ -24,11 +24,21 @@ const SiteManagement = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState(null);
 
+  const [existingAssignments, setExistingAssignments] = useState([]);
+
   useEffect(() => {
     fetchSites();
     fetchClients();
     fetchSiteClients();
   }, []);
+
+  useEffect(() => {
+    if (selectedSite) {
+      fetchExistingAssignments(selectedSite.id);
+    } else {
+      setExistingAssignments([]);
+    }
+  }, [selectedSite]);
 
   /**
    * Handles all API requests to the site management endpoints
@@ -62,7 +72,10 @@ const SiteManagement = () => {
         throw new Error(`Error: ${response.status}`);
       }
       
-      return await response.json();
+      const responseData = await response.json();
+      console.log('API Response for operation', operation, ':', responseData);
+      
+      return responseData;
       
     } catch (error) {
       setError(`Failed to ${operation} site. Please try again.`);
@@ -203,20 +216,12 @@ const SiteManagement = () => {
       const subLobName = selectedSubLob ? selectedSubLob.name : null;
       
       let confirmMessage = "";
-      if (existingAssignment) {
-        if (existingAssignment.type === 'lob') {
-          confirmMessage = `LOB "${existingAssignment.lobName}" is already assigned to ${existingAssignment.siteName}. Move it to ${selectedSite.name}?`;
-        } else if (existingAssignment.type === 'sublob') {
-          confirmMessage = `Sub LOB "${existingAssignment.subLobName}" of LOB "${existingAssignment.lobName}" is already assigned to ${existingAssignment.siteName}. Move it to ${selectedSite.name}?`;
-        }
+      if (lobName && subLobName) {
+        confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" to site "${selectedSite.name}"?`;
+      } else if (lobName) {
+        confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and all its Sub LOBs to site "${selectedSite.name}"?`;
       } else {
-        if (lobName && subLobName) {
-          confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" to site "${selectedSite.name}"?`;
-        } else if (lobName) {
-          confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and all its Sub LOBs to site "${selectedSite.name}"?`;
-        } else {
-          confirmMessage = `Are you sure you want to add client "${clientName}" with all its LOBs and Sub LOBs to site "${selectedSite.name}"?`;
-        }
+        confirmMessage = `Are you sure you want to add client "${clientName}" with all its LOBs and Sub LOBs to site "${selectedSite.name}"?`;
       }
       
       if (!window.confirm(confirmMessage)) return;
@@ -226,11 +231,17 @@ const SiteManagement = () => {
           clientId: parseInt(selectedClientId), 
           siteId: parseInt(selectedSite.id),
           lobName: lobName,
-          subLobName: subLobName,
-          movingExisting: existingAssignment !== null
+          subLobName: subLobName
         });
         
-        let successMessage = "...";
+        let successMessage = "";
+        if (lobName && subLobName) {
+          successMessage = `Client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" has been added to site "${selectedSite.name}"`;
+        } else if (lobName) {
+          successMessage = `Client "${clientName}" with LOB "${lobName}" and all its Sub LOBs has been added to site "${selectedSite.name}"`;
+        } else {
+          successMessage = `Client "${clientName}" with all its LOBs and Sub LOBs has been added to site "${selectedSite.name}"`;
+        }
         
         alert(successMessage);
         
@@ -239,10 +250,10 @@ const SiteManagement = () => {
         setSelectedSubLobId('');
         setClientLobs([]);
         setClientSubLobs([]);
-        setExistingAssignment(null);
         
         await fetchSiteClients();
         await fetchSites();
+        await fetchExistingAssignments(selectedSite.id);
       } catch (error) {
         // Error handling
       }
@@ -321,42 +332,40 @@ const SiteManagement = () => {
    */
   const fetchClientLobsAndSubLobs = async (clientId) => {
     try {
-      const freshSiteClients = await fetchSiteClients();
-      
-      const relevantEntries = freshSiteClients.filter(sc => 
-        sc.siteId === parseInt(selectedSite.id) && 
-        sc.clientId === parseInt(clientId)
-      );
-      
-      const data = await manageSite('getClientLobs', { clientId });
-      
-      if (data?.lobs) {
-        const filteredLobs = data.lobs.map(lob => {
-          const filteredSubLobs = lob.subLobs.filter(subLob => {
-            const matchingEntries = freshSiteClients.filter(sc => 
-              sc.siteId === parseInt(selectedSite.id) && 
-              sc.clientId === parseInt(clientId) && 
-              sc.lobName === lob.name &&
-              sc.subLobName === subLob.name
-            );
-            
-            return matchingEntries.length === 0;
-          });
-          
-          return { ...lob, subLobs: filteredSubLobs };
-        });
-        
-        const logsWithAvailableSubLobs = filteredLobs.filter(lob => 
-          lob.subLobs.length > 0
-        );
-        
-        setClientLobs(logsWithAvailableSubLobs);
-        setSelectedLobId('');
-        setSelectedSubLobId('');
+      if (!clientId) {
+        setClientLobs([]);
         setClientSubLobs([]);
+        return;
       }
+
+      const response = await manageSite('getClientLobs', { clientId });
+      const allLobs = response.lobs || [];
+      
+      // Filter out LOBs and Sub LOBs that are already assigned to the selected site
+      const filteredLobs = allLobs.map(lob => {
+        const existingSubLobs = existingAssignments
+          .filter(assignment => 
+            assignment.dClientName === clients.find(c => c.id == clientId)?.name &&
+            assignment.dLOB === lob.name
+          )
+          .map(assignment => assignment.dSubLOB);
+
+        return {
+          ...lob,
+          subLobs: lob.subLobs.filter(subLob => !existingSubLobs.includes(subLob.name))
+        };
+      }).filter(lob => lob.subLobs.length > 0);
+
+      setClientLobs(filteredLobs);
+      setClientSubLobs([]);
+      setSelectedLobId('');
+      setSelectedSubLobId('');
     } catch (error) {
-      // Error handling
+      console.error('Error fetching client LOBs:', error);
+      setClientLobs([]);
+      setClientSubLobs([]);
+      setSelectedLobId('');
+      setSelectedSubLobId('');
     }
   };
 
@@ -368,33 +377,6 @@ const SiteManagement = () => {
   const handleSubLobChange = (e) => {
     const subLobId = e.target.value;
     setSelectedSubLobId(subLobId);
-    
-    if (subLobId) {
-      const lob = clientLobs.find(l => l.id === selectedLobId);
-      const subLob = clientSubLobs.find(sl => sl.id === subLobId);
-      
-      if (lob && subLob) {
-        const existingSubLobAssignment = siteClients.find(sc => 
-          sc.clientId === parseInt(selectedClientId) && 
-          sc.lobName === lob.name &&
-          sc.subLobName === subLob.name &&
-          sc.siteId !== selectedSite.id
-        );
-
-        if (existingSubLobAssignment) {
-          setExistingAssignment({
-            type: 'sublob',
-            siteName: existingSubLobAssignment.siteName,
-            lobName: lob.name,
-            subLobName: subLob.name
-          });
-        } else {
-          setExistingAssignment(null);
-        }
-      }
-    } else {
-      setExistingAssignment(null);
-    }
   };
 
   /**
@@ -407,41 +389,38 @@ const SiteManagement = () => {
     setSelectedLobId(lobId);
     
     if (lobId) {
-      const lob = clientLobs.find(l => l.id === lobId);
-      if (lob && lob.subLobs) {
-        const filteredSubLobs = lob.subLobs.filter(subLob => {
-          const isSubLobAssigned = siteClients.some(sc => 
-            sc.siteId === selectedSite.id && 
-            sc.clientId === parseInt(selectedClientId) && 
-            sc.lobName === lob.name &&
-            sc.subLobName === subLob.name
-          );
-          return !isSubLobAssigned;
-        });
-        
-        setClientSubLobs(filteredSubLobs);
-        
-        const existingLobAssignment = siteClients.find(sc => 
-          sc.clientId === parseInt(selectedClientId) && 
-          sc.lobName === lob.name &&
-          sc.siteId !== selectedSite.id
-        );
-        
-        if (existingLobAssignment) {
-          setExistingAssignment({
-            type: 'lob',
-            siteName: existingLobAssignment.siteName,
-            lobName: lob.name
-          });
-        } else {
-          setExistingAssignment(null);
-        }
+      const selectedLob = clientLobs.find(l => l.id === lobId);
+      if (selectedLob && Array.isArray(selectedLob.subLobs)) {
+        setClientSubLobs(selectedLob.subLobs);
+      } else {
+        setClientSubLobs([]);
       }
     } else {
       setClientSubLobs([]);
-      setExistingAssignment(null);
     }
     setSelectedSubLobId('');
+  };
+
+  const fetchExistingAssignments = async (siteId) => {
+    try {
+      if (!siteId) {
+        setExistingAssignments([]);
+        return;
+      }
+      
+      const response = await manageSite('getExistingAssignments', { 
+        siteId: parseInt(siteId)
+      });
+      
+      if (response && response.assignments) {
+        setExistingAssignments(response.assignments);
+      } else {
+        setExistingAssignments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching existing assignments:', error);
+      setExistingAssignments([]);
+    }
   };
 
   return (
@@ -594,11 +573,15 @@ const SiteManagement = () => {
               disabled={!selectedClientId}
             >
               <option value="">Select a LOB</option>
-              {clientLobs.map(lob => (
-                <option key={lob.id} value={lob.id}>
-                  {lob.name}
-                </option>
-              ))}
+              {Array.isArray(clientLobs) && clientLobs.length > 0 ? (
+                clientLobs.map(lob => (
+                  <option key={lob.id} value={lob.id}>
+                    {lob.name}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>No LOBs available</option>
+              )}
             </select>
           </div>
           <div className="form-group">
@@ -609,11 +592,15 @@ const SiteManagement = () => {
               disabled={!selectedLobId}
             >
               <option value="">Select a Sub LOB</option>
-              {clientSubLobs.map(subLob => (
-                <option key={subLob.id} value={subLob.id}>
-                  {subLob.name}
-                </option>
-              ))}
+              {Array.isArray(clientSubLobs) && clientSubLobs.length > 0 ? (
+                clientSubLobs.map(subLob => (
+                  <option key={subLob.id} value={subLob.id}>
+                    {subLob.name}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>No Sub LOBs available</option>
+              )}
             </select>
           </div>
         </div>

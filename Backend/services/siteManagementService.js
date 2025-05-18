@@ -102,7 +102,7 @@ class SiteManagementService {
         }
     }
 
-    async addClientToSite(clientId, siteId, lobName = null, subLobName = null) {
+    async addClientToSite(clientId, siteId, lobName = null, subLobName = null, movingExisting = false) {
         try {
             // Get the site name for the selected site ID
             const [siteResult] = await db.query(
@@ -115,7 +115,7 @@ class SiteManagementService {
             }
             
             const siteName = siteResult[0].dSiteName;
-            const userId = 'SYSTEM'; // You might want to pass this from the controller
+            const userId = 'SYSTEM';
             const currentDate = new Date();
             
             // First get the client name
@@ -129,6 +129,22 @@ class SiteManagementService {
             }
             
             const clientName = clientNameResult[0].dClientName;
+            
+            // If we're moving existing assignments, first remove them from their current site
+            if (movingExisting) {
+                let deleteQuery = 'DELETE FROM tbl_clientsite WHERE dClientName = ?';
+                let deleteParams = [clientName];
+                
+                if (lobName && subLobName) {
+                    deleteQuery += ' AND dLOB = ? AND dSubLOB = ?';
+                    deleteParams.push(lobName, subLobName);
+                } else if (lobName) {
+                    deleteQuery += ' AND dLOB = ?';
+                    deleteParams.push(lobName);
+                }
+                
+                await db.query(deleteQuery, deleteParams);
+            }
             
             // Build the query based on what's selected
             let query = 'SELECT dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry FROM tbl_clientlob WHERE dClientName = ?';
@@ -144,7 +160,6 @@ class SiteManagementService {
                 query += ' AND dLOB = ?';
                 params.push(lobName);
             }
-            // Case 3: Neither provided - least specific, get all (existing behavior)
             
             // Get the client instances based on the constructed query
             const [clientInstances] = await db.query(query, params);
@@ -155,12 +170,6 @@ class SiteManagementService {
             
             // Using a transaction to ensure all operations succeed or fail together
             await db.query('START TRANSACTION');
-            
-            // Check for existing records with the same client name and site ID (for logging)
-            const [existingRecords] = await db.query(
-                'SELECT dClient_ID FROM tbl_clientsite WHERE dClientName = ? AND dSite_ID = ?',
-                [clientName, siteId]
-            );
             
             // Insert all instances with the new site information
             for (const instance of clientInstances) {
@@ -257,7 +266,21 @@ class SiteManagementService {
         }
       }
 
-     // Updated getClientLobs method in SiteManagementService.js
+    async getExistingAssignments(siteId) {
+        try {
+            const [assignments] = await db.query(
+                `SELECT DISTINCT dClientName, dLOB, dSubLOB 
+                FROM tbl_clientsite 
+                WHERE dSite_ID = ?`,
+                [siteId]
+            );
+            return assignments;
+        } catch (error) {
+            console.error('Error in SiteManagementService.getExistingAssignments:', error);
+            return [];
+        }
+    }
+
     async getClientLobs(clientId) {
         try {
             // First get the client name
@@ -267,56 +290,45 @@ class SiteManagementService {
             );
             
             if (clientNameResult.length === 0) {
-                throw new Error('Client not found in tbl_clientlob');
+                return [];
             }
             
             const clientName = clientNameResult[0].dClientName;
             
-            // Now get ALL LOBs for this client name (not just for the specific ID)
-            const [lobsResult] = await db.query(
-                'SELECT DISTINCT dLOB FROM tbl_clientlob WHERE dClientName = ? ORDER BY dLOB',
+            // Get all LOBs and Sub LOBs for this client
+            const [allLobs] = await db.query(
+                `SELECT DISTINCT dLOB, dSubLOB
+                FROM tbl_clientlob
+                WHERE dClientName = ?
+                AND dSubLOB IS NOT NULL 
+                AND dSubLOB != ""
+                ORDER BY dLOB, dSubLOB`,
                 [clientName]
             );
             
-            // Create the hierarchical structure with all LOBs
-            const lobs = [];
-            
-            // For each LOB, get its Sub LOBs
-            for (let i = 0; i < lobsResult.length; i++) {
-                const lobName = lobsResult[i].dLOB;
-                const lobId = `lob_${i + 1}`;
+            // Group Sub LOBs by LOB
+            const lobMap = new Map();
+            allLobs.forEach(row => {
+                if (!lobMap.has(row.dLOB)) {
+                    lobMap.set(row.dLOB, {
+                        id: `lob_${lobMap.size + 1}`,
+                        name: row.dLOB,
+                        subLobs: []
+                    });
+                }
                 
-                // Get distinct Sub LOBs for this client name and LOB
-                const [subLobsResult] = await db.query(
-                    'SELECT DISTINCT dSubLOB FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB IS NOT NULL AND dSubLOB != "" ORDER BY dSubLOB',
-                    [clientName, lobName]
-                );
-                
-                // Create the LOB object with its Sub LOBs
-                const lob = { 
-                    id: lobId, 
-                    name: lobName, 
-                    subLobs: [] 
-                };
-                
-                // Add all Sub LOBs to this LOB
-                subLobsResult.forEach((subLob, subIndex) => {
-                    if (subLob.dSubLOB) {
-                        lob.subLobs.push({
-                            id: `sublob_${lobId}_${subIndex + 1}`,
-                            name: subLob.dSubLOB,
-                            lobId: lobId
-                        });
-                    }
+                const lob = lobMap.get(row.dLOB);
+                lob.subLobs.push({
+                    id: `sublob_${lob.id}_${lob.subLobs.length + 1}`,
+                    name: row.dSubLOB,
+                    lobId: lob.id
                 });
-                
-                lobs.push(lob);
-            }
+            });
             
-            return lobs;
+            return Array.from(lobMap.values());
         } catch (error) {
             console.error('Error in SiteManagementService.getClientLobs:', error);
-            throw error;
+            return [];
         }
     }
 }
