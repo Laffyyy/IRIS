@@ -75,7 +75,7 @@ class LoginService {
                 { id: user.dUser_ID, role: user.dUser_Type || user.dStatus },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
-            );*/
+            );
 
             // Update the last login time
             await db.query(`UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ?`, [userID]);
@@ -221,14 +221,13 @@ class LoginService {
                 throw new Error('User not found');
             }
             
-            // Make sure we're using the right property name
             const expirationDate = rows[0].tExpirationDate;
             console.log('Expiration date from DB:', expirationDate);
             
             // If no expiration date is set, password doesn't expire
             if (!expirationDate) {
                 console.log('No expiration date set, password does not expire');
-                return false;
+                return { isExpired: false };
             }
             
             const currentDate = new Date();
@@ -236,7 +235,10 @@ class LoginService {
             const isExpired = currentDate >= expDate;
             console.log('Current date:', currentDate, 'Expiration date:', expDate, 'Is expired:', isExpired);
             
-            return isExpired;
+            return {
+                isExpired: isExpired,
+                expirationDate: expirationDate
+            };
         } catch (error) {
             console.error('Error checking password expiration:', error);
             throw error;

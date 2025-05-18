@@ -47,8 +47,8 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
   const [otp, setOtp] = useState('');
-const [userId, setUserId] = useState('');
-const [passwords, setPasswords] = useState({
+  const [userId, setUserId] = useState('');
+  const [passwords, setPasswords] = useState({
   newPassword: '',
   confirmPassword: ''
 });
@@ -76,7 +76,29 @@ const [passwords, setPasswords] = useState({
     };
     console.log('Payload:', payload);
     try {
-      // Send POST request to the API
+      // First check if password has expired before proceeding with login
+      const expirationCheck = await fetch('http://localhost:3000/api/login/check-password-expiration', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: employeeId })
+      });
+      
+      if (expirationCheck.ok) {
+        const expirationData = await expirationCheck.json();
+        
+        // Handle expired password first before attempting login
+        if (expirationData.isExpired) {
+          if (window.confirm('Your password has expired. You need to change your password now. Click OK to continue to the password change page.')) {
+            localStorage.setItem('userId', employeeId);
+            return navigate('/change-password');
+          }
+          return; // Stop processing if they cancel
+        }
+      }
+      
+      // Continue with login flow only if password is not expired
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -88,11 +110,33 @@ const [passwords, setPasswords] = useState({
       const data = await response.json();
 
       if (response.ok) {
-        alert('Request successful!');
         console.log('Response:', data);
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
-        navigate('/otp'); 
+        
+        // Check for soon-to-expire password
+        try {
+          const expirationCheck = await fetch('http://localhost:3000/api/login/check-password-expiration', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId: employeeId })
+          });
+          
+          if (expirationCheck.ok) {
+            const expirationData = await expirationCheck.json();
+            if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 10) {
+              // Password expires soon
+              alert(`Your password will expire in ${expirationData.minutesLeft} minute(s). Please change it soon.`);
+            }
+          }
+        } catch (expError) {
+          console.error('Error checking password expiration:', expError);
+        }
+        
+        // Continue with normal flow
+        navigate('/otp');
       } else {
         alert(`Error: ${data.message}`);
         console.error('Error:', data);
