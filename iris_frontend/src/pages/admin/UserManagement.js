@@ -48,6 +48,13 @@ const UserManagement = () => {
     role: 'HR'
   });
 
+  // Debounced new user fields
+  const [debouncedNewUser, setDebouncedNewUser] = useState(newUser);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedNewUser(newUser), 400);
+    return () => clearTimeout(handler);
+  }, [newUser]);
+
   // Bulk upload state
   const [uploadMethod, setUploadMethod] = useState('individual');
   const [bulkUsers, setBulkUsers] = useState([]);
@@ -66,12 +73,14 @@ const UserManagement = () => {
   const [editingInvalidUser, setEditingInvalidUser] = useState(null);
   const [editingInvalidUserIndex, setEditingInvalidUserIndex] = useState(null);
   const [editInvalidErrors, setEditInvalidErrors] = useState({});
+  const [editInvalidDbErrors, setEditInvalidDbErrors] = useState({});
 
   // State for editing valid users
   const [editValidModalOpen, setEditValidModalOpen] = useState(false);
   const [editingValidUser, setEditingValidUser] = useState(null);
   const [editingValidUserIndex, setEditingValidUserIndex] = useState(null);
   const [editValidErrors, setEditValidErrors] = useState({});
+  const [editValidDbErrors, setEditValidDbErrors] = useState({});
 
   // State for confirmation and result modals
   const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
@@ -142,6 +151,26 @@ const UserManagement = () => {
   const [bulkRoleFilter, setBulkRoleFilter] = useState('All');
   const [bulkStatusFilter, setBulkStatusFilter] = useState('All');
 
+  // Debounced search terms
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  const [debouncedIndividualSearchTerm, setDebouncedIndividualSearchTerm] = useState(individualSearchTerm);
+  const [debouncedBulkSearchTerm, setDebouncedBulkSearchTerm] = useState(bulkSearchTerm);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedIndividualSearchTerm(individualSearchTerm), 400);
+    return () => clearTimeout(handler);
+  }, [individualSearchTerm]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedBulkSearchTerm(bulkSearchTerm), 400);
+    return () => clearTimeout(handler);
+  }, [bulkSearchTerm]);
+
   // --- Sorting Handlers ---
   const handleSort = (key) => {
     setSortConfig(prev => {
@@ -177,9 +206,9 @@ const UserManagement = () => {
   // --- Filtering and Sorting Logic ---
   const filteredUsers = users.filter(user => {
     const matchesSearch =
-      (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.dName && user.dName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.dEmail && user.dEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+      (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (user.dName && user.dName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (user.dEmail && user.dEmail.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
     const matchesRole =
       roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
     const matchesStatus =
@@ -203,9 +232,9 @@ const UserManagement = () => {
   // --- Individual Preview Filtering/Sorting ---
   const filteredIndividualPreview = individualPreview.filter(user => {
     const matchesSearch =
-      (user.employeeId && user.employeeId.toString().toLowerCase().includes(individualSearchTerm.toLowerCase())) ||
-      (user.name && user.name.toLowerCase().includes(individualSearchTerm.toLowerCase())) ||
-      (user.email && user.email.toLowerCase().includes(individualSearchTerm.toLowerCase()));
+      (user.employeeId && user.employeeId.toString().toLowerCase().includes(debouncedIndividualSearchTerm.toLowerCase())) ||
+      (user.name && user.name.toLowerCase().includes(debouncedIndividualSearchTerm.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(debouncedIndividualSearchTerm.toLowerCase()));
     const matchesRole =
       individualRoleFilter === 'All' || (user.role && user.role === individualRoleFilter);
     const matchesStatus =
@@ -229,9 +258,9 @@ const UserManagement = () => {
   // --- Bulk Preview Filtering/Sorting ---
   const filteredBulkUsers = bulkUsers.filter(user => {
     const matchesSearch =
-      (user.employeeId && user.employeeId.toString().toLowerCase().includes(bulkSearchTerm.toLowerCase())) ||
-      (user.name && user.name.toLowerCase().includes(bulkSearchTerm.toLowerCase())) ||
-      (user.email && user.email.toLowerCase().includes(bulkSearchTerm.toLowerCase()));
+      (user.employeeId && user.employeeId.toString().toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase())) ||
+      (user.name && user.name.toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase())) ||
+      (user.email && user.email.toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase()));
     const matchesRole =
       bulkRoleFilter === 'All' || (user.role && user.role === bulkRoleFilter);
     const matchesStatus =
@@ -265,16 +294,11 @@ const UserManagement = () => {
     }
   };
 
-  // Polling: fetch users every second, but not if a modal is open
+  // Fetch users on page load only
   useEffect(() => {
-    fetchUsers(); // Initial fetch
-    const interval = setInterval(() => {
-      if (!editModalOpen && !addModalOpen && !editInvalidModalOpen && !editValidModalOpen) {
-        fetchUsers();
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [editModalOpen, addModalOpen, editInvalidModalOpen, editValidModalOpen]);
+    fetchUsers();
+  }, []);
+
 
   // File drag and drop handlers
   const handleDrag = useCallback((e) => {
@@ -363,6 +387,12 @@ const UserManagement = () => {
         if (!name) reasons.push('Missing Name');
         if (!email) reasons.push('Missing Email');
         if (!role) reasons.push('Missing Role');
+        // Employee ID validation
+        if (employeeId && !/^[0-9]{1,10}$/.test(employeeId)) reasons.push('Employee ID must be numbers only and up to 10 digits');
+        // Name validation
+        if (name && name.length > 50) reasons.push('Name must be 50 characters or less');
+        // Email validation
+        if (email && email.length > 50) reasons.push('Email must be 50 characters or less');
         const roleStr = typeof role === 'string' ? role : String(role || '');
         if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
           reasons.push('Invalid role');
@@ -436,13 +466,19 @@ const UserManagement = () => {
       const validUsers = [];
       for (const user of parsedUsers) {
         const reasons = [];
+        // Re-apply char limit/format validation
+        if (!user.employeeId || !/^[0-9]{1,10}$/.test(user.employeeId)) reasons.push('Employee ID must be numbers only and up to 10 digits');
+        if (!user.name || user.name.length > 50) reasons.push('Name must be 50 characters or less');
+        if (!user.email || user.email.length > 50) reasons.push('Email must be 50 characters or less');
+        if (!user.role) reasons.push('Role is required');
+        const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
+        if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
+          reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
+        }
         if (idCounts[user.employeeId] > 1) reasons.push('Duplicate Employee ID in file');
         if (emailCounts[user.email] > 1) reasons.push('Duplicate Email in file');
         if (dbDuplicates.some(u => u.dUser_ID === user.employeeId)) reasons.push('Duplicate Employee ID in database');
         if (dbDuplicates.some(u => u.dEmail === user.email)) reasons.push('Duplicate Email in database');
-        if (user.role && !isExactRole(user.role)) {
-          reasons.push('Role must be exactly one of: HR, REPORTS, ADMIN, CNB');
-        }
         if (reasons.length > 0) {
           invalidUsers.push({ ...user, reasons, notEditable: reasons.some(r => r.includes('database')) });
         } else {
@@ -488,13 +524,38 @@ const UserManagement = () => {
     document.body.removeChild(link);
   };
 
-  // Update handleAddToList with validation
+  // Remove newUser state for the add user form
+  // Add refs for each input field
+  const employeeIdRef = useRef();
+  const emailRef = useRef();
+  const nameRef = useRef();
+  const roleRef = useRef();
+
+  // Update handleAddToList to use refs
   const handleAddToList = async () => {
     setIndividualAddError('');
-    const { employeeId, email, name, role } = newUser;
+    const employeeId = employeeIdRef.current.value;
+    const email = emailRef.current.value;
+    const name = nameRef.current.value;
+    const role = roleRef.current.value;
     // 1. Required fields
     if (!employeeId || !email || !name || !role) {
       setIndividualAddError('All fields are required.');
+      return;
+    }
+    // Employee ID must be numbers only and up to 10 digits
+    if (!/^[0-9]{1,10}$/.test(employeeId)) {
+      setIndividualAddError('Employee ID must be numbers only and up to 10 digits.');
+      return;
+    }
+    // Name must be 50 characters or less
+    if (name.length > 50) {
+      setIndividualAddError('Name must be 50 characters or less.');
+      return;
+    }
+    // Email must be 50 characters or less
+    if (email.length > 50) {
+      setIndividualAddError('Email must be 50 characters or less.');
       return;
     }
     // 2. Email format
@@ -515,7 +576,6 @@ const UserManagement = () => {
     // 4. Duplicates in database (tbl_login and tbl_admin for Admin)
     try {
       let dbDuplicates = [];
-      // Check both tables for admin
       if (role && role.toUpperCase() === 'ADMIN') {
         const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
           method: 'POST',
@@ -524,11 +584,11 @@ const UserManagement = () => {
         });
         dbDuplicates = await response.json();
         if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-          setIndividualAddError('Duplicate Employee ID in database (Admin).');
+          setIndividualAddError('Duplicate Employee ID in database');
           return;
         }
         if (dbDuplicates.some(u => u.dEmail === email)) {
-          setIndividualAddError('Duplicate Email in database (Admin).');
+          setIndividualAddError('Duplicate Email in database');
           return;
         }
       } else {
@@ -539,11 +599,11 @@ const UserManagement = () => {
         });
         dbDuplicates = await response.json();
         if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-          setIndividualAddError('Duplicate Employee ID in database.');
+          setIndividualAddError('Duplicate Employee ID in database');
           return;
         }
         if (dbDuplicates.some(u => u.dEmail === email)) {
-          setIndividualAddError('Duplicate Email in database.');
+          setIndividualAddError('Duplicate Email in database');
           return;
         }
       }
@@ -552,8 +612,12 @@ const UserManagement = () => {
       return;
     }
     // If all good, add to preview
-    setIndividualPreview(prev => [...prev, { ...newUser, status: 'FIRST-TIME' }]);
-    setNewUser({ employeeId: '', email: '', name: '', role: 'HR' });
+    setIndividualPreview(prev => [...prev, { employeeId, email, name, role, status: 'FIRST-TIME' }]);
+    // Clear the input fields
+    employeeIdRef.current.value = '';
+    emailRef.current.value = '';
+    nameRef.current.value = '';
+    roleRef.current.value = 'HR';
   };
 
   // Submit individual users
@@ -578,6 +642,7 @@ const UserManagement = () => {
         setUsers(prev => [...prev, ...individualPreview]);
         setAddModalOpen(false);
         setIndividualPreview([]);
+        fetchUsers();
       } catch (error) {
         console.error('Error adding users:', error);
       }
@@ -623,6 +688,7 @@ const UserManagement = () => {
       setShowBulkResultModal(true);
       setBulkResultSuccess(true);
       setBulkResultMessage('Users uploaded successfully!');
+      fetchUsers();
     } catch (error) {
       setShowBulkResultModal(true);
       setBulkResultSuccess(false);
@@ -659,6 +725,7 @@ const UserManagement = () => {
         setShowDeleteResultModal(true);
         setDeleteResultSuccess(true);
         setDeleteResultMessage('Users deleted successfully!');
+        fetchUsers();
       } catch (error) {
         setShowDeleteResultModal(true);
         setDeleteResultSuccess(false);
@@ -808,6 +875,7 @@ const UserManagement = () => {
       setEditResultSuccess(true);
       setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
       setShowEditResultModal(true);
+      fetchUsers();
     } catch (error) {
       setEditResultSuccess(false);
       setEditResultMessage(error.message || 'Failed to update user');
@@ -843,13 +911,83 @@ const UserManagement = () => {
     setEditInvalidModalOpen(true);
   };
 
-  // Handler for editing fields in the modal
+  // Add at the top of your component:
+  const lastCheckedInvalidRef = useRef({ employeeId: '', email: '' });
+  const lastCheckedValidRef = useRef({ employeeId: '', email: '' });
+  const dbAbortInvalidController = useRef(null);
+  const dbAbortValidController = useRef(null);
+
+  // Utility to build Sets for O(1) duplicate checks
+  function buildDuplicateSets(users, excludeIndex = null, key = 'employeeId', emailKey = 'email') {
+    const idSet = new Set();
+    const emailSet = new Set();
+    users.forEach((u, i) => {
+      if (excludeIndex !== null && i === excludeIndex) return;
+      if (u[key]) idSet.add(u[key]);
+      if (u[emailKey]) emailSet.add(u[emailKey]);
+    });
+    return { idSet, emailSet };
+  }
+
+  // Optimized Edit Invalid User Change Handler
   const handleEditingInvalidUserChange = (e) => {
     const { name, value } = e.target;
     setEditingInvalidUser(prev => {
       const updated = { ...prev, [name]: value };
-      const errors = validateEditingInvalidUser(updated);
+      // Build Sets for O(1) duplicate check
+      const { idSet, emailSet } = buildDuplicateSets([...bulkUsers, ...invalidUsers], editingInvalidUserIndex);
+      const errors = {};
+      const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if (!updated.employeeId) errors.employeeId = 'Employee ID is required';
+      else if (!/^[0-9]{1,10}$/.test(updated.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits';
+      else if (idSet.has(updated.employeeId)) errors.employeeId = 'Duplicate Employee ID in file';
+      if (!updated.name) errors.name = 'Name is required';
+      else if (updated.name.length > 50) errors.name = 'Name must be 50 characters or less';
+      if (!updated.email) errors.email = 'Email is required';
+      else if (updated.email.length > 50) errors.email = 'Email must be 50 characters or less';
+      else if (!emailRegex.test(updated.email)) errors.email = 'Invalid email format';
+      else if (emailSet.has(updated.email)) errors.email = 'Duplicate Email in file';
+      if (!updated.role) errors.role = 'Role is required';
+      else if (!allowedRoles.includes(updated.role.trim().toUpperCase())) errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
       setEditInvalidErrors(errors);
+      // Debounce validation and DB check
+      if (window.editInvalidDbTimeout) clearTimeout(window.editInvalidDbTimeout);
+      window.editInvalidDbTimeout = setTimeout(async () => {
+        // Only check if value changed
+        if (
+          lastCheckedInvalidRef.current.employeeId === updated.employeeId &&
+          lastCheckedInvalidRef.current.email === updated.email
+        ) return;
+        lastCheckedInvalidRef.current = {
+          employeeId: updated.employeeId,
+          email: updated.email,
+        };
+        // Cancel previous request
+        if (dbAbortInvalidController.current) dbAbortInvalidController.current.abort();
+        dbAbortInvalidController.current = new AbortController();
+        let dbDuplicates = [];
+        try {
+          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeeIds: [updated.employeeId],
+              emails: [updated.email]
+            }),
+            signal: dbAbortInvalidController.current.signal,
+          });
+          dbDuplicates = await response.json();
+        } catch (e) { if (e.name === 'AbortError') return; }
+        const dbErrors = {};
+        if (dbDuplicates.some(u => u.dUser_ID === updated.employeeId)) {
+          dbErrors.employeeId = 'Duplicate Employee ID in database';
+        }
+        if (dbDuplicates.some(u => u.dEmail === updated.email)) {
+          dbErrors.email = 'Duplicate Email in database';
+        }
+        setEditInvalidDbErrors(dbErrors);
+      }, 400);
       return updated;
     });
   };
@@ -887,7 +1025,7 @@ const UserManagement = () => {
       reasons.push('Duplicate Email in file');
     }
 
-    // 3. Check for duplicates in the database
+    // 3. Check for duplicates in the database (synchronously before proceeding)
     let dbDuplicates = [];
     try {
       const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
@@ -919,30 +1057,26 @@ const UserManagement = () => {
 
     setEditInvalidErrors(errors);
 
-    if (Object.keys(errors).length === 0 && reasons.length === 0) {
-      // Move to valid users
-      setBulkUsers(prev => [
-        ...prev,
-        { employeeId, name, email, role, valid: true }
-      ]);
-      // Remove from invalid users
-      setInvalidUsers(prev => prev.filter((_, i) => i !== editingInvalidUserIndex));
-      setEditInvalidModalOpen(false);
-      setEditingInvalidUser(null);
-      setEditingInvalidUserIndex(null);
-      setEditInvalidErrors({});
-    } else {
-      // Update the user in the invalid list
-      const updatedInvalids = invalidUsers.map((user, i) =>
-        i === editingInvalidUserIndex ? { employeeId, name, email, role } : user
-      );
-      // Revalidate all users
-      await revalidateAllUsers([...bulkUsers, ...updatedInvalids]);
-      setEditInvalidModalOpen(false);
-      setEditingInvalidUser(null);
-      setEditingInvalidUserIndex(null);
-      setEditInvalidErrors({});
+    // If still invalid, keep modal open and show errors
+    if (Object.keys(errors).length > 0 || reasons.length > 0) {
+      setEditingInvalidUser(prev => ({ ...prev, reasons }));
+      return;
     }
+
+    // Move to valid users
+    setBulkUsers(prev => [
+      ...prev,
+      { employeeId, name, email, role, valid: true }
+    ]);
+    // Remove from invalid users
+    setInvalidUsers(prev => prev.filter((_, i) => i !== editingInvalidUserIndex));
+    setEditInvalidModalOpen(false);
+    setEditingInvalidUser(null);
+    setEditingInvalidUserIndex(null);
+    setEditInvalidErrors({});
+    setEditInvalidDbErrors({});
+    // Refresh users table from backend
+    fetchUsers();
   };
 
   // Handler to open modal for editing valid user
@@ -952,22 +1086,31 @@ const UserManagement = () => {
     setEditValidModalOpen(true);
   };
 
-  // Handler for editing fields in the valid modal
-  const handleEditingValidUserChange = (e) => {
-    const { name, value } = e.target;
-    setEditingValidUser(prev => {
-      const updated = { ...prev, [name]: value };
-      const errors = validateEditingValidUser(updated);
-      setEditValidErrors(errors);
-      return updated;
-    });
-  };
 
   // Handler to save the edited valid user
   const handleSaveEditedValidUser = async () => {
     const { employeeId, name, email, role } = editingValidUser;
     const errors = validateEditingValidUser(editingValidUser);
 
+    // Synchronous DB duplicate check before proceeding
+    let dbDuplicates = [];
+    try {
+      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeIds: [employeeId],
+          emails: [email]
+        })
+      });
+      dbDuplicates = await response.json();
+    } catch (e) {}
+    if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
+      errors.employeeId = 'Duplicate Employee ID in database';
+    }
+    if (dbDuplicates.some(u => u.dEmail === email)) {
+      errors.email = 'Duplicate Email in database';
+    }
     setEditValidErrors(errors);
 
     if (Object.keys(errors).length > 0) {
@@ -979,7 +1122,7 @@ const UserManagement = () => {
     );
 
     // Get the new valid/invalid lists
-    const { validUsers, invalidUsers } = await revalidateAllUsers([...updatedValids, ...invalidUsers]);
+    const { validUsers, invalidUsers: newInvalidUsers } = await revalidateAllUsers([...updatedValids, ...invalidUsers]);
 
     // Check if the edited user is still valid
     const stillValid = validUsers.some(
@@ -991,6 +1134,8 @@ const UserManagement = () => {
       setEditingValidUser(null);
       setEditingValidUserIndex(null);
       setEditValidErrors({});
+      // Refresh users table from backend
+      fetchUsers();
     } else {
       // Optionally, show a message that the user is now invalid (e.g., due to backend duplicate)
       setEditValidErrors({ general: 'User is now invalid due to backend validation. Please check errors.' });
@@ -1023,22 +1168,54 @@ const UserManagement = () => {
       // handle error
     }
 
-    // Mark users as invalid if they are duplicates in file or DB
+    // Mark users as invalid if they are duplicates in file or DB or fail any validation
     const invalidUsers = [];
     const validUsers = [];
+    const seenIds = new Set();
+    const seenEmails = new Set();
     for (const user of allUsers) {
       const reasons = [];
-      if (idCounts[user.employeeId] > 1) reasons.push('Duplicate Employee ID in file');
-      if (emailCounts[user.email] > 1) reasons.push('Duplicate Email in file');
+      // Required fields
+      if (!user.employeeId) reasons.push('Missing Employee ID');
+      if (!user.name) reasons.push('Missing Name');
+      if (!user.email) reasons.push('Missing Email');
+      if (!user.role) reasons.push('Missing Role');
+      // Char limits/format
+      if (user.employeeId && !/^[0-9]{1,10}$/.test(user.employeeId)) reasons.push('Employee ID must be numbers only and up to 10 digits');
+      if (user.name && user.name.length > 50) reasons.push('Name must be 50 characters or less');
+      if (user.email && user.email.length > 50) reasons.push('Email must be 50 characters or less');
+      // Duplicates in DB
       if (dbDuplicates.some(u => u.dUser_ID === user.employeeId)) reasons.push('Duplicate Employee ID in database');
       if (dbDuplicates.some(u => u.dEmail === user.email)) reasons.push('Duplicate Email in database');
-      if (user.role && !isExactRole(user.role)) {
-        reasons.push('Role must be exactly one of: HR, REPORTS, ADMIN, CNB');
+      // Role
+      const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
+      if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
+        reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
+      }
+      // Email format
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if (user.email && !emailRegex.test(user.email)) reasons.unshift('Invalid email format');
+      // Only allow the first valid occurrence of each Employee ID and Email
+      if (reasons.length === 0) {
+        if (seenIds.has(user.employeeId)) {
+          reasons.push('Duplicate Employee ID in file');
+        }
+        if (seenEmails.has(user.email)) {
+          reasons.push('Duplicate Email in file');
+        }
       }
       if (reasons.length > 0) {
-        invalidUsers.push({ ...user, reasons, notEditable: reasons.some(r => r.includes('database')) });
+        invalidUsers.push({
+          ...user,
+          reasons,
+          notEditable: reasons.some(
+            r => r === 'Duplicate Employee ID in database' || r === 'Duplicate Email in database'
+          )
+        });
       } else {
         validUsers.push(user);
+        seenIds.add(user.employeeId);
+        seenEmails.add(user.email);
       }
     }
     setBulkUsers(validUsers);
@@ -1052,9 +1229,14 @@ const UserManagement = () => {
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
     if (!user.employeeId) errors.employeeId = 'Employee ID is required';
+    else if (!/^[0-9]{1,10}$/.test(user.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits.';
     if (!user.name) errors.name = 'Name is required';
+    else if (user.name.length > 50) errors.name = 'Name must be 50 characters or less.';
     if (!user.email) errors.email = 'Email is required';
-    if (user.email && !emailRegex.test(user.email)) errors.email = 'Invalid email format';
+    else {
+      if (user.email.length > 50) errors.email = 'Email must be 50 characters or less.';
+      if (!emailRegex.test(user.email)) errors.email = 'Invalid email format';
+    }
     if (!user.role) errors.role = 'Role is required';
     const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
     if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
@@ -1069,9 +1251,14 @@ const UserManagement = () => {
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
     if (!user.employeeId) errors.employeeId = 'Employee ID is required';
+    else if (!/^[0-9]{1,10}$/.test(user.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits.';
     if (!user.name) errors.name = 'Name is required';
+    else if (user.name.length > 50) errors.name = 'Name must be 50 characters or less.';
     if (!user.email) errors.email = 'Email is required';
-    if (user.email && !emailRegex.test(user.email)) errors.email = 'Invalid email format';
+    else {
+      if (user.email.length > 50) errors.email = 'Email must be 50 characters or less.';
+      if (!emailRegex.test(user.email)) errors.email = 'Invalid email format';
+    }
     if (!user.role) errors.role = 'Role is required';
     const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
     if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
@@ -1171,9 +1358,12 @@ const UserManagement = () => {
   function validateEditUser(user) {
     const errors = {};
     if (!user.dUser_ID) errors.dUser_ID = 'Employee ID is required.';
+    else if (!/^[0-9]{1,10}$/.test(user.dUser_ID)) errors.dUser_ID = 'Employee ID must be numbers only and up to 10 digits.';
     if (!user.dName) errors.dName = 'Name is required.';
+    else if (user.dName.length > 50) errors.dName = 'Name must be 50 characters or less.';
     if (!user.dEmail) errors.dEmail = 'Email is required.';
     else {
+      if (user.dEmail.length > 50) errors.dEmail = 'Email must be 50 characters or less.';
       const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
       if (!emailRegex.test(user.dEmail)) errors.dEmail = 'Invalid email format.';
     }
@@ -1216,6 +1406,109 @@ const UserManagement = () => {
       current.dStatus !== original.dStatus
     );
   }
+
+  // Add a function to check if any edit action (fields, password, or reset) is changed
+  function isEditActionChanged() {
+    // User fields changed
+    if (isUserChanged(currentUser, originalUser)) return true;
+    // Password change
+    if (
+      showPasswordFields &&
+      passwordData.newPassword &&
+      passwordData.confirmPassword &&
+      passwordData.newPassword === passwordData.confirmPassword
+    ) return true;
+    // Reset confirmed
+    if (resetConfirmed) return true;
+    return false;
+  }
+
+  // WebSocket for real-time updates
+  useEffect(() => {
+    const ws = new window.WebSocket('ws://localhost:5000');
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'USER_UPDATE') {
+          fetchUsers();
+        }
+      } catch (e) {}
+    };
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  // Debounced backend duplicate check for editing invalid user
+  const duplicateCheckTimeout = useRef();
+
+  // Debounced backend duplicate check for editing valid user
+  const duplicateCheckValidTimeout = useRef();
+  const handleEditingValidUserChange = (e) => {
+    const { name, value } = e.target;
+    setEditingValidUser(prev => {
+      const updated = { ...prev, [name]: value };
+      // Build Sets for O(1) duplicate check
+      const { idSet, emailSet } = buildDuplicateSets([...bulkUsers, ...invalidUsers], editingValidUserIndex);
+      const errors = {};
+      const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if (!updated.employeeId) errors.employeeId = 'Employee ID is required';
+      else if (!/^[0-9]{1,10}$/.test(updated.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits';
+      else if (idSet.has(updated.employeeId)) errors.employeeId = 'Duplicate Employee ID in file';
+      if (!updated.name) errors.name = 'Name is required';
+      else if (updated.name.length > 50) errors.name = 'Name must be 50 characters or less';
+      if (!updated.email) errors.email = 'Email is required';
+      else if (updated.email.length > 50) errors.email = 'Email must be 50 characters or less';
+      else if (!emailRegex.test(updated.email)) errors.email = 'Invalid email format';
+      else if (emailSet.has(updated.email)) errors.email = 'Duplicate Email in file';
+      if (!updated.role) errors.role = 'Role is required';
+      else if (!allowedRoles.includes(updated.role.trim().toUpperCase())) errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
+      setEditValidErrors(errors);
+      // Debounce validation and DB check
+      if (window.editValidDbTimeout) clearTimeout(window.editValidDbTimeout);
+      window.editValidDbTimeout = setTimeout(async () => {
+        // Only check if value changed
+        if (
+          lastCheckedValidRef.current.employeeId === updated.employeeId &&
+          lastCheckedValidRef.current.email === updated.email
+        ) return;
+        lastCheckedValidRef.current = {
+          employeeId: updated.employeeId,
+          email: updated.email,
+        };
+        // Cancel previous request
+        if (dbAbortValidController.current) dbAbortValidController.current.abort();
+        dbAbortValidController.current = new AbortController();
+        let dbDuplicates = [];
+        try {
+          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeeIds: [updated.employeeId],
+              emails: [updated.email]
+            }),
+            signal: dbAbortValidController.current.signal,
+          });
+          dbDuplicates = await response.json();
+        } catch (e) { if (e.name === 'AbortError') return; }
+        const dbErrors = {};
+        if (dbDuplicates.some(u => u.dUser_ID === updated.employeeId)) {
+          dbErrors.employeeId = 'Duplicate Employee ID in database';
+        }
+        if (dbDuplicates.some(u => u.dEmail === updated.email)) {
+          dbErrors.email = 'Duplicate Email in database';
+        }
+        setEditValidDbErrors(dbErrors);
+      }, 400);
+      return updated;
+    });
+  };
+
+  // Add loading state for async DB duplicate check
+  const [editValidCheckingDb, setEditValidCheckingDb] = useState(false);
+  const [editInvalidCheckingDb, setEditInvalidCheckingDb] = useState(false);
 
   return (
     <div className="user-management-container">
@@ -1290,7 +1583,7 @@ const UserManagement = () => {
                         checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                            setSelectedUsers(sortedUsers.map(user => String(user.dUser_ID)));
                           } else {
                             setSelectedUsers([]);
                           }
@@ -1306,10 +1599,10 @@ const UserManagement = () => {
             </thead>
             <tbody>
               {sortedUsers.map((user, index) => {
-                const isSelected = selectedUsers.includes(user.dUser_ID);
+                const isSelected = selectedUsers.includes(String(user.dUser_ID));
                 return (
                   <tr
-                    key={user.dUser_ID}
+                    key={String(user.dUser_ID)}
                     className={isSelected ? 'selected-row' : ''}
                     onClick={(e) => {
                       if (
@@ -1324,14 +1617,14 @@ const UserManagement = () => {
                             // Multi-deselect: from lastSelectedIndex to clicked row (inclusive)
                             const start = Math.min(lastSelectedIndex, index);
                             const end = Math.max(lastSelectedIndex, index);
-                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
                             setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
                             setLastSelectedIndex(index);
                           } else {
                             // Multi-select: from anchor to clicked row (inclusive)
                             const start = Math.min(anchorSelectedIndex, index);
                             const end = Math.max(anchorSelectedIndex, index);
-                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
                             setSelectedUsers(prev => {
                               const newSet = new Set(prev);
                               rangeUserIds.forEach(id => newSet.add(id));
@@ -1342,8 +1635,8 @@ const UserManagement = () => {
                         } else {
                           setSelectedUsers(prev =>
                             isSelected
-                              ? prev.filter(id => id !== user.dUser_ID)
-                              : [...prev, user.dUser_ID]
+                              ? prev.filter(id => id !== String(user.dUser_ID))
+                              : [...prev, String(user.dUser_ID)]
                           );
                           // Set anchorSelectedIndex if this is the first selection
                           if (!isSelected && selectedUsers.length === 0) {
@@ -1374,7 +1667,7 @@ const UserManagement = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedUsers([user.dUser_ID]);
+                            setSelectedUsers([String(user.dUser_ID)]);
                             setShowDeleteModal(true);
                           }}
                           className="delete-btn"
@@ -1388,8 +1681,8 @@ const UserManagement = () => {
                             e.stopPropagation();
                             setSelectedUsers(prev =>
                               e.target.checked
-                                ? [...prev, user.dUser_ID]
-                                : prev.filter(id => id !== user.dUser_ID)
+                                ? [...prev, String(user.dUser_ID)]
+                                : prev.filter(id => id !== String(user.dUser_ID))
                             );
                             // Set anchorSelectedIndex if this is the first selection
                             if (!e.target.checked && selectedUsers.length === 1) {
@@ -1461,9 +1754,14 @@ const UserManagement = () => {
                     <input
                       type="text"
                       name="employeeId"
-                      value={newUser.employeeId}
-                      onChange={handleNewUserChange}
+                      ref={employeeIdRef}
                       required
+                      maxLength={10}
+                      pattern="\\d{1,10}"
+                      onInput={e => {
+                        // Remove non-numeric characters and limit to 10
+                        e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                      }}
                     />
                   </div>
 
@@ -1472,9 +1770,9 @@ const UserManagement = () => {
                     <input
                       type="email"
                       name="email"
-                      value={newUser.email}
-                      onChange={handleNewUserChange}
+                      ref={emailRef}
                       required
+                      maxLength={50}
                     />
                   </div>
                 </div>
@@ -1485,9 +1783,9 @@ const UserManagement = () => {
                     <input
                       type="text"
                       name="name"
-                      value={newUser.name}
-                      onChange={handleNewUserChange}
+                      ref={nameRef}
                       required
+                      maxLength={50}
                     />
                   </div>
 
@@ -1495,8 +1793,7 @@ const UserManagement = () => {
                     <label>Department/Role</label>
                     <select
                       name="role"
-                      value={newUser.role}
-                      onChange={handleNewUserChange}
+                      ref={roleRef}
                     >
                       <option value="Admin">Admin</option>
                       <option value="HR">HR</option>
@@ -1510,6 +1807,14 @@ const UserManagement = () => {
                   <button
                     className="add-to-list-btn"
                     onClick={handleAddToList}
+                    disabled={
+                      individualAddError && (
+                        individualAddError.includes('Duplicate Employee ID in preview.') ||
+                        individualAddError.includes('Duplicate Email in preview.') ||
+                        individualAddError.includes('Duplicate Employee ID in database') ||
+                        individualAddError.includes('Duplicate Email in database')
+                      )
+                    }
                   >
                     Add to List
                   </button>
@@ -1526,8 +1831,8 @@ const UserManagement = () => {
                       <input
                         type="text"
                         placeholder="Search..."
-                        value={individualSearchTerm}
-                        onChange={e => setIndividualSearchTerm(e.target.value)}
+                        value={debouncedIndividualSearchTerm}
+                        onChange={e => setDebouncedIndividualSearchTerm(e.target.value)}
                         style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
                       />
                       <select value={individualRoleFilter} onChange={e => setIndividualRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
@@ -1635,8 +1940,8 @@ const UserManagement = () => {
                       <input
                         type="text"
                         placeholder="Search..."
-                        value={bulkSearchTerm}
-                        onChange={e => setBulkSearchTerm(e.target.value)}
+                        value={debouncedBulkSearchTerm}
+                        onChange={e => setDebouncedBulkSearchTerm(e.target.value)}
                         style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
                       />
                       <select value={bulkRoleFilter} onChange={e => setBulkRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
@@ -1802,11 +2107,11 @@ const UserManagement = () => {
               }}>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                   {users
-                    .filter(user => selectedUsers.includes(user.dUser_ID))
+                    .filter(user => selectedUsers.includes(String(user.dUser_ID)))
                     .map(user => (
-                      <li key={user.dUser_ID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <li key={String(user.dUser_ID)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid #f0f0f0' }}>
                         <span>{user.dName}</span>
-                        <span className="user-id" style={{ color: '#888', fontSize: '12px', marginLeft: 8 }}>{user.dUser_ID}</span>
+                        <span className="user-id" style={{ color: '#888', fontSize: '12px', marginLeft: 8 }}>{String(user.dUser_ID)}</span>
                       </li>
                     ))}
                 </ul>
@@ -1866,10 +2171,12 @@ const UserManagement = () => {
                   type="text"
                   name="employeeId"
                   value={currentUser.dUser_ID}
-                  onChange={(e) => setCurrentUser({ ...currentUser, dUser_ID: e.target.value })}
+                  onChange={(e) => setCurrentUser({ ...currentUser, dUser_ID: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
                   readOnly={!employeeIdEditable}
                   className={!employeeIdEditable ? 'disabled-input' : ''}
                   required
+                  maxLength={10}
+                  pattern="\\d{1,10}"
                   style={{
                     background: !employeeIdEditable ? '#f5f5f5' : undefined,
                     color: !employeeIdEditable ? '#aaa' : undefined,
@@ -1884,8 +2191,9 @@ const UserManagement = () => {
                   type="text"
                   name="name"
                   value={currentUser.dName}
-                  onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value})}
+                  onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value.slice(0, 50)})}
                   required
+                  maxLength={50}
                 />
                 {editUserErrors.dName && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dName}</div>}
               </div>
@@ -1910,8 +2218,9 @@ const UserManagement = () => {
                   type="email"
                   name="email"
                   value={currentUser.dEmail}
-                  onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value})}
+                  onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value.slice(0, 50)})}
                   required
+                  maxLength={50}
                 />
                 {editUserErrors.dEmail && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dEmail}</div>}
               </div>
@@ -2064,7 +2373,9 @@ const UserManagement = () => {
                 disabled={
                   passwordMismatch ||
                   Object.keys(editUserErrors).length > 0 ||
-                  !isUserChanged(currentUser, originalUser)
+                  (editUserErrors.dUser_ID && editUserErrors.dUser_ID.includes('Duplicate Employee ID in database')) ||
+                  (editUserErrors.dEmail && editUserErrors.dEmail.includes('Duplicate Email in database')) ||
+                  !isEditActionChanged()
                 }
               >
                 Save Changes
@@ -2080,7 +2391,7 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '500px' }}>
             <div className="modal-header">
               <h2>Edit Invalid User</h2>
-              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); }} className="close-btn">
+              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); setEditInvalidDbErrors({}); }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -2091,9 +2402,14 @@ const UserManagement = () => {
                 name="employeeId"
                 value={editingInvalidUser.employeeId}
                 onChange={handleEditingInvalidUserChange}
+                maxLength={10}
+                pattern="\\d{1,10}"
               />
               {editInvalidErrors.employeeId && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.employeeId}</div>
+              )}
+              {editInvalidDbErrors.employeeId && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidDbErrors.employeeId}</div>
               )}
             </div>
             <div className="form-group">
@@ -2103,6 +2419,7 @@ const UserManagement = () => {
                 name="name"
                 value={editingInvalidUser.name}
                 onChange={handleEditingInvalidUserChange}
+                maxLength={50}
               />
               {editInvalidErrors.name && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.name}</div>
@@ -2115,9 +2432,13 @@ const UserManagement = () => {
                 name="email"
                 value={editingInvalidUser.email}
                 onChange={handleEditingInvalidUserChange}
+                maxLength={50}
               />
               {editInvalidErrors.email && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.email}</div>
+              )}
+              {editInvalidDbErrors.email && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidDbErrors.email}</div>
               )}
             </div>
             <div className="form-group">
@@ -2138,11 +2459,11 @@ const UserManagement = () => {
               )}
             </div>
             <div className="modal-actions">
-              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); }} className="cancel-btn">Cancel</button>
+              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); setEditInvalidDbErrors({}); }} className="cancel-btn">Cancel</button>
               <button
                 onClick={handleSaveEditedInvalidUser}
                 className="save-btn"
-                disabled={Object.keys(editInvalidErrors).length > 0}
+                disabled={Object.keys(editInvalidErrors).length > 0 || Object.keys(editInvalidDbErrors).length > 0}
               >
                 Save
               </button>
@@ -2157,7 +2478,7 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '500px' }}>
             <div className="modal-header">
               <h2>Edit User</h2>
-              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); }} className="close-btn">
+              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); setEditValidDbErrors({}); }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -2168,9 +2489,14 @@ const UserManagement = () => {
                 name="employeeId"
                 value={editingValidUser.employeeId}
                 onChange={handleEditingValidUserChange}
+                maxLength={10}
+                pattern="\\d{1,10}"
               />
               {editValidErrors.employeeId && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.employeeId}</div>
+              )}
+              {editValidDbErrors.employeeId && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidDbErrors.employeeId}</div>
               )}
             </div>
             <div className="form-group">
@@ -2180,6 +2506,7 @@ const UserManagement = () => {
                 name="name"
                 value={editingValidUser.name}
                 onChange={handleEditingValidUserChange}
+                maxLength={50}
               />
               {editValidErrors.name && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.name}</div>
@@ -2192,9 +2519,13 @@ const UserManagement = () => {
                 name="email"
                 value={editingValidUser.email}
                 onChange={handleEditingValidUserChange}
+                maxLength={50}
               />
               {editValidErrors.email && (
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.email}</div>
+              )}
+              {editValidDbErrors.email && (
+                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidDbErrors.email}</div>
               )}
             </div>
             <div className="form-group">
@@ -2215,11 +2546,11 @@ const UserManagement = () => {
               )}
             </div>
             <div className="modal-actions">
-              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); }} className="cancel-btn">Cancel</button>
+              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); setEditValidDbErrors({}); }} className="cancel-btn">Cancel</button>
               <button
                 onClick={handleSaveEditedValidUser}
                 className="save-btn"
-                disabled={Object.keys(editValidErrors).length > 0}
+                disabled={Object.keys(editValidErrors).length > 0 || Object.keys(editValidDbErrors).length > 0}
               >
                 Save
               </button>
@@ -2361,6 +2692,7 @@ const UserManagement = () => {
                     setIndividualResultSuccess(true);
                     setIndividualResultMessage('Users added successfully!');
                     setIndividualPreview([]);
+                    fetchUsers();
                   } catch (error) {
                     setShowIndividualResultModal(true);
                     setIndividualResultSuccess(false);

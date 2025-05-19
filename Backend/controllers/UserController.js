@@ -1,5 +1,6 @@
 const userService = require('../services/userService');
 const bcrypt = require('bcrypt');
+const { broadcastUserUpdate } = require('../websocket');
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -45,6 +46,7 @@ exports.createUser = async (req, res) => {
         });
       }
     res.status(201).json({ id: userId, message: 'User created successfully' });
+    broadcastUserUpdate();
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ message: 'Database error' });
@@ -127,6 +129,7 @@ exports.addUsersBulk = async (req, res) => {
       insertedIds = insertedIds.concat(await userService.insertAdminUsersBulk(adminUsers));
     }
     res.status(201).json({ message: 'Users added successfully', users: insertedIds });
+    broadcastUserUpdate();
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.sqlMessage || err.message || 'Internal Server Error' });
@@ -143,6 +146,7 @@ exports.deleteUsers = async (req, res) => {
 
     await userService.deleteUsers(userIds);
     res.status(200).json({ message: 'Users deleted successfully' });
+    broadcastUserUpdate();
   } catch (error) {
     console.error('Error deleting users:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -196,6 +200,7 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found or no changes made.' });
     }
     res.status(200).json({ message: 'User updated successfully' });
+    broadcastUserUpdate();
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ message: 'Failed to update user' });
