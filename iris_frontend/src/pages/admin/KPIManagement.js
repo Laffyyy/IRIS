@@ -548,12 +548,24 @@ const KPIManagement = () => {
     return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
   };
 
-  const isDuplicateKPI = (kpiName, category, behavior) => {
-    return kpis.some(existingKpi => 
-      existingKpi.dKPI_Name.toLowerCase() === kpiName.toLowerCase() &&
-      existingKpi.dCategory.toLowerCase() === category.toLowerCase() &&
-      existingKpi.dCalculationBehavior.toLowerCase() === behavior.toLowerCase()
-    );
+  const isDuplicateKPI = (name, category, behavior) => {
+    // Add null checks for input parameters
+    if (!name || !category || !behavior) {
+      return false;
+    }
+
+    return kpis.some(existingKpi => {
+      // Add null checks for existing KPI properties
+      const existingName = existingKpi?.dKPI_Name || '';
+      const existingCategory = existingKpi?.dCategory || '';
+      const existingBehavior = existingKpi?.dCalculationBehavior || '';
+
+      return (
+        existingName.toLowerCase() === name.toLowerCase() &&
+        existingCategory.toLowerCase() === category.toLowerCase() &&
+        existingBehavior.toLowerCase() === behavior.toLowerCase()
+      );
+    });
   };
 
   const handleDescriptionChange = (e) => {
@@ -903,6 +915,8 @@ const KPIManagement = () => {
                   <th>Category</th>
                   <th>Calculation Behavior</th>
                   <th>Description</th>
+                  <th>Created By</th>
+                  <th>Created At</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -914,6 +928,8 @@ const KPIManagement = () => {
                     <td>{kpi.dCategory}</td>
                     <td>{kpi.dCalculationBehavior}</td>
                     <td>{kpi.dDescription}</td>
+                    <td>{kpi.dCreatedBy || '-'}</td>
+                    <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
                         <button onClick={() => handleEditClick(kpi.dKPI_ID)} className="edit-btn">

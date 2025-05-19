@@ -140,33 +140,57 @@
 /* Column Widths */
 .existing-kpis th:nth-child(1),
 .existing-kpis td:nth-child(1) {
-  width: 80px;  /* ID column */
+  width: 60px;  /* ID column */
 }
 
 .existing-kpis th:nth-child(2),
 .existing-kpis td:nth-child(2) {
-  width: 20%;  /* KPI Name column */
+  width: 15%;  /* KPI Name column */
 }
 
 .existing-kpis th:nth-child(3),
 .existing-kpis td:nth-child(3) {
-  width: 120px;  /* Category column */
+  width: 100px;  /* Category column */
 }
 
 .existing-kpis th:nth-child(4),
 .existing-kpis td:nth-child(4) {
-  width: 150px;  /* Calculation Behavior column */
+  width: 120px;  /* Calculation Behavior column */
 }
 
 .existing-kpis th:nth-child(5),
 .existing-kpis td:nth-child(5) {
-  width: 30%;  /* Description column */
+  width: 20%;  /* Description column */
 }
 
 .existing-kpis th:nth-child(6),
 .existing-kpis td:nth-child(6) {
-  width: 160px;  /* Actions column */
+  width: 100px;  /* Actions column */
   text-align: center;
+}
+
+/* Add these new styles for the created by column */
+.existing-kpis td:nth-child(6) {
+  font-family: monospace;
+  color: #444;
+}
+
+.existing-kpis th:nth-child(7),
+.existing-kpis td:nth-child(7) {
+  width: 120px;  /* Created At column */
+}
+
+.existing-kpis th:nth-child(8),
+.existing-kpis td:nth-child(8) {
+  width: 120px;  /* Actions column */
+  text-align: center;
+}
+
+/* Add these new styles for the date format */
+.existing-kpis td:nth-child(7) {
+  white-space: nowrap;
+  font-size: 12px;
+  color: #666;
 }
 
 .existing-kpis th {
