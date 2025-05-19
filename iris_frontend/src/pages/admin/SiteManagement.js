@@ -279,12 +279,30 @@ const SiteManagement = () => {
       // Update the parameter name to match what the backend expects
       await manageSite('removeClientFromSite', { clientSiteId });
       
+      // Find the site ID of the deleted client-site relationship
+      const deletedRelationship = siteClients.find(sc => sc.dClientSite_ID === clientSiteId);
+      const siteId = deletedRelationship?.dSite_ID;
+      
       // Update local state
       setSiteClients(siteClients.filter(sc => sc.dClientSite_ID !== clientSiteId));
       
       // Refresh data
       fetchSites();
       fetchSiteClients();
+      
+      // Also refresh the existing assignments for this site
+      if (siteId) {
+        await fetchExistingAssignments(parseInt(siteId));
+      }
+      
+      // If we're in the edit modal and this site matches our current site, refresh those assignments too
+      if (editSelectedSiteId && siteId && parseInt(editSelectedSiteId) === parseInt(siteId)) {
+        // If we deleted an assignment related to the current edit modal
+        if (editSelectedClientId) {
+          // Re-fetch the LOBs for this client to reflect the changes
+          fetchClientLobsForEdit(editSelectedClientId);
+        }
+      }
       
       alert(`Client "${clientName}" successfully removed from site`);
     } catch (error) {
@@ -454,56 +472,18 @@ const SiteManagement = () => {
   const handleEditClientSite = async (clientSite) => {
     console.log("Editing client-site:", clientSite);
     
-    // Set the current client-site being edited
+    // Set the current client-site being edited (for the header info)
     setCurrentClientSite(clientSite);
     
-    // Set the selected site ID - ensure it's a number
-    const siteId = typeof clientSite.dSite_ID === 'string' ? parseInt(clientSite.dSite_ID) : clientSite.dSite_ID;
-    setEditSelectedSiteId(siteId);
-  
-    // Find the matching client using the client name as a fallback
-    let clientToUse = null;
+    // Reset all dropdown selections to empty
+    setEditSelectedSiteId('');
+    setEditSelectedClientId('');
+    setEditSelectedLobId('');
+    setEditSelectedSubLobId('');
+    setEditClientLobs([]);
+    setEditClientSubLobs([]);
     
-    // First, try to find by client ID if available
-    if (clientSite.dClient_ID) {
-      const clientId = typeof clientSite.dClient_ID === 'string' ? parseInt(clientSite.dClient_ID) : clientSite.dClient_ID;
-      clientToUse = clients.find(c => c.id === clientId);
-    }
-    
-    // If not found by ID, try to find by name
-    if (!clientToUse) {
-      clientToUse = clients.find(c => c.name === clientSite.dClientName);
-    }
-  
-    console.log("Client to use:", clientToUse);
-    
-    // Set the selected client ID (if available)
-    if (clientToUse) {
-      setEditSelectedClientId(clientToUse.id.toString()); // Convert to string to ensure consistent comparison
-      
-      // Set LOB and Sub LOB if they exist
-      if (clientSite.dLOB) {
-        try {
-          await fetchClientLobsForEdit(clientToUse.id, clientSite.dLOB, clientSite.dSubLOB);
-        } catch (error) {
-          console.error("Error fetching LOBs for edit:", error);
-        }
-      } else {
-        setEditClientLobs([]);
-        setEditClientSubLobs([]);
-        setEditSelectedLobId('');
-        setEditSelectedSubLobId('');
-      }
-    } else {
-      console.error("Could not find client for:", clientSite.dClientName);
-      setEditSelectedClientId('');
-      setEditClientLobs([]);
-      setEditClientSubLobs([]);
-      setEditSelectedLobId('');
-      setEditSelectedSubLobId('');
-    }
-    
-    // Open the modal
+    // Open the modal without pre-selecting any values
     setClientSiteEditModalOpen(true);
   };
 
@@ -531,45 +511,47 @@ const SiteManagement = () => {
       const clientName = clients.find(c => c.id == clientId)?.name;
       
       // Fetch existing assignments for filtering (but exclude the current one being edited)
-      let filteredAssignments = existingAssignments;
-      if (currentClientSite) {
-        filteredAssignments = existingAssignments.filter(a => 
-          a.dClientSite_ID !== currentClientSite.dClientSite_ID
-        );
-      }
+      let filteredAssignments = existingAssignments.filter(a => 
+        a.dClientSite_ID !== currentClientSite.dClientSite_ID
+      );
+      
+      console.log("Filtered assignments (excluding current):", filteredAssignments);
       
       // Filter out LOBs and Sub LOBs that are already assigned to other client-site combinations
       const filteredLobs = allLobs.map(lob => {
+        // Find existing assignments for this client and LOB
         const matchingAssignments = filteredAssignments.filter(
           assignment => assignment.dClientName === clientName && assignment.dLOB === lob.name
         );
         
-        const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
+        console.log(`Matching assignments for LOB ${lob.name}:`, matchingAssignments);
         
-        // Keep the current LOB/SubLOB in the list even if it's already assigned
-        const currentSubLob = (lob.name === initialLob && initialSubLob) ? initialSubLob : null;
+        const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
+        console.log(`Existing SubLOBs for LOB ${lob.name}:`, existingSubLobs);
+        
+        // Special case: Keep the current LOB/SubLOB in the list even if it's already assigned
+        const isCurrentlySelectedLob = lob.name === initialLob;
         
         return {
           ...lob,
           subLobs: lob.subLobs.filter(subLob => 
-            !existingSubLobs.includes(subLob.name) || subLob.name === currentSubLob
+            // Keep if not already assigned OR if it's the currently selected sub LOB
+            !existingSubLobs.includes(subLob.name) || 
+            (isCurrentlySelectedLob && subLob.name === initialSubLob)
           )
         };
       }).filter(lob => {
-        // Include the LOB if it has available Sub LOBs or it's the currently selected LOB
+        // Only include LOBs that have at least one available Sub LOB OR it's the currently selected LOB
         return lob.subLobs.length > 0 || lob.name === initialLob;
       });
       
       console.log("Filtered LOBs for edit:", filteredLobs);
       setEditClientLobs(filteredLobs);
       
-      // The rest of the function with selection logic remains the same
       // Handle initial LOB selection
       if (initialLob && filteredLobs.length > 0) {
-        // First try exact match
         let selectedLob = filteredLobs.find(lob => lob.name === initialLob);
         
-        // If not found, try case-insensitive match
         if (!selectedLob) {
           selectedLob = filteredLobs.find(lob => 
             lob.name.toLowerCase() === initialLob.toLowerCase()
@@ -580,18 +562,16 @@ const SiteManagement = () => {
           console.log("Selected LOB:", selectedLob);
           setEditSelectedLobId(selectedLob.id);
           
-          // Set initial Sub LOB if available
           if (initialSubLob && selectedLob.subLobs && selectedLob.subLobs.length > 0) {
-            let selectedSubLob = selectedLob.subLobs.find(
-              subLob => subLob.name === initialSubLob || 
-                       subLob.name.toLowerCase() === initialSubLob.toLowerCase()
+            let selectedSubLob = selectedLob.subLobs.find(subLob => 
+              subLob.name === initialSubLob || 
+              subLob.name.toLowerCase() === initialSubLob.toLowerCase()
             );
             
             if (selectedSubLob) {
               console.log("Selected Sub LOB:", selectedSubLob);
               setEditSelectedSubLobId(selectedSubLob.id);
             } else {
-              console.log("Sub LOB not found:", initialSubLob);
               setEditSelectedSubLobId('');
             }
             
@@ -601,7 +581,6 @@ const SiteManagement = () => {
             setEditSelectedSubLobId('');
           }
         } else {
-          console.log("LOB not found:", initialLob);
           setEditSelectedLobId('');
           setEditClientSubLobs([]);
           setEditSelectedSubLobId('');
@@ -631,6 +610,7 @@ const SiteManagement = () => {
     setEditClientSubLobs([]);
     
     if (clientId) {
+      // Use a modified version of fetchClientLobsAndSubLobs that accounts for the current assignment
       fetchClientLobsForEdit(clientId);
     } else {
       setEditClientLobs([]);
@@ -1073,7 +1053,7 @@ const SiteManagement = () => {
               className={!editSelectedClientId ? "validation-error" : ""}
             >
               <option value="">Select a client</option>
-              {clients.map(client => (
+              {editSelectedSiteId && getAvailableClients(editSelectedSiteId).map(client => (
                 <option key={client.id} value={client.id.toString()}>
                   {client.name}
                 </option>
