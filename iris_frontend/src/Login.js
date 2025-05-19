@@ -70,9 +70,9 @@ const [passwords, setPasswords] = useState({
  
     // Prepare the payload
     const payload = {
-      userId : employeeId,
+      userID: employeeId,
       password: password,
-      otp: "",
+      otp: ""
     };
     console.log('Payload:', payload);
     try {
@@ -95,15 +95,17 @@ const [passwords, setPasswords] = useState({
         navigate('/otp'); 
       } else {
         // Handle login failure
-        if (data.message === 'Account is locked due to too many failed login attempts') {
-          alert('Your account is locked. Please contact support.');
-      } else {
+        if (data.message === 'Account is deactivated due to too many failed login attempts') {
+          alert('Your account is deactivated. Please contact support.');
+        } else if (data.message === 'User not found') {
+          alert('Invalid username or password.');
+        } else {
           alert(data.message || 'Login failed. Please try again.');
-      }
+        }
       }
     } catch (error) {
       console.error('Error during API call:', error);
-      alert('An error occurred while sending the request.');
+      alert('An error occurred while sending the request. Please try again later.');
     }
   };
 

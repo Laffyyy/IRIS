@@ -35,8 +35,8 @@ class LoginService {
         }
 
          // Check if the account is locked in the database
-         if (user.dStatus === 'LOCKED') {
-            throw new Error('Account is locked. Please contact support.');
+         if (user.dStatus === 'DEACTIVATED') {
+            throw new Error('Account is deactivated. Please contact support.');
         }
 
 
@@ -57,22 +57,28 @@ class LoginService {
         if (!isMatch) {
             // Log the failed login attempt
             await db.query(
-                'INSERT INTO tbl_logs_useraccess (userID, dLoginResult) VALUES (?, ?)',
-                [userID, 'FAILED']
+                'INSERT INTO tbl_logs_useraccess (dUser_ID, dActionType, tTimeStamp) VALUES (?, ?, NOW())',
+                [userID, 'FAILED_LOGIN']
             );
 
-            // Count the number of failed attempts in the last 15 minutes
+            // Count the number of failed attempts after the last successful login
             const [failedAttempts] = await db.query(
                 `SELECT COUNT(*) AS count 
                  FROM tbl_logs_useraccess 
-                 WHERE userID = ? AND dLoginResult = 'FAILED' AND timestamp > NOW() - INTERVAL 15 MINUTE`,
-                [userID]
+                 WHERE dUser_ID = ? 
+                 AND dActionType = 'FAILED_LOGIN' 
+                 AND tTimeStamp > (
+                     SELECT COALESCE(MAX(tTimeStamp), '1970-01-01')
+                     FROM tbl_logs_useraccess
+                     WHERE dUser_ID = ? AND dActionType = 'LOGIN'
+                 )`,
+                [userID, userID]
             );
 
             if (failedAttempts[0].count >= 3) {
-                // Lock the account
-                await db.query('UPDATE tbl_login SET dStatus = ? WHERE dUser_ID = ?', ['LOCKED', userID]);
-                throw new Error('Account is locked due to too many failed login attempts');
+                // Deactivate the account
+                await db.query('UPDATE tbl_login SET dStatus = ? WHERE dUser_ID = ?', ['DEACTIVATED', userID]);
+                throw new Error('Account is deactivated due to too many failed login attempts');
             }
 
             throw new Error(`Invalid password. You have ${3 - failedAttempts[0].count} attempts left.`);
@@ -80,14 +86,11 @@ class LoginService {
 
         // Log the successful login attempt
         await db.query(
-            'INSERT INTO tbl_logs_useraccess (userID, dLoginResult) VALUES (?, ?)',
-            [userID, 'SUCCESS']
+            'INSERT INTO tbl_logs_useraccess (dUser_ID, dActionType, tTimeStamp) VALUES (?, ?, NOW())',
+            [userID, 'LOGIN']
         );
 
         // Step 4: Check the user's status (if applicable)
-        if (user.dStatus && user.dStatus === 'DEACTIVATED') {
-            throw new Error('Account is deactivated');
-        }
         if (user.dStatus && user.dStatus === 'EXPIRED') {
             throw new Error('Account has expired');
         }
