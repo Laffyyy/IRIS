@@ -1654,7 +1654,6 @@ const filteredClients = clients
                   <th>Client Name</th>
                   <th>LOB</th>
                   <th>Sub LOB</th>
-                  <th>Created By</th>
                   <th>Created At</th>
                   <th>Actions</th>
                 </tr>
@@ -1724,7 +1723,6 @@ const filteredClients = clients
                           <td>{client.name}</td>
                           <td>{lob.name}</td>
                           <td>{subLob.name}</td>
-                          <td>{client.createdBy || '-'}</td>
                           <td>{client.createdAt || '-'}</td>
                           <td>
                             <div className="action-buttons">

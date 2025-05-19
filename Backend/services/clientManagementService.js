@@ -63,9 +63,9 @@ class ClientManagementService {
     
     async getClients() {
         try {
-            // Get all client-LOB-SubLOB combinations
+            // Get all client-LOB-SubLOB combinations with tCreatedAt included
             const [lobRows] = await db.query(
-                'SELECT * FROM tbl_clientlob ORDER BY dClientName, dLOB, dSubLOB'
+                'SELECT *, tCreatedAt as dCreatedAt FROM tbl_clientlob ORDER BY dClientName, dLOB, dSubLOB'
             );
             
             // Get site information with LOB associations
@@ -114,6 +114,7 @@ class ClientManagementService {
                 const clientName = row.dClientName;
                 const lob = row.dLOB;
                 const subLOB = row.dSubLOB;
+                const createdAt = row.dCreatedAt; // Make sure to include the timestamp
                 
                 if (!clientsMap.has(clientName)) {
                     clientsMap.set(clientName, {
@@ -123,7 +124,7 @@ class ClientManagementService {
                         sites: clientSitesMap.get(clientName) ? 
                             Array.from(clientSitesMap.get(clientName).values()) : [],
                         createdBy: row.dCreatedBy,
-                        createdAt: row.dCreatedAt
+                        createdAt: row.dCreatedAt // Include createdAt at client level
                     });
                 }
                 
@@ -137,11 +138,12 @@ class ClientManagementService {
                     client.LOBs.set(lob, {
                         name: lob,
                         subLOBs: [],
-                        clientRowId: row.dClient_ID, // Add this line to include the unique row ID
+                        clientRowId: row.dClient_ID, // Include the unique row ID
                         // Keep the other properties that are already there
                         siteId: sitesInfo.length > 0 ? sitesInfo[0].siteId : null,
                         siteName: sitesInfo.length > 0 ? sitesInfo[0].siteName : null,
-                        sites: sitesInfo
+                        sites: sitesInfo,
+                        createdAt: row.dCreatedAt // Include createdAt at LOB level
                     });
                 }
                 
@@ -153,10 +155,11 @@ class ClientManagementService {
                     );
                     
                     if (!existingSubLob) {
-                        // Store SubLOB as an object with its own unique clientRowId
+                        // Store SubLOB as an object with its own unique clientRowId and createdAt
                         client.LOBs.get(lob).subLOBs.push({
                             name: subLOB,
-                            clientRowId: row.dClient_ID
+                            clientRowId: row.dClient_ID,
+                            createdAt: row.dCreatedAt // Include createdAt at SubLOB level
                         });
                     }
                 }
@@ -175,7 +178,7 @@ class ClientManagementService {
                     LOBs: lobsArray,
                     sites: client.sites,
                     createdBy: client.createdBy,
-                    createdAt: client.createdAt
+                    createdAt: client.createdAt // Include createdAt in the final response
                 });
             });
             
