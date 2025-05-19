@@ -41,6 +41,16 @@ const ClientManagement = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
 
+  const [uniqueClientNames, setUniqueClientNames] = useState(new Map());
+
+
+  const safeToLowerCase = (value) => {
+    if (typeof value === 'string') {
+      return value.toLowerCase();
+    }
+    return ''; // Return empty string for non-string values
+  };
+
   // Filter LOBs based on selected client and site
   useEffect(() => {
     let filtered = [...lobs];
@@ -57,6 +67,15 @@ const ClientManagement = () => {
       setSelectedLobForSubLob(null);
     }
   }, [filterClientForSubLob, filterSiteForSubLob, lobs, selectedLobForSubLob]);
+
+  // Then add this useEffect to keep the map updated (after your existing useEffects)
+  useEffect(() => {
+    const newUniqueClientNames = new Map();
+    clients.forEach(client => {
+      newUniqueClientNames.set(client.name, client.id);
+    });
+    setUniqueClientNames(newUniqueClientNames);
+  }, [clients]);
 
   // Add this useEffect to filter sites based on selected client
   useEffect(() => {
@@ -148,18 +167,22 @@ const ClientManagement = () => {
                   id: lobId,
                   name: lob.name,
                   clientId: clientId,
+                  clientRowId: lob.clientRowId || clientId, // Store the unique row-specific clientId
                   siteId: lob.siteId || null,
                   siteName: lob.siteName || null,
                   sites: lob.sites || []
                 });
                 
                 if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                  lob.subLOBs.forEach(subLobName => {
+                  lob.subLOBs.forEach((subLob, idx) => {
                     subLobId++;
                     transformedSubLobs.push({
                       id: subLobId,
-                      name: subLobName,
-                      lobId: lobId
+                      name: typeof subLob === 'object' ? subLob.name : subLob,
+                      lobId: lobId,
+                      // Use the SubLOB's own clientRowId if available, otherwise fall back to LOB's clientRowId or clientId
+                      clientRowId: (typeof subLob === 'object' && subLob.clientRowId) ? 
+                                  subLob.clientRowId : lob.clientRowId || clientId
                     });
                   });
                 }
@@ -1177,34 +1200,26 @@ const handleSave = async (updatedClient) => {
 const filteredClients = clients
   .filter(client => {
     // Search in client name
-    const matchesClientSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClientSearch = safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm));
     
     // Also search in associated LOBs
     const clientLobs = lobs.filter(lob => lob.clientId === client.id);
     const matchesLobSearch = clientLobs.some(lob => 
-      lob.name.toLowerCase().includes(searchTerm.toLowerCase())
+      safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm))
     );
     
     // And search in associated SubLOBs
     const clientLobIds = clientLobs.map(lob => lob.id);
     const clientSubLobs = subLobs.filter(subLob => clientLobIds.includes(subLob.lobId));
     const matchesSubLobSearch = clientSubLobs.some(subLob => 
-      subLob.name.toLowerCase().includes(searchTerm.toLowerCase())
+      safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))
     );
     
-    // Return true if any level matches the search term
+    // Rest of the code remains the same
     const matchesSearch = matchesClientSearch || matchesLobSearch || matchesSubLobSearch;
     const matchesFilter = filterClient ? client.id === filterClient : true;
     
     return matchesSearch && matchesFilter;
-  })
-  .sort((a, b) => b.id - a.id);
-
-  const uniqueClientNames = new Map();
-  clients.forEach(client => {
-    if (!uniqueClientNames.has(client.name)) {
-      uniqueClientNames.set(client.name, client.id);
-    }
   });
 
   return (
@@ -1651,7 +1666,7 @@ const filteredClients = clients
                     // If no LOBs, just show the client
                     if (clientLobs.length === 0) {
                       return (
-                        <tr key={`client-${client.id}`}>
+                        <tr key={`client-${client.id}-no-lob`}>
                           <td>{client.id}</td>
                           <td>{client.name}</td>
                           <td>-</td>
@@ -1680,7 +1695,7 @@ const filteredClients = clients
                       if (lobSubLobs.length === 0) {
                         return (
                           <tr key={`client-${client.id}-lob-${lob.id}`}>
-                            <td>{client.id}</td>
+                            <td>{lob.clientRowId}</td> {/* Use lob's specific client row ID */}
                             <td>{client.name}</td>
                             <td>{lob.name}</td>
                             <td>-</td>
@@ -1703,7 +1718,7 @@ const filteredClients = clients
                       // Show each SubLOB
                       return lobSubLobs.map(subLob => (
                         <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
-                          <td>{client.id}</td>
+                          <td>{subLob.clientRowId}</td> {/* Use subLob's specific client row ID */}
                           <td>{client.name}</td>
                           <td>{lob.name}</td>
                           <td>{subLob.name}</td>
@@ -1773,7 +1788,7 @@ const filteredClients = clients
                       if (lobSubLobs.length === 0) {
                         return [(
                           <tr key={`lob-view-${lob.id}`}>
-                            <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
+                            <td>{lob.clientRowId}</td> {/* Use just the LOB's clientRowId */}
                             <td>{client ? client.name : '-'}</td>
                             <td>{lob.name}</td>
                             <td>-</td>
@@ -1796,7 +1811,7 @@ const filteredClients = clients
                       // Otherwise create one row for each SubLOB
                       return lobSubLobs.map(subLob => (
                         <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
-                          <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
+                          <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
                           <td>{client ? client.name : '-'}</td>
                           <td>{lob.name}</td>
                           <td>{subLob.name}</td>
@@ -1824,9 +1839,9 @@ const filteredClients = clients
                       
                       return (
                         client && 
-                        (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        lob.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        subLob.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+                        (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
+                         safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
+                         safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
                         (!filterClient || (lob && lob.clientId === filterClient))
                       );
                     })
@@ -1836,7 +1851,7 @@ const filteredClients = clients
                       
                       return (
                         <tr key={`sublob-${subLob.id}`}>
-                          <td>{client ? client.id.toString().padStart(3, '0') : '-'}</td>
+                          <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
                           <td>{client ? client.name : '-'}</td>
                           <td>{lob ? lob.name : '-'}</td>
                           <td>{subLob.name}</td>

@@ -137,17 +137,28 @@ class ClientManagementService {
                     client.LOBs.set(lob, {
                         name: lob,
                         subLOBs: [],
-                        // Store the first site for backward compatibility
+                        clientRowId: row.dClient_ID, // Add this line to include the unique row ID
+                        // Keep the other properties that are already there
                         siteId: sitesInfo.length > 0 ? sitesInfo[0].siteId : null,
                         siteName: sitesInfo.length > 0 ? sitesInfo[0].siteName : null,
-                        // Store all sites
                         sites: sitesInfo
                     });
                 }
                 
                 // Add SubLOB if it's not empty and not already in the list
-                if (subLOB && !client.LOBs.get(lob).subLOBs.includes(subLOB)) {
-                    client.LOBs.get(lob).subLOBs.push(subLOB);
+                if (subLOB) {
+                    // Check if this SubLOB already exists in the array
+                    const existingSubLob = client.LOBs.get(lob).subLOBs.find(sl => 
+                        typeof sl === 'object' ? sl.name === subLOB : sl === subLOB
+                    );
+                    
+                    if (!existingSubLob) {
+                        // Store SubLOB as an object with its own unique clientRowId
+                        client.LOBs.get(lob).subLOBs.push({
+                            name: subLOB,
+                            clientRowId: row.dClient_ID
+                        });
+                    }
                 }
             });
             
