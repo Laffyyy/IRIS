@@ -1,6 +1,6 @@
 const express = require('express');
 const loginRoutes = require('./routes/loginroutes');
-const securityRoutes = require('./routes/securityRoutes');
+const securityRoutes = require('./routes/securityroutes');
 const forgotPasswordRoutes = require('./routes/forgotPasswordRoutes');
 const helment = require('helmet');
 const cors = require('cors');

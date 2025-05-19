@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db');
+const { getSecurityQuestionsByEmail } = require('../services/securityService');
 
 router.get('/get-security-question', async (req, res) => {
   const email = req.query.email;
@@ -9,19 +9,12 @@ router.get('/get-security-question', async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.query(
-      `SELECT dSecurity_Question1 as question1, dAnswer_1 as answer1,
-              dSecurity_Question2 as question2, dAnswer_2 as answer2,
-              dSecurity_Question3 as question3, dAnswer_3 as answer3
-       FROM iris.tbl_login WHERE dEmail = ?`,
-      [email]
-    );
+    const rows = await getSecurityQuestionsByEmail(email);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "No security questions found for this email." });
     }
 
-    // Return all questions and answers with consistent naming
     res.json({
       question1: rows[0].question1,
       answer1: rows[0].answer1,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './UpdatePassword.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -14,24 +14,10 @@ const UpdatePassword = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use values passed from previous page or fallback to localStorage
-  const selectedQuestion = location.state?.selectedQuestion || localStorage.getItem('iris_selected_question') || '';
-  const answer = location.state?.answer || localStorage.getItem('iris_answer_field') || '';
-  const email = location.state?.email || localStorage.getItem('iris_email') || '';
-
-  // Save to localStorage when component mounts
-  useEffect(() => {
-    localStorage.setItem('iris_selected_question', selectedQuestion);
-    localStorage.setItem('iris_answer_field', answer);
-    localStorage.setItem('iris_email', email);
-
-    // Cleanup function to remove localStorage items when component unmounts
-    return () => {
-      localStorage.removeItem('iris_selected_question');
-      localStorage.removeItem('iris_answer_field');
-      localStorage.removeItem('iris_email');
-    };
-  }, [selectedQuestion, answer, email]);
+  // Only use values from navigation state
+  const selectedQuestion = location.state?.selectedQuestion || '';
+  const answer = location.state?.answer || '';
+  const email = location.state?.email || '';
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
@@ -44,75 +30,69 @@ const UpdatePassword = () => {
   };
 
   const handleCancel = () => {
-    
     navigate('/security-questions', {
       state: {
         email,
         answer,
         selectedQuestion,
-        isVerified: true // Add this flag to indicate coming from update password flow
+        isVerified: true
       }
     });
   };
 
-const handleSaveChanges = async (e) => {
-  e.preventDefault();
+  const handleSaveChanges = async (e) => {
+    e.preventDefault();
 
-  if (passwords.newPassword !== passwords.confirmPassword) {
-    alert("Passwords don't match");
-    return;
-  }
-
-  if (passwords.newPassword.length < 8) {
-    alert("Password must be at least 8 characters long");
-    return;
-  }
-
-  try {
-    const response = await fetch("http://localhost:3000/api/password/forgot", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: email,
-        newPassword: passwords.newPassword,
-      }),
-    });
-
-    const contentType = response.headers.get("Content-Type");
-
-    let data;
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
-      throw new Error("Unexpected server response: " + text);
-    }
-
-    if (!response.ok) {
-      // Handle specific server message
-      if (data.message === "Password is the same as the past 3 passwords") {
-        alert("Password is the same as the past 3 passwords");
-      } else {
-        alert("Password is the same as the past 3 passwords");
-      }
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      alert("Passwords don't match");
       return;
     }
 
-    if (data.success) {
-      alert("Password updated successfully");
-      localStorage.removeItem('iris_selected_question');
-      localStorage.removeItem('iris_answer_field');
-      localStorage.removeItem('iris_email');
-      navigate("/");
+    if (passwords.newPassword.length < 8) {
+      alert("Password must be at least 8 characters long");
+      return;
     }
 
-  } catch (error) {
-    alert("Failed to update password: " + error.message);
-  }
-};
+    try {
+      const response = await fetch("http://localhost:3000/api/password/forgot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          newPassword: passwords.newPassword,
+        }),
+      });
 
+      const contentType = response.headers.get("Content-Type");
+
+      let data;
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error("Unexpected server response: " + text);
+      }
+
+      if (!response.ok) {
+        if (data.message === "Password is the same as the past 3 passwords") {
+          alert("Password is the same as the past 3 passwords");
+        } else {
+          alert("Password is the same as the past 3 passwords");
+        }
+        return;
+      }
+
+      if (data.success) {
+        alert("Password updated successfully");
+        navigate("/");
+      }
+
+    } catch (error) {
+      alert("Failed to update password: " + error.message);
+    }
+  };
 
   return (
     <div className="update-password-container">

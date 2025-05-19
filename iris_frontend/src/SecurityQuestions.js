@@ -10,40 +10,62 @@ const SecurityQuestions = () => {
   const fromOtp = location.state?.fromOtp || false;
   const isVerified = location.state?.isVerified || false;
 
-  const [selectedQuestion, setSelectedQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState([]);
+  const [randomQuestion, setRandomQuestion] = useState("");
+  const [correctAnswer, setCorrectAnswer] = useState("");
+  const [selectedQuestion, setSelectedQuestion] = useState(
+    location.state?.selectedQuestion || ""
+  );
+  const [answer, setAnswer] = useState(location.state?.answer || "");
+  const [attempts, setAttempts] = useState(0);
 
-useEffect(() => {
-  if (!email) return;
+  useEffect(() => {
+    if (!email) return;
 
-  fetch(
-    `http://localhost:3000/api/security/get-security-question?email=${encodeURIComponent(
-      email
-    )}`
-  )
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.question1 && data.question2 && data.question3) {
-        const qList = [data.question1, data.question2, data.question3];
-        const aList = [data.answer1, data.answer2, data.answer3];
-        setQuestions(qList);
-        setAnswers(aList);
-      } else {
-        alert("No security questions found.");
+    fetch(
+      `http://localhost:3000/api/security/get-security-question?email=${encodeURIComponent(
+        email
+      )}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        const pairs = [];
+        if (data.question1 && data.answer1)
+          pairs.push({ q: data.question1, a: data.answer1 });
+        if (data.question2 && data.answer2)
+          pairs.push({ q: data.question2, a: data.answer2 });
+        if (data.question3 && data.answer3)
+          pairs.push({ q: data.question3, a: data.answer3 });
+
+        if (pairs.length === 0) {
+          alert("No security questions found.");
+          navigate("/");
+        } else {
+          // Pick one random pair
+          const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
+          setRandomQuestion(randomPair.q);
+          setCorrectAnswer(randomPair.a);
+
+          // If coming back from update password, restore state
+          if (location.state?.selectedQuestion === randomPair.q) {
+            setSelectedQuestion(location.state.selectedQuestion);
+            setAnswer(location.state.answer || "");
+          } else {
+            setSelectedQuestion("");
+            setAnswer("");
+          }
+          setAttempts(0); // Reset attempts on question load
+        }
+      })
+      .catch(() => {
+        alert("No security questions found for this account");
         navigate("/");
-      }
-    })
-    .catch(() => {
-      alert("No security questions found for this account");
-      navigate("/");
-    });
-}, [email, fromOtp, isVerified, navigate, location.state]);
-
+      });
+  }, [email, fromOtp, isVerified, navigate, location.state]);
 
   const handleQuestionChange = (e) => {
     setSelectedQuestion(e.target.value);
+    setAnswer("");
+    setAttempts(0); // Reset attempts if question changes
   };
 
   const handleAnswerChange = (e) => {
@@ -54,26 +76,38 @@ useEffect(() => {
   };
 
   const normalize = (str) =>
-    str ? str.replace(/[\s-]/g, "").toLowerCase().trim() : "";
+    str ? str.toLowerCase().trim() : "";
 
   const handleSaveChanges = (e) => {
     e.preventDefault();
-    localStorage.setItem("iris_selected_question", selectedQuestion);
-    localStorage.setItem("iris_answer_field", answer);
-    localStorage.setItem("iris_email", email);
 
-    const idx = questions.indexOf(selectedQuestion);
+    if (
+      normalize(answer) === normalize(correctAnswer) &&
+      selectedQuestion === randomQuestion
+    ) {
+      // Save to localStorage
+      localStorage.setItem("iris_selected_question", selectedQuestion);
+      localStorage.setItem("iris_answer_field", answer);
+      localStorage.setItem("iris_email", email);
 
-    if (idx === -1) {
-      alert("Please select a security question");
-      return;
-    }
-
-    if (normalize(answer) === normalize(answers[idx])) {
-      navigate("/update-password", { state: { email } });
+      setAttempts(0);
+      navigate("/update-password", {
+        state: {
+          email,
+          selectedQuestion,
+          answer,
+        },
+      });
     } else {
-      alert("Incorrect answer");
-      setAnswer("");
+      const newAttempts = attempts + 1;
+      setAttempts(newAttempts);
+      if (newAttempts >= 3) {
+        alert("You have reached the maximum number of attempts. Redirecting to login.");
+        navigate("/");
+      } else {
+        alert(`Incorrect answer. Attempt ${newAttempts} of 3.`);
+        setAnswer("");
+      }
     }
   };
 
@@ -105,13 +139,12 @@ useEffect(() => {
                 value={selectedQuestion}
                 onChange={handleQuestionChange}
                 required
+                style={{ marginBottom: "1em" }}
               >
                 <option value="">Select a question</option>
-                {questions.map((q, idx) => (
-                  <option key={idx} value={q}>
-                    {q}
-                  </option>
-                ))}
+                {randomQuestion && (
+                  <option value={randomQuestion}>{randomQuestion}</option>
+                )}
               </select>
               <input
                 type="text"
