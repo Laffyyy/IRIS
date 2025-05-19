@@ -24,6 +24,10 @@
   margin-bottom: 16px;
 }
 
+.subtitle {
+  text-align: left;
+}
+
 .controls {
   display: flex;
   gap: 15px;

@@ -227,29 +227,6 @@ body, html {
   right: 10px;
 }
 
-.carousel-indicators {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-.indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.indicator.active {
-  background: white;
-}
-
 /* Eye icon */
 .eye-icon-btn {
   position: absolute;
@@ -314,10 +291,6 @@ input[type="password"]::-webkit-strong-password-auto-fill-button {
     width: 40px;
     height: 40px;
   }
-
-  .carousel-indicators {
-    bottom: 15px;
-  }
 }
 
 .modal-overlay {
@@ -336,7 +309,7 @@ input[type="password"]::-webkit-strong-password-auto-fill-button {
 .modal-content {
   background: #fff;
   padding: 2rem;
-  width: 320px;
+  width: 400px;
   border-radius: 10px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   text-align: left;
