@@ -1632,12 +1632,10 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedUsers.map((user, index) => {
-                const isSelected = selectedUsers.includes(String(user.dUser_ID));
-                return (
+                  {sortedUsers.map((user, index) => (
                   <tr
-                    key={String(user.dUser_ID)}
-                    className={isSelected ? 'selected-row' : ''}
+                    key={user.dUser_ID}
+                      className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
                     onClick={(e) => {
                       if (
                         e.target.tagName !== 'BUTTON' &&
@@ -1666,9 +1664,9 @@ const UserManagement = () => {
                           }
                         } else {
                           setSelectedUsers(prev =>
-                            isSelected
-                              ? prev.filter(id => id !== String(user.dUser_ID))
-                              : [...prev, String(user.dUser_ID)]
+                              selectedUsers.includes(user.dUser_ID)
+                              ? prev.filter(id => id !== user.dUser_ID)
+                              : [...prev, user.dUser_ID]
                           );
                             if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
                             setAnchorSelectedIndex(index);
@@ -2556,10 +2554,12 @@ const UserManagement = () => {
                   {users
                     .filter(user => selectedUsers.includes(String(user.dUser_ID)))
                     .map(user => (
-                      <li key={String(user.dUser_ID)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <span>{user.dName}</span>
-                        <span className="user-id" style={{ color: '#888', fontSize: '12px', marginLeft: 8 }}>{String(user.dUser_ID)}</span>
-                      </li>
+                      <div key={user.dUser_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">{user.dName}</div>
+                          <div className="user-email">{user.dEmail}</div>
+                        </div>
+                      </div>
                     ))}
               </div>
             )}
