@@ -64,6 +64,9 @@ const ClientManagement = () => {
   const [subLobLobSearchTerm, setSubLobLobSearchTerm] = useState('');
   const [isSubLobLobDropdownOpen, setIsSubLobLobDropdownOpen] = useState(false);
 
+  // Add state for date filter
+  const [filterDate, setFilterDate] = useState('');
+
   // Add filtered client options function
   const filteredClientOptions = () => {
     if (!clientSearchTerm) {
@@ -1376,30 +1379,9 @@ const handleSave = async (updatedClient) => {
   
 // Filtered data for table
 let filteredClients = clients;
-if (searchFilter) {
-  if (searchFilter.type === 'client') {
-    filteredClients = clients.filter(client => safeToLowerCase(client.name) === safeToLowerCase(searchFilter.value));
-  } else if (searchFilter.type === 'lob') {
-    // Find all clients that have a matching LOB
-    const matchingClientIds = lobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value)).map(lob => lob.clientId);
-    filteredClients = clients.filter(client => matchingClientIds.includes(client.id));
-  } else if (searchFilter.type === 'sublob') {
-    // Find all clients that have a matching SubLOB
-    const matchingLobIds = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value)).map(subLob => subLob.lobId);
-    const matchingClientIds = lobs.filter(lob => matchingLobIds.includes(lob.id)).map(lob => lob.clientId);
-    filteredClients = clients.filter(client => matchingClientIds.includes(client.id));
-  } else if (searchFilter.type === 'partial') {
-    // Partial match for client, lob, or sublob name
-    const lower = searchFilter.value.toLowerCase();
-    filteredClients = clients.filter(client => {
-      if (client.name && client.name.toLowerCase().includes(lower)) return true;
-      const clientLobs = lobs.filter(lob => lob.clientId === client.id);
-      if (clientLobs.some(lob => lob.name && lob.name.toLowerCase().includes(lower))) return true;
-      const clientLobIds = clientLobs.map(lob => lob.id);
-      if (subLobs.filter(subLob => clientLobIds.includes(subLob.lobId)).some(subLob => subLob.name && subLob.name.toLowerCase().includes(lower))) return true;
-      return false;
-    });
-  }
+if (filterDate) {
+  const filterDateString = new Date(filterDate).toLocaleDateString();
+  filteredClients = filteredClients.filter(client => client.createdAt === filterDateString);
 }
 filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
@@ -1874,7 +1856,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               {subLobNames.length > 1 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(0)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(1)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 2</label>
@@ -1896,7 +1878,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               {subLobNames.length > 2 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(1)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(2)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 3</label>
@@ -1916,7 +1898,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               {subLobNames.length > 3 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(2)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(3)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 4</label>
@@ -2027,17 +2009,24 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               )}
             </div>
             
-            <div className="filter-group">
-              <label>Filter by Client:</label>
-              <select
-                value={filterClient || ''}
-                onChange={(e) => setFilterClient(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">All Clients</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
+            <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
+              <label style={{ marginRight: 8 }}>Filter by Date:</label>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={e => setFilterDate(e.target.value)}
+                style={{ minWidth: 150, height: 32 }}
+              />
+              {filterDate && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate('')}
+                  style={{ marginLeft: 4, height: 24, width: 24, minWidth: 24, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', border: '1px solid #ccc', borderRadius: '50%', cursor: 'pointer', padding: 0 }}
+                  title="Clear date filter"
+                >
+                  <FaTimes size={14} color="red" />
+                </button>
+              )}
             </div>
           </div>
 
