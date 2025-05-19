@@ -3,8 +3,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Otp.css';
 import { jwtDecode } from 'jwt-decode';
+import { startSessionValidation } from './utilities/auth';
 
-  const Otp = ({ onBack, onComplete }) => {
+const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
@@ -13,8 +14,8 @@ import { jwtDecode } from 'jwt-decode';
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
-  
-
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState(null);
   
 
   useEffect(() => {
@@ -129,83 +130,184 @@ import { jwtDecode } from 'jwt-decode';
   };
 
   const handleSubmit = async () => {
-  const otp = otpValues.join(''); // Combine OTP values into a single string
+    const otp = otpValues.join('');
+    const userId = localStorage.getItem('userId');
+    const password = localStorage.getItem('password');
 
-  // Retrieve userId and password from localStorage
-  const userId = localStorage.getItem('userId');
-  const password = localStorage.getItem('password');
+    if (!userId || !password) {
+      alert('User ID or password is missing. Please log in again.');
+      return;
+    }
 
-  if (!userId || !password) {
-    alert('User ID or password is missing. Please log in again.');
-    return;
-  }
+    const payload = {
+      userId,
+      password,
+      otp
+    };
 
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
+    try {
+      const response = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Check if there's an existing session
+        if (data.data?.existingSession) {
+          setSessionInfo({
+            ...data.data.existingSession,
+            userType: data.data.userType
+          });
+          setShowSessionModal(true);
+          localStorage.setItem('token', data.data.token);
+          console.log('Token set in localStorage:', localStorage.getItem('token'));
+          console.log('Login response data:', data);
+          return;
+        }
+
+        // Handle successful login
+        const userStatus = data.data.user.status;
+        // Clear any existing tokens before setting new one
+        localStorage.removeItem('token');
+        localStorage.setItem('token', data.data.token);
+        console.log('Token set in localStorage:', localStorage.getItem('token'));
+
+        // Decode token to get user roles
+        const decoded = jwtDecode(data.data.token);
+        console.log('Decoded token:', decoded);
+        
+        const roles = decoded.roles
+          ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+          : decoded.role
+            ? [decoded.role]
+            : [];
+
+        if (userStatus === 'FIRST-TIME') {
+          navigate('../change-password');
+        } else if (userStatus === 'ACTIVE') {
+          if (roles.includes('admin')) {
+            navigate('../dashboard');
+          } else if (roles.includes('HR')) {
+            navigate('../hr');
+          } else if (roles.includes('REPORTS')) {
+            navigate('../reports');
+          } else if (roles.includes('CNB')) {
+            navigate('../cb');
+          } else {
+            navigate('/');
+          }
+        }
+      } else {
+        alert(data.message || 'Failed to verify OTP. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error during OTP verification:', error);
+      alert('An error occurred while verifying the OTP. Please try again.');
+    }
   };
 
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+  const handleConfirmSession = async () => {
+    try {
+        const response = await fetch('http://localhost:3000/api/login/confirm-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: userId,
+                userType: sessionInfo?.userType || 'user'
+            })
+        });
 
-    const data = await response.json();
+        if (response.ok) {
+            // Clear the session modal state
+            setShowSessionModal(false);
+            setSessionInfo(null);
+            
+            // Get the stored credentials
+            const storedUserId = localStorage.getItem('userId');
+            const storedPassword = localStorage.getItem('password');
+            
+            if (!storedUserId || !storedPassword) {
+                alert('Session data is missing. Please log in again.');
+                window.location.replace('/');
+                return;
+            }
 
-    if (response.ok) {
-  // Handle successful OTP verification
-  const userStatus = data.data.user.status;
-  localStorage.setItem('token', data.data.token); // Save token to localStorage
-  alert(data.data.message);
+            // Proceed with login
+            const loginResponse = await fetch('http://localhost:3000/api/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: storedUserId,
+                    password: storedPassword,
+                    otp: otpValues.join('')
+                })
+            });
 
-  // Decode token to get user roles
-  const decoded = jwtDecode(data.data.token);
-  const roles = decoded.roles
-    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
-    : decoded.role
-      ? [decoded.role]
-      : [];
+            const loginData = await loginResponse.json();
 
-  if (userStatus === 'FIRST-TIME') {
-    navigate('../change-password');
-  } else if (userStatus === 'ACTIVE') {
-    alert('Login successful');
-    if (roles.includes('admin')) {
-      navigate('../dashboard');
-    } else if (roles.includes('HR')) {
-      navigate('../hr');
-    } else if (roles.includes('REPORTS')) {
-      navigate('../reports');
-    } else if (roles.includes('CNB')) {
-      navigate('../cb');
-    } else {
-      navigate('/'); // fallback
+            if (loginResponse.ok) {
+                // Handle successful login
+                const userStatus = loginData.data.user.status;
+                localStorage.removeItem('token');
+                localStorage.setItem('token', loginData.data.token);
+                console.log('Token set in localStorage:', localStorage.getItem('token'));
+                console.log('Login response data:', loginData);
+                
+                // Decode token to get user roles
+                const decoded = jwtDecode(loginData.data.token);
+                console.log('Decoded token:', decoded);
+                
+                const roles = decoded.roles
+                    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+                    : decoded.role
+                        ? [decoded.role]
+                        : [];
+                
+                if (userStatus === 'FIRST-TIME') {
+                    navigate('../change-password');
+                } else if (userStatus === 'ACTIVE') {
+                    if (roles.includes('admin')) {
+                        navigate('../dashboard');
+                    } else if (roles.includes('HR')) {
+                        navigate('../hr');
+                    } else if (roles.includes('REPORTS')) {
+                        navigate('../reports');
+                    } else if (roles.includes('CNB')) {
+                        navigate('../cb');
+                    } else {
+                        navigate('/');
+                    }
+                }
+            } else {
+                alert(loginData.message || 'Failed to login. Please try again.');
+                window.location.replace('/');
+            }
+        } else {
+            const data = await response.json();
+            alert(data.message || 'Failed to terminate existing session. Please try again.');
+            window.location.replace('/');
+        }
+    } catch (error) {
+        console.error('Error confirming session:', error);
+        alert('An error occurred while confirming session termination.');
+        window.location.replace('/');
     }
-  }
-} else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
-    }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
 };
- const handleBack = () => {
+
+  const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
+    localStorage.removeItem('token');
     navigate('/'); // Redirect to the login page
   }
 
@@ -258,9 +360,11 @@ import { jwtDecode } from 'jwt-decode';
 
         <div className="otp-button-group">
           <button 
-          className="otp-back" 
-          onClick={handleBack}
-          >Back</button>
+            className="otp-back" 
+            onClick={handleBack}
+          >
+            Back
+          </button>
           <button
             id="otp-submit-button"
             className={`otp-submit ${isComplete ? 'otp-submit-enabled' : ''}`}
@@ -272,6 +376,27 @@ import { jwtDecode } from 'jwt-decode';
           </button>
         </div>
       </div>
+
+      {/* Session Termination Modal */}
+      {showSessionModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Existing Session Detected</h3>
+            <p>You are already logged in on another device:</p>
+            <div className="session-info">
+              <p><strong>Device:</strong> {sessionInfo?.deviceInfo}</p>
+              <p><strong>Last Login:</strong> {new Date(sessionInfo?.lastLogin).toLocaleString()}</p>
+            </div>
+            <p>Do you want to terminate the existing session and continue with this login?</p>
+            <div className="modal-buttons">
+              <button onClick={() => setShowSessionModal(false)}>Cancel</button>
+              <button onClick={handleConfirmSession} className="confirm-button">
+                Terminate & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

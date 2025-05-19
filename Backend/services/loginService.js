@@ -3,97 +3,204 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const login = require('../models/login');
 const OtpService = require('./otpService'); // Import the OtpService
+const crypto = require('crypto');
 
 class LoginService {
     constructor() {
         this.otpService = new OtpService(); // Initialize OtpService
     }
 
-    
-    async loginUser(userID, password, otp = null) {
-    try {
-        let user = null;
-        let table = null;
+    // Generate a unique session ID
+    generateSessionId() {
+        return crypto.randomBytes(32).toString('hex');
+    }
 
-        // Step 1: Check if the user exists in tbl_login
-        const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
-        if (loginRows.length > 0) {
-            user = loginRows[0];
-            table = 'tbl_login';
-        } else {
-            // Step 2: Check if the user exists in tbl_admin
-            const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
-            if (adminRows.length > 0) {
-                user = adminRows[0];
-                table = 'tbl_admin';
-                user.dUser_Type = 'admin'; // Set user type for admin
+    // Get device info from request
+    getDeviceInfo(req) {
+        const userAgent = req.headers['user-agent'] || '';
+        const ip = req.ip || req.connection.remoteAddress;
+        return `${userAgent} - ${ip}`;
+    }
+
+    // Add method to invalidate all other sessions
+    async invalidateOtherSessions(userID, table, currentSessionId) {
+        try {
+            await db.query(
+                `UPDATE ${table} SET dSession_ID = NULL, dDevice_Info = NULL WHERE dUser_ID = ? AND dSession_ID != ?`,
+                [userID, currentSessionId]
+            );
+        } catch (error) {
+            console.error('Error invalidating sessions:', error);
+            throw error;
+        }
+    }
+
+    // Add method to get current session version
+    async getSessionVersion(userID, table) {
+        try {
+            const [rows] = await db.query(
+                `SELECT session_version FROM ${table} WHERE dUser_ID = ?`,
+                [userID]
+            );
+            return rows[0]?.session_version || 0;
+        } catch (error) {
+            console.error('Error getting session version:', error);
+            throw error;
+        }
+    }
+
+    async loginUser(userID, password, otp = null, req = null) {
+        try {
+            let user = null;
+            let table = null;
+            let userType = null;
+
+            // Step 1: Check if the user exists in tbl_login
+            const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
+            if (loginRows.length > 0) {
+                user = loginRows[0];
+                table = 'tbl_login';
+                userType = user.dUser_Type || 'user';
+            } else {
+                // Step 2: Check if the user exists in tbl_admin
+                const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
+                if (adminRows.length > 0) {
+                    user = adminRows[0];
+                    table = 'tbl_admin';
+                    userType = 'admin';
+                }
             }
-        }
 
-        // If user is not found in either table
-        if (!user) {
-            throw new Error('User not found');
-        }
-
-        // Step 3: Verify the password
-        let isMatch = false;
-        if (table === 'tbl_login') {
-            if (!user.dPassword1_hash) {
-                throw new Error('Password hash is missing for tbl_login');
-            }
-            isMatch = await bcrypt.compare(password, user.dPassword1_hash);
-        } else if (table === 'tbl_admin') {
-            if (!user.dPassword1_hash) {
-                throw new Error('Password hash is missing for tbl_admin');
-            }
-            isMatch = await bcrypt.compare(password, user.dPassword1_hash);
-        }
-
-        if (!isMatch) {
-            throw new Error('Invalid password');
-        }
-
-        // Step 4: Check the user's status (if applicable)
-        if (user.dStatus && user.dStatus === 'DEACTIVATED') {
-            throw new Error('Account is deactivated');
-        }
-        if (user.dStatus && user.dStatus === 'EXPIRED') {
-            throw new Error('Account has expired');
-        }
-
-        // Step 5: Handle OTP verification
-        if (otp) {
-            // Verify the OTP using the OtpService
-            const otpService = new OtpService();
-            const otpVerificationResult = await otpService.verifyOtp(user.dUser_ID, otp);
-
-            if (otpVerificationResult.message === 'OTP expired. A new OTP has been sent to your registered email or phone.') {
-                return otpVerificationResult;
+            if (!user) {
+                throw new Error('Invalid user ID or password');
             }
 
-            // Step 6: Generate a token after OTP verification
-            const token = jwt.sign(
-                { id: user.dUser_ID, role: user.dUser_Type || user.dStatus },
-                process.env.JWT_SECRET,
-                { expiresIn: '1h' }
+            // Step 3: Verify the password
+            let isMatch = false;
+            if (table === 'tbl_login') {
+                if (!user.dPassword1_hash) {
+                    throw new Error('Invalid user ID or password');
+                }
+                isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+            } else if (table === 'tbl_admin') {
+                if (!user.dPassword1_hash) {
+                    throw new Error('Invalid user ID or password');
+                }
+                isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+            }
+
+            if (!isMatch) {
+                throw new Error('Invalid user ID or password');
+            }
+
+            // Step 4: Check the user's status
+            if (user.dStatus && user.dStatus === 'DEACTIVATED') {
+                throw new Error('Account is deactivated');
+            }
+            if (user.dStatus && user.dStatus === 'EXPIRED') {
+                throw new Error('Account has expired');
+            }
+
+            // Step 5: Handle OTP verification
+            if (otp) {
+                const otpService = new OtpService();
+                const otpVerificationResult = await otpService.verifyOtp(user.dUser_ID, otp);
+
+                if (otpVerificationResult.message === 'OTP expired. A new OTP has been sent to your registered email or phone.') {
+                    return otpVerificationResult;
+                }
+
+                // Check for existing session
+                if (user.dSession_ID && user.dDevice_Info) {
+                    return {
+                        message: 'Existing session detected',
+                        existingSession: {
+                            deviceInfo: user.dDevice_Info,
+                            lastLogin: user.tLast_Login
+                        },
+                        userType: userType
+                    };
+                }
+
+                // Generate new session ID
+                const sessionId = this.generateSessionId();
+                const deviceInfo = req ? this.getDeviceInfo(req) : 'Unknown Device';
+
+                // Immediately invalidate all other sessions for this user
+                await db.query(
+                    `UPDATE ${table} SET dSession_ID = NULL, dDevice_Info = NULL WHERE dUser_ID = ?`,
+                    [userID]
+                );
+
+                // Generate token with session ID
+                const token = jwt.sign(
+                    { 
+                        id: user.dUser_ID, 
+                        role: userType,
+                        sessionId: sessionId,
+                        iat: Math.floor(Date.now() / 1000),
+                        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+                    },
+                    process.env.JWT_SECRET
+                );
+
+                // Update session info and last login time
+                await db.query(
+                    `UPDATE ${table} SET dSession_ID = ?, dDevice_Info = ?, tLast_Login = NOW() WHERE dUser_ID = ?`,
+                    [sessionId, deviceInfo, userID]
+                );
+
+                return { 
+                    message: 'Login successful', 
+                    token, 
+                    user: { 
+                        id: user.dUser_ID, 
+                        email: user.dEmail, 
+                        status: user.dStatus || userType 
+                    } 
+                };
+            } else {
+                const otpService = new OtpService();
+                const generatedOtp = await otpService.generateOtp(user.dUser_ID);
+                console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
+                return { message: 'OTP sent to your registered email or phone' };
+            }
+        } catch (error) {
+            console.error('Error in loginUser:', error.message);
+            throw error;
+        }
+    }
+
+    async confirmSessionTermination(userId, userType) {
+        try {
+            const table = userType === 'admin' ? 'tbl_admin' : 'tbl_login';
+            
+            // First verify the user exists
+            const [user] = await db.query(
+                `SELECT dUser_ID FROM ${table} WHERE dUser_ID = ?`,
+                [userId]
             );
 
-            // Update the last login time
-            await db.query(`UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ?`, [userID]);
+            if (!user || user.length === 0) {
+                throw new Error('User not found');
+            }
 
-            return { message: 'Login successful', token, user: { id: user.dUser_ID, email: user.dEmail, status: user.dStatus || user.dUser_Type } };
-        } else {
-            // Step 7: Generate a new OTP if none is provided
-            const otpService = new OtpService();
-            const generatedOtp = await otpService.generateOtp(user.dUser_ID);
-            console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
-            return { message: 'OTP sent to your registered email or phone' };
+            // Clear the session data
+            await db.query(
+                `UPDATE ${table} SET dSession_ID = NULL, dDevice_Info = NULL WHERE dUser_ID = ?`,
+                [userId]
+            );
+
+            return {
+                success: true,
+                message: 'Session terminated successfully'
+            };
+        } catch (error) {
+            console.error('Error terminating session:', error);
+            throw error;
         }
-    } catch (error) {
-        console.error('Error in loginUser:', error.message);
-        throw error;
     }
-}
+
     //wrong file
     async changePassword(userID, newPassword) {
         try {
