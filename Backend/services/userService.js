@@ -146,3 +146,8 @@ exports.findExistingAdminEmployeeIdsEmails = async (employeeIds, emails) => {
   );
   return rows;
 };
+
+exports.fetchAllAdmins = async () => {
+  const [rows] = await pool.query("SELECT * FROM iris.tbl_admin ORDER BY tCreatedAt DESC");
+  return rows;
+};

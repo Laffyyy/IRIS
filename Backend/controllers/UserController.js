@@ -5,7 +5,15 @@ const { broadcastUserUpdate } = require('../websocket');
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await userService.fetchAllUsers();
-    res.json(users);
+    const admins = await userService.fetchAllAdmins();
+    // Add a marker so frontend can distinguish
+    const adminUsers = admins.map(a => ({
+      ...a,
+      dUser_Type: 'ADMIN', // Ensure this field is set for filtering
+      isAdminTable: true
+    }));
+    const allUsers = [...users, ...adminUsers];
+    res.json(allUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ message: 'Failed to fetch users' });

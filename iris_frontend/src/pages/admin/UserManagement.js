@@ -617,7 +617,7 @@ const UserManagement = () => {
     employeeIdRef.current.value = '';
     emailRef.current.value = '';
     nameRef.current.value = '';
-    roleRef.current.value = 'HR';
+    roleRef.current.value = '';
   };
 
   // Submit individual users
@@ -1512,6 +1512,75 @@ const UserManagement = () => {
   // Add navigation state
   const [activeTable, setActiveTable] = useState('users');
 
+  // Add filtered users based on active tab
+  const getFilteredUsers = () => {
+    let filtered = [...users];
+    
+    // Apply tab-specific filtering
+    if (activeTable === 'admin') {
+      filtered = filtered.filter(user => user.dUser_Type === 'ADMIN');
+      // Apply status filter for admin tab
+      if (statusFilter !== 'All') {
+        filtered = filtered.filter(user => user.dStatus === statusFilter);
+      }
+    } else if (activeTable === 'tickets') {
+      filtered = filtered.filter(user => 
+        user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE'
+      );
+      if (roleFilter !== 'All') {
+        filtered = filtered.filter(user => user.dUser_Type === roleFilter);
+      }
+    } else if (activeTable === 'deactivated') {
+      filtered = filtered.filter(user => user.dStatus === 'DEACTIVATED');
+      // Apply role filter for deactivated tab
+      if (roleFilter !== 'All') {
+        filtered = filtered.filter(user => user.dUser_Type === roleFilter);
+      }
+    } else if (activeTable === 'users') {
+      // Only show ACTIVE and FIRST-TIME users in users tab, and exclude ADMIN users
+      filtered = filtered.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN');
+    }
+
+    // Apply search filter
+    if (debouncedSearchTerm) {
+      filtered = filtered.filter(user => 
+        (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (user.dName && user.dName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (user.dEmail && user.dEmail.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+      );
+    }
+
+    // Apply role filter for users tab
+    if (activeTable === 'users' && roleFilter !== 'All') {
+      filtered = filtered.filter(user => user.dUser_Type === roleFilter);
+    }
+
+    // Apply status filter for users tab (but only for ACTIVE and FIRST-TIME)
+    if (activeTable === 'users' && statusFilter !== 'All') {
+      filtered = filtered.filter(user => user.dStatus === statusFilter);
+    }
+
+    return filtered;
+  };
+
+  // Add effect to handle tab changes
+  useEffect(() => {
+    // Reset filters when tab changes
+    if (activeTable === 'admin') {
+      setRoleFilter('ADMIN');
+      setStatusFilter('All');
+    } else if (activeTable === 'tickets') {
+      setRoleFilter('All');
+      setStatusFilter('All');
+    } else if (activeTable === 'deactivated') {
+      setRoleFilter('All');
+      setStatusFilter('DEACTIVATED');
+    } else if (activeTable === 'users') {
+      setRoleFilter('All');
+      setStatusFilter('All');
+    }
+  }, [activeTable]);
+
   return (
     <div className="user-management-container">
       <div className="user-management-card">
@@ -1531,26 +1600,79 @@ const UserManagement = () => {
             />
           </div>
 
-          <div className="filter-container">
-            <label>Filter by Status:</label>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="All">All Status</option>
-              <option value="FIRST-TIME">FIRST-TIME</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
-            </select>
-          </div>
+          {activeTable === 'users' && (
+            <>
+              <div className="filter-container">
+                <label>Filter by Status:</label>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="All">All Status</option>
+                  <option value="FIRST-TIME">FIRST-TIME</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                </select>
+              </div>
 
-          <div className="filter-container">
-            <label>Filter by Role:</label>
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-              <option value="All">All Roles</option>
-              <option value="Admin">Admin</option>
-              <option value="HR">HR</option>
-              <option value="REPORTS">REPORTS</option>
-              <option value="CNB">CNB</option>
-            </select>
-          </div>
+              <div className="filter-container">
+                <label>Filter by Role:</label>
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                  <option value="All">All Roles</option>
+                  <option value="HR">HR</option>
+                  <option value="REPORTS">REPORTS</option>
+                  <option value="CNB">CNB</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {activeTable === 'admin' && (
+            <>
+              <div className="filter-container">
+                <label>Filter by Status:</label>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="All">All Status</option>
+                  <option value="FIRST-TIME">FIRST-TIME</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {activeTable === 'deactivated' && (
+            <>
+              <div className="filter-container">
+                <label>Filter by Role:</label>
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                  <option value="All">All Roles</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="HR">HR</option>
+                  <option value="REPORTS">REPORTS</option>
+                  <option value="CNB">CNB</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {activeTable === 'tickets' && (
+            <>
+              <div className="filter-container">
+                <label>Filter by Role:</label>
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                  <option value="All">All Roles</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="HR">HR</option>
+                  <option value="REPORTS">REPORTS</option>
+                  <option value="CNB">CNB</option>
+                </select>
+              </div>
+              <div className="filter-container">
+                <label>Filter by Status:</label>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                  <option value="All">All Status</option>
+                  <option value="NEED-RESET">NEED-RESET</option>
+                  <option value="RESET-DONE">RESET-DONE</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <button className="add-user-btn" onClick={() => setAddModalOpen(true)}>
             <FaPlus /> Add User
@@ -1590,560 +1712,584 @@ const UserManagement = () => {
           </div>
           <div className="table-wrapper">
             {activeTable === 'users' && (
-          <table>
-                <thead>
-              <tr>
-                <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
-                  Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                </th>
-                <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
-                  Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                </th>
-                <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
-                  Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                </th>
-                <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
-                  Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                </th>
-                <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
-                  Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                </th>
-                <th className="actions-col">
-                  <div className="actions-header">
-                    Actions
-                    <div className="select-all-container">
-                      <input
-                        type="checkbox"
-                        checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedUsers(sortedUsers.map(user => String(user.dUser_ID)));
-                          } else {
-                            setSelectedUsers([]);
+              getFilteredUsers().length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                  No users found.
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                        Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                        Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                        Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                        Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                        Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="actions-col">
+                        <div className="actions-header">
+                          Actions
+                          <div className="select-all-container">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers(sortedUsers.map(user => String(user.dUser_ID)));
+                                } else {
+                                  setSelectedUsers([]);
+                                }
+                              }}
+                            />
+                            <span className="selected-count">
+                              {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredUsers().map((user, index) => (
+                      <tr
+                        key={user.dUser_ID}
+                        className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
+                        onClick={(e) => {
+                          if (
+                            e.target.tagName !== 'BUTTON' &&
+                            e.target.tagName !== 'svg' &&
+                            e.target.tagName !== 'path' &&
+                            e.target.type !== 'checkbox'
+                          ) {
+                            if (e.shiftKey && anchorSelectedIndex !== null) {
+                                const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
+                              if (clickedIsSelected) {
+                                const start = Math.min(lastSelectedIndex, index);
+                                const end = Math.max(lastSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
+                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
+                                setLastSelectedIndex(index);
+                              } else {
+                                const start = Math.min(anchorSelectedIndex, index);
+                                const end = Math.max(anchorSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
+                                setSelectedUsers(prev => {
+                                  const newSet = new Set(prev);
+                                  rangeUserIds.forEach(id => newSet.add(id));
+                                  return Array.from(newSet);
+                                });
+                                setLastSelectedIndex(index);
+                              }
+                            } else {
+                              setSelectedUsers(prev =>
+                                  selectedUsers.includes(user.dUser_ID)
+                                  ? prev.filter(id => id !== user.dUser_ID)
+                                  : [...prev, user.dUser_ID]
+                              );
+                                if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
+                                setAnchorSelectedIndex(index);
+                                setLastSelectedIndex(index);
+                              }
+                                if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
+                                setAnchorSelectedIndex(null);
+                                setLastSelectedIndex(null);
+                              }
+                                if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
+                                setLastSelectedIndex(index);
+                              }
+                            }
                           }
                         }}
-                      />
-                      <span className="selected-count">
-                        {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
-                      </span>
-                    </div>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-                  {sortedUsers.map((user, index) => (
-                  <tr
-                    key={user.dUser_ID}
-                      className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                    onClick={(e) => {
-                      if (
-                        e.target.tagName !== 'BUTTON' &&
-                        e.target.tagName !== 'svg' &&
-                        e.target.tagName !== 'path' &&
-                        e.target.type !== 'checkbox'
-                      ) {
-                        if (e.shiftKey && anchorSelectedIndex !== null) {
-                            const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                          if (clickedIsSelected) {
-                            const start = Math.min(lastSelectedIndex, index);
-                            const end = Math.max(lastSelectedIndex, index);
-                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
-                            setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                            setLastSelectedIndex(index);
-                          } else {
-                            const start = Math.min(anchorSelectedIndex, index);
-                            const end = Math.max(anchorSelectedIndex, index);
-                            const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
-                            setSelectedUsers(prev => {
-                              const newSet = new Set(prev);
-                              rangeUserIds.forEach(id => newSet.add(id));
-                              return Array.from(newSet);
-                            });
-                            setLastSelectedIndex(index);
-                          }
-                        } else {
-                          setSelectedUsers(prev =>
-                              selectedUsers.includes(user.dUser_ID)
-                              ? prev.filter(id => id !== user.dUser_ID)
-                              : [...prev, user.dUser_ID]
-                          );
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                            setAnchorSelectedIndex(index);
-                            setLastSelectedIndex(index);
-                          }
-                            if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                            setAnchorSelectedIndex(null);
-                            setLastSelectedIndex(null);
-                          }
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                            setLastSelectedIndex(index);
-                          }
-                        }
-                      }
-                    }}
-                  >
-                    <td>{user.dUser_ID}</td>
-                    <td>{user.dName}</td>
-                    <td>{user.dEmail}</td>
-                    <td>{user.dUser_Type}</td>
-                    <td>{user.dStatus}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button onClick={() => handleEdit(user)} className="edit-btn">
-                          <FaEdit size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedUsers([String(user.dUser_ID)]);
-                            setShowDeleteModal(true);
-                          }}
-                          className="delete-btn"
-                        >
-                          <FaTrash size={12} /> Delete
-                        </button>
-                        <input
-                          type="checkbox"
-                            checked={selectedUsers.includes(user.dUser_ID)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            setSelectedUsers(prev =>
-                              e.target.checked
-                                ? [...prev, String(user.dUser_ID)]
-                                : prev.filter(id => id !== String(user.dUser_ID))
-                            );
-                            if (!e.target.checked && selectedUsers.length === 1) {
-                              setAnchorSelectedIndex(null);
-                            } else if (e.target.checked && selectedUsers.length === 0) {
-                              setAnchorSelectedIndex(index);
-                            }
-                            setLastSelectedIndex(index);
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                  ))}
-                </tbody>
-              </table>
+                      >
+                        <td>{user.dUser_ID}</td>
+                        <td>{user.dName}</td>
+                        <td>{user.dEmail}</td>
+                        <td>{user.dUser_Type}</td>
+                        <td>{user.dStatus}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                              <FaEdit size={12} /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([String(user.dUser_ID)]);
+                                setShowDeleteModal(true);
+                              }}
+                              className="delete-btn"
+                            >
+                              <FaTrash size={12} /> Delete
+                            </button>
+                            <input
+                              type="checkbox"
+                                checked={selectedUsers.includes(user.dUser_ID)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers(prev =>
+                                  e.target.checked
+                                    ? [...prev, String(user.dUser_ID)]
+                                    : prev.filter(id => id !== String(user.dUser_ID))
+                                );
+                                if (!e.target.checked && selectedUsers.length === 1) {
+                                  setAnchorSelectedIndex(null);
+                                } else if (e.target.checked && selectedUsers.length === 0) {
+                                  setAnchorSelectedIndex(index);
+                                }
+                                setLastSelectedIndex(index);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
             )}
             {activeTable === 'admin' && (
-              <table>
-                <thead>
-                  <tr>
-                    <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
-                      Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
-                      Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
-                      Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
-                      Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
-                      Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="actions-col">
-                      <div className="actions-header">
-                        Actions
-                        <div className="select-all-container">
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
-                              } else {
-                                setSelectedUsers([]);
-                              }
-                            }}
-                          />
-                          <span className="selected-count">
-                            {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
-                          </span>
+              getFilteredUsers().length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                  No users found.
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                        Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                        Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                        Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                        Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                        Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="actions-col">
+                        <div className="actions-header">
+                          Actions
+                          <div className="select-all-container">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                } else {
+                                  setSelectedUsers([]);
+                                }
+                              }}
+                            />
+                            <span className="selected-count">
+                              {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedUsers.map((user, index) => (
-                    <tr
-                      key={user.dUser_ID}
-                      className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                      onClick={(e) => {
-                        if (
-                          e.target.tagName !== 'BUTTON' &&
-                          e.target.tagName !== 'svg' &&
-                          e.target.tagName !== 'path' &&
-                          e.target.type !== 'checkbox'
-                        ) {
-                          if (e.shiftKey && anchorSelectedIndex !== null) {
-                            const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                            if (clickedIsSelected) {
-                              const start = Math.min(lastSelectedIndex, index);
-                              const end = Math.max(lastSelectedIndex, index);
-                              const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                              setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                              setLastSelectedIndex(index);
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredUsers().map((user, index) => (
+                      <tr
+                        key={user.dUser_ID}
+                        className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
+                        onClick={(e) => {
+                          if (
+                            e.target.tagName !== 'BUTTON' &&
+                            e.target.tagName !== 'svg' &&
+                            e.target.tagName !== 'path' &&
+                            e.target.type !== 'checkbox'
+                          ) {
+                            if (e.shiftKey && anchorSelectedIndex !== null) {
+                              const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
+                              if (clickedIsSelected) {
+                                const start = Math.min(lastSelectedIndex, index);
+                                const end = Math.max(lastSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
+                                setLastSelectedIndex(index);
+                              } else {
+                                const start = Math.min(anchorSelectedIndex, index);
+                                const end = Math.max(anchorSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                                setSelectedUsers(prev => {
+                                  const newSet = new Set(prev);
+                                  rangeUserIds.forEach(id => newSet.add(id));
+                                  return Array.from(newSet);
+                                });
+                                setLastSelectedIndex(index);
+                              }
                             } else {
-                              const start = Math.min(anchorSelectedIndex, index);
-                              const end = Math.max(anchorSelectedIndex, index);
-                              const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                              setSelectedUsers(prev => {
-                                const newSet = new Set(prev);
-                                rangeUserIds.forEach(id => newSet.add(id));
-                                return Array.from(newSet);
-                              });
-                              setLastSelectedIndex(index);
-                            }
-                          } else {
-                            setSelectedUsers(prev =>
-                              selectedUsers.includes(user.dUser_ID)
-                                ? prev.filter(id => id !== user.dUser_ID)
-                                : [...prev, user.dUser_ID]
-                            );
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                              setAnchorSelectedIndex(index);
-                              setLastSelectedIndex(index);
-                            }
-                            if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                              setAnchorSelectedIndex(null);
-                              setLastSelectedIndex(null);
-                            }
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                              setLastSelectedIndex(index);
+                              setSelectedUsers(prev =>
+                                selectedUsers.includes(user.dUser_ID)
+                                  ? prev.filter(id => id !== user.dUser_ID)
+                                  : [...prev, user.dUser_ID]
+                              );
+                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
+                                setAnchorSelectedIndex(index);
+                                setLastSelectedIndex(index);
+                              }
+                              if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
+                                setAnchorSelectedIndex(null);
+                                setLastSelectedIndex(null);
+                              }
+                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
+                                setLastSelectedIndex(index);
+                              }
                             }
                           }
-                        }
-                      }}
-                    >
-                      <td>{user.dUser_ID}</td>
-                      <td>{user.dName}</td>
-                      <td>{user.dEmail}</td>
-                      <td>{user.dUser_Type}</td>
-                      <td>{user.dStatus}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button onClick={() => handleEdit(user)} className="edit-btn">
-                            <FaEdit size={12} /> Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedUsers([user.dUser_ID]);
-                              setShowDeleteModal(true);
-                            }}
-                            className="delete-btn"
-                          >
-                            <FaTrash size={12} /> Delete
-                          </button>
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(user.dUser_ID)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              setSelectedUsers(prev =>
-                                e.target.checked
-                                  ? [...prev, user.dUser_ID]
-                                  : prev.filter(id => id !== user.dUser_ID)
-                              );
-                              if (!e.target.checked && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                              } else if (e.target.checked && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                              }
-                              setLastSelectedIndex(index);
-                            }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-            </tbody>
-          </table>
+                        }}
+                      >
+                        <td>{user.dUser_ID}</td>
+                        <td>{user.dName}</td>
+                        <td>{user.dEmail}</td>
+                        <td>{user.dUser_Type}</td>
+                        <td>{user.dStatus}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                              <FaEdit size={12} /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowDeleteModal(true);
+                              }}
+                              className="delete-btn"
+                            >
+                              <FaTrash size={12} /> Delete
+                            </button>
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user.dUser_ID)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers(prev =>
+                                  e.target.checked
+                                    ? [...prev, user.dUser_ID]
+                                    : prev.filter(id => id !== user.dUser_ID)
+                                );
+                                if (!e.target.checked && selectedUsers.length === 1) {
+                                  setAnchorSelectedIndex(null);
+                                } else if (e.target.checked && selectedUsers.length === 0) {
+                                  setAnchorSelectedIndex(index);
+                                }
+                                setLastSelectedIndex(index);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
             )}
             {activeTable === 'tickets' && (
-              <table>
-                <thead>
-                  <tr>
-                    <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
-                      Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
-                      Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
-                      Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
-                      Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
-                      Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="actions-col">
-                      <div className="actions-header">
-                        Actions
-                        <div className="select-all-container">
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
-                              } else {
-                                setSelectedUsers([]);
-                              }
-                            }}
-                          />
-                          <span className="selected-count">
-                            {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
-                          </span>
+              getFilteredUsers().length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                  No users found.
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                        Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                        Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                        Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                        Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                        Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="actions-col">
+                        <div className="actions-header">
+                          Actions
+                          <div className="select-all-container">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                } else {
+                                  setSelectedUsers([]);
+                                }
+                              }}
+                            />
+                            <span className="selected-count">
+                              {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
+                            </span>
         </div>
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedUsers.map((user, index) => (
-                    <tr
-                      key={user.dUser_ID}
-                      className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                      onClick={(e) => {
-                        if (
-                          e.target.tagName !== 'BUTTON' &&
-                          e.target.tagName !== 'svg' &&
-                          e.target.tagName !== 'path' &&
-                          e.target.type !== 'checkbox'
-                        ) {
-                          if (e.shiftKey && anchorSelectedIndex !== null) {
-                            const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                            if (clickedIsSelected) {
-                              const start = Math.min(lastSelectedIndex, index);
-                              const end = Math.max(lastSelectedIndex, index);
-                              const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                              setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                              setLastSelectedIndex(index);
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredUsers().map((user, index) => (
+                      <tr
+                        key={user.dUser_ID}
+                        className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
+                        onClick={(e) => {
+                          if (
+                            e.target.tagName !== 'BUTTON' &&
+                            e.target.tagName !== 'svg' &&
+                            e.target.tagName !== 'path' &&
+                            e.target.type !== 'checkbox'
+                          ) {
+                            if (e.shiftKey && anchorSelectedIndex !== null) {
+                              const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
+                              if (clickedIsSelected) {
+                                const start = Math.min(lastSelectedIndex, index);
+                                const end = Math.max(lastSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
+                                setLastSelectedIndex(index);
+                              } else {
+                                const start = Math.min(anchorSelectedIndex, index);
+                                const end = Math.max(anchorSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                                setSelectedUsers(prev => {
+                                  const newSet = new Set(prev);
+                                  rangeUserIds.forEach(id => newSet.add(id));
+                                  return Array.from(newSet);
+                                });
+                                setLastSelectedIndex(index);
+                              }
                             } else {
-                              const start = Math.min(anchorSelectedIndex, index);
-                              const end = Math.max(anchorSelectedIndex, index);
-                              const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                              setSelectedUsers(prev => {
-                                const newSet = new Set(prev);
-                                rangeUserIds.forEach(id => newSet.add(id));
-                                return Array.from(newSet);
-                              });
-                              setLastSelectedIndex(index);
-                            }
-                          } else {
-                            setSelectedUsers(prev =>
-                              selectedUsers.includes(user.dUser_ID)
-                                ? prev.filter(id => id !== user.dUser_ID)
-                                : [...prev, user.dUser_ID]
-                            );
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                              setAnchorSelectedIndex(index);
-                              setLastSelectedIndex(index);
-                            }
-                            if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                              setAnchorSelectedIndex(null);
-                              setLastSelectedIndex(null);
-                            }
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                              setLastSelectedIndex(index);
+                              setSelectedUsers(prev =>
+                                selectedUsers.includes(user.dUser_ID)
+                                  ? prev.filter(id => id !== user.dUser_ID)
+                                  : [...prev, user.dUser_ID]
+                              );
+                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
+                                setAnchorSelectedIndex(index);
+                                setLastSelectedIndex(index);
+                              }
+                              if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
+                                setAnchorSelectedIndex(null);
+                                setLastSelectedIndex(null);
+                              }
+                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
+                                setLastSelectedIndex(index);
+                              }
                             }
                           }
-                        }
-                      }}
-                    >
-                      <td>{user.dUser_ID}</td>
-                      <td>{user.dName}</td>
-                      <td>{user.dEmail}</td>
-                      <td>{user.dUser_Type}</td>
-                      <td>{user.dStatus}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button onClick={() => handleEdit(user)} className="edit-btn">
-                            <FaEdit size={12} /> Edit
-                          </button>
-              <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedUsers([user.dUser_ID]);
-                              setShowDeleteModal(true);
-                            }}
-                            className="delete-btn"
-              >
-                            <FaTrash size={12} /> Delete
-              </button>
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(user.dUser_ID)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              setSelectedUsers(prev =>
-                                e.target.checked
-                                  ? [...prev, user.dUser_ID]
-                                  : prev.filter(id => id !== user.dUser_ID)
-                              );
-                              if (!e.target.checked && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                              } else if (e.target.checked && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                              }
-                              setLastSelectedIndex(index);
-                            }}
-                          />
-            </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        }}
+                      >
+                        <td>{user.dUser_ID}</td>
+                        <td>{user.dName}</td>
+                        <td>{user.dEmail}</td>
+                        <td>{user.dUser_Type}</td>
+                        <td>{user.dStatus}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                              <FaEdit size={12} /> Edit
+                            </button>
+                <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowDeleteModal(true);
+                              }}
+                              className="delete-btn"
+                >
+                              <FaTrash size={12} /> Delete
+                </button>
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user.dUser_ID)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers(prev =>
+                                  e.target.checked
+                                    ? [...prev, user.dUser_ID]
+                                    : prev.filter(id => id !== user.dUser_ID)
+                                );
+                                if (!e.target.checked && selectedUsers.length === 1) {
+                                  setAnchorSelectedIndex(null);
+                                } else if (e.target.checked && selectedUsers.length === 0) {
+                                  setAnchorSelectedIndex(index);
+                                }
+                                setLastSelectedIndex(index);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
             )}
             {activeTable === 'deactivated' && (
-              <table>
-                <thead>
-                  <tr>
-                    <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
-                      Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
-                      Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
-                      Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
-                      Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
-                      Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
-                    </th>
-                    <th className="actions-col">
-                      <div className="actions-header">
-                        Actions
-                        <div className="select-all-container">
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
-                              } else {
-                                setSelectedUsers([]);
-                              }
-                            }}
-                          />
-                          <span className="selected-count">
-                            {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
-                          </span>
+              getFilteredUsers().length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                  No users found.
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                        Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                        Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                        Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                        Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                        Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className="actions-col">
+                        <div className="actions-header">
+                          Actions
+                          <div className="select-all-container">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                } else {
+                                  setSelectedUsers([]);
+                                }
+                              }}
+                            />
+                            <span className="selected-count">
+                              {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedUsers.map((user, index) => (
-                    <tr
-                      key={user.dUser_ID}
-                      className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                      onClick={(e) => {
-                        if (
-                          e.target.tagName !== 'BUTTON' &&
-                          e.target.tagName !== 'svg' &&
-                          e.target.tagName !== 'path' &&
-                          e.target.type !== 'checkbox'
-                        ) {
-                          if (e.shiftKey && anchorSelectedIndex !== null) {
-                            const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                            if (clickedIsSelected) {
-                              const start = Math.min(lastSelectedIndex, index);
-                              const end = Math.max(lastSelectedIndex, index);
-                              const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                              setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                              setLastSelectedIndex(index);
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredUsers().map((user, index) => (
+                      <tr
+                        key={user.dUser_ID}
+                        className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
+                        onClick={(e) => {
+                          if (
+                            e.target.tagName !== 'BUTTON' &&
+                            e.target.tagName !== 'svg' &&
+                            e.target.tagName !== 'path' &&
+                            e.target.type !== 'checkbox'
+                          ) {
+                            if (e.shiftKey && anchorSelectedIndex !== null) {
+                              const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
+                              if (clickedIsSelected) {
+                                const start = Math.min(lastSelectedIndex, index);
+                                const end = Math.max(lastSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
+                                setLastSelectedIndex(index);
+                              } else {
+                                const start = Math.min(anchorSelectedIndex, index);
+                                const end = Math.max(anchorSelectedIndex, index);
+                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
+                                setSelectedUsers(prev => {
+                                  const newSet = new Set(prev);
+                                  rangeUserIds.forEach(id => newSet.add(id));
+                                  return Array.from(newSet);
+                                });
+                                setLastSelectedIndex(index);
+                              }
                             } else {
-                              const start = Math.min(anchorSelectedIndex, index);
-                              const end = Math.max(anchorSelectedIndex, index);
-                              const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                              setSelectedUsers(prev => {
-                                const newSet = new Set(prev);
-                                rangeUserIds.forEach(id => newSet.add(id));
-                                return Array.from(newSet);
-                              });
-                              setLastSelectedIndex(index);
-                            }
-                          } else {
-                            setSelectedUsers(prev =>
-                              selectedUsers.includes(user.dUser_ID)
-                                ? prev.filter(id => id !== user.dUser_ID)
-                                : [...prev, user.dUser_ID]
-                            );
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                              setAnchorSelectedIndex(index);
-                              setLastSelectedIndex(index);
-                            }
-                            if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                              setAnchorSelectedIndex(null);
-                              setLastSelectedIndex(null);
-                            }
-                            if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                              setLastSelectedIndex(index);
+                              setSelectedUsers(prev =>
+                                selectedUsers.includes(user.dUser_ID)
+                                  ? prev.filter(id => id !== user.dUser_ID)
+                                  : [...prev, user.dUser_ID]
+                              );
+                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
+                                setAnchorSelectedIndex(index);
+                                setLastSelectedIndex(index);
+                              }
+                              if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
+                                setAnchorSelectedIndex(null);
+                                setLastSelectedIndex(null);
+                              }
+                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
+                                setLastSelectedIndex(index);
+                              }
                             }
                           }
-                        }
-                      }}
-                    >
-                      <td>{user.dUser_ID}</td>
-                      <td>{user.dName}</td>
-                      <td>{user.dEmail}</td>
-                      <td>{user.dUser_Type}</td>
-                      <td>{user.dStatus}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button onClick={() => handleEdit(user)} className="edit-btn">
-                            <FaEdit size={12} /> Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedUsers([user.dUser_ID]);
-                              setShowDeleteModal(true);
-                            }}
-                            className="delete-btn"
-                          >
-                            <FaTrash size={12} /> Delete
-                          </button>
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(user.dUser_ID)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              setSelectedUsers(prev =>
-                                e.target.checked
-                                  ? [...prev, user.dUser_ID]
-                                  : prev.filter(id => id !== user.dUser_ID)
-                              );
-                              if (!e.target.checked && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                              } else if (e.target.checked && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                              }
-                              setLastSelectedIndex(index);
-                            }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        }}
+                      >
+                        <td>{user.dUser_ID}</td>
+                        <td>{user.dName}</td>
+                        <td>{user.dEmail}</td>
+                        <td>{user.dUser_Type}</td>
+                        <td>{user.dStatus}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                              <FaEdit size={12} /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowDeleteModal(true);
+                              }}
+                              className="delete-btn"
+                            >
+                              <FaTrash size={12} /> Delete
+                            </button>
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user.dUser_ID)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers(prev =>
+                                  e.target.checked
+                                    ? [...prev, user.dUser_ID]
+                                    : prev.filter(id => id !== user.dUser_ID)
+                                );
+                                if (!e.target.checked && selectedUsers.length === 1) {
+                                  setAnchorSelectedIndex(null);
+                                } else if (e.target.checked && selectedUsers.length === 0) {
+                                  setAnchorSelectedIndex(index);
+                                }
+                                setLastSelectedIndex(index);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
             )}
           </div>
         </div>
@@ -2167,7 +2313,23 @@ const UserManagement = () => {
           <div className="modal add-user-modal" style={{ width: '900px' }}>
             <div className="modal-header">
               <h2>Add User</h2>
-              <button onClick={() => { setAddModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="close-btn">
+              <button onClick={() => {
+                setAddModalOpen(false);
+                setShowResetDropdown(false);
+                setResetConfirmText('');
+                setResetConfirmed(false);
+                setIndividualAddError('');
+                setIndividualPreview([]);
+                setBulkUsers([]);
+                setInvalidUsers([]);
+                setPreviewTab('valid');
+                setFile(null);
+                setFileError('');
+                if (employeeIdRef.current) employeeIdRef.current.value = '';
+                if (emailRef.current) emailRef.current.value = '';
+                if (nameRef.current) nameRef.current.value = '';
+                if (roleRef.current) roleRef.current.value = '';
+              }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -2237,8 +2399,10 @@ const UserManagement = () => {
                     <select
                       name="role"
                       ref={roleRef}
+                      defaultValue=""
                     >
-                      <option value="Admin">Admin</option>
+                      <option value="">Select a role</option>
+                      <option value="ADMIN">ADMIN</option>
                       <option value="HR">HR</option>
                       <option value="REPORTS">REPORTS</option>
                       <option value="CNB">CNB</option>
@@ -2261,6 +2425,9 @@ const UserManagement = () => {
                   >
                     Add to List
                   </button>
+                  {individualAddError && (
+                    <div style={{ color: 'red', marginTop: 8 }}>{individualAddError}</div>
+                  )}
                 </div>
 
                 <hr className="add-user-hr" />
@@ -2268,10 +2435,6 @@ const UserManagement = () => {
                 <div className="add-user-actions">
                   <button onClick={() => setShowIndividualConfirmModal(true)} className="save-btn" disabled={individualPreview.length === 0}>Add User</button>
                 </div>
-
-                {individualAddError && (
-                  <div style={{ color: 'red', marginBottom: 8 }}>{individualAddError}</div>
-                )}
 
                 {individualPreview.length > 0 && (
                   <>
@@ -2286,7 +2449,7 @@ const UserManagement = () => {
                       />
                       <select value={individualRoleFilter} onChange={e => setIndividualRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
                         <option value="All">All Roles</option>
-                        <option value="Admin">Admin</option>
+                        <option value="ADMIN">ADMIN</option>
                         <option value="HR">HR</option>
                         <option value="REPORTS">REPORTS</option>
                         <option value="CNB">CNB</option>
@@ -2391,7 +2554,7 @@ const UserManagement = () => {
                       />
                       <select value={bulkRoleFilter} onChange={e => setBulkRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
                         <option value="All">All Roles</option>
-                        <option value="Admin">Admin</option>
+                        <option value="ADMIN">ADMIN</option>
                         <option value="HR">HR</option>
                         <option value="REPORTS">REPORTS</option>
                         <option value="CNB">CNB</option>
@@ -2513,8 +2676,24 @@ const UserManagement = () => {
                   </>
                 )}
 
-                <div className="modal-actions">
-                  <button onClick={() => { setAddModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="cancel-btn">Cancel</button>
+                <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className="cancel-btn" onClick={() => {
+                    setAddModalOpen(false);
+                    setShowResetDropdown(false);
+                    setResetConfirmText('');
+                    setResetConfirmed(false);
+                    setIndividualAddError('');
+                    setIndividualPreview([]);
+                    setBulkUsers([]);
+                    setInvalidUsers([]);
+                    setPreviewTab('valid');
+                    setFile(null);
+                    setFileError('');
+                    if (employeeIdRef.current) employeeIdRef.current.value = '';
+                    if (emailRef.current) emailRef.current.value = '';
+                    if (nameRef.current) nameRef.current.value = '';
+                    if (roleRef.current) roleRef.current.value = '';
+                  }}>Cancel</button>
                   <button
                     onClick={() => setShowBulkConfirmModal(true)}
                     className="save-btn"
@@ -2571,7 +2750,7 @@ const UserManagement = () => {
                 className="delete-confirm-input"
             />
             </div>
-            <div className="modal-actions">
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 className="cancel-btn"
                 onClick={() => {
@@ -2599,7 +2778,7 @@ const UserManagement = () => {
           <div className="modal edit-user-modal">
             <div className="modal-header">
               <h2>Edit User</h2>
-              <button onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="close-btn">
+              <button onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -2680,7 +2859,7 @@ const UserManagement = () => {
                   value={currentUser.dUser_Type}
                   onChange={(e) => setCurrentUser({...currentUser, dUser_Type: e.target.value})}
                 >
-                  <option value="Admin">Admin</option>
+                  <option value="ADMIN">ADMIN</option>
                   <option value="HR">HR</option>
                   <option value="REPORTS">REPORTS</option>
                   <option value="CNB">CNB</option>
@@ -2701,13 +2880,13 @@ const UserManagement = () => {
                     <>
                       <option value="RESET-DONE">RESET-DONE</option>
                       <option value="ACTIVE">ACTIVE</option>
-                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="DEACTIVATE">DEACTIVATE</option>
                     </>
                   ) : (
                     <>
                       {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
                       <option value="ACTIVE">ACTIVE</option>
-                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="DEACTIVATE">DEACTIVATE</option>
                     </>
                   )}
                 </select>
@@ -2813,8 +2992,8 @@ const UserManagement = () => {
               </div>
             </div>
 
-            <div className="modal-actions">
-              <button onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); }} className="cancel-btn">Cancel</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }}>Cancel</button>
               <button
                 onClick={() => { setPendingEditUser(currentUser); setShowEditConfirmModal(true); }}
                 className="save-btn"
@@ -2906,8 +3085,8 @@ const UserManagement = () => {
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.role}</div>
               )}
             </div>
-            <div className="modal-actions">
-              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); setEditInvalidDbErrors({}); }} className="cancel-btn">Cancel</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); setEditInvalidDbErrors({}); }}>Cancel</button>
               <button
                 onClick={handleSaveEditedInvalidUser}
                 className="save-btn"
@@ -2993,8 +3172,8 @@ const UserManagement = () => {
                 <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.role}</div>
               )}
             </div>
-            <div className="modal-actions">
-              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); setEditValidDbErrors({}); }} className="cancel-btn">Cancel</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); setEditValidDbErrors({}); }}>Cancel</button>
               <button
                 onClick={handleSaveEditedValidUser}
                 className="save-btn"
@@ -3018,8 +3197,8 @@ const UserManagement = () => {
               </button>
             </div>
             <p>Are you sure you want to upload {bulkUsers.length} users?</p>
-            <div className="modal-actions">
-              <button onClick={() => setShowBulkConfirmModal(false)} className="cancel-btn">Cancel</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => { setShowBulkConfirmModal(false); setIndividualAddError(''); }}>Cancel</button>
               <button
                 onClick={() => {
                   setShowBulkConfirmModal(false);
@@ -3045,8 +3224,8 @@ const UserManagement = () => {
               </button>
             </div>
             <p>{bulkResultMessage}</p>
-            <div className="modal-actions">
-              <button onClick={() => setShowBulkResultModal(false)} className="save-btn">OK</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn">OK</button>
             </div>
           </div>
         </div>
@@ -3063,8 +3242,8 @@ const UserManagement = () => {
               </button>
             </div>
             <p>Are you sure you want to save changes to this user?</p>
-            <div className="modal-actions">
-              <button onClick={() => setShowEditConfirmModal(false)} className="cancel-btn">No</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => { setShowEditConfirmModal(false); setIndividualAddError(''); }}>No</button>
               <button
                 className="save-btn"
                 onClick={async () => {
@@ -3085,13 +3264,30 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>{editResultSuccess ? 'Edit Successful' : 'Edit Failed'}</h2>
-              <button onClick={() => setShowEditResultModal(false)} className="close-btn">
+              <button onClick={() => {
+                setShowEditResultModal(false);
+                setEditModalOpen(false);
+                setCurrentUser(null);
+                setOriginalUser(null);
+                setEditUserErrors({});
+                setShowResetDropdown(false);
+                setResetConfirmText('');
+                setResetConfirmed(false);
+                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                setShowPasswordFields(false);
+                setShowSecurityQuestions(false);
+                setSecurityQuestionsData([
+                  { question: '', answer: '' },
+                  { question: '', answer: '' },
+                  { question: '', answer: '' }
+                ]);
+              }} className="close-btn">
                 <FaTimes />
               </button>
             </div>
             <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
-            <div className="modal-actions">
-              <button onClick={() => setShowEditResultModal(false)} className="save-btn">OK</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn">OK</button>
             </div>
           </div>
         </div>
@@ -3108,8 +3304,8 @@ const UserManagement = () => {
               </button>
             </div>
             <p>Are you sure you want to add {individualPreview.length} user(s)?</p>
-            <div className="modal-actions">
-              <button onClick={() => setShowIndividualConfirmModal(false)} className="cancel-btn">No</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => { setShowIndividualConfirmModal(false); setIndividualAddError(''); }}>No</button>
               <button
                 className="save-btn"
                 onClick={async () => {
@@ -3166,8 +3362,8 @@ const UserManagement = () => {
               </button>
             </div>
             <p>{individualResultMessage}</p>
-            <div className="modal-actions">
-              <button onClick={() => setShowIndividualResultModal(false)} className="save-btn">OK</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn">OK</button>
             </div>
           </div>
         </div>
@@ -3184,8 +3380,8 @@ const UserManagement = () => {
               </button>
             </div>
             <p>{deleteResultMessage}</p>
-            <div className="modal-actions">
-              <button onClick={() => setShowDeleteResultModal(false)} className="save-btn">OK</button>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn">OK</button>
             </div>
           </div>
         </div>
