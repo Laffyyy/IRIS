@@ -12,6 +12,14 @@ const ClientManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Add state for client searchable dropdown
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
+  // Add state for site searchable dropdown
+  const [siteSearchTerm, setSiteSearchTerm] = useState('');
+  const [isSiteDropdownOpen, setIsSiteDropdownOpen] = useState(false);
+
   // Form states for Add Client tab
   const [clientName, setClientName] = useState('');
   const [lobCards, setLobCards] = useState([
@@ -46,6 +54,59 @@ const ClientManagement = () => {
 
   const [uniqueClientNames, setUniqueClientNames] = useState(new Map());
 
+  // Add filtered client options function
+  const filteredClientOptions = () => {
+    if (!clientSearchTerm) {
+      return Array.from(uniqueClientNames.entries());
+    }
+    const searchLower = clientSearchTerm.toLowerCase();
+    return Array.from(uniqueClientNames.entries()).filter(([name]) => 
+      name.toLowerCase().includes(searchLower)
+    );
+  };
+
+  // Add filtered site options function
+  const filteredSiteOptions = () => {
+    if (!selectedClientForLob) return [];
+    
+    const clientLobs = lobs.filter(lob => lob.clientId === selectedClientForLob);
+    const availableSites = sites.filter(site => {
+      return clientLobs.some(lob => {
+        if (lob.sites && lob.sites.length > 0) {
+          return lob.sites.some(lobSite => lobSite.siteId === site.id);
+        }
+        return lob.siteId === site.id;
+      });
+    });
+
+    if (!siteSearchTerm) {
+      return availableSites;
+    }
+
+    const searchLower = siteSearchTerm.toLowerCase();
+    return availableSites.filter(site => 
+      site.name.toLowerCase().includes(searchLower)
+    );
+  };
+
+  // Add click outside handler for both dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const clientDropdown = document.querySelector('.searchable-dropdown');
+      const siteDropdown = document.querySelector('.site-searchable-dropdown');
+      if (clientDropdown && !clientDropdown.contains(event.target)) {
+        setIsClientDropdownOpen(false);
+      }
+      if (siteDropdown && !siteDropdown.contains(event.target)) {
+        setIsSiteDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const safeToLowerCase = (value) => {
     if (typeof value === 'string') {
@@ -430,7 +491,28 @@ const ClientManagement = () => {
           alert('Selected client not found');
           return;
         }
-  
+
+        // Validate site selection if a site is selected
+        if (selectedSiteForLob) {
+          const clientLobs = lobs.filter(lob => lob.clientId === selectedClientForLob);
+          const siteExists = sites.some(site => {
+            if (site.id === selectedSiteForLob) {
+              return clientLobs.some(lob => {
+                if (lob.sites && lob.sites.length > 0) {
+                  return lob.sites.some(lobSite => lobSite.siteId === site.id);
+                }
+                return lob.siteId === site.id;
+              });
+            }
+            return false;
+          });
+
+          if (!siteExists) {
+            alert('Selected site is not valid for this client');
+            return;
+          }
+        }
+    
         // Process each LOB card
         for (const card of lobCardsForLob) {
           if (card.lobName.trim()) {
@@ -562,6 +644,8 @@ const ClientManagement = () => {
         setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
         setSelectedClientForLob(null);
         setSelectedSiteForLob(null);
+        setClientSearchTerm('');
+        setSiteSearchTerm('');
         
         alert('LOBs added successfully!');
       } catch (error) {
@@ -1229,6 +1313,13 @@ if (searchFilter) {
 }
 filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
+  // Add this function to validate client selection
+  const validateClientSelection = () => {
+    if (!selectedClientForLob || !clientSearchTerm) return false;
+    const selectedClient = clients.find(c => c.id === selectedClientForLob);
+    return selectedClient && selectedClient.name === clientSearchTerm;
+  };
+
   return (
     <div className="client-management-container">
       <div className="white-card">
@@ -1335,48 +1426,87 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
         <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
           <div className="client-name-container">
             <label>Select Client</label>
-            <select
-              value={selectedClientForLob || ''}
-              onChange={(e) => {
-                const clientId = e.target.value ? Number(e.target.value) : null;
-                setSelectedClientForLob(clientId);
-                setSelectedSiteForLob(null);
-              }}
-            >
-              <option value="">Select a client</option>
-              {[...uniqueClientNames.entries()].map(([name, id]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
-            </select>
+            <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`}>
+              <input
+                type="text"
+                value={clientSearchTerm}
+                onChange={(e) => {
+                  setClientSearchTerm(e.target.value);
+                  setIsClientDropdownOpen(true);
+                  // Clear selected client if search term doesn't match
+                  const matchingClient = clients.find(c => c.name === e.target.value);
+                  if (!matchingClient) {
+                    setSelectedClientForLob(null);
+                    setSelectedSiteForLob(null);
+                    setSiteSearchTerm('');
+                  }
+                }}
+                onFocus={() => setIsClientDropdownOpen(true)}
+                placeholder="Search or select a client"
+                className="searchable-input"
+              />
+              {isClientDropdownOpen && (
+                <div className="dropdown-list">
+                  {filteredClientOptions().map(([name, id]) => (
+                    <div
+                      key={id}
+                      className="dropdown-item"
+                      onClick={() => {
+                        setSelectedClientForLob(id);
+                        setClientSearchTerm(name);
+                        setIsClientDropdownOpen(false);
+                        setSelectedSiteForLob(null);
+                        setSiteSearchTerm(''); // Clear site search when client changes
+                      }}
+                    >
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="client-name-container">
             <label>Select Site</label>
-            <select
-              value={selectedSiteForLob || ''}
-              onChange={(e) => setSelectedSiteForLob(e.target.value ? Number(e.target.value) : null)}
-              disabled={!selectedClientForLob}
-            >
-              <option value="">All Sites</option>
-              {sites
-                .filter(site => {
-                  if (!selectedClientForLob) {
-                    return false; // Don't show sites if no client is selected
+            <div className={`site-searchable-dropdown ${isSiteDropdownOpen ? 'active' : ''}`}>
+              <input
+                type="text"
+                value={siteSearchTerm}
+                onChange={(e) => {
+                  setSiteSearchTerm(e.target.value);
+                  setIsSiteDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  if (validateClientSelection()) {
+                    setIsSiteDropdownOpen(true);
                   }
-                  
-                  const clientLobs = lobs.filter(lob => lob.clientId === selectedClientForLob);
-                  
-                  return clientLobs.some(lob => {
-                    if (lob.sites && lob.sites.length > 0) {
-                      return lob.sites.some(lobSite => lobSite.siteId === site.id);
-                    }
-                    return lob.siteId === site.id;
-                  });
-                })
-                .map(site => (
-                  <option key={site.id} value={site.id}>{site.name}</option>
-                ))
-              }
-            </select>
+                }}
+                placeholder="Search or select a site"
+                className="searchable-input"
+                disabled={!validateClientSelection()}
+              />
+              {isSiteDropdownOpen && validateClientSelection() && (
+                <div className="dropdown-list">
+                  {filteredSiteOptions().length > 0 ? (
+                    filteredSiteOptions().map(site => (
+                      <div
+                        key={site.id}
+                        className="dropdown-item"
+                        onClick={() => {
+                          setSelectedSiteForLob(site.id);
+                          setSiteSearchTerm(site.name);
+                          setIsSiteDropdownOpen(false);
+                        }}
+                      >
+                        {site.name}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="dropdown-item no-results">No sites found</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="lob-cards-container">
@@ -1394,7 +1524,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     type="text"
                     value={card.lobName}
                     onChange={(e) => handleLobNameChangeForLob(lobCardIndex, e.target.value)}
-                    disabled={!selectedClientForLob}
+                    disabled={!validateClientSelection()}
                   />
                 </div>
 
@@ -1407,7 +1537,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           type="text"
                           value={subLobName}
                           onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, e.target.value)}
-                          disabled={!selectedClientForLob}
+                          disabled={!validateClientSelection()}
                         />
                         {subLobIndex > 0 && (
                           <button 
@@ -1426,7 +1556,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   <button 
                     onClick={() => handleAddAnotherSubLobForLob(lobCardIndex)} 
                     className="add-another-button"
-                    disabled={!selectedClientForLob}
+                    disabled={!validateClientSelection()}
                   >
                     + Add Sub LOB
                   </button>
@@ -1439,7 +1569,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 <button 
                   onClick={handleAddAnotherLobCardForLob} 
                   className="add-lob-card-button"
-                  disabled={!selectedClientForLob}
+                  disabled={!validateClientSelection()}
                 >
                   + Add LOB Card
                 </button>
@@ -1450,7 +1580,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <button 
             onClick={handleAddLob} 
             className="submit-button"
-            disabled={!selectedClientForLob || !lobCardsForLob.some(card => card.lobName.trim())}
+            disabled={!validateClientSelection() || !lobCardsForLob.some(card => card.lobName.trim())}
           >
             Submit LOB(s)
           </button>
