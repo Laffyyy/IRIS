@@ -1417,6 +1417,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     return selectedClient && selectedClient.name === subLobClientSearchTerm;
   };
 
+  // Add this handler for removing subLobNames in Add Sub LOB tab
+  const handleRemoveSubLobNameField = (index) => {
+    if (subLobNames.length > 1) {
+      const updated = [...subLobNames];
+      updated.splice(index, 1);
+      setSubLobNames(updated);
+    }
+  };
+
   return (
     <div className="client-management-container">
       <div className="white-card">
@@ -1865,7 +1874,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               {subLobNames.length > 1 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(0, 1)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(0)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 2</label>
@@ -1887,7 +1896,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               {subLobNames.length > 2 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(0, 2)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(1)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 3</label>
@@ -1907,7 +1916,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               {subLobNames.length > 3 && (
                 <div className="sub-lob-name-field">
                   <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobField(0, 3)}>
+                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(2)}>
                       <FaTimes className="times-icon" />
                     </button>
                     <label>Sub LOB Name 4</label>
@@ -2322,7 +2331,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <label>Client ID</label>
           <input
             type="text"
-            value={`C${currentClient.id}`}
+            value={currentClient.id}
             disabled
             className="disabled-input"
           />
@@ -2388,14 +2397,6 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       </div>
       
       <div className="form-row">
-        <div className="form-group">
-          <label>Created By</label>
-          <input
-            type="text"
-            value={currentClient.createdBy || ''}
-            onChange={(e) => setCurrentClient({...currentClient, createdBy: e.target.value})}
-          />
-        </div>
         <div className="form-group">
           <label>Created At</label>
           <input
