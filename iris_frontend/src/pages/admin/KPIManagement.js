@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
 import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload } from 'react-icons/fa';
 
+const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis to /api/kpis
 
 const KPIManagement = () => {
   const [activeTab, setActiveTab] = useState('addKPI');
@@ -232,7 +233,7 @@ const KPIManagement = () => {
             };
 
             // Updated endpoint to match backend routes
-            const response = await fetch('http://localhost:3000/api/kpis', {  // Changed from api/kpi/create
+            const response = await fetch(BASE_URL, {  // Changed from api/kpi/create
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -272,7 +273,7 @@ const KPIManagement = () => {
   useEffect(() => {
     const fetchKPIs = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/kpis');
+        const response = await fetch(BASE_URL);
         if (response.ok) {
           const data = await response.json();
           setKpis(data);
