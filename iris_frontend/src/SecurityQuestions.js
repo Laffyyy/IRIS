@@ -45,12 +45,14 @@ const SecurityQuestions = () => {
           setRandomQuestion(randomPair.q);
           setCorrectAnswer(randomPair.a);
 
+          // Set selectedQuestion to match the random question
+          setSelectedQuestion(randomPair.q);
+
           // If coming back from update password, restore state
           if (location.state?.selectedQuestion === randomPair.q) {
             setSelectedQuestion(location.state.selectedQuestion);
             setAnswer(location.state.answer || "");
           } else {
-            setSelectedQuestion("");
             setAnswer("");
           }
           setAttempts(0); // Reset attempts on question load
@@ -82,8 +84,7 @@ const SecurityQuestions = () => {
     e.preventDefault();
 
     if (
-      normalize(answer) === normalize(correctAnswer) &&
-      selectedQuestion === randomQuestion
+      normalize(answer) === normalize(correctAnswer)
     ) {
       // Save to localStorage
       localStorage.setItem("iris_selected_question", selectedQuestion);
@@ -133,19 +134,10 @@ const SecurityQuestions = () => {
           <div className="form-section">
             <h3>Security Question</h3>
             <div className="security-question-group">
-              <label htmlFor="security-question">Security Question</label>
-              <select
-                id="security-question"
-                value={selectedQuestion}
-                onChange={handleQuestionChange}
-                required
-                style={{ marginBottom: "1em" }}
-              >
-                <option value="">Select a question</option>
-                {randomQuestion && (
-                  <option value={randomQuestion}>{randomQuestion}</option>
-                )}
-              </select>
+              <label>Security Question</label>
+              <div style={{ marginBottom: "1em", fontWeight: "bold" }}>
+                {randomQuestion}
+              </div>
               <input
                 type="text"
                 placeholder="Your answer"
