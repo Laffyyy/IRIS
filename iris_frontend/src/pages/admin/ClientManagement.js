@@ -1198,7 +1198,14 @@ const filteredClients = clients
     
     return matchesSearch && matchesFilter;
   })
-  .sort((a, b) => a.id - b.id); // Sort by client ID in ascending order
+  .sort((a, b) => b.id - a.id);
+
+  const uniqueClientNames = new Map();
+  clients.forEach(client => {
+    if (!uniqueClientNames.has(client.name)) {
+      uniqueClientNames.set(client.name, client.id);
+    }
+  });
 
   return (
     <div className="client-management-container">
@@ -1315,8 +1322,8 @@ const filteredClients = clients
               }}
             >
               <option value="">Select a client</option>
-              {clients.map(client => (
-                <option key={client.id} value={client.id}>{client.name}</option>
+              {[...uniqueClientNames.entries()].map(([name, id]) => (
+                <option key={id} value={id}>{name}</option>
               ))}
             </select>
           </div>
@@ -1437,8 +1444,8 @@ const filteredClients = clients
                 onChange={(e) => setFilterClientForSubLob(e.target.value ? Number(e.target.value) : null)}
               >
                 <option value="">All Clients</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
+                {[...uniqueClientNames.entries()].map(([name, id]) => (
+                  <option key={id} value={id}>{name}</option>
                 ))}
               </select>
             </div>
@@ -1707,7 +1714,40 @@ const filteredClients = clients
                               <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                 <FaPencilAlt size={12} /> Edit
                               </button>
-                              <button onClick={() => handleDeleteSubLob('subLob', subLob.id)} className="delete-btn">
+                              <button 
+                                onClick={() => {
+                                  // Check the main active tab first
+                                  if (activeTab === 'addClient') {
+                                    // In Add Client tab, use table tab to determine what to delete
+                                    if (activeTableTab === 'clients') {
+                                      // Delete client
+                                      handleDeleteClient('client', client.id);
+                                    } else if (activeTableTab === 'lobs') {
+                                      // Delete LOB
+                                      handleDeleteLob('lob', lob.id);
+                                    } else if (activeTableTab === 'subLobs') {
+                                      // Delete SubLOB
+                                      handleDelete('subLob', subLob.id);
+                                    }
+                                  } else if (activeTab === 'addLOB') {
+                                    // In Add LOB tab, use LOB-specific delete handler
+                                    handleDeleteLob('lob', lob.id);
+                                  } else if (activeTab === 'addSubLOB') {
+                                    // In Add SubLOB tab, use SubLOB-specific delete handler
+                                    handleDeleteSubLob('subLob', subLob.id);
+                                  } else {
+                                    // In other tabs, use the regular handleDelete
+                                    if (activeTableTab === 'clients') {
+                                      handleDelete('client', client.id);
+                                    } else if (activeTableTab === 'lobs') {
+                                      handleDelete('lob', lob.id);
+                                    } else if (activeTableTab === 'subLobs') {
+                                      handleDelete('subLob', subLob.id);
+                                    }
+                                  }
+                                }} 
+                                className="delete-btn"
+                              >
                                 <FaTrash size={12} /> Delete
                               </button>
                             </div>
