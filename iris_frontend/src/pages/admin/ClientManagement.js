@@ -54,6 +54,16 @@ const ClientManagement = () => {
 
   const [uniqueClientNames, setUniqueClientNames] = useState(new Map());
 
+  // Add new state variables for Sub LOB tab dropdowns
+  const [subLobClientSearchTerm, setSubLobClientSearchTerm] = useState('');
+  const [isSubLobClientDropdownOpen, setIsSubLobClientDropdownOpen] = useState(false);
+  const [subLobSiteSearchTerm, setSubLobSiteSearchTerm] = useState('');
+  const [isSubLobSiteDropdownOpen, setIsSubLobSiteDropdownOpen] = useState(false);
+
+  // Add new state variables for LOB searchable dropdown
+  const [subLobLobSearchTerm, setSubLobLobSearchTerm] = useState('');
+  const [isSubLobLobDropdownOpen, setIsSubLobLobDropdownOpen] = useState(false);
+
   // Add filtered client options function
   const filteredClientOptions = () => {
     if (!clientSearchTerm) {
@@ -89,16 +99,88 @@ const ClientManagement = () => {
     );
   };
 
+  // Add filtered options functions for Sub LOB tab
+  const filteredSubLobClientOptions = () => {
+    if (!subLobClientSearchTerm) {
+      return Array.from(uniqueClientNames.entries());
+    }
+    const searchLower = subLobClientSearchTerm.toLowerCase();
+    return Array.from(uniqueClientNames.entries()).filter(([name]) => 
+      name.toLowerCase().includes(searchLower)
+    );
+  };
+
+  const filteredSubLobSiteOptions = () => {
+    if (!filterClientForSubLob) return [];
+    
+    const clientLobs = lobs.filter(lob => lob.clientId === filterClientForSubLob);
+    const availableSites = sites.filter(site => {
+      return clientLobs.some(lob => {
+        if (lob.sites && lob.sites.length > 0) {
+          return lob.sites.some(lobSite => lobSite.siteId === site.id);
+        }
+        return lob.siteId === site.id;
+      });
+    });
+
+    if (!subLobSiteSearchTerm) {
+      return availableSites;
+    }
+
+    const searchLower = subLobSiteSearchTerm.toLowerCase();
+    return availableSites.filter(site => 
+      site.name.toLowerCase().includes(searchLower)
+    );
+  };
+
+  // Add filtered LOB options function for Sub LOB tab
+  const filteredSubLobLobOptions = () => {
+    if (!validateSubLobClientSelection()) return [];
+    
+    let filteredLobOptions = lobs.filter(lob => lob.clientId === filterClientForSubLob);
+    
+    if (filterSiteForSubLob) {
+      filteredLobOptions = filteredLobOptions.filter(lob => {
+        if (lob.sites && lob.sites.length > 0) {
+          return lob.sites.some(site => site.siteId === filterSiteForSubLob);
+        }
+        return lob.siteId === filterSiteForSubLob;
+      });
+    }
+
+    if (!subLobLobSearchTerm) {
+      return filteredLobOptions;
+    }
+
+    const searchLower = subLobLobSearchTerm.toLowerCase();
+    return filteredLobOptions.filter(lob => 
+      lob.name.toLowerCase().includes(searchLower)
+    );
+  };
+
   // Add click outside handler for both dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       const clientDropdown = document.querySelector('.searchable-dropdown');
       const siteDropdown = document.querySelector('.site-searchable-dropdown');
+      const subLobClientDropdown = document.querySelector('.sublob-client-searchable-dropdown');
+      const subLobSiteDropdown = document.querySelector('.sublob-site-searchable-dropdown');
+      const subLobLobDropdown = document.querySelector('.sublob-lob-searchable-dropdown');
+      
       if (clientDropdown && !clientDropdown.contains(event.target)) {
         setIsClientDropdownOpen(false);
       }
       if (siteDropdown && !siteDropdown.contains(event.target)) {
         setIsSiteDropdownOpen(false);
+      }
+      if (subLobClientDropdown && !subLobClientDropdown.contains(event.target)) {
+        setIsSubLobClientDropdownOpen(false);
+      }
+      if (subLobSiteDropdown && !subLobSiteDropdown.contains(event.target)) {
+        setIsSubLobSiteDropdownOpen(false);
+      }
+      if (subLobLobDropdown && !subLobLobDropdown.contains(event.target)) {
+        setIsSubLobLobDropdownOpen(false);
       }
     };
 
@@ -1328,6 +1410,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     return selectedClient && selectedClient.name === clientSearchTerm;
   };
 
+  // Add validation function for Sub LOB client selection
+  const validateSubLobClientSelection = () => {
+    if (!filterClientForSubLob || !subLobClientSearchTerm) return false;
+    const selectedClient = clients.find(c => c.id === filterClientForSubLob);
+    return selectedClient && selectedClient.name === subLobClientSearchTerm;
+  };
+
   return (
     <div className="client-management-container">
       <div className="white-card">
@@ -1605,54 +1694,154 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <div className="form-row">
             <div className="form-group">
               <label>Select Client</label>
-              <select
-                value={filterClientForSubLob || ''}
-                onChange={(e) => setFilterClientForSubLob(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">All Clients</option>
-                {[...uniqueClientNames.entries()].map(([name, id]) => (
-                  <option key={id} value={id}>{name}</option>
-                ))}
-              </select>
-            </div>
-              <div className="form-group">
-                <label>Select Site</label>
-                <select
-                  value={filterSiteForSubLob || ''}
-                  onChange={(e) => setFilterSiteForSubLob(e.target.value ? Number(e.target.value) : null)}
-                  disabled={!filterClientForSubLob}
-                >
-                  <option value="">All Sites</option>
-                  {sites
-                    .filter(site => {
-                      if (!filterClientForSubLob) {
-                        return true;
-                      }
-                      
-                      const clientLobs = lobs.filter(lob => lob.clientId === filterClientForSubLob);
-                      
-                      return clientLobs.some(lob => {
-                        if (lob.sites && lob.sites.length > 0) {
-                          return lob.sites.some(lobSite => lobSite.siteId === site.id);
-                        }
-                        return lob.siteId === site.id;
-                      });
-                    })
-                    .map(site => (
-                      <option key={site.id} value={site.id}>{site.name}</option>
-                    ))
-                  }
-                </select>
+              <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`}>
+                <input
+                  type="text"
+                  value={subLobClientSearchTerm}
+                  onChange={(e) => {
+                    setSubLobClientSearchTerm(e.target.value);
+                    setIsSubLobClientDropdownOpen(true);
+                    // Clear selected client if search term doesn't match
+                    const matchingClient = clients.find(c => c.name === e.target.value);
+                    if (!matchingClient) {
+                      setFilterClientForSubLob(null);
+                      setFilterSiteForSubLob(null);
+                      setSubLobSiteSearchTerm('');
+                      setSelectedLobForSubLob(null);
+                      setSubLobLobSearchTerm('');
+                    }
+                  }}
+                  onFocus={() => setIsSubLobClientDropdownOpen(true)}
+                  placeholder="Search or select a client"
+                  className="searchable-input"
+                />
+                {isSubLobClientDropdownOpen && (
+                  <div className="dropdown-list">
+                    {filteredSubLobClientOptions().map(([name, id]) => (
+                      <div
+                        key={id}
+                        className="dropdown-item"
+                        onClick={() => {
+                          setFilterClientForSubLob(id);
+                          setSubLobClientSearchTerm(name);
+                          setIsSubLobClientDropdownOpen(false);
+                          // Clear site and LOB selections when client changes
+                          setFilterSiteForSubLob(null);
+                          setSubLobSiteSearchTerm('');
+                          setSelectedLobForSubLob(null);
+                          setSubLobLobSearchTerm('');
+                        }}
+                      >
+                        {name}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            </div>
+            <div className="form-group">
+              <label>Select Site</label>
+              <div className={`sublob-site-searchable-dropdown ${isSubLobSiteDropdownOpen ? 'active' : ''}`}>
+                <input
+                  type="text"
+                  value={subLobSiteSearchTerm}
+                  onChange={(e) => {
+                    setSubLobSiteSearchTerm(e.target.value);
+                    setIsSubLobSiteDropdownOpen(true);
+                    // Clear site filter if input is empty
+                    if (!e.target.value) {
+                      setFilterSiteForSubLob(null);
+                      setSelectedLobForSubLob(null);
+                      setSubLobLobSearchTerm('');
+                    }
+                  }}
+                  onFocus={() => {
+                    if (validateSubLobClientSelection()) {
+                      setIsSubLobSiteDropdownOpen(true);
+                    }
+                  }}
+                  placeholder="Search or select a site"
+                  className="searchable-input"
+                  disabled={!validateSubLobClientSelection()}
+                />
+                {isSubLobSiteDropdownOpen && validateSubLobClientSelection() && (
+                  <div className="dropdown-list">
+                    {filteredSubLobSiteOptions().length > 0 ? (
+                      filteredSubLobSiteOptions().map(site => (
+                        <div
+                          key={site.id}
+                          className="dropdown-item"
+                          onClick={() => {
+                            setFilterSiteForSubLob(site.id);
+                            setSubLobSiteSearchTerm(site.name);
+                            setIsSubLobSiteDropdownOpen(false);
+                            // Clear LOB selection when site changes
+                            setSelectedLobForSubLob(null);
+                            setSubLobLobSearchTerm('');
+                          }}
+                        >
+                          {site.name}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="dropdown-item no-results">No sites found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="form-group">
               <label>Select LOB</label>
-              <select
-                value={selectedLobForSubLob || ''}
-                onChange={(e) => setSelectedLobForSubLob(e.target.value ? Number(e.target.value) : null)}
-                disabled={!filterClientForSubLob}
-              >
-                {renderLobOptions()}
-              </select>
+              <div className={`sublob-lob-searchable-dropdown ${isSubLobLobDropdownOpen ? 'active' : ''}`}>
+                <input
+                  type="text"
+                  value={subLobLobSearchTerm}
+                  onChange={(e) => {
+                    setSubLobLobSearchTerm(e.target.value);
+                    setIsSubLobLobDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (validateSubLobClientSelection()) {
+                      setIsSubLobLobDropdownOpen(true);
+                    }
+                  }}
+                  placeholder="Search or select a LOB"
+                  className="searchable-input"
+                  disabled={!validateSubLobClientSelection()}
+                />
+                {isSubLobLobDropdownOpen && validateSubLobClientSelection() && (
+                  <div className="dropdown-list">
+                    {filteredSubLobLobOptions().length > 0 ? (
+                      filteredSubLobLobOptions().map(lob => {
+                        // Get site name for this LOB
+                        let siteName = 'None';
+                        if (lob.sites && lob.sites.length > 0) {
+                          const site = lob.sites[0]; // Take the first site
+                          siteName = site.siteName || 'None';
+                        } else if (lob.siteName) {
+                          siteName = lob.siteName;
+                        }
+                        
+                        return (
+                          <div
+                            key={lob.id}
+                            className="dropdown-item"
+                            onClick={() => {
+                              setSelectedLobForSubLob(lob.id);
+                              setSubLobLobSearchTerm(`${lob.name} (Site: ${siteName})`);
+                              setIsSubLobLobDropdownOpen(false);
+                            }}
+                          >
+                            {`${lob.name} (Site: ${siteName})`}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="dropdown-item no-results">No LOBs found</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="sub-lob-name-fields-container">

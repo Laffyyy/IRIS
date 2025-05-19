@@ -975,3 +975,109 @@
   background-color: #f5f5f5;
   cursor: not-allowed;
 }
+
+/* Add styles for Sub LOB tab searchable dropdowns */
+.sublob-client-searchable-dropdown,
+.sublob-site-searchable-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.sublob-client-searchable-dropdown .searchable-input,
+.sublob-site-searchable-dropdown .searchable-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #fff;
+}
+
+.sublob-client-searchable-dropdown .searchable-input:disabled,
+.sublob-site-searchable-dropdown .searchable-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.sublob-client-searchable-dropdown .dropdown-list,
+.sublob-site-searchable-dropdown .dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sublob-client-searchable-dropdown .dropdown-item,
+.sublob-site-searchable-dropdown .dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sublob-client-searchable-dropdown .dropdown-item:hover,
+.sublob-site-searchable-dropdown .dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.sublob-client-searchable-dropdown .dropdown-item.no-results,
+.sublob-site-searchable-dropdown .dropdown-item.no-results {
+  color: #666;
+  cursor: default;
+  font-style: italic;
+}
+
+.sublob-lob-searchable-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.sublob-lob-searchable-dropdown input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+}
+
+.sublob-lob-searchable-dropdown input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.sublob-lob-searchable-dropdown .dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sublob-lob-searchable-dropdown .dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.sublob-lob-searchable-dropdown .dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.sublob-lob-searchable-dropdown .dropdown-item.no-results {
+  color: #666;
+  font-style: italic;
+  cursor: default;
+}
