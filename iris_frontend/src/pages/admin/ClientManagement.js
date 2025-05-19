@@ -35,6 +35,9 @@ const ClientManagement = () => {
   // Table view states
   const [activeTableTab, setActiveTableTab] = useState('clients');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchDropdown, setSearchDropdown] = useState([]);
+  const [searchDropdownVisible, setSearchDropdownVisible] = useState(false);
+  const [searchFilter, setSearchFilter] = useState(null); // { type: 'client'|'lob'|'sublob', value: string }
   const [filterClient, setFilterClient] = useState(null);
 
   // Edit modal states
@@ -1198,32 +1201,33 @@ const handleSave = async (updatedClient) => {
   };
   
 // Filtered data for table
-const filteredClients = clients
-  .filter(client => {
-    // Search in client name
-    const matchesClientSearch = safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm));
-    
-    // Also search in associated LOBs
-    const clientLobs = lobs.filter(lob => lob.clientId === client.id);
-    const matchesLobSearch = clientLobs.some(lob => 
-      safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm))
-    );
-    
-    // And search in associated SubLOBs
-    const clientLobIds = clientLobs.map(lob => lob.id);
-    const clientSubLobs = subLobs.filter(subLob => clientLobIds.includes(subLob.lobId));
-    const matchesSubLobSearch = clientSubLobs.some(subLob => 
-      safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))
-    );
-    
-    // Rest of the code remains the same
-    const matchesSearch = matchesClientSearch || matchesLobSearch || matchesSubLobSearch;
-    const matchesFilter = filterClient ? client.id === filterClient : true;
-    
-    return matchesSearch && matchesFilter;
-  })
-  .sort((a, b) => b.id - a.id); // Sort by client ID descending
-  
+let filteredClients = clients;
+if (searchFilter) {
+  if (searchFilter.type === 'client') {
+    filteredClients = clients.filter(client => safeToLowerCase(client.name) === safeToLowerCase(searchFilter.value));
+  } else if (searchFilter.type === 'lob') {
+    // Find all clients that have a matching LOB
+    const matchingClientIds = lobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value)).map(lob => lob.clientId);
+    filteredClients = clients.filter(client => matchingClientIds.includes(client.id));
+  } else if (searchFilter.type === 'sublob') {
+    // Find all clients that have a matching SubLOB
+    const matchingLobIds = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value)).map(subLob => subLob.lobId);
+    const matchingClientIds = lobs.filter(lob => matchingLobIds.includes(lob.id)).map(lob => lob.clientId);
+    filteredClients = clients.filter(client => matchingClientIds.includes(client.id));
+  } else if (searchFilter.type === 'partial') {
+    // Partial match for client, lob, or sublob name
+    const lower = searchFilter.value.toLowerCase();
+    filteredClients = clients.filter(client => {
+      if (client.name && client.name.toLowerCase().includes(lower)) return true;
+      const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+      if (clientLobs.some(lob => lob.name && lob.name.toLowerCase().includes(lower))) return true;
+      const clientLobIds = clientLobs.map(lob => lob.id);
+      if (subLobs.filter(subLob => clientLobIds.includes(subLob.lobId)).some(subLob => subLob.name && subLob.name.toLowerCase().includes(lower))) return true;
+      return false;
+    });
+  }
+}
+filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
   return (
     <div className="client-management-container">
@@ -1611,14 +1615,74 @@ const filteredClients = clients
           <h2>Existing Items</h2>
           
           <div className="table-controls">
-            <div className="search-box">
+            <div className="search-box" style={{ position: 'relative' }}>
               <FaSearch className="search-icon" />
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchTerm(value);
+                  setSearchFilter(null); // Reset filter when typing
+                  if (value.trim().length === 0) {
+                    setSearchDropdown([]);
+                    setSearchDropdownVisible(false);
+                    return;
+                  }
+                  // Gather all matches
+                  const lower = value.toLowerCase();
+                  const clientMatches = clients
+                    .filter(c => c.name && c.name.toLowerCase().includes(lower))
+                    .map(c => ({ type: 'client', value: c.name }));
+                  const lobMatches = lobs
+                    .filter(l => l.name && l.name.toLowerCase().includes(lower))
+                    .map(l => ({ type: 'lob', value: l.name }));
+                  const subLobMatches = subLobs
+                    .filter(s => s.name && s.name.toLowerCase().includes(lower))
+                    .map(s => ({ type: 'sublob', value: s.name }));
+                  // Remove duplicates by type+value
+                  const seen = new Set();
+                  const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches].filter(item => {
+                    const key = item.type + ':' + item.value.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  });
+                  setSearchDropdown(allMatches);
+                  setSearchDropdownVisible(allMatches.length > 0);
+                }}
+                onFocus={() => {
+                  if (searchDropdown.length > 0) setSearchDropdownVisible(true);
+                }}
+                onBlur={() => {
+                  setTimeout(() => setSearchDropdownVisible(false), 150); // Delay to allow click
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchTerm.trim().length > 0 && !searchFilter) {
+                    setSearchFilter({ type: 'partial', value: searchTerm });
+                    setSearchDropdownVisible(false);
+                  }
+                }}
               />
+              {searchDropdownVisible && searchDropdown.length > 0 && (
+                <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
+                  {searchDropdown.map((item, idx) => (
+                    <div
+                      key={item.type + '-' + item.value + '-' + idx}
+                      className="search-dropdown-item"
+                      style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                      onMouseDown={() => {
+                        setSearchTerm(item.value);
+                        setSearchFilter({ type: item.type, value: item.value });
+                        setSearchDropdownVisible(false);
+                      }}
+                    >
+                      {item.value} {item.type === 'client' ? '(Client)' : item.type === 'lob' ? '(LOB)' : '(Sub LOB)'}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
             <div className="filter-group">
@@ -1691,9 +1755,19 @@ const filteredClients = clients
                           )
                         });
                       } else {
-                        clientLobs.forEach(lob => {
-                          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                          if (lobSubLobs.length === 0) {
+                        let filteredLobs = clientLobs;
+                        let filteredSubLobs = subLobs;
+                        if (searchFilter && searchFilter.type === 'lob') {
+                          filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
+                        }
+                        if (searchFilter && searchFilter.type === 'sublob') {
+                          filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
+                          const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
+                          filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
+                        }
+                        filteredLobs.forEach(lob => {
+                          const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
+                          if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
                             rows.push({
                               clientId: lob.clientRowId,
                               row: (
@@ -1771,6 +1845,20 @@ const filteredClients = clients
                         });
                       }
                     });
+                    // If partial search, filter the rows themselves for the search term
+                    if (searchFilter && searchFilter.type === 'partial') {
+                      const lower = searchFilter.value.toLowerCase();
+                      rows = rows.filter(({ row }) => {
+                        // row.props.children is an array of <td> elements
+                        const tds = row.props.children;
+                        // Only check the columns for client, lob, sublob name
+                        // Client name: tds[1], LOB: tds[2], Sub LOB: tds[3]
+                        return [tds[1], tds[2], tds[3]].some(td => {
+                          if (!td || !td.props || typeof td.props.children !== 'string') return false;
+                          return td.props.children.toLowerCase().includes(lower);
+                        });
+                      });
+                    }
                     // Sort all rows by clientId descending
                     return rows.sort((a, b) => b.clientId - a.clientId).map(r => r.row);
                   })()
