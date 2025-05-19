@@ -17,6 +17,10 @@ const SiteManagement = () => {
   const [selectedLobId, setSelectedLobId] = useState('');
   const [selectedSubLobId, setSelectedSubLobId] = useState('');
   const [existingAssignment, setExistingAssignment] = useState(null);
+  const [availableClientIds, setAvailableClientIds] = useState({});
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const [allClientLobs, setAllClientLobs] = useState({});
 
   const [clientSiteEditModalOpen, setClientSiteEditModalOpen] = useState(false);
   const [currentClientSite, setCurrentClientSite] = useState(null);
@@ -48,6 +52,28 @@ const SiteManagement = () => {
       setExistingAssignments([]);
     }
   }, [selectedSite]);
+
+  useEffect(() => {
+    const fetchAllClientLobs = async () => {
+      const clientLobsMap = {};
+      
+      for (const client of clients) {
+        try {
+          const response = await manageSite('getClientLobs', { clientId: client.id });
+          clientLobsMap[client.id] = response;
+        } catch (error) {
+          console.error(`Error fetching LOBs for client ${client.id}:`, error);
+          clientLobsMap[client.id] = { lobs: [] };
+        }
+      }
+      
+      setAllClientLobs(clientLobsMap);
+    };
+    
+    if (clients.length > 0) {
+      fetchAllClientLobs();
+    }
+  }, [clients]);
 
   /**
    * Handles all API requests to the site management endpoints
@@ -345,10 +371,64 @@ const SiteManagement = () => {
    * @returns {Array} - List of clients available for assignment
    */
   const getAvailableClients = (siteId) => {
-    // Simply return all clients - we'll filter LOBs/SubLOBs later
-    // This ensures users can select any client and then choose LOBs/SubLOBs
-    // that haven't already been assigned
-    return clients;
+    // If no site selected, return all clients
+    if (!siteId) return clients;
+    
+    // Filter to only show clients with available LOBs/SubLOBs
+    return clients.filter(client => {
+      // Find all assignments for this client at this site
+      const clientAssignments = existingAssignments.filter(
+        assignment => assignment.dClientName === client.name
+      );
+      
+      // Check if this client has any LOB-SubLOB assignments at this site
+      if (clientAssignments.length === 0) {
+        // No assignments yet, so client is available
+        return true;
+      }
+      
+      // Get all LOBs and SubLOBs for this client
+      const clientLobsData = allClientLobs[client.id] || { lobs: [] };
+      const allClientLobsArray = clientLobsData.lobs || [];
+      
+      // Count total SubLOBs and how many are already assigned
+      let totalSubLobs = 0;
+      let assignedSubLobs = 0;
+      
+      for (const lob of allClientLobsArray) {
+        // Count total SubLOBs
+        totalSubLobs += lob.subLobs.length;
+        
+        // Find how many SubLOBs from this LOB are already assigned
+        const matchingLobAssignments = clientAssignments.filter(
+          assignment => assignment.dLOB === lob.name
+        );
+        
+        assignedSubLobs += matchingLobAssignments.length;
+        
+        // If we find a LOB with unassigned SubLOBs, this client is available
+        if (lob.subLobs.length > matchingLobAssignments.length) {
+          return true;
+        }
+      }
+      
+      // Client is available if not all SubLOBs are assigned
+      return totalSubLobs > assignedSubLobs;
+    });
+  };
+
+  const getFilteredClients = (siteId) => {
+    if (!selectedSite) return [];
+    
+    const availableClients = getAvailableClients(siteId);
+    
+    if (!clientSearchTerm.trim()) {
+      return availableClients;
+    }
+    
+    return availableClients.filter(client => 
+      client.name.toLowerCase().includes(clientSearchTerm.toLowerCase())
+    );
   };
   
   /**
@@ -449,20 +529,103 @@ const SiteManagement = () => {
       }
   
       const response = await manageSite('getExistingAssignments', { 
-        siteId: parseInt(siteId) // Ensure siteId is a valid number
+        siteId: parseInt(siteId)
       });
-
+  
       console.log('Fetching existing assignments for siteId:', siteId);
   
       if (response && response.assignments) {
         setExistingAssignments(response.assignments);
+        // After updating assignments, immediately update available clients
+        await updateAvailableClientsForSite(siteId);
       } else {
         setExistingAssignments([]);
+        await updateAvailableClientsForSite(siteId);
       }
     } catch (error) {
       console.error('Error fetching existing assignments:', error);
       setExistingAssignments([]);
     }
+  };
+
+  const updateAvailableClientsForSite = async (siteId, currentAssignments = null) => {
+    if (!siteId) {
+      return;
+    }
+    
+    const assignments = currentAssignments || existingAssignments;
+    const availableClients = {};
+    
+    // First, initialize all clients as available by default
+    for (const client of clients) {
+      availableClients[client.id] = true;
+    }
+    
+    for (const client of clients) {
+      try {
+        // Get this client's LOBs
+        const response = await manageSite('getClientLobs', { clientId: client.id });
+        const allLobs = response.lobs || [];
+        
+        // Get client name for filtering
+        const clientName = client.name;
+        
+        // If client has no LOBs, they should still be available
+        if (allLobs.length === 0) {
+          availableClients[client.id] = true;
+          continue;
+        }
+        
+        // Keep track of all sub LOBs for this client and which ones are already assigned
+        let totalSubLobs = 0;
+        let assignedSubLobs = 0;
+        let hasAvailableSubLobs = false;
+        
+        for (const lob of allLobs) {
+          // Count total sub LOBs for this client's LOB
+          totalSubLobs += lob.subLobs.length;
+          
+          // Find matching assignments for this client and LOB using passed assignments
+          const matchingAssignments = assignments.filter(
+            assignment => assignment.dClientName === clientName && 
+                         assignment.dLOB === lob.name
+          );
+          
+          // Count how many Sub LOBs are already assigned to this site
+          const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
+          assignedSubLobs += existingSubLobs.length;
+          
+          // Check if any Sub LOBs in this LOB are still available to assign
+          const availableSubLobsInLob = lob.subLobs.filter(subLob => 
+            !existingSubLobs.includes(subLob.name)
+          );
+          
+          // If there's at least one available Sub LOB in any LOB, the client is available
+          if (availableSubLobsInLob.length > 0) {
+            hasAvailableSubLobs = true;
+            break;
+          }
+        }
+        
+        // Only mark the client as unavailable if they have LOBs with Sub LOBs 
+        // AND all of those Sub LOBs are already assigned to this site
+        if (totalSubLobs > 0) {
+          availableClients[client.id] = hasAvailableSubLobs || totalSubLobs > assignedSubLobs;
+        }
+        
+        console.log(`Client ${clientName}: Total SubLOBs = ${totalSubLobs}, Assigned = ${assignedSubLobs}, Available = ${availableClients[client.id]}`);
+          
+      } catch (error) {
+        console.error(`Error checking availability for client ${client.id}:`, error);
+        // Don't change availability in case of error
+      }
+    }
+    
+    // Update the cache with our results
+    setAvailableClientIds(prev => ({
+      ...prev,
+      [siteId]: availableClients
+    }));
   };
 
   /**
@@ -827,18 +990,39 @@ const SiteManagement = () => {
           <label>Select Site</label>
           <select
             value={selectedSite ? selectedSite.dSite_ID : ''}
-            onChange={(e) => {
-              const site = sites.find(s => s.dSite_ID === parseInt(e.target.value));
-              setSelectedSite(site || null);
-              setSelectedClientId('');
-              setClientLobs([]);
-              setClientSubLobs([]);
-              setSelectedLobId('');
-              setSelectedSubLobId('');
-              if (site) {
-                fetchExistingAssignments(site.dSite_ID); // Add this line
+            onChange={async (e) => {
+              try {
+                const site = sites.find(s => s.dSite_ID === parseInt(e.target.value));
+                setSelectedSite(site || null);
+                setSelectedClientId('');
+                setClientLobs([]);
+                setClientSubLobs([]);
+                setSelectedLobId('');
+                setSelectedSubLobId('');
+                
+                if (site) {
+                  const siteId = site.dSite_ID;
+                  
+                  // Fetch assignments and wait for them to load
+                  const response = await manageSite('getExistingAssignments', { 
+                    siteId: parseInt(siteId)
+                  });
+                  
+                  // Update state with the latest assignments
+                  if (response && response.assignments) {
+                    setExistingAssignments(response.assignments);
+                  } else {
+                    setExistingAssignments([]);
+                  }
+                } else {
+                  setExistingAssignments([]);
+                }
+                
+                // Refresh client-site table
+                await fetchSiteClients();
+              } catch (error) {
+                console.error('Error updating site data:', error);
               }
-              fetchSiteClients();
             }}
           >
             <option value="">Select a site</option>
