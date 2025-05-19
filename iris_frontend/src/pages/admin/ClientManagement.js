@@ -1221,7 +1221,8 @@ const filteredClients = clients
     const matchesFilter = filterClient ? client.id === filterClient : true;
     
     return matchesSearch && matchesFilter;
-  });
+  })
+  .sort((a, b) => b.id - a.id); // Sort by client ID descending
   
 
   return (
@@ -1660,117 +1661,119 @@ const filteredClients = clients
               </thead>
               <tbody>
                 {activeTableTab === 'clients' ? (
-                  // Client view - show each client as a separate row
-                  filteredClients.map(client => {
-                    const clientLobs = lobs.filter(lob => lob.clientId === client.id);
-                    
-                    // If no LOBs, just show the client
-                    if (clientLobs.length === 0) {
-                      return (
-                        <tr key={`client-${client.id}-no-lob`}>
-                          <td>{client.id}</td>
-                          <td>{client.name}</td>
-                          <td>-</td>
-                          <td>-</td>
-                          <td>{client.createdBy || '-'}</td>
-                          <td>{client.createdAt || '-'}</td>
-                          <td>
-                            <div className="action-buttons">
-                              <button onClick={() => handleEditRow('client', client)} className="edit-btn">
-                                <FaPencilAlt size={12} /> Edit
-                              </button>
-                              <button onClick={() => handleDeleteClient('client', client.id)} className="delete-btn">
-                                <FaTrash size={12} /> Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }
-                    
-                    // Show each LOB-SubLOB combination for this client
-                    return clientLobs.map(lob => {
-                      const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                      
-                      // If no SubLOBs, show just the LOB
-                      if (lobSubLobs.length === 0) {
-                        return (
-                          <tr key={`client-${client.id}-lob-${lob.id}`}>
-                            <td>{lob.clientRowId}</td> {/* Use lob's specific client row ID */}
-                            <td>{client.name}</td>
-                            <td>{lob.name}</td>
-                            <td>-</td>
-                            <td>{client.createdBy || '-'}</td>
-                            <td>{client.createdAt || '-'}</td>
-                            <td>
-                              <div className="action-buttons">
-                                <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
-                                  <FaPencilAlt size={12} /> Edit
-                                </button>
-                                <button onClick={() => handleDeleteLob('lob', lob.id)} className="delete-btn">
-                                  <FaTrash size={12} /> Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
+                  // Flatten all rows into a single array, then sort by Client ID (descending)
+                  (() => {
+                    let rows = [];
+                    filteredClients.forEach(client => {
+                      const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+                      if (clientLobs.length === 0) {
+                        rows.push({
+                          clientId: client.id,
+                          row: (
+                            <tr key={`client-${client.id}-no-lob`}>
+                              <td>{client.id}</td>
+                              <td>{client.name}</td>
+                              <td>-</td>
+                              <td>-</td>
+                              <td>{client.createdBy || '-'}</td>
+                              <td>{client.createdAt || '-'}</td>
+                              <td>
+                                <div className="action-buttons">
+                                  <button onClick={() => handleEditRow('client', client)} className="edit-btn">
+                                    <FaPencilAlt size={12} /> Edit
+                                  </button>
+                                  <button onClick={() => handleDeleteClient('client', client.id)} className="delete-btn">
+                                    <FaTrash size={12} /> Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        });
+                      } else {
+                        clientLobs.forEach(lob => {
+                          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+                          if (lobSubLobs.length === 0) {
+                            rows.push({
+                              clientId: lob.clientRowId,
+                              row: (
+                                <tr key={`client-${client.id}-lob-${lob.id}`}>
+                                  <td>{lob.clientRowId}</td>
+                                  <td>{client.name}</td>
+                                  <td>{lob.name}</td>
+                                  <td>-</td>
+                                  <td>{client.createdBy || '-'}</td>
+                                  <td>{client.createdAt || '-'}</td>
+                                  <td>
+                                    <div className="action-buttons">
+                                      <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
+                                        <FaPencilAlt size={12} /> Edit
+                                      </button>
+                                      <button onClick={() => handleDeleteLob('lob', lob.id)} className="delete-btn">
+                                        <FaTrash size={12} /> Delete
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            });
+                          } else {
+                            lobSubLobs.forEach(subLob => {
+                              rows.push({
+                                clientId: subLob.clientRowId,
+                                row: (
+                                  <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
+                                    <td>{subLob.clientRowId}</td>
+                                    <td>{client.name}</td>
+                                    <td>{lob.name}</td>
+                                    <td>{subLob.name}</td>
+                                    <td>{client.createdAt || '-'}</td>
+                                    <td>
+                                      <div className="action-buttons">
+                                        <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
+                                          <FaPencilAlt size={12} /> Edit
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            if (activeTab === 'addClient') {
+                                              if (activeTableTab === 'clients') {
+                                                handleDeleteClient('client', client.id);
+                                              } else if (activeTableTab === 'lobs') {
+                                                handleDeleteLob('lob', lob.id);
+                                              } else if (activeTableTab === 'subLobs') {
+                                                handleDelete('subLob', subLob.id);
+                                              }
+                                            } else if (activeTab === 'addLOB') {
+                                              handleDeleteLob('lob', lob.id);
+                                            } else if (activeTab === 'addSubLOB') {
+                                              handleDeleteSubLob('subLob', subLob.id);
+                                            } else {
+                                              if (activeTableTab === 'clients') {
+                                                handleDelete('client', client.id);
+                                              } else if (activeTableTab === 'lobs') {
+                                                handleDelete('lob', lob.id);
+                                              } else if (activeTableTab === 'subLobs') {
+                                                handleDelete('subLob', subLob.id);
+                                              }
+                                            }
+                                          }} 
+                                          className="delete-btn"
+                                        >
+                                          <FaTrash size={12} /> Delete
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              });
+                            });
+                          }
+                        });
                       }
-                      
-                      // Show each SubLOB
-                      return lobSubLobs.map(subLob => (
-                        <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
-                          <td>{subLob.clientRowId}</td> {/* Use subLob's specific client row ID */}
-                          <td>{client.name}</td>
-                          <td>{lob.name}</td>
-                          <td>{subLob.name}</td>
-                          <td>{client.createdAt || '-'}</td>
-                          <td>
-                            <div className="action-buttons">
-                              <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                <FaPencilAlt size={12} /> Edit
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  // Check the main active tab first
-                                  if (activeTab === 'addClient') {
-                                    // In Add Client tab, use table tab to determine what to delete
-                                    if (activeTableTab === 'clients') {
-                                      // Delete client
-                                      handleDeleteClient('client', client.id);
-                                    } else if (activeTableTab === 'lobs') {
-                                      // Delete LOB
-                                      handleDeleteLob('lob', lob.id);
-                                    } else if (activeTableTab === 'subLobs') {
-                                      // Delete SubLOB
-                                      handleDelete('subLob', subLob.id);
-                                    }
-                                  } else if (activeTab === 'addLOB') {
-                                    // In Add LOB tab, use LOB-specific delete handler
-                                    handleDeleteLob('lob', lob.id);
-                                  } else if (activeTab === 'addSubLOB') {
-                                    // In Add SubLOB tab, use SubLOB-specific delete handler
-                                    handleDeleteSubLob('subLob', subLob.id);
-                                  } else {
-                                    // In other tabs, use the regular handleDelete
-                                    if (activeTableTab === 'clients') {
-                                      handleDelete('client', client.id);
-                                    } else if (activeTableTab === 'lobs') {
-                                      handleDelete('lob', lob.id);
-                                    } else if (activeTableTab === 'subLobs') {
-                                      handleDelete('subLob', subLob.id);
-                                    }
-                                  }
-                                }} 
-                                className="delete-btn"
-                              >
-                                <FaTrash size={12} /> Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ));
                     });
-                  })
+                    // Sort all rows by clientId descending
+                    return rows.sort((a, b) => b.clientId - a.clientId).map(r => r.row);
+                  })()
                 ) : activeTableTab === 'lobs' ? (
                   // LOB view - show each LOB-SubLOB combination in separate rows
                   lobs
@@ -1780,6 +1783,7 @@ const filteredClients = clients
                             client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
                             (!filterClient || lob.clientId === filterClient);
                     })
+                    .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
                     .flatMap(lob => {
                       const client = clients.find(c => c.id === lob.clientId);
                       const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
@@ -1809,7 +1813,9 @@ const filteredClients = clients
                       }
                       
                       // Otherwise create one row for each SubLOB
-                      return lobSubLobs.map(subLob => (
+                      // Sort lobSubLobs by clientRowId descending
+                      const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
+                      return sortedLobSubLobs.map(subLob => (
                         <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
                           <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
                           <td>{client ? client.name : '-'}</td>
@@ -1845,6 +1851,7 @@ const filteredClients = clients
                         (!filterClient || (lob && lob.clientId === filterClient))
                       );
                     })
+                    .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
                     .map(subLob => {
                       const lob = lobs.find(l => l.id === subLob.lobId);
                       const client = lob ? clients.find(c => c.id === lob.clientId) : null;
