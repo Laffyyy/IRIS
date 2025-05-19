@@ -485,6 +485,16 @@ const ClientManagement = () => {
   const handleAddLob = async () => {
     if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
       try {
+        // Validate that each LOB has at least one SubLOB
+        const hasValidSubLobs = lobCardsForLob.every(card => 
+          card.lobName.trim() && card.subLobNames.some(name => name.trim())
+        );
+
+        if (!hasValidSubLobs) {
+          alert('Each LOB must have at least one SubLOB');
+          return;
+        }
+
         // Get the client name from the selected client ID
         const client = clients.find(c => c.id === selectedClientForLob);
         if (!client) {
@@ -521,12 +531,10 @@ const ClientManagement = () => {
             
             // Prepare data for API
             const lobData = {
-              clientId: client.id, // Add clientId to ensure we're using the correct client
+              clientId: client.id,
               clientName: client.name,
               lobName: card.lobName.trim(),
-              // Only include siteId if a site is selected
               ...(selectedSiteForLob && { siteId: selectedSiteForLob }),
-              // Include the first SubLOB name if available
               ...(hasSubLobs && { subLOBName: card.subLobNames.find(name => name.trim()) })
             };
             
@@ -544,7 +552,7 @@ const ClientManagement = () => {
               for (const subLobName of additionalSubLobs) {
                 if (subLobName.trim()) {
                   const subLobData = {
-                    clientId: client.id, // Add clientId here as well
+                    clientId: client.id,
                     clientName: client.name,
                     lobName: card.lobName.trim(),
                     subLOBName: subLobName.trim()
@@ -656,7 +664,7 @@ const ClientManagement = () => {
       // Validation feedback
       if (!selectedClientForLob) {
         alert('Please select a client');
-      } else {
+      } else if (!lobCardsForLob.some(card => card.lobName.trim())) {
         alert('Please enter at least one LOB name');
       }
     }
@@ -1580,7 +1588,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <button 
             onClick={handleAddLob} 
             className="submit-button"
-            disabled={!validateClientSelection() || !lobCardsForLob.some(card => card.lobName.trim())}
+            disabled={
+              !validateClientSelection() || 
+              !lobCardsForLob.some(card => card.lobName.trim()) ||
+              !lobCardsForLob.every(card => 
+                card.lobName.trim() && card.subLobNames.some(name => name.trim())
+              )
+            }
           >
             Submit LOB(s)
           </button>
