@@ -689,3 +689,53 @@
 .modal.edit-kpi-modal .form-group textarea {
   width: 100%;
 }
+
+/* Filter controls styling */
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.search-bar {
+  width: 250px; /* Fixed width for search bar */
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.filter-selects {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-selects select {
+  width: 150px; /* Fixed width for dropdowns */
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: white;
+}
+
+/* Hover and focus states */
+.search-bar input:hover,
+.filter-selects select:hover {
+  border-color: #b3b3b3;
+}
+
+.search-bar input:focus,
+.filter-selects select:focus {
+  outline: none;
+  border-color: #004D8D;
+  box-shadow: 0 0 0 2px rgba(0, 77, 141, 0.1);
+}

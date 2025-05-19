@@ -40,6 +40,10 @@ const KPIManagement = () => {
   const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [behaviorFilter, setBehaviorFilter] = useState('');
+
   const handleFormSubmit = () => {
   if (editingKpi) {
     handleUpdateKpi();
@@ -259,6 +263,9 @@ const KPIManagement = () => {
         }
         const updatedKpis = await refreshResponse.json();
         setKpis(updatedKpis);
+        setCategoryFilter('');
+        setBehaviorFilter('');
+        setSearchQuery('');
 
         resetForm();
         setActiveTab('viewKPIs');
@@ -613,6 +620,60 @@ const KPIManagement = () => {
   setIndividualPreview(individualPreview.filter((_, i) => i !== index));
   };
 
+  const renderFilterControls = () => {
+    return (
+      <div className="filter-controls">
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search KPIs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="filter-selects">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {categories.map(cat => (
+              <option key={`filter-${cat}`} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <select
+            value={behaviorFilter}
+            onChange={(e) => setBehaviorFilter(e.target.value)}
+          >
+            <option value="">All Behaviors</option>
+            {behaviors.map(beh => (
+              <option key={`filter-${beh}`} value={beh}>{beh}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
+  };
+
+    // Add this function to filter KPIs
+  const getFilteredKPIs = () => {
+      return kpis.filter(kpi => {
+        // Category filter
+        if (categoryFilter && kpi.dCategory !== categoryFilter) {
+          return false;
+        }
+        
+        // Behavior filter
+        if (behaviorFilter && kpi.dCalculationBehavior !== behaviorFilter) {
+          return false;
+        }
+
+        return true;
+      });
+    };
+
+  
+
   return (
     <div className="kpi-management-container">
       <div className="white-card">
@@ -907,6 +968,7 @@ const KPIManagement = () => {
 
         <div className={`tab-content ${activeTab === 'viewKPIs' ? 'active' : ''}`}>
           <div className="existing-kpis">
+            {renderFilterControls()} {/* Add this line */}
             <table>
               <thead>
                 <tr>
@@ -921,7 +983,7 @@ const KPIManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {kpis.map((kpi, index) => (
+                {getFilteredKPIs().map((kpi, index) => (
                   <tr key={kpi.dKPI_ID}>
                     <td>{kpi.dKPI_ID}</td>
                     <td>{kpi.dKPI_Name}</td>
