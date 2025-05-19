@@ -388,3 +388,16 @@ td:last-child {
   font-size: 12px;
   margin-top: 4px;
 }
+
+/* Add this to your SiteManagement.css file */
+.modal-subtitle {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  color: #666;
+  font-size: 13px;
+}
+
+.modal-subtitle strong {
+  color: #004D8D;
+}

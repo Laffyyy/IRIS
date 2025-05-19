@@ -527,24 +527,52 @@ const SiteManagement = () => {
       const allLobs = response.lobs || [];
       console.log("Retrieved LOBs:", allLobs);
       
-      setEditClientLobs(allLobs);
+      // Get client name for comparison
+      const clientName = clients.find(c => c.id == clientId)?.name;
       
+      // Fetch existing assignments for filtering (but exclude the current one being edited)
+      let filteredAssignments = existingAssignments;
+      if (currentClientSite) {
+        filteredAssignments = existingAssignments.filter(a => 
+          a.dClientSite_ID !== currentClientSite.dClientSite_ID
+        );
+      }
+      
+      // Filter out LOBs and Sub LOBs that are already assigned to other client-site combinations
+      const filteredLobs = allLobs.map(lob => {
+        const matchingAssignments = filteredAssignments.filter(
+          assignment => assignment.dClientName === clientName && assignment.dLOB === lob.name
+        );
+        
+        const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
+        
+        // Keep the current LOB/SubLOB in the list even if it's already assigned
+        const currentSubLob = (lob.name === initialLob && initialSubLob) ? initialSubLob : null;
+        
+        return {
+          ...lob,
+          subLobs: lob.subLobs.filter(subLob => 
+            !existingSubLobs.includes(subLob.name) || subLob.name === currentSubLob
+          )
+        };
+      }).filter(lob => {
+        // Include the LOB if it has available Sub LOBs or it's the currently selected LOB
+        return lob.subLobs.length > 0 || lob.name === initialLob;
+      });
+      
+      console.log("Filtered LOBs for edit:", filteredLobs);
+      setEditClientLobs(filteredLobs);
+      
+      // The rest of the function with selection logic remains the same
       // Handle initial LOB selection
-      if (initialLob && allLobs.length > 0) {
+      if (initialLob && filteredLobs.length > 0) {
         // First try exact match
-        let selectedLob = allLobs.find(lob => lob.name === initialLob);
+        let selectedLob = filteredLobs.find(lob => lob.name === initialLob);
         
         // If not found, try case-insensitive match
         if (!selectedLob) {
-          selectedLob = allLobs.find(lob => 
+          selectedLob = filteredLobs.find(lob => 
             lob.name.toLowerCase() === initialLob.toLowerCase()
-          );
-        }
-        
-        // If still not found, try trimmed match
-        if (!selectedLob) {
-          selectedLob = allLobs.find(lob => 
-            lob.name.trim() === initialLob.trim()
           );
         }
         
@@ -554,24 +582,10 @@ const SiteManagement = () => {
           
           // Set initial Sub LOB if available
           if (initialSubLob && selectedLob.subLobs && selectedLob.subLobs.length > 0) {
-            // First try exact match
             let selectedSubLob = selectedLob.subLobs.find(
-              subLob => subLob.name === initialSubLob
+              subLob => subLob.name === initialSubLob || 
+                       subLob.name.toLowerCase() === initialSubLob.toLowerCase()
             );
-            
-            // If not found, try case-insensitive match
-            if (!selectedSubLob) {
-              selectedSubLob = selectedLob.subLobs.find(
-                subLob => subLob.name.toLowerCase() === initialSubLob.toLowerCase()
-              );
-            }
-            
-            // If still not found, try trimmed match
-            if (!selectedSubLob) {
-              selectedSubLob = selectedLob.subLobs.find(
-                subLob => subLob.name.trim() === initialSubLob.trim()
-              );
-            }
             
             if (selectedSubLob) {
               console.log("Selected Sub LOB:", selectedSubLob);
@@ -1010,12 +1024,35 @@ const SiteManagement = () => {
             </button>
           </div>
 
+          {/* Add current editing information */}
+          <div className="modal-subtitle">
+            <strong>Currently Editing:</strong> {currentClientSite.dSiteName} | {currentClientSite.dClientName} | 
+            {currentClientSite.dLOB ? ` ${currentClientSite.dLOB}` : ' No LOB'} | 
+            {currentClientSite.dSubLOB ? ` ${currentClientSite.dSubLOB}` : ' No Sub LOB'}
+          </div>
+
           <div className="form-row">
           <div className="form-group">
             <label>Select Site <span className="required-field">*</span></label>
             <select
               value={editSelectedSiteId}
-              onChange={(e) => setEditSelectedSiteId(e.target.value)}
+              onChange={(e) => {
+                const newSiteId = e.target.value;
+                setEditSelectedSiteId(newSiteId);
+                
+                // Reset other selections when site changes
+                setEditSelectedClientId('');
+                setEditSelectedLobId('');
+                setEditSelectedSubLobId('');
+                setEditClientLobs([]);
+                setEditClientSubLobs([]);
+                
+                // If there's a valid site ID selected, fetch associated data
+                if (newSiteId) {
+                  // Optionally fetch any site-specific data here
+                  fetchExistingAssignments(parseInt(newSiteId));
+                }
+              }}
               className={!editSelectedSiteId ? "validation-error" : ""}
             >
               <option value="">Select a site</option>
