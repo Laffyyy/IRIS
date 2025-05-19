@@ -174,15 +174,13 @@ const ClientManagement = () => {
                 });
                 
                 if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                  lob.subLOBs.forEach((subLob, idx) => {
+                  lob.subLOBs.forEach(subLobName => {
                     subLobId++;
                     transformedSubLobs.push({
                       id: subLobId,
-                      name: typeof subLob === 'object' ? subLob.name : subLob,
+                      name: typeof subLobName === 'object' ? subLobName.name : subLobName,
                       lobId: lobId,
-                      // Use the SubLOB's own clientRowId if available, otherwise fall back to LOB's clientRowId or clientId
-                      clientRowId: (typeof subLob === 'object' && subLob.clientRowId) ? 
-                                  subLob.clientRowId : lob.clientRowId || clientId
+                      clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
                     });
                   });
                 }
@@ -387,8 +385,9 @@ const ClientManagement = () => {
                     subLobId++;
                     transformedSubLobs.push({
                       id: subLobId,
-                      name: subLobName,
-                      lobId: lobId
+                      name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                      lobId: lobId,
+                      clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
                     });
                   });
                 }
@@ -532,8 +531,9 @@ const ClientManagement = () => {
                     subLobId++;
                     transformedSubLobs.push({
                       id: subLobId,
-                      name: subLobName,
-                      lobId: lobId
+                      name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                      lobId: lobId,
+                      clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
                     });
                   });
                 }
@@ -673,8 +673,9 @@ const handleAddSubLob = async () => {
                   subLobId++;
                   transformedSubLobs.push({
                     id: subLobId,
-                    name: subLobName,
-                    lobId: lobId
+                    name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                    lobId: lobId,
+                    clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
                   });
                 });
               }
@@ -1221,6 +1222,7 @@ const filteredClients = clients
     
     return matchesSearch && matchesFilter;
   });
+  
 
   return (
     <div className="client-management-container">
