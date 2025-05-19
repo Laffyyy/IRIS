@@ -65,15 +65,15 @@ class ClientManagementService {
         try {
             // Get all client-LOB-SubLOB combinations
             const [lobRows] = await db.query(
-                'SELECT * FROM tbl_clientlob ORDER BY dClientName, dLOB, dSubLOB'
+                'SELECT * FROM tbl_clientlob ORDER BY dClient_ID, dLOB, dSubLOB'
             );
             
             // Get site information with LOB associations
             const [lobSiteRows] = await db.query(
-                'SELECT cs.dClientName, cs.dLOB, s.dSite_ID, s.dSiteName ' +
+                'SELECT cs.dClient_ID, cs.dClientName, cs.dLOB, s.dSite_ID, s.dSiteName ' +
                 'FROM tbl_clientsite cs ' +
                 'JOIN tbl_site s ON cs.dSite_ID = s.dSite_ID ' +
-                'ORDER BY cs.dClientName, cs.dLOB, s.dSiteName'
+                'ORDER BY cs.dClient_ID, cs.dLOB, s.dSiteName'
             );
             
             // Create a map to store LOB-site relationships (multiple sites per LOB)
@@ -81,7 +81,7 @@ class ClientManagementService {
             
             // Populate the LOB-site map with arrays of sites
             lobSiteRows.forEach(row => {
-                const key = `${row.dClientName}-${row.dLOB}`;
+                const key = `${row.dClient_ID}-${row.dLOB}`;
                 if (!lobSiteMap.has(key)) {
                     lobSiteMap.set(key, []);
                 }
@@ -93,20 +93,20 @@ class ClientManagementService {
                 });
             });
             
-            // Create a map of sites by client name
+            // Create a map of sites by client ID
             const clientSitesMap = new Map();
             lobSiteRows.forEach(row => {
-                if (!clientSitesMap.has(row.dClientName)) {
-                    clientSitesMap.set(row.dClientName, new Map());
+                if (!clientSitesMap.has(row.dClient_ID)) {
+                    clientSitesMap.set(row.dClient_ID, new Map());
                 }
                 
-                clientSitesMap.get(row.dClientName).set(row.dSite_ID, {
+                clientSitesMap.get(row.dClient_ID).set(row.dSite_ID, {
                     siteId: row.dSite_ID,
                     siteName: row.dSiteName
                 });
             });
             
-            // Group by client and organize the data
+            // Group by client ID and organize the data
             const clientsMap = new Map();
             
             lobRows.forEach(row => {
@@ -115,23 +115,24 @@ class ClientManagementService {
                 const lob = row.dLOB;
                 const subLOB = row.dSubLOB;
                 
-                if (!clientsMap.has(clientName)) {
-                    clientsMap.set(clientName, {
+                // Use clientId as the key
+                if (!clientsMap.has(clientId)) {
+                    clientsMap.set(clientId, {
                         clientId,
                         clientName,
                         LOBs: new Map(),
-                        sites: clientSitesMap.get(clientName) ? 
-                            Array.from(clientSitesMap.get(clientName).values()) : [],
+                        sites: clientSitesMap.get(clientId) ? 
+                            Array.from(clientSitesMap.get(clientId).values()) : [],
                         createdBy: row.dCreatedBy,
                         createdAt: row.dCreatedAt
                     });
                 }
                 
-                const client = clientsMap.get(clientName);
+                const client = clientsMap.get(clientId);
                 
                 if (!client.LOBs.has(lob)) {
                     // Find the sites associated with this LOB
-                    const lobSiteKey = `${clientName}-${lob}`;
+                    const lobSiteKey = `${clientId}-${lob}`;
                     const sitesInfo = lobSiteMap.get(lobSiteKey) || [];
                     
                     client.LOBs.set(lob, {
@@ -167,6 +168,9 @@ class ClientManagementService {
                     createdAt: client.createdAt
                 });
             });
+            
+            // Sort clients by ID
+            clients.sort((a, b) => a.clientId - b.clientId);
             
             return clients;
         } catch (error) {

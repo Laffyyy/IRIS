@@ -100,14 +100,28 @@ const ClientManagement = () => {
           let lobId = 0;
           let subLobId = 0;
           
-          response.data.data.forEach((client, clientIndex) => {
-            const clientId = client.clientId; 
-            transformedClients.push({
-              id: clientId,
-              name: client.clientName,
-              createdBy: client.createdBy || '-',
-              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-            });
+          // First, create a map of unique clients
+          const uniqueClients = new Map();
+          
+          response.data.data.forEach((client) => {
+            const clientId = client.clientId;
+            // Only add each client once, using their unique ID
+            if (!uniqueClients.has(clientId)) {
+              uniqueClients.set(clientId, {
+                id: clientId,
+                name: client.clientName,
+                createdBy: client.createdBy || '-',
+                createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+              });
+            }
+          });
+          
+          // Convert unique clients map to array
+          transformedClients.push(...uniqueClients.values());
+          
+          // Now process LOBs and SubLOBs
+          response.data.data.forEach((client) => {
+            const clientId = client.clientId;
             
             if (client.LOBs && Array.isArray(client.LOBs)) {
               client.LOBs.forEach(lob => {
@@ -115,7 +129,6 @@ const ClientManagement = () => {
                 
                 // Extract site info from LOB
                 if (lob.sites && Array.isArray(lob.sites)) {
-                  // Handle multiple sites per LOB
                   lob.sites.forEach(site => {
                     if (site.siteId && site.siteName) {
                       sitesMap.set(site.siteId, {
@@ -125,7 +138,6 @@ const ClientManagement = () => {
                     }
                   });
                 } else if (lob.siteId && lob.siteName) {
-                  // Backward compatibility for single site
                   sitesMap.set(lob.siteId, {
                     id: lob.siteId,
                     name: lob.siteName
@@ -138,7 +150,7 @@ const ClientManagement = () => {
                   clientId: clientId,
                   siteId: lob.siteId || null,
                   siteName: lob.siteName || null,
-                  sites: lob.sites || [] // Store all sites for this LOB
+                  sites: lob.sites || []
                 });
                 
                 if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
@@ -154,6 +166,9 @@ const ClientManagement = () => {
               });
             }
           });
+          
+          // Sort clients by ID in ascending order
+          transformedClients.sort((a, b) => a.id - b.id);
           
           setClients(transformedClients);
           setLobs(transformedLobs);
@@ -399,6 +414,7 @@ const ClientManagement = () => {
             
             // Prepare data for API
             const lobData = {
+              clientId: client.id, // Add clientId to ensure we're using the correct client
               clientName: client.name,
               lobName: card.lobName.trim(),
               // Only include siteId if a site is selected
@@ -421,6 +437,7 @@ const ClientManagement = () => {
               for (const subLobName of additionalSubLobs) {
                 if (subLobName.trim()) {
                   const subLobData = {
+                    clientId: client.id, // Add clientId here as well
                     clientName: client.name,
                     lobName: card.lobName.trim(),
                     subLOBName: subLobName.trim()
@@ -442,12 +459,14 @@ const ClientManagement = () => {
           const transformedClients = [];
           const transformedLobs = [];
           const transformedSubLobs = [];
-          const sitesMap = new Map(); // Add this to collect site data
+          const sitesMap = new Map();
           let lobId = 0;
           let subLobId = 0;
           
-          refreshResponse.data.data.forEach((client, clientIndex) => {
-            const clientId = client.clientId; // Use clientId from API response
+          refreshResponse.data.data.forEach((client) => {
+            // Use the actual client ID from the database
+            const clientId = client.clientId;
+            
             transformedClients.push({
               id: clientId,
               name: client.clientName,
@@ -461,7 +480,6 @@ const ClientManagement = () => {
                 
                 // Extract site info from LOB
                 if (lob.sites && Array.isArray(lob.sites)) {
-                  // Handle multiple sites per LOB
                   lob.sites.forEach(site => {
                     if (site.siteId && site.siteName) {
                       sitesMap.set(site.siteId, {
@@ -471,7 +489,6 @@ const ClientManagement = () => {
                     }
                   });
                 } else if (lob.siteId && lob.siteName) {
-                  // Backward compatibility for single site
                   sitesMap.set(lob.siteId, {
                     id: lob.siteId,
                     name: lob.siteName
@@ -481,10 +498,10 @@ const ClientManagement = () => {
                 transformedLobs.push({
                   id: lobId,
                   name: lob.name,
-                  clientId: clientId,
+                  clientId: clientId, // Ensure we're using the correct client ID
                   siteId: lob.siteId || null,
                   siteName: lob.siteName || null,
-                  sites: lob.sites || [] // Store all sites for this LOB
+                  sites: lob.sites || []
                 });
                 
                 if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
@@ -500,6 +517,9 @@ const ClientManagement = () => {
               });
             }
           });
+          
+          // Sort clients by ID in ascending order
+          transformedClients.sort((a, b) => a.id - b.id);
           
           setClients(transformedClients);
           setLobs(transformedLobs);
@@ -1178,7 +1198,7 @@ const filteredClients = clients
     
     return matchesSearch && matchesFilter;
   })
-  .sort((a, b) => b.id - a.id);
+  .sort((a, b) => a.id - b.id); // Sort by client ID in ascending order
 
   return (
     <div className="client-management-container">
@@ -1617,13 +1637,13 @@ const filteredClients = clients
               </thead>
               <tbody>
                 {activeTableTab === 'clients' ? (
-                  // Client view - show each Client-LOB-SubLOB combination in separate rows
-                  filteredClients.flatMap(client => {
+                  // Client view - show each client as a separate row
+                  filteredClients.map(client => {
                     const clientLobs = lobs.filter(lob => lob.clientId === client.id);
                     
                     // If no LOBs, just show the client
                     if (clientLobs.length === 0) {
-                      return [(
+                      return (
                         <tr key={`client-${client.id}`}>
                           <td>{client.id}</td>
                           <td>{client.name}</td>
@@ -1636,22 +1656,22 @@ const filteredClients = clients
                               <button onClick={() => handleEditRow('client', client)} className="edit-btn">
                                 <FaPencilAlt size={12} /> Edit
                               </button>
-                              <button onClick={() => handleDelete('client', client.id)} className="delete-btn">
+                              <button onClick={() => handleDeleteClient('client', client.id)} className="delete-btn">
                                 <FaTrash size={12} /> Delete
                               </button>
                             </div>
                           </td>
                         </tr>
-                      )];
+                      );
                     }
                     
-                    // Create rows for each LOB-SubLOB combination
-                    return clientLobs.flatMap(lob => {
+                    // Show each LOB-SubLOB combination for this client
+                    return clientLobs.map(lob => {
                       const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
                       
                       // If no SubLOBs, show just the LOB
                       if (lobSubLobs.length === 0) {
-                        return [(
+                        return (
                           <tr key={`client-${client.id}-lob-${lob.id}`}>
                             <td>{client.id}</td>
                             <td>{client.name}</td>
@@ -1664,16 +1684,16 @@ const filteredClients = clients
                                 <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
                                   <FaPencilAlt size={12} /> Edit
                                 </button>
-                                <button onClick={() => handleDelete('lob', lob.id)} className="delete-btn">
+                                <button onClick={() => handleDeleteLob('lob', lob.id)} className="delete-btn">
                                   <FaTrash size={12} /> Delete
                                 </button>
                               </div>
                             </td>
                           </tr>
-                        )];
+                        );
                       }
                       
-                      //CLIENT FOR DELETION
+                      // Show each SubLOB
                       return lobSubLobs.map(subLob => (
                         <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
                           <td>{client.id}</td>
@@ -1687,40 +1707,7 @@ const filteredClients = clients
                               <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                 <FaPencilAlt size={12} /> Edit
                               </button>
-                              <button 
-                                onClick={() => {
-                                  // Check the main active tab first
-                                  if (activeTab === 'addClient') {
-                                    // In Add Client tab, use table tab to determine what to delete
-                                    if (activeTableTab === 'clients') {
-                                      // Delete client
-                                      handleDeleteClient('client', client.id);
-                                    } else if (activeTableTab === 'lobs') {
-                                      // Delete LOB
-                                      handleDeleteLob('lob', lob.id);
-                                    } else if (activeTableTab === 'subLobs') {
-                                      // Delete SubLOB
-                                      handleDelete('subLob', subLob.id);
-                                    }
-                                  } else if (activeTab === 'addLOB') {
-                                    // In Add LOB tab, use LOB-specific delete handler
-                                    handleDeleteLob('lob', lob.id);
-                                  } else if (activeTab === 'addSubLOB') {
-                                    // In Add SubLOB tab, use SubLOB-specific delete handler
-                                    handleDeleteSubLob('subLob', subLob.id);
-                                  } else {
-                                    // In other tabs, use the regular handleDelete
-                                    if (activeTableTab === 'clients') {
-                                      handleDelete('client', client.id);
-                                    } else if (activeTableTab === 'lobs') {
-                                      handleDelete('lob', lob.id);
-                                    } else if (activeTableTab === 'subLobs') {
-                                      handleDelete('subLob', subLob.id);
-                                    }
-                                  }
-                                }} 
-                                className="delete-btn"
-                              >
+                              <button onClick={() => handleDeleteSubLob('subLob', subLob.id)} className="delete-btn">
                                 <FaTrash size={12} /> Delete
                               </button>
                             </div>
