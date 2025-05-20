@@ -66,7 +66,15 @@ const KPIManagement = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [successCount, setSuccessCount] = useState(0);
+  const [showDisableSuccessModal, setShowDisableSuccessModal] = useState(false);
   
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [kpiToDelete, setKpiToDelete] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  const [selectedKPIs, setSelectedKPIs] = useState([]);
+  const [showBulkDisableModal, setShowBulkDisableModal] = useState(false);
+  const [bulkDisableConfirmation, setBulkDisableConfirmation] = useState('');
 
   const handleFormSubmit = () => {
     if (editingKpi) {
@@ -737,10 +745,16 @@ const KPIManagement = () => {
     }
 };
     
-  const handleDeleteKpi = async (kpiId) => {
-    if (window.confirm('Are you sure you want to delete this KPI?')) {
+  const handleDeleteClick = (kpi) => {
+    setKpiToDelete(kpi);
+    setShowDeleteModal(true);
+    setDeleteConfirmation('');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmation.trim() === kpiToDelete.dKPI_Name.trim()) {
       try {
-        const response = await fetch(`http://localhost:3000/api/kpis/${kpiId}`, {
+        const response = await fetch(`http://localhost:3000/api/kpis/${kpiToDelete.dKPI_ID}`, {
           method: 'DELETE',
         });
   
@@ -748,11 +762,17 @@ const KPIManagement = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
   
-        setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiId));
+        setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiToDelete.dKPI_ID));
+        setShowDeleteModal(false);
+        setKpiToDelete(null);
+        setDeleteConfirmation('');
+        setShowDisableSuccessModal(true); // Show success modal
       } catch (error) {
-        console.error('Error deleting KPI:', error);
-        alert('Failed to delete KPI. Please try again.');
+        console.error('Error disabling KPI:', error);
+        alert('Failed to disable KPI. Please try again.');
       }
+    } else {
+      alert('Please type the exact KPI name to confirm disabling');
     }
   };
 
@@ -943,8 +963,58 @@ const KPIManagement = () => {
       }
     };
 
+  const handleBulkDisable = async () => {
+    if (bulkDisableConfirmation.trim() === 'DISABLE') {
+      try {
+        const promises = selectedKPIs.map(kpi => 
+          fetch(`http://localhost:3000/api/kpis/${kpi.dKPI_ID}`, {
+            method: 'DELETE',
+          })
+        );
 
-  
+        const responses = await Promise.all(promises);
+        const failedResponses = responses.filter(response => !response.ok);
+        
+        if (failedResponses.length > 0) {
+          throw new Error(`Failed to disable ${failedResponses.length} KPIs`);
+        }
+
+        // Update the KPI list
+        setKpis(kpis.filter(kpi => !selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)));
+        
+        // Show success modal
+        setSuccessMessage(`${selectedKPIs.length} KPIs have been disabled successfully`);
+        setSuccessCount(selectedKPIs.length);
+        setShowDisableSuccessModal(true);
+        
+        // Reset states
+        setSelectedKPIs([]);
+        setShowBulkDisableModal(false);
+        setBulkDisableConfirmation('');
+      } catch (error) {
+        console.error('Bulk disable error:', error);
+        alert(`Failed to disable KPIs: ${error.message}`);
+      }
+    } else {
+      alert('Please type "DISABLE" to confirm bulk disabling');
+    }
+  };
+
+  const handleSelectKPI = (kpi) => {
+    if (selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)) {
+      setSelectedKPIs(selectedKPIs.filter(selected => selected.dKPI_ID !== kpi.dKPI_ID));
+    } else {
+      setSelectedKPIs([...selectedKPIs, kpi]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedKPIs.length === getFilteredKPIs().length) {
+      setSelectedKPIs([]);
+    } else {
+      setSelectedKPIs(getFilteredKPIs());
+    }
+  };
 
   return (
     <div className="kpi-management-container">
@@ -1013,7 +1083,7 @@ const KPIManagement = () => {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Calculation Behavior</label>
+                      <label>RecommendedCalculation Behavior</label>
                       <select
                         value={behavior}
                         onChange={(e) => setBehavior(e.target.value)}
@@ -1197,6 +1267,13 @@ const KPIManagement = () => {
             <table>
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
+                      onChange={handleSelectAll}
+                    />
+                  </th>
                   <th>ID</th>
                   <th>KPI Name</th>
                   <th>Category</th>
@@ -1210,6 +1287,13 @@ const KPIManagement = () => {
               <tbody>
                 {getFilteredKPIs().map((kpi, index) => (
                   <tr key={kpi.dKPI_ID}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
+                        onChange={() => handleSelectKPI(kpi)}
+                      />
+                    </td>
                     <td>{kpi.dKPI_ID}</td>
                     <td>{kpi.dKPI_Name}</td>
                     <td>{kpi.dCategory}</td>
@@ -1219,11 +1303,8 @@ const KPIManagement = () => {
                     <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
-                        <button onClick={() => handleEditClick(kpi.dKPI_ID)} className="edit-btn">
-                          <FaPencilAlt size={12} /> Edit
-                        </button>
-                        <button onClick={() => handleDeleteKpi(kpi.dKPI_ID)} className="delete-btn">
-                          <FaTrash size={12} /> Delete
+                        <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
+                          <FaTrash size={12} /> Disable
                         </button>
                       </div>
                     </td>
@@ -1366,6 +1447,157 @@ const KPIManagement = () => {
                 className="ok-btn"
               >
                 OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disable Success Modal */}
+      {showDisableSuccessModal && (
+        <div className="modal-overlay">
+          <div className="modal success-modal">
+            <div className="success-content">
+              <FaCheckCircle className="success-icon" />
+              <h2>Success!</h2>
+              <p>KPI has been disabled successfully</p>
+              <button 
+                onClick={() => setShowDisableSuccessModal(false)} 
+                className="ok-btn"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && kpiToDelete && (
+        <div className="modal-overlay">
+          <div className="modal delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Confirm KPI Disable</h2>
+              <button onClick={() => {
+                setShowDeleteModal(false);
+                setKpiToDelete(null);
+                setDeleteConfirmation('');
+              }} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="warning-message">
+                <FaTimesCircle className="warning-icon" />
+                <p>Please confirm the details of the KPI you want to disable:</p>
+              </div>
+              
+              <div className="kpi-details">
+                <p><strong>KPI Name:</strong> {kpiToDelete.dKPI_Name}</p>
+                <p><strong>Category:</strong> {kpiToDelete.dCategory}</p>
+                <p><strong>Behavior:</strong> {kpiToDelete.dCalculationBehavior}</p>
+                <p><strong>Description:</strong> {kpiToDelete.dDescription || '-'}</p>
+              </div>
+
+              <div className="confirmation-input">
+                <p>To confirm disabling, please type the KPI name:</p>
+                <input
+                  type="text"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="Type the KPI name to confirm"
+                  className={deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() ? 'error' : ''}
+                />
+                {deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() && (
+                  <span className="error-message">The name doesn't match</span>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setKpiToDelete(null);
+                  setDeleteConfirmation('');
+                }} 
+                className="cancel-btn"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteConfirm}
+                className="delete-confirm-btn"
+                disabled={deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim()}
+              >
+                Disable KPI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Disable Modal */}
+      {showBulkDisableModal && (
+        <div className="modal-overlay">
+          <div className="modal delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>Confirm Bulk Disable</h2>
+              <button onClick={() => {
+                setShowBulkDisableModal(false);
+                setBulkDisableConfirmation('');
+              }} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="warning-message">
+                <FaTimesCircle className="warning-icon" />
+                <p>Please confirm the details of the KPIs you want to disable:</p>
+              </div>
+              
+              <div className="kpi-details">
+                <p><strong>Number of KPIs to disable:</strong> {selectedKPIs.length}</p>
+                <div className="selected-kpis-list">
+                  {selectedKPIs.map(kpi => (
+                    <p key={kpi.dKPI_ID}><strong>{kpi.dKPI_Name}</strong></p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="confirmation-input">
+                <p>To confirm disabling {selectedKPIs.length} KPIs, please type "DISABLE":</p>
+                <input
+                  type="text"
+                  value={bulkDisableConfirmation}
+                  onChange={(e) => setBulkDisableConfirmation(e.target.value)}
+                  placeholder="Type DISABLE to confirm"
+                  className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' ? 'error' : ''}
+                />
+                {bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' && (
+                  <span className="error-message">Please type "DISABLE" to confirm</span>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                onClick={() => {
+                  setShowBulkDisableModal(false);
+                  setBulkDisableConfirmation('');
+                }} 
+                className="cancel-btn"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleBulkDisable}
+                className="delete-confirm-btn"
+                disabled={bulkDisableConfirmation.trim() !== 'DISABLE'}
+              >
+                Disable {selectedKPIs.length} KPIs
               </button>
             </div>
           </div>
