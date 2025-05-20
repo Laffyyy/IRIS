@@ -356,6 +356,31 @@ class SiteManagementController {
       }
     }
 
+    async getAvailableClients(req, res) {
+        try {
+            const { siteId } = req.body;
+            
+            if (!siteId) {
+                return res.status(400).json({ 
+                    message: 'Site ID is required' 
+                });
+            }
+            
+            const clients = await this.SiteManagementService.getAvailableClients(siteId);
+            
+            res.status(200).json({ 
+                message: 'Available clients retrieved successfully',
+                clients
+            });
+        } catch (error) {
+            console.error('Error in getAvailableClients:', error);
+            res.status(500).json({ 
+                message: 'Failed to get available clients', 
+                error: error.message 
+            });
+        }
+    }
+
 }
 
 module.exports = SiteManagementController;

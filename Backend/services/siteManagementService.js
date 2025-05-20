@@ -517,6 +517,89 @@ class SiteManagementService {
         throw error;
       }
     }
+
+    async isClientFullyAssigned(clientName, siteId) {
+      try {
+        // Get all LOBs and Sub LOBs for this client from tbl_clientlob
+        const [allClientLobs] = await db.query(
+          'SELECT DISTINCT dLOB, dSubLOB FROM tbl_clientlob WHERE dClientName = ?',
+          [clientName]
+        );
+
+        if (allClientLobs.length === 0) {
+          return false; // No LOBs found for client
+        }
+
+        // Get all assignments for this client at this site
+        const [siteAssignments] = await db.query(
+          'SELECT DISTINCT dLOB, dSubLOB FROM tbl_clientsite WHERE dClientName = ? AND dSite_ID = ?',
+          [clientName, siteId]
+        );
+
+        // If no assignments found, client is not assigned
+        if (siteAssignments.length === 0) {
+          return false;
+        }
+
+        // Check if all LOBs and Sub LOBs are assigned
+        for (const clientLob of allClientLobs) {
+          const matchingAssignment = siteAssignments.find(
+            assignment => 
+              assignment.dLOB === clientLob.dLOB && 
+              assignment.dSubLOB === clientLob.dSubLOB
+          );
+
+          if (!matchingAssignment) {
+            return false; // Found an unassigned LOB/Sub LOB
+          }
+        }
+
+        return true; // All LOBs and Sub LOBs are assigned
+      } catch (error) {
+        console.error('Error in isClientFullyAssigned:', error);
+        return false;
+      }
+    }
+
+    async getAvailableClients(siteId) {
+      try {
+        // Get distinct clients using MIN to handle ONLY_FULL_GROUP_BY mode
+        const [allClients] = await db.query(
+          'SELECT MIN(dClient_ID) as dClient_ID, dClientName FROM tbl_clientlob GROUP BY dClientName'
+        );
+
+        const availableClients = [];
+
+        // Check each client
+        for (const client of allClients) {
+          const isFullyAssigned = await this.isClientFullyAssigned(client.dClientName, siteId);
+          
+          if (!isFullyAssigned) {
+            // Get LOB and Sub LOB counts for this client
+            const [counts] = await db.query(
+              `SELECT 
+                COUNT(DISTINCT dLOB) as lobCount,
+                COUNT(DISTINCT dSubLOB) as subLobCount
+              FROM tbl_clientlob 
+              WHERE dClientName = ?`,
+              [client.dClientName]
+            );
+
+            availableClients.push({
+              id: client.dClient_ID,
+              name: client.dClientName,
+              lobCount: counts[0].lobCount,
+              subLobCount: counts[0].subLobCount
+            });
+          }
+        }
+
+        return availableClients;
+      } catch (error) {
+        console.error('Error in getAvailableClients:', error);
+        return [];
+      }
+    }
 }
 
 module.exports = SiteManagementService;

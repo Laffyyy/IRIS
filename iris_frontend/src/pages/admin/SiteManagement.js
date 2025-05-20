@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './SiteManagement.css';
 import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
+import Select from 'react-select';
 
 const SiteManagement = () => {
   // Core data states
@@ -55,6 +56,9 @@ const SiteManagement = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState(null);
 
+  // Add this new state for available edit clients
+  const [availableEditClients, setAvailableEditClients] = useState([]);
+
   // Initial data loading
   useEffect(() => {
     fetchSites();
@@ -99,8 +103,15 @@ const SiteManagement = () => {
       if (bulkAddSelectedSite) {
         setIsLoadingBulkClients(true);
         try {
-          const clients = await getAvailableClients(bulkAddSelectedSite);
-          setAvailableBulkClients(clients);
+          const response = await manageSite('getAvailableClients', { 
+            siteId: parseInt(bulkAddSelectedSite)
+          });
+          
+          if (response && response.clients) {
+            setAvailableBulkClients(response.clients);
+          } else {
+            setAvailableBulkClients([]);
+          }
         } catch (error) {
           console.error('Error loading available clients:', error);
           setAvailableBulkClients([]);
@@ -707,9 +718,6 @@ const SiteManagement = () => {
     setCurrentClientSite(clientSite);
     setEditSelectedSiteId(clientSite.dSite_ID.toString());
     
-    // Remove this line that sets it to empty first - this is causing the problem
-    // setEditSelectedClientId('');
-    
     // Convert to string to ensure consistent type comparison
     const clientId = clientSite.dClient_ID?.toString();
     
@@ -1016,6 +1024,25 @@ const SiteManagement = () => {
     setSelectAllBulkClients(!selectAllBulkClients);
   };
 
+  // Add this new useEffect to load available clients when site changes in edit modal
+  useEffect(() => {
+    const loadAvailableEditClients = async () => {
+      if (editSelectedSiteId) {
+        try {
+          const clients = await getAvailableClients(editSelectedSiteId, currentClientSite?.dClient_ID);
+          setAvailableEditClients(clients);
+        } catch (error) {
+          console.error('Error loading available clients for edit:', error);
+          setAvailableEditClients([]);
+        }
+      } else {
+        setAvailableEditClients([]);
+      }
+    };
+
+    loadAvailableEditClients();
+  }, [editSelectedSiteId, currentClientSite]);
+
   return (
     <div className="site-management-container">
       <div className="white-card">
@@ -1133,11 +1160,11 @@ const SiteManagement = () => {
           <div className="form-row">
             <div className="form-group">
               <label>Select Site</label>
-              <select
-                value={selectedSite ? selectedSite.dSite_ID : ''}
-                onChange={async (e) => {
+              <Select
+                value={selectedSite ? { value: selectedSite.dSite_ID, label: selectedSite.dSiteName } : null}
+                onChange={async (selectedOption) => {
                   try {
-                    const site = sites.find(s => s.dSite_ID === parseInt(e.target.value));
+                    const site = sites.find(s => s.dSite_ID === selectedOption.value);
                     setSelectedSite(site || null);
                     setSelectedClientId('');
                     setClientLobs([]);
@@ -1165,24 +1192,26 @@ const SiteManagement = () => {
                     console.error('Error updating site data:', error);
                   }
                 }}
-              >
-                <option value="">Select a site</option>
-                {sites.map(site => (
-                  <option key={site.dSite_ID} value={site.dSite_ID}>
-                    {site.dSiteName}
-                  </option>
-                ))}
-              </select>
+                options={sites.map(site => ({
+                  value: site.dSite_ID,
+                  label: site.dSiteName
+                }))}
+                isClearable
+                placeholder="Select a site"
+                isDisabled={false}
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
             </div>
             
             <div className="form-group">
               <label>Select Client</label>
-              <select
-                value={selectedClientId}
-                onChange={(e) => {
-                  setSelectedClientId(e.target.value);
-                  if (e.target.value) {
-                    fetchClientLobsAndSubLobs(e.target.value);
+              <Select
+                value={selectedClientId ? { value: selectedClientId, label: clients.find(c => c.id === selectedClientId)?.name } : null}
+                onChange={(selectedOption) => {
+                  setSelectedClientId(selectedOption ? selectedOption.value : '');
+                  if (selectedOption) {
+                    fetchClientLobsAndSubLobs(selectedOption.value);
                   } else {
                     setClientLobs([]);
                     setClientSubLobs([]);
@@ -1190,56 +1219,68 @@ const SiteManagement = () => {
                     setSelectedSubLobId('');
                   }
                 }}
-                disabled={!selectedSite}
-              >
-                <option value="">Select a client</option>
-                {availableClients.map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
+                options={availableClients.map(client => ({
+                  value: client.id,
+                  label: client.name
+                }))}
+                isClearable
+                placeholder="Select a client"
+                isDisabled={!selectedSite}
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
             </div>
           </div>
           
           <div className="form-row">
             <div className="form-group">
               <label>Select LOB</label>
-              <select
-                value={selectedLobId}
-                onChange={handleLobChange}
-                disabled={!selectedClientId}
-              >
-                <option value="">Select a LOB</option>
-                {Array.isArray(clientLobs) && clientLobs.length > 0 ? (
-                  clientLobs.map(lob => (
-                    <option key={lob.id} value={lob.id}>
-                      {lob.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>No LOBs available</option>
-                )}
-              </select>
+              <Select
+                value={selectedLobId ? { value: selectedLobId, label: clientLobs.find(l => l.id === selectedLobId)?.name } : null}
+                onChange={(selectedOption) => {
+                  const lobId = selectedOption ? selectedOption.value : '';
+                  setSelectedLobId(lobId);
+                  
+                  if (lobId) {
+                    const selectedLob = clientLobs.find(l => l.id === lobId);
+                    if (selectedLob && Array.isArray(selectedLob.subLobs)) {
+                      setClientSubLobs(selectedLob.subLobs);
+                    } else {
+                      setClientSubLobs([]);
+                    }
+                  } else {
+                    setClientSubLobs([]);
+                  }
+                  setSelectedSubLobId('');
+                }}
+                options={clientLobs.map(lob => ({
+                  value: lob.id,
+                  label: lob.name
+                }))}
+                isClearable
+                placeholder="Select a LOB"
+                isDisabled={!selectedClientId}
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
             </div>
             <div className="form-group">
               <label>Select Sub LOB</label>
-              <select
-                value={selectedSubLobId}
-                onChange={handleSubLobChange}
-                disabled={!selectedLobId}
-              >
-                <option value="">Select a Sub LOB</option>
-                {Array.isArray(clientSubLobs) && clientSubLobs.length > 0 ? (
-                  clientSubLobs.map(subLob => (
-                    <option key={subLob.id} value={subLob.id}>
-                      {subLob.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>No Sub LOBs available</option>
-                )}
-              </select>
+              <Select
+                value={selectedSubLobId ? { value: selectedSubLobId, label: clientSubLobs.find(s => s.id === selectedSubLobId)?.name } : null}
+                onChange={(selectedOption) => {
+                  setSelectedSubLobId(selectedOption ? selectedOption.value : '');
+                }}
+                options={clientSubLobs.map(subLob => ({
+                  value: subLob.id,
+                  label: subLob.name
+                }))}
+                isClearable
+                placeholder="Select a Sub LOB"
+                isDisabled={!selectedLobId}
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
             </div>
           </div>
           
@@ -1397,10 +1438,10 @@ const SiteManagement = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Select Site <span className="required-field">*</span></label>
-                <select
-                  value={editSelectedSiteId}
-                  onChange={(e) => {
-                    const newSiteId = e.target.value;
+                <Select
+                  value={editSelectedSiteId ? { value: editSelectedSiteId, label: sites.find(s => s.dSite_ID === parseInt(editSelectedSiteId))?.dSiteName } : null}
+                  onChange={(selectedOption) => {
+                    const newSiteId = selectedOption ? selectedOption.value.toString() : '';
                     setEditSelectedSiteId(newSiteId);
                     
                     // Reset other selections when site changes
@@ -1414,43 +1455,57 @@ const SiteManagement = () => {
                       fetchExistingAssignments(parseInt(newSiteId));
                     }
                   }}
-                  className={!editSelectedSiteId ? "validation-error" : ""}
-                >
-                  <option value="">Select a site</option>
-                  {sites.map(site => (
-                    <option key={site.dSite_ID} value={site.dSite_ID}>
-                      {site.dSiteName}
-                    </option>
-                  ))}
-                </select>
+                  options={sites.map(site => ({
+                    value: site.dSite_ID,
+                    label: site.dSiteName
+                  }))}
+                  isClearable
+                  placeholder="Select a site"
+                  className={`react-select-container ${!editSelectedSiteId ? "validation-error" : ""}`}
+                  classNamePrefix="react-select"
+                />
                 {!editSelectedSiteId && <div className="error-message">Site is required</div>}
               </div>
               
               <div className="form-group">
                 <label>Select Client <span className="required-field">*</span></label>
-                <select
-                  value={editSelectedClientId}
-                  onChange={handleEditClientChange}
-                  className={!editSelectedClientId ? "validation-error" : ""}
-                >
-                  <option value="">Select a client</option>
-                  {/* First ensure we have the current client in the list */}
-                  {currentClientSite && (
-                    <option value={currentClientSite.dClient_ID.toString()} key={`current-${currentClientSite.dClient_ID}`}>
-                      {currentClientSite.dClientName}
-                    </option>
-                  )}
-                  {/* Then add other available clients */}
-                  {editSelectedSiteId && 
-                    getAvailableClients(editSelectedSiteId, currentClientSite?.dClient_ID)
+                <Select
+                  value={editSelectedClientId ? {
+                    value: editSelectedClientId,
+                    label: currentClientSite?.dClientName || 
+                           availableEditClients.find(c => c.id.toString() === editSelectedClientId)?.name || 
+                           clients.find(c => c.id.toString() === editSelectedClientId)?.name
+                  } : null}
+                  onChange={(selectedOption) => {
+                    const clientId = selectedOption ? selectedOption.value.toString() : '';
+                    setEditSelectedClientId(clientId);
+                    resetEditSelection();
+                    
+                    if (clientId) {
+                      fetchClientLobsForEdit(clientId);
+                    } else {
+                      setEditClientLobs([]);
+                    }
+                  }}
+                  options={[
+                    // First ensure we have the current client in the list
+                    ...(currentClientSite ? [{
+                      value: currentClientSite.dClient_ID.toString(),
+                      label: currentClientSite.dClientName
+                    }] : []),
+                    // Then add other available clients
+                    ...availableEditClients
                       .filter(client => !currentClientSite || client.id.toString() !== currentClientSite.dClient_ID.toString())
-                      .map(client => (
-                        <option key={client.id} value={client.id.toString()}>
-                          {client.name}
-                        </option>
-                      ))
-                  }
-                </select>
+                      .map(client => ({
+                        value: client.id.toString(),
+                        label: client.name
+                      }))
+                  ]}
+                  isClearable
+                  placeholder="Select a client"
+                  className={`react-select-container ${!editSelectedClientId ? "validation-error" : ""}`}
+                  classNamePrefix="react-select"
+                />
                 {!editSelectedClientId && <div className="error-message">Client is required</div>}
               </div>
             </div>
@@ -1458,44 +1513,53 @@ const SiteManagement = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Select LOB</label>
-                <select
-                  value={editSelectedLobId}
-                  onChange={handleEditLobChange}
-                  disabled={!editSelectedClientId}
-                  className={editSelectedClientId && !editSelectedLobId && editClientLobs.length > 0 ? "validation-warning" : ""}
-                >
-                  <option value="">Select a LOB</option>
-                  {Array.isArray(editClientLobs) && editClientLobs.length > 0 ? (
-                    editClientLobs.map(lob => (
-                      <option key={lob.id} value={lob.id}>
-                        {lob.name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No LOBs available</option>
-                  )}
-                </select>
+                <Select
+                  value={editSelectedLobId ? { value: editSelectedLobId, label: editClientLobs.find(l => l.id === editSelectedLobId)?.name } : null}
+                  onChange={(selectedOption) => {
+                    const lobId = selectedOption ? selectedOption.value : '';
+                    setEditSelectedLobId(lobId);
+                    setEditSelectedSubLobId('');
+                    
+                    if (lobId) {
+                      const selectedLob = editClientLobs.find(lob => lob.id === lobId);
+                      if (selectedLob && Array.isArray(selectedLob.subLobs)) {
+                        setEditClientSubLobs(selectedLob.subLobs);
+                      } else {
+                        setEditClientSubLobs([]);
+                      }
+                    } else {
+                      setEditClientSubLobs([]);
+                    }
+                  }}
+                  options={editClientLobs.map(lob => ({
+                    value: lob.id,
+                    label: lob.name
+                  }))}
+                  isClearable
+                  placeholder="Select a LOB"
+                  isDisabled={!editSelectedClientId}
+                  className={`react-select-container ${editSelectedClientId && !editSelectedLobId && editClientLobs.length > 0 ? "validation-warning" : ""}`}
+                  classNamePrefix="react-select"
+                />
               </div>
               
               <div className="form-group">
                 <label>Select Sub LOB</label>
-                <select
-                  value={editSelectedSubLobId}
-                  onChange={handleEditSubLobChange}
-                  disabled={!editSelectedLobId}
-                  className={editSelectedLobId && !editSelectedSubLobId && editClientSubLobs.length > 0 ? "validation-warning" : ""}
-                >
-                  <option value="">Select a Sub LOB</option>
-                  {Array.isArray(editClientSubLobs) && editClientSubLobs.length > 0 ? (
-                    editClientSubLobs.map(subLob => (
-                      <option key={subLob.id} value={subLob.id}>
-                        {subLob.name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No Sub LOBs available</option>
-                  )}
-                </select>
+                <Select
+                  value={editSelectedSubLobId ? { value: editSelectedSubLobId, label: editClientSubLobs.find(s => s.id === editSelectedSubLobId)?.name } : null}
+                  onChange={(selectedOption) => {
+                    setEditSelectedSubLobId(selectedOption ? selectedOption.value : '');
+                  }}
+                  options={editClientSubLobs.map(subLob => ({
+                    value: subLob.id,
+                    label: subLob.name
+                  }))}
+                  isClearable
+                  placeholder="Select a Sub LOB"
+                  isDisabled={!editSelectedLobId}
+                  className={`react-select-container ${editSelectedLobId && !editSelectedSubLobId && editClientSubLobs.length > 0 ? "validation-warning" : ""}`}
+                  classNamePrefix="react-select"
+                />
               </div>
             </div>
 
@@ -1543,23 +1607,23 @@ const SiteManagement = () => {
             <div className="form-row">
               <div className="form-group">
                 <label>Select Site <span className="required-field">*</span></label>
-                <select
-                  value={bulkAddSelectedSite || ''}
-                  onChange={(e) => {
-                    const newSiteId = e.target.value;
+                <Select
+                  value={bulkAddSelectedSite ? { value: bulkAddSelectedSite, label: sites.find(s => s.dSite_ID === parseInt(bulkAddSelectedSite))?.dSiteName } : null}
+                  onChange={(selectedOption) => {
+                    const newSiteId = selectedOption ? selectedOption.value.toString() : '';
                     setBulkAddSelectedSite(newSiteId);
                     setBulkAddSelectedClients([]);
                     setSelectAllBulkClients(false);
                   }}
-                  className={!bulkAddSelectedSite ? "validation-error" : ""}
-                >
-                  <option value="">Select a site</option>
-                  {sites.map(site => (
-                    <option key={site.dSite_ID} value={site.dSite_ID}>
-                      {site.dSiteName}
-                    </option>
-                  ))}
-                </select>
+                  options={sites.map(site => ({
+                    value: site.dSite_ID,
+                    label: site.dSiteName
+                  }))}
+                  isClearable
+                  placeholder="Select a site"
+                  className={`react-select-container ${!bulkAddSelectedSite ? "validation-error" : ""}`}
+                  classNamePrefix="react-select"
+                />
                 {!bulkAddSelectedSite && <div className="error-message">Site is required</div>}
               </div>
             </div>
@@ -1580,7 +1644,12 @@ const SiteManagement = () => {
                 ) : availableBulkClients.length > 0 ? (
                   availableBulkClients.map(client => (
                     <div key={client.id} className="bulk-client-item">
-                      <span>{client.name}</span>
+                      <span>
+                        {client.name}
+                        <span className="client-counts">
+                          ({client.lobCount} LOB{client.lobCount !== 1 ? 's' : ''}, {client.subLobCount} Sub LOB{client.subLobCount !== 1 ? 's' : ''})
+                        </span>
+                      </span>
                       <input
                         type="checkbox"
                         checked={bulkAddSelectedClients.includes(client.id.toString())}
