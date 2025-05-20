@@ -57,15 +57,6 @@ exports.insertAdminUsersBulk = async (users) => {
   return results.map(result => result[0].insertId);
 };
 
-exports.deleteUsers = async (userIds) => {
-  const placeholders = userIds.map(() => '?').join(', ');
-  const [result] = await pool.query(
-    `DELETE FROM iris.tbl_login WHERE dUser_ID IN (${placeholders})`,
-    userIds
-  );
-  return result;
-};
-
 exports.updateUser = async ({ userId, employeeId, name, email, role, status, hashedPassword, securityQuestions }) => {
   let query = `UPDATE iris.tbl_login SET dUser_ID=?, dName=?, dEmail=?, dUser_Type=?, dStatus=?`;
   const params = [employeeId, name, email, role, status];
@@ -150,4 +141,22 @@ exports.findExistingAdminEmployeeIdsEmails = async (employeeIds, emails) => {
 exports.fetchAllAdmins = async () => {
   const [rows] = await pool.query("SELECT * FROM iris.tbl_admin ORDER BY tCreatedAt DESC");
   return rows;
+};
+
+exports.deactivateUsers = async (userIds) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) return;
+  const placeholders = userIds.map(() => '?').join(', ');
+  await pool.query(
+    `UPDATE iris.tbl_login SET dStatus='DEACTIVATED' WHERE dUser_ID IN (${placeholders})`,
+    userIds
+  );
+};
+
+exports.restoreUsers = async (userIds) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) return;
+  const placeholders = userIds.map(() => '?').join(', ');
+  await pool.query(
+    `UPDATE iris.tbl_login SET dStatus='FIRST-TIME' WHERE dUser_ID IN (${placeholders})`,
+    userIds
+  );
 };

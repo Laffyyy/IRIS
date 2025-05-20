@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash, FaLock, FaUsers, FaUserShield, FaHistory, FaTicketAlt, FaUserSlash } from 'react-icons/fa';
-import { FaKey, FaShieldAlt, FaChevronRight, FaChevronDown } from 'react-icons/fa';
+import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash, FaLock, FaUsers, FaUserShield, FaHistory, FaTicketAlt, FaUserSlash, FaKey, FaShieldAlt } from 'react-icons/fa';
+import { FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import './UserManagement.css';
 
@@ -68,20 +68,6 @@ const UserManagement = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [fileError, setFileError] = useState('');
 
-  // Edit invalid user state
-  const [editInvalidModalOpen, setEditInvalidModalOpen] = useState(false);
-  const [editingInvalidUser, setEditingInvalidUser] = useState(null);
-  const [editingInvalidUserIndex, setEditingInvalidUserIndex] = useState(null);
-  const [editInvalidErrors, setEditInvalidErrors] = useState({});
-  const [editInvalidDbErrors, setEditInvalidDbErrors] = useState({});
-
-  // State for editing valid users
-  const [editValidModalOpen, setEditValidModalOpen] = useState(false);
-  const [editingValidUser, setEditingValidUser] = useState(null);
-  const [editingValidUserIndex, setEditingValidUserIndex] = useState(null);
-  const [editValidErrors, setEditValidErrors] = useState({});
-  const [editValidDbErrors, setEditValidDbErrors] = useState({});
-
   // State for confirmation and result modals
   const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
   const [showBulkResultModal, setShowBulkResultModal] = useState(false);
@@ -116,6 +102,7 @@ const UserManagement = () => {
 
   // Add state for individual add errors and confirmation/result modals
   const [individualAddError, setIndividualAddError] = useState('');
+  const [individualAddErrors, setIndividualAddErrors] = useState({});
   const [showIndividualConfirmModal, setShowIndividualConfirmModal] = useState(false);
   const [showIndividualResultModal, setShowIndividualResultModal] = useState(false);
   const [individualResultSuccess, setIndividualResultSuccess] = useState(false);
@@ -534,81 +521,58 @@ const UserManagement = () => {
   // Update handleAddToList to use refs
   const handleAddToList = async () => {
     setIndividualAddError('');
+    setIndividualAddErrors({});
     const employeeId = employeeIdRef.current.value;
     const email = emailRef.current.value;
     const name = nameRef.current.value;
     const role = roleRef.current.value;
+    const errors = {};
     // 1. Required fields
-    if (!employeeId || !email || !name || !role) {
-      setIndividualAddError('All fields are required.');
-      return;
-    }
+    if (!employeeId) errors.employeeId = 'Employee ID is required.';
+    if (!email) errors.email = 'Email is required.';
+    if (!name) errors.name = 'Name is required.';
+    if (!role) errors.role = 'Role is required.';
     // Employee ID must be numbers only and up to 10 digits
-    if (!/^[0-9]{1,10}$/.test(employeeId)) {
-      setIndividualAddError('Employee ID must be numbers only and up to 10 digits.');
-      return;
-    }
+    if (employeeId && !/^[0-9]{1,10}$/.test(employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits.';
     // Name must be 50 characters or less
-    if (name.length > 50) {
-      setIndividualAddError('Name must be 50 characters or less.');
-      return;
-    }
+    if (name && name.length > 50) errors.name = 'Name must be 50 characters or less.';
     // Email must be 50 characters or less
-    if (email.length > 50) {
-      setIndividualAddError('Email must be 50 characters or less.');
-      return;
-    }
+    if (email && email.length > 50) errors.email = 'Email must be 50 characters or less.';
     // 2. Email format
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-    if (!emailRegex.test(email)) {
-      setIndividualAddError('Invalid email format.');
-      return;
-    }
+    if (email && !emailRegex.test(email)) errors.email = 'Invalid email format.';
     // 3. Duplicates in preview
-    if (individualPreview.some(u => u.employeeId === employeeId)) {
-      setIndividualAddError('Duplicate Employee ID in preview.');
-      return;
-    }
-    if (individualPreview.some(u => u.email === email)) {
-      setIndividualAddError('Duplicate Email in preview.');
-      return;
-    }
+    if (employeeId && individualPreview.some(u => u.employeeId === employeeId)) errors.employeeId = 'Duplicate Employee ID in preview.';
+    if (email && individualPreview.some(u => u.email === email)) errors.email = 'Duplicate Email in preview.';
+    // If any errors so far, show all
+    let hasErrors = Object.keys(errors).length > 0;
     // 4. Duplicates in database (tbl_login and tbl_admin for Admin)
-    try {
-      let dbDuplicates = [];
-      if (role && role.toUpperCase() === 'ADMIN') {
-        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ employeeIds: [employeeId], emails: [email], admin: true })
-        });
-        dbDuplicates = await response.json();
-        if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-          setIndividualAddError('Duplicate Employee ID in database');
-          return;
+    let dbDuplicates = [];
+    if (!hasErrors) {
+      try {
+        if (role && role.toUpperCase() === 'ADMIN') {
+          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeIds: [employeeId], emails: [email], admin: true })
+          });
+          dbDuplicates = await response.json();
+        } else {
+          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
+          });
+          dbDuplicates = await response.json();
         }
-        if (dbDuplicates.some(u => u.dEmail === email)) {
-          setIndividualAddError('Duplicate Email in database');
-          return;
-        }
-      } else {
-        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
-        });
-        dbDuplicates = await response.json();
-        if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-          setIndividualAddError('Duplicate Employee ID in database');
-          return;
-        }
-        if (dbDuplicates.some(u => u.dEmail === email)) {
-          setIndividualAddError('Duplicate Email in database');
-          return;
-        }
+        if (dbDuplicates.some(u => u.dUser_ID === employeeId)) errors.employeeId = 'Duplicate Employee ID in database';
+        if (dbDuplicates.some(u => u.dEmail === email)) errors.email = 'Duplicate Email in database';
+      } catch (e) {
+        errors.general = 'Error checking duplicates in database.';
       }
-    } catch (e) {
-      setIndividualAddError('Error checking duplicates in database.');
+    }
+    if (Object.keys(errors).length > 0) {
+      setIndividualAddErrors(errors);
       return;
     }
     // If all good, add to preview
@@ -618,6 +582,7 @@ const UserManagement = () => {
     emailRef.current.value = '';
     nameRef.current.value = '';
     roleRef.current.value = '';
+    setIndividualAddErrors({});
   };
 
   // Submit individual users
@@ -687,7 +652,7 @@ const UserManagement = () => {
       setFile(null);
       setShowBulkResultModal(true);
       setBulkResultSuccess(true);
-      setBulkResultMessage('Users uploaded successfully!');
+      setBulkResultMessage(bulkUsers.length === 1 ? 'User uploaded successfully!' : `Users (${bulkUsers.length}) uploaded successfully!`);
       fetchUsers();
     } catch (error) {
       setShowBulkResultModal(true);
@@ -699,6 +664,7 @@ const UserManagement = () => {
   // Delete selected users
   const handleDeleteUsers = async () => {
     if (deleteConfirmText === 'CONFIRM' && selectedUsers.length > 0) {
+      const countToDelete = selectedUsers.length;
       try {
         const response = await fetch('http://localhost:5000/api/users/delete', {
           method: 'POST',
@@ -714,17 +680,17 @@ const UserManagement = () => {
         if (!response.ok) {
           setShowDeleteResultModal(true);
           setDeleteResultSuccess(false);
-          setDeleteResultMessage(result && result.message ? result.message : 'Failed to delete users');
+          setDeleteResultMessage(result && result.message ? result.message : 'Failed to deactivate users');
           return;
         }
 
-        setUsers(prev => prev.filter(user => !selectedUsers.includes(user.dUser_ID)));
+        setUsers(prev => prev.map(user => selectedUsers.includes(user.dUser_ID) ? { ...user, dStatus: 'DEACTIVATED' } : user));
         setSelectedUsers([]);
         setShowDeleteModal(false);
         setDeleteConfirmText('');
         setShowDeleteResultModal(true);
         setDeleteResultSuccess(true);
-        setDeleteResultMessage('Users deleted successfully!');
+        setDeleteResultMessage('User(s) deactivated successfully!');
         fetchUsers();
       } catch (error) {
         setShowDeleteResultModal(true);
@@ -902,371 +868,6 @@ const UserManagement = () => {
     return msg;
   }
 
-  // Handler to open modal for editing invalid user
-  const handleEditInvalidUser = (index) => {
-    const user = { ...invalidUsers[index] };
-    setEditingInvalidUser(user);
-    setEditingInvalidUserIndex(index);
-    setEditInvalidErrors(validateEditingInvalidUser(user));
-    setEditInvalidModalOpen(true);
-  };
-
-  // Add at the top of your component:
-  const lastCheckedInvalidRef = useRef({ employeeId: '', email: '' });
-  const lastCheckedValidRef = useRef({ employeeId: '', email: '' });
-  const dbAbortInvalidController = useRef(null);
-  const dbAbortValidController = useRef(null);
-
-  // Utility to build Sets for O(1) duplicate checks
-  function buildDuplicateSets(users, excludeIndex = null, key = 'employeeId', emailKey = 'email') {
-    const idSet = new Set();
-    const emailSet = new Set();
-    users.forEach((u, i) => {
-      if (excludeIndex !== null && i === excludeIndex) return;
-      if (u[key]) idSet.add(u[key]);
-      if (u[emailKey]) emailSet.add(u[emailKey]);
-    });
-    return { idSet, emailSet };
-  }
-
-  // Optimized Edit Invalid User Change Handler
-  const handleEditingInvalidUserChange = (e) => {
-    const { name, value } = e.target;
-    setEditingInvalidUser(prev => {
-      const updated = { ...prev, [name]: value };
-      // Build Sets for O(1) duplicate check
-      const { idSet, emailSet } = buildDuplicateSets([...bulkUsers, ...invalidUsers], editingInvalidUserIndex);
-      const errors = {};
-      const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
-      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-      if (!updated.employeeId) errors.employeeId = 'Employee ID is required';
-      else if (!/^[0-9]{1,10}$/.test(updated.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits';
-      else if (idSet.has(updated.employeeId)) errors.employeeId = 'Duplicate Employee ID in file';
-      if (!updated.name) errors.name = 'Name is required';
-      else if (updated.name.length > 50) errors.name = 'Name must be 50 characters or less';
-      if (!updated.email) errors.email = 'Email is required';
-      else if (updated.email.length > 50) errors.email = 'Email must be 50 characters or less';
-      else if (!emailRegex.test(updated.email)) errors.email = 'Invalid email format';
-      else if (emailSet.has(updated.email)) errors.email = 'Duplicate Email in file';
-      if (!updated.role) errors.role = 'Role is required';
-      else if (!allowedRoles.includes(updated.role.trim().toUpperCase())) errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
-      setEditInvalidErrors(errors);
-      // Debounce validation and DB check
-      if (window.editInvalidDbTimeout) clearTimeout(window.editInvalidDbTimeout);
-      window.editInvalidDbTimeout = setTimeout(async () => {
-        // Only check if value changed
-        if (
-          lastCheckedInvalidRef.current.employeeId === updated.employeeId &&
-          lastCheckedInvalidRef.current.email === updated.email
-        ) return;
-        lastCheckedInvalidRef.current = {
-          employeeId: updated.employeeId,
-          email: updated.email,
-        };
-        // Cancel previous request
-        if (dbAbortInvalidController.current) dbAbortInvalidController.current.abort();
-        dbAbortInvalidController.current = new AbortController();
-        let dbDuplicates = [];
-        try {
-          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              employeeIds: [updated.employeeId],
-              emails: [updated.email]
-            }),
-            signal: dbAbortInvalidController.current.signal,
-          });
-          dbDuplicates = await response.json();
-        } catch (e) { if (e.name === 'AbortError') return; }
-        const dbErrors = {};
-        if (dbDuplicates.some(u => u.dUser_ID === updated.employeeId)) {
-          dbErrors.employeeId = 'Duplicate Employee ID in database';
-        }
-        if (dbDuplicates.some(u => u.dEmail === updated.email)) {
-          dbErrors.email = 'Duplicate Email in database';
-        }
-        setEditInvalidDbErrors(dbErrors);
-      }, 400);
-      return updated;
-    });
-  };
-
-  // Handler to save the edited invalid user
-  const handleSaveEditedInvalidUser = async () => {
-    const { employeeId, name, email, role } = editingInvalidUser;
-    const errors = {};
-    const reasons = [];
-    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
-
-    // 1. Required fields
-    if (!employeeId) { errors.employeeId = 'Employee ID is required'; reasons.push('Missing Employee ID'); }
-    if (!name) { errors.name = 'Name is required'; reasons.push('Missing Name'); }
-    if (!email) { errors.email = 'Email is required'; reasons.push('Missing Email'); }
-    if (!role) { errors.role = 'Role is required'; reasons.push('Missing Role'); }
-    const roleStr = typeof role === 'string' ? role : String(role || '');
-    const isValidRole = allowedRoles.some(allowed => roleStr.trim().toUpperCase() === allowed);
-    if (!isValidRole) {
-      errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
-      reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
-    }
-
-    // 2. Check for duplicates in the file (excluding the row being edited)
-    const otherInvalids = invalidUsers.filter((_, i) => i !== editingInvalidUserIndex);
-    const allBulk = [...bulkUsers, ...otherInvalids];
-    const idCount = allBulk.filter(u => u.employeeId === employeeId).length;
-    const emailCount = allBulk.filter(u => u.email === email).length;
-    if (idCount > 0) {
-      errors.employeeId = 'Duplicate Employee ID in file';
-      reasons.push('Duplicate Employee ID in file');
-    }
-    if (emailCount > 0) {
-      errors.email = 'Duplicate Email in file';
-      reasons.push('Duplicate Email in file');
-    }
-
-    // 3. Check for duplicates in the database (synchronously before proceeding)
-    let dbDuplicates = [];
-    try {
-      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeIds: [employeeId],
-          emails: [email]
-        })
-      });
-      dbDuplicates = await response.json();
-    } catch (e) {
-      // handle error
-    }
-    if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-      errors.employeeId = 'Duplicate Employee ID in database';
-      reasons.push('Duplicate Employee ID in database');
-    }
-    if (dbDuplicates.some(u => u.dEmail === email)) {
-      errors.email = 'Duplicate Email in database';
-      reasons.push('Duplicate Email in database');
-    }
-
-    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-    if (email && !emailRegex.test(email)) {
-      errors.email = 'Invalid email format';
-      reasons.push('Invalid email format');
-    }
-
-    setEditInvalidErrors(errors);
-
-    // If still invalid, keep modal open and show errors
-    if (Object.keys(errors).length > 0 || reasons.length > 0) {
-      setEditingInvalidUser(prev => ({ ...prev, reasons }));
-      return;
-    }
-
-    // Move to valid users
-    setBulkUsers(prev => [
-      ...prev,
-      { employeeId, name, email, role, valid: true }
-    ]);
-    // Remove from invalid users
-    setInvalidUsers(prev => prev.filter((_, i) => i !== editingInvalidUserIndex));
-    setEditInvalidModalOpen(false);
-    setEditingInvalidUser(null);
-    setEditingInvalidUserIndex(null);
-    setEditInvalidErrors({});
-    setEditInvalidDbErrors({});
-    // Refresh users table from backend
-    fetchUsers();
-  };
-
-  // Handler to open modal for editing valid user
-  const handleEditValidUser = (index) => {
-    setEditingValidUser({ ...bulkUsers[index] });
-    setEditingValidUserIndex(index);
-    setEditValidModalOpen(true);
-  };
-
-
-  // Handler to save the edited valid user
-  const handleSaveEditedValidUser = async () => {
-    const { employeeId, name, email, role } = editingValidUser;
-    const errors = validateEditingValidUser(editingValidUser);
-
-    // Synchronous DB duplicate check before proceeding
-    let dbDuplicates = [];
-    try {
-      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeIds: [employeeId],
-          emails: [email]
-        })
-      });
-      dbDuplicates = await response.json();
-    } catch (e) {}
-    if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
-      errors.employeeId = 'Duplicate Employee ID in database';
-    }
-    if (dbDuplicates.some(u => u.dEmail === email)) {
-      errors.email = 'Duplicate Email in database';
-    }
-    setEditValidErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    const updatedValids = bulkUsers.map((user, i) =>
-      i === editingValidUserIndex ? { employeeId, name, email, role, valid: true } : user
-    );
-
-    // Get the new valid/invalid lists
-    const { validUsers, invalidUsers: newInvalidUsers } = await revalidateAllUsers([...updatedValids, ...invalidUsers]);
-
-    // Check if the edited user is still valid
-    const stillValid = validUsers.some(
-      user => user.employeeId === employeeId && user.email === email
-    );
-
-    if (stillValid) {
-      setEditValidModalOpen(false);
-      setEditingValidUser(null);
-      setEditingValidUserIndex(null);
-      setEditValidErrors({});
-      // Refresh users table from backend
-      fetchUsers();
-    } else {
-      // Optionally, show a message that the user is now invalid (e.g., due to backend duplicate)
-      setEditValidErrors({ general: 'User is now invalid due to backend validation. Please check errors.' });
-    }
-  };
-
-  const revalidateAllUsers = async (allUsers) => {
-    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
-    // Count occurrences in the file
-    const idCounts = {};
-    const emailCounts = {};
-    allUsers.forEach(user => {
-      idCounts[user.employeeId] = (idCounts[user.employeeId] || 0) + 1;
-      emailCounts[user.email] = (emailCounts[user.email] || 0) + 1;
-    });
-
-    // Check for duplicates in the database
-    let dbDuplicates = [];
-    try {
-      const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeIds: allUsers.map(u => u.employeeId),
-          emails: allUsers.map(u => u.email)
-        })
-      });
-      dbDuplicates = await response.json();
-    } catch (e) {
-      // handle error
-    }
-
-    // Mark users as invalid if they are duplicates in file or DB or fail any validation
-    const invalidUsers = [];
-    const validUsers = [];
-    const seenIds = new Set();
-    const seenEmails = new Set();
-    for (const user of allUsers) {
-      const reasons = [];
-      // Required fields
-      if (!user.employeeId) reasons.push('Missing Employee ID');
-      if (!user.name) reasons.push('Missing Name');
-      if (!user.email) reasons.push('Missing Email');
-      if (!user.role) reasons.push('Missing Role');
-      // Char limits/format
-      if (user.employeeId && !/^[0-9]{1,10}$/.test(user.employeeId)) reasons.push('Employee ID must be numbers only and up to 10 digits');
-      if (user.name && user.name.length > 50) reasons.push('Name must be 50 characters or less');
-      if (user.email && user.email.length > 50) reasons.push('Email must be 50 characters or less');
-      // Duplicates in DB
-      if (dbDuplicates.some(u => u.dUser_ID === user.employeeId)) reasons.push('Duplicate Employee ID in database');
-      if (dbDuplicates.some(u => u.dEmail === user.email)) reasons.push('Duplicate Email in database');
-      // Role
-      const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
-      if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
-        reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
-      }
-      // Email format
-      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-      if (user.email && !emailRegex.test(user.email)) reasons.unshift('Invalid email format');
-      // Only allow the first valid occurrence of each Employee ID and Email
-      if (reasons.length === 0) {
-        if (seenIds.has(user.employeeId)) {
-          reasons.push('Duplicate Employee ID in file');
-        }
-        if (seenEmails.has(user.email)) {
-          reasons.push('Duplicate Email in file');
-        }
-      }
-      if (reasons.length > 0) {
-        invalidUsers.push({
-          ...user,
-          reasons,
-          notEditable: reasons.some(
-            r => r === 'Duplicate Employee ID in database' || r === 'Duplicate Email in database'
-          )
-        });
-      } else {
-        validUsers.push(user);
-        seenIds.add(user.employeeId);
-        seenEmails.add(user.email);
-      }
-    }
-    setBulkUsers(validUsers);
-    setInvalidUsers(invalidUsers);
-    return { validUsers, invalidUsers };
-  };
-
-  const validateEditingValidUser = (user) => {
-    const errors = {};
-    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
-    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-    if (!user.employeeId) errors.employeeId = 'Employee ID is required';
-    else if (!/^[0-9]{1,10}$/.test(user.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits.';
-    if (!user.name) errors.name = 'Name is required';
-    else if (user.name.length > 50) errors.name = 'Name must be 50 characters or less.';
-    if (!user.email) errors.email = 'Email is required';
-    else {
-      if (user.email.length > 50) errors.email = 'Email must be 50 characters or less.';
-      if (!emailRegex.test(user.email)) errors.email = 'Invalid email format';
-    }
-    if (!user.role) errors.role = 'Role is required';
-    const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
-    if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
-      errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
-    }
-    return errors;
-  };
-
-  const validateEditingInvalidUser = (user) => {
-    const errors = {};
-    const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
-    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-    if (!user.employeeId) errors.employeeId = 'Employee ID is required';
-    else if (!/^[0-9]{1,10}$/.test(user.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits.';
-    if (!user.name) errors.name = 'Name is required';
-    else if (user.name.length > 50) errors.name = 'Name must be 50 characters or less.';
-    if (!user.email) errors.email = 'Email is required';
-    else {
-      if (user.email.length > 50) errors.email = 'Email must be 50 characters or less.';
-      if (!emailRegex.test(user.email)) errors.email = 'Invalid email format';
-    }
-    if (!user.role) errors.role = 'Role is required';
-    const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
-    if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
-      errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
-    }
-    return errors;
-  };
-
   // Update the edit preview modal logic for real-time validation
   useEffect(() => {
     if (editPreviewModalOpen && editingPreviewUser) {
@@ -1345,6 +946,7 @@ const UserManagement = () => {
   const [showDeleteResultModal, setShowDeleteResultModal] = useState(false);
   const [deleteResultSuccess, setDeleteResultSuccess] = useState(false);
   const [deleteResultMessage, setDeleteResultMessage] = useState('');
+  const [lastDeleteCount, setLastDeleteCount] = useState(0);
 
   // Add state for reset account in Edit User modal
   const [showResetDropdown, setShowResetDropdown] = useState(false);
@@ -1442,70 +1044,6 @@ const UserManagement = () => {
   // Debounced backend duplicate check for editing invalid user
   const duplicateCheckTimeout = useRef();
 
-  // Debounced backend duplicate check for editing valid user
-  const duplicateCheckValidTimeout = useRef();
-  const handleEditingValidUserChange = (e) => {
-    const { name, value } = e.target;
-    setEditingValidUser(prev => {
-      const updated = { ...prev, [name]: value };
-      // Build Sets for O(1) duplicate check
-      const { idSet, emailSet } = buildDuplicateSets([...bulkUsers, ...invalidUsers], editingValidUserIndex);
-      const errors = {};
-      const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
-      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-      if (!updated.employeeId) errors.employeeId = 'Employee ID is required';
-      else if (!/^[0-9]{1,10}$/.test(updated.employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits';
-      else if (idSet.has(updated.employeeId)) errors.employeeId = 'Duplicate Employee ID in file';
-      if (!updated.name) errors.name = 'Name is required';
-      else if (updated.name.length > 50) errors.name = 'Name must be 50 characters or less';
-      if (!updated.email) errors.email = 'Email is required';
-      else if (updated.email.length > 50) errors.email = 'Email must be 50 characters or less';
-      else if (!emailRegex.test(updated.email)) errors.email = 'Invalid email format';
-      else if (emailSet.has(updated.email)) errors.email = 'Duplicate Email in file';
-      if (!updated.role) errors.role = 'Role is required';
-      else if (!allowedRoles.includes(updated.role.trim().toUpperCase())) errors.role = 'Role must be exactly one of: ' + allowedRoles.join(', ');
-      setEditValidErrors(errors);
-      // Debounce validation and DB check
-      if (window.editValidDbTimeout) clearTimeout(window.editValidDbTimeout);
-      window.editValidDbTimeout = setTimeout(async () => {
-        // Only check if value changed
-        if (
-          lastCheckedValidRef.current.employeeId === updated.employeeId &&
-          lastCheckedValidRef.current.email === updated.email
-        ) return;
-        lastCheckedValidRef.current = {
-          employeeId: updated.employeeId,
-          email: updated.email,
-        };
-        // Cancel previous request
-        if (dbAbortValidController.current) dbAbortValidController.current.abort();
-        dbAbortValidController.current = new AbortController();
-        let dbDuplicates = [];
-        try {
-          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              employeeIds: [updated.employeeId],
-              emails: [updated.email]
-            }),
-            signal: dbAbortValidController.current.signal,
-          });
-          dbDuplicates = await response.json();
-        } catch (e) { if (e.name === 'AbortError') return; }
-        const dbErrors = {};
-        if (dbDuplicates.some(u => u.dUser_ID === updated.employeeId)) {
-          dbErrors.employeeId = 'Duplicate Employee ID in database';
-        }
-        if (dbDuplicates.some(u => u.dEmail === updated.email)) {
-          dbErrors.email = 'Duplicate Email in database';
-        }
-        setEditValidDbErrors(dbErrors);
-      }, 400);
-      return updated;
-    });
-  };
-
   // Add loading state for async DB duplicate check
   const [editValidCheckingDb, setEditValidCheckingDb] = useState(false);
   const [editInvalidCheckingDb, setEditInvalidCheckingDb] = useState(false);
@@ -1579,7 +1117,58 @@ const UserManagement = () => {
       setRoleFilter('All');
       setStatusFilter('All');
     }
+    setSelectedUsers([]); // Deselect all users when switching tabs
   }, [activeTable]);
+
+  // Improved emoji regex (covers most emoji ranges)
+  const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g;
+  const allowedCharsRegex = /^[A-Za-z0-9@._-]+$/;
+  const allowedNameRegex = /^[A-Za-z0-9._-]+$/;
+
+  // Add new state for restore modal
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showRestoreResultModal, setShowRestoreResultModal] = useState(false);
+  const [restoreResultSuccess, setRestoreResultSuccess] = useState(false);
+  const [restoreResultMessage, setRestoreResultMessage] = useState('');
+  const [restoreConfirmText, setRestoreConfirmText] = useState('');
+
+  // Add restore handler
+  const handleRestoreUsers = async () => {
+    if (restoreConfirmText === 'RESTORE' && selectedUsers.length > 0) {
+      try {
+        const response = await fetch('http://localhost:5000/api/users/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds: selectedUsers })
+        });
+
+        let result = null;
+        try {
+          result = await response.json();
+        } catch (e) {}
+
+        if (!response.ok) {
+          setShowRestoreResultModal(true);
+          setRestoreResultSuccess(false);
+          setRestoreResultMessage(result && result.message ? result.message : 'Failed to restore users');
+          return;
+        }
+
+        setUsers(prev => prev.map(user => selectedUsers.includes(user.dUser_ID) ? { ...user, dStatus: 'FIRST-TIME' } : user));
+        setSelectedUsers([]);
+        setShowRestoreModal(false);
+        setRestoreConfirmText('');
+        setShowRestoreResultModal(true);
+        setRestoreResultSuccess(true);
+        setRestoreResultMessage(selectedUsers.length === 1 ? 'User restored successfully!' : `Users (${selectedUsers.length}) restored successfully!`);
+        fetchUsers();
+      } catch (error) {
+        setShowRestoreResultModal(true);
+        setRestoreResultSuccess(false);
+        setRestoreResultMessage('Restore error: ' + (error.message || 'Unknown error'));
+      }
+    }
+  };
 
   return (
     <div className="user-management-container">
@@ -1686,28 +1275,28 @@ const UserManagement = () => {
               onClick={() => setActiveTable('users')}
             >
               <FaUsers className="nav-icon" />
-              <span>Users</span>
+              <span>Users ({users.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN').length})</span>
             </div>
             <div 
               className={`nav-item ${activeTable === 'admin' ? 'active' : ''}`} 
               onClick={() => setActiveTable('admin')}
             >
               <FaUserShield className="nav-icon" />
-              <span>Admin</span>
+              <span>Admin ({users.filter(user => user.dUser_Type === 'ADMIN').length})</span>
             </div>
             <div 
               className={`nav-item ${activeTable === 'tickets' ? 'active' : ''}`} 
               onClick={() => setActiveTable('tickets')}
             >
               <FaTicketAlt className="nav-icon" />
-              <span>Tickets</span>
+              <span>Tickets ({users.filter(user => user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE').length})</span>
             </div>
             <div 
               className={`nav-item ${activeTable === 'deactivated' ? 'active' : ''}`} 
               onClick={() => setActiveTable('deactivated')}
             >
               <FaUserSlash className="nav-icon" />
-              <span>Deactivated</span>
+              <span>Deactivated ({users.filter(user => user.dStatus === 'DEACTIVATED').length})</span>
             </div>
           </div>
           <div className="table-wrapper">
@@ -2252,18 +1841,16 @@ const UserManagement = () => {
                         <td>{user.dStatus}</td>
                         <td>
                           <div className="action-buttons">
-                            <button onClick={() => handleEdit(user)} className="edit-btn">
-                              <FaEdit size={12} /> Edit
-                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedUsers([user.dUser_ID]);
-                                setShowDeleteModal(true);
+                                setShowRestoreModal(true);
                               }}
-                              className="delete-btn"
+                              className="restore-btn"
+                              style={{ backgroundColor: '#0a7', color: 'white' }}
                             >
-                              <FaTrash size={12} /> Delete
+                              <FaKey size={12} /> Restore
                             </button>
                             <input
                               type="checkbox"
@@ -2293,18 +1880,32 @@ const UserManagement = () => {
             )}
           </div>
         </div>
-        {selectedUsers.length > 0 && (
+        {selectedUsers.length > 0 && activeTable !== 'deactivated' && (
           <div className="delete-all-container">
-              <button
+            <button
               className="delete-all-btn"
               onClick={() => {
                 setShowDeleteModal(true);
               }}
-              >
-                <FaTrash /> Delete Selected ({selectedUsers.length})
-              </button>
-            </div>
-          )}
+            >
+              <FaTrash /> Delete Selected ({selectedUsers.length})
+            </button>
+          </div>
+        )}
+
+        {selectedUsers.length > 0 && activeTable === 'deactivated' && (
+          <div className="delete-all-container">
+            <button
+              className="restore-all-btn"
+              onClick={() => {
+                setShowRestoreModal(true);
+              }}
+              style={{ backgroundColor: '#0a7', color: 'white', minWidth: 180 }}
+            >
+              <FaKey /> Restore Selected ({selectedUsers.length})
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add User Modal */}
@@ -2364,10 +1965,14 @@ const UserManagement = () => {
                       maxLength={10}
                       pattern="\\d{1,10}"
                       onInput={e => {
-                        // Remove non-numeric characters and limit to 10
+                        // Only allow numbers, no whitespace, no emojis
                         e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                       }}
+                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, employeeId: undefined }))}
                     />
+                    {individualAddErrors.employeeId && (
+                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.employeeId}</div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -2378,7 +1983,15 @@ const UserManagement = () => {
                       ref={emailRef}
                       required
                       maxLength={50}
+                      onInput={e => {
+                        // Only allow A-Za-z0-9@._-, no whitespace, no emojis
+                        e.target.value = e.target.value.replace(/[^A-Za-z0-9@._-]/g, '');
+                      }}
+                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, email: undefined }))}
                     />
+                    {individualAddErrors.email && (
+                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.email}</div>
+                    )}
                   </div>
                 </div>
 
@@ -2388,10 +2001,18 @@ const UserManagement = () => {
                     <input
                       type="text"
                       name="name"
-                      ref={nameRef}
+                    ref={nameRef}
                       required
                       maxLength={50}
+                      onInput={e => {
+                        // Only allow A-Za-z0-9-_. no whitespace, no emojis
+                        e.target.value = e.target.value.replace(/[^A-Za-z0-9._-]/g, '');
+                      }}
+                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, name: undefined }))}
                     />
+                    {individualAddErrors.name && (
+                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.name}</div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -2400,6 +2021,7 @@ const UserManagement = () => {
                       name="role"
                       ref={roleRef}
                       defaultValue=""
+                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, role: undefined }))}
                     >
                       <option value="">Select a role</option>
                       <option value="ADMIN">ADMIN</option>
@@ -2407,34 +2029,26 @@ const UserManagement = () => {
                       <option value="REPORTS">REPORTS</option>
                       <option value="CNB">CNB</option>
                     </select>
+                    {individualAddErrors.role && (
+                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.role}</div>
+                    )}
                   </div>
                 </div>
 
-                <div className="form-row">
+                <div className="form-row" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                   <button
                     className="add-to-list-btn"
                     onClick={handleAddToList}
-                    disabled={
-                      individualAddError && (
-                        individualAddError.includes('Duplicate Employee ID in preview.') ||
-                        individualAddError.includes('Duplicate Email in preview.') ||
-                        individualAddError.includes('Duplicate Employee ID in database') ||
-                        individualAddError.includes('Duplicate Email in database')
-                      )
-                    }
+                    disabled={false}
                   >
-                    Add to List
+                    + Add to List
                   </button>
-                  {individualAddError && (
-                    <div style={{ color: 'red', marginTop: 8 }}>{individualAddError}</div>
-                  )}
                 </div>
+                {individualAddErrors.general && (
+                  <div style={{ color: 'red', marginTop: 8 }}>{individualAddErrors.general}</div>
+                )}
 
                 <hr className="add-user-hr" />
-
-                <div className="add-user-actions">
-                  <button onClick={() => setShowIndividualConfirmModal(true)} className="save-btn" disabled={individualPreview.length === 0}>Add User</button>
-                </div>
 
                 {individualPreview.length > 0 && (
                   <>
@@ -2489,6 +2103,11 @@ const UserManagement = () => {
                         </tbody>
                       </table>
                     </div>
+                  <div className="add-user-actions" style={{ marginTop: 10 }}>
+                    <button onClick={() => setShowIndividualConfirmModal(true)} className="save-btn" disabled={individualPreview.length === 0}>
+                      {individualPreview.length <= 1 ? 'Add User' : `Add Users (${individualPreview.length})`}
+                    </button>
+                  </div>
                   </>
                 )}
               </div>
@@ -2611,12 +2230,6 @@ const UserManagement = () => {
                                       <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                           <button
-                                            className="edit-btn"
-                                            onClick={() => handleEditValidUser(index)}
-                                          >
-                                            <FaEdit /> Edit
-                                          </button>
-                                          <button
                                             className="remove-btn"
                                             onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
                                           >
@@ -2642,7 +2255,6 @@ const UserManagement = () => {
                                   <th>Name</th>
                                   <th>Email</th>
                                   <th>Role</th>
-                                  <th>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2655,16 +2267,6 @@ const UserManagement = () => {
                                     <td title={user.name}>{user.name}</td>
                                     <td title={user.email}>{user.email}</td>
                                     <td title={user.role}>{user.role}</td>
-                                    <td>
-                                      {!user.notEditable && (
-                                        <button
-                                          className="edit-btn"
-                                          onClick={() => handleEditInvalidUser(index)}
-                                        >
-                                          <FaEdit /> Edit
-                                        </button>
-                                      )}
-                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -2699,7 +2301,11 @@ const UserManagement = () => {
                     className="save-btn"
                     disabled={bulkUsers.length === 0}
                   >
-                    Submit Users {bulkUsers.length > 0 && `(${bulkUsers.length})`}
+                    {bulkUsers.length === 1
+                      ? `Submit User (1)`
+                      : bulkUsers.length > 1
+                        ? `Submit Users (${bulkUsers.length})`
+                        : 'Submit Users'}
                   </button>
                 </div>
               </div>
@@ -2726,7 +2332,7 @@ const UserManagement = () => {
             <div className="modal-content">
             <p>
               You are about to delete {selectedUsers.length} user(s).
-              This action cannot be undone. Type <strong>CONFIRM</strong> to proceed.
+              This action cannot be undone. Type <strong>DELETE</strong> to proceed.
             </p>
             {selectedUsers.length > 0 && (
                 <div className="user-list">
@@ -2746,8 +2352,11 @@ const UserManagement = () => {
               type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="Type CONFIRM to delete"
+              placeholder="Type DELETE to confirm"
                 className="delete-confirm-input"
+              onInput={e => {
+                e.target.value = e.target.value.replace(/[^A-Z]/g, '');
+              }}
             />
             </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -2762,7 +2371,7 @@ const UserManagement = () => {
               </button>
               <button
                 className="delete-btn"
-                disabled={deleteConfirmText !== 'CONFIRM'}
+                disabled={deleteConfirmText !== 'DELETE'}
                 onClick={handleDeleteUsers}
               >
                 <FaTrash /> Delete Permanently
@@ -3012,180 +2621,6 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* Edit Invalid User Modal */}
-      {editInvalidModalOpen && editingInvalidUser && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '500px' }}>
-            <div className="modal-header">
-              <h2>Edit Invalid User</h2>
-              <button onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); setEditInvalidDbErrors({}); }} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="form-group">
-              <label>Employee ID</label>
-              <input
-                type="text"
-                name="employeeId"
-                value={editingInvalidUser.employeeId}
-                onChange={handleEditingInvalidUserChange}
-                maxLength={10}
-                pattern="\\d{1,10}"
-              />
-              {editInvalidErrors.employeeId && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.employeeId}</div>
-              )}
-              {editInvalidDbErrors.employeeId && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidDbErrors.employeeId}</div>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Name</label>
-              <input
-                type="text"
-                name="name"
-                value={editingInvalidUser.name}
-                onChange={handleEditingInvalidUserChange}
-                maxLength={50}
-              />
-              {editInvalidErrors.name && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.name}</div>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={editingInvalidUser.email}
-                onChange={handleEditingInvalidUserChange}
-                maxLength={50}
-              />
-              {editInvalidErrors.email && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.email}</div>
-              )}
-              {editInvalidDbErrors.email && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidDbErrors.email}</div>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Role</label>
-              <select
-                name="role"
-                value={editingInvalidUser.role}
-                onChange={handleEditingInvalidUserChange}
-              >
-                <option value="">Select Role</option>
-                <option value="HR">HR</option>
-                <option value="REPORTS">REPORTS</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="CNB">CNB</option>
-              </select>
-              {editInvalidErrors.role && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editInvalidErrors.role}</div>
-              )}
-            </div>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => { setEditInvalidModalOpen(false); setEditInvalidErrors({}); setEditInvalidDbErrors({}); }}>Cancel</button>
-              <button
-                onClick={handleSaveEditedInvalidUser}
-                className="save-btn"
-                disabled={Object.keys(editInvalidErrors).length > 0 || Object.keys(editInvalidDbErrors).length > 0}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Valid User Modal */}
-      {editValidModalOpen && editingValidUser && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '500px' }}>
-            <div className="modal-header">
-              <h2>Edit User</h2>
-              <button onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); setEditValidDbErrors({}); }} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="form-group">
-              <label>Employee ID</label>
-              <input
-                type="text"
-                name="employeeId"
-                value={editingValidUser.employeeId}
-                onChange={handleEditingValidUserChange}
-                maxLength={10}
-                pattern="\\d{1,10}"
-              />
-              {editValidErrors.employeeId && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.employeeId}</div>
-              )}
-              {editValidDbErrors.employeeId && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidDbErrors.employeeId}</div>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Name</label>
-              <input
-                type="text"
-                name="name"
-                value={editingValidUser.name}
-                onChange={handleEditingValidUserChange}
-                maxLength={50}
-              />
-              {editValidErrors.name && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.name}</div>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={editingValidUser.email}
-                onChange={handleEditingValidUserChange}
-                maxLength={50}
-              />
-              {editValidErrors.email && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.email}</div>
-              )}
-              {editValidDbErrors.email && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidDbErrors.email}</div>
-              )}
-            </div>
-            <div className="form-group">
-              <label>Role</label>
-              <select
-                name="role"
-                value={editingValidUser.role}
-                onChange={handleEditingValidUserChange}
-              >
-                <option value="">Select Role</option>
-                <option value="HR">HR</option>
-                <option value="REPORTS">REPORTS</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="CNB">CNB</option>
-              </select>
-              {editValidErrors.role && (
-                <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editValidErrors.role}</div>
-              )}
-            </div>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => { setEditValidModalOpen(false); setEditValidErrors({}); setEditValidDbErrors({}); }}>Cancel</button>
-              <button
-                onClick={handleSaveEditedValidUser}
-                className="save-btn"
-                disabled={Object.keys(editValidErrors).length > 0 || Object.keys(editValidDbErrors).length > 0}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Bulk upload confirmation modal */}
       {showBulkConfirmModal && (
         <div className="modal-overlay">
@@ -3219,13 +2654,10 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>{bulkResultSuccess ? 'Upload Successful' : 'Upload Failed'}</h2>
-              <button onClick={() => setShowBulkResultModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
             <p>{bulkResultMessage}</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn">OK</button>
+              <button className="save-btn" onClick={() => setShowBulkResultModal(false)}>OK</button>
             </div>
           </div>
         </div>
@@ -3264,30 +2696,16 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>{editResultSuccess ? 'Edit Successful' : 'Edit Failed'}</h2>
-              <button onClick={() => {
-                setShowEditResultModal(false);
-                setEditModalOpen(false);
-                setCurrentUser(null);
-                setOriginalUser(null);
-                setEditUserErrors({});
-                setShowResetDropdown(false);
-                setResetConfirmText('');
-                setResetConfirmed(false);
-                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                setShowPasswordFields(false);
-                setShowSecurityQuestions(false);
-                setSecurityQuestionsData([
-                  { question: '', answer: '' },
-                  { question: '', answer: '' },
-                  { question: '', answer: '' }
-                ]);
-              }} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
-            <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
+            <p dangerouslySetInnerHTML={{ __html: (
+              editResultSuccess
+                ? (Array.isArray(pendingEditUser) && pendingEditUser.length > 1
+                    ? `Users (${pendingEditUser.length}) edited successfully!`
+                    : 'User edited successfully!')
+                : editResultMessage
+            ) }} />
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn">OK</button>
+              <button className="save-btn" onClick={() => setShowEditResultModal(false)}>OK</button>
             </div>
           </div>
         </div>
@@ -3357,13 +2775,16 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>{individualResultSuccess ? 'Add Successful' : 'Add Failed'}</h2>
-              <button onClick={() => setShowIndividualResultModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
-            <p>{individualResultMessage}</p>
+            <p>{
+              individualResultSuccess
+                ? (individualPreview.length === 1
+                    ? 'User added successfully!'
+                    : `Users (${individualPreview.length}) added successfully!`)
+                : individualResultMessage
+            }</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn">OK</button>
+              <button className="save-btn" onClick={() => setShowIndividualResultModal(false)}>OK</button>
             </div>
           </div>
         </div>
@@ -3374,14 +2795,100 @@ const UserManagement = () => {
         <div className="modal-overlay">
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
-              <h2>{deleteResultSuccess ? 'Delete Successful' : 'Delete Failed'}</h2>
-              <button onClick={() => setShowDeleteResultModal(false)} className="close-btn">
+              <h2>{deleteResultSuccess ? 'Deactivation Successful' : 'Deactivation Failed'}</h2>
+            </div>
+            <p>{
+              deleteResultSuccess
+                ? (lastDeleteCount === 1
+                    ? 'User deactivated successfully!'
+                    : `Users (${lastDeleteCount}) deactivated successfully!`)
+                : deleteResultMessage
+            }</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" onClick={() => setShowDeleteResultModal(false)}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {showRestoreModal && (
+        <div className="modal-overlay">
+          <div className="modal delete-confirmation-modal">
+            <div className="modal-header">
+              <h2 style={{ color: '#0a7', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FaKey style={{ color: '#0a7' }} /> Confirm Restoration
+              </h2>
+              <button className="close-btn" onClick={() => {
+                setShowRestoreModal(false);
+                setRestoreConfirmText('');
+              }}>
                 <FaTimes />
               </button>
             </div>
-            <p>{deleteResultMessage}</p>
+            <div className="modal-content">
+              <p>
+                You are about to restore {selectedUsers.length} user(s).
+                This will change their status to FIRST-TIME. Type <strong>RESTORE</strong> to proceed.
+              </p>
+              {selectedUsers.length > 0 && (
+                <div className="user-list">
+                  {users
+                    .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                    .map(user => (
+                      <div key={user.dUser_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">{user.dName}</div>
+                          <div className="user-email">{user.dEmail}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              <input
+                type="text"
+                value={restoreConfirmText}
+                onChange={(e) => setRestoreConfirmText(e.target.value)}
+                placeholder="Type RESTORE to confirm"
+                className="delete-confirm-input"
+                onInput={e => {
+                  e.target.value = e.target.value.replace(/[^A-Z]/g, '');
+                }}
+              />
+            </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn">OK</button>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowRestoreModal(false);
+                  setRestoreConfirmText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="restore-btn"
+                disabled={restoreConfirmText !== 'RESTORE'}
+                onClick={handleRestoreUsers}
+                style={{ backgroundColor: '#0a7', color: 'white' }}
+              >
+                <FaKey /> Restore Users
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Result Modal */}
+      {showRestoreResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{restoreResultSuccess ? 'Restoration Successful' : 'Restoration Failed'}</h2>
+            </div>
+            <p>{restoreResultMessage}</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" onClick={() => setShowRestoreResultModal(false)}>OK</button>
             </div>
           </div>
         </div>

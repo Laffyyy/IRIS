@@ -152,11 +152,28 @@ exports.deleteUsers = async (req, res) => {
       return res.status(400).json({ message: 'No users selected for deletion' });
     }
 
-    await userService.deleteUsers(userIds);
-    res.status(200).json({ message: 'Users deleted successfully' });
+    await userService.deactivateUsers(userIds);
+    res.status(200).json({ message: 'Users deactivated successfully' });
     broadcastUserUpdate();
   } catch (error) {
     console.error('Error deleting users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.restoreUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for restoration' });
+    }
+
+    await userService.restoreUsers(userIds);
+    res.status(200).json({ message: 'Users restored successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error restoring users:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
