@@ -319,10 +319,15 @@ const SiteManagement = () => {
   /**
    * Returns clients available for assignment to a site
    */
-  const getAvailableClients = (siteId) => {
+  const getAvailableClients = (siteId, editingClientId = null) => {
     if (!siteId) return clients;
     
     return clients.filter(client => {
+      // Always include the client we're currently editing
+    if (editingClientId && String(client.id) === String(editingClientId)) {
+      return true;
+    }
+      
       // Find all assignments for this client at this site
       const clientAssignments = existingAssignments.filter(
         assignment => assignment.dClientName === client.name
@@ -501,12 +506,27 @@ const SiteManagement = () => {
    */
   const handleEditClientSite = async (clientSite) => {
     setCurrentClientSite(clientSite);
-    setEditSelectedSiteId('');
-    setEditSelectedClientId('');
-    setEditSelectedLobId('');
-    setEditSelectedSubLobId('');
-    setEditClientLobs([]);
-    setEditClientSubLobs([]);
+    setEditSelectedSiteId(clientSite.dSite_ID.toString());
+    
+    // Remove this line that sets it to empty first - this is causing the problem
+    // setEditSelectedClientId('');
+    
+    // Convert to string to ensure consistent type comparison
+    const clientId = clientSite.dClient_ID?.toString();
+    
+    // Set the client ID first
+    setEditSelectedClientId(clientId);
+    
+    // Then fetch the LOBs after the client ID is set
+    if (clientId) {
+      try {
+        // Pass the current LOB and SubLOB names to pre-select them in the dropdowns
+        await fetchClientLobsForEdit(clientId, clientSite.dLOB, clientSite.dSubLOB);
+      } catch (error) {
+        console.error("Error fetching client LOBs for edit:", error);
+      }
+    }
+    
     setClientSiteEditModalOpen(true);
   };
 
@@ -1056,11 +1076,22 @@ const SiteManagement = () => {
                   className={!editSelectedClientId ? "validation-error" : ""}
                 >
                   <option value="">Select a client</option>
-                  {editSelectedSiteId && getAvailableClients(editSelectedSiteId).map(client => (
-                    <option key={client.id} value={client.id.toString()}>
-                      {client.name}
+                  {/* First ensure we have the current client in the list */}
+                  {currentClientSite && (
+                    <option value={currentClientSite.dClient_ID.toString()} key={`current-${currentClientSite.dClient_ID}`}>
+                      {currentClientSite.dClientName}
                     </option>
-                  ))}
+                  )}
+                  {/* Then add other available clients */}
+                  {editSelectedSiteId && 
+                    getAvailableClients(editSelectedSiteId, currentClientSite?.dClient_ID)
+                      .filter(client => !currentClientSite || client.id.toString() !== currentClientSite.dClient_ID.toString())
+                      .map(client => (
+                        <option key={client.id} value={client.id.toString()}>
+                          {client.name}
+                        </option>
+                      ))
+                  }
                 </select>
                 {!editSelectedClientId && <div className="error-message">Client is required</div>}
               </div>
