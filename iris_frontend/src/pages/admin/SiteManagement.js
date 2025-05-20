@@ -69,6 +69,42 @@ const SiteManagement = () => {
 
   // Add this new state for available edit clients
   const [availableEditClients, setAvailableEditClients] = useState([]);
+  const [showAddSiteConfirmModal, setShowAddSiteConfirmModal] = useState(false);
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const [showAddClientSiteConfirmModal, setShowAddClientSiteConfirmModal] = useState(false);
+  const [clientSiteConfirmDetails, setClientSiteConfirmDetails] = useState({
+    clientName: '',
+    lobName: '',
+    subLobName: ''
+  });
+  
+  const [showBulkAddClientSiteConfirmModal, setShowBulkAddClientSiteConfirmModal] = useState(false);
+  const [bulkClientSiteDetails, setBulkClientSiteDetails] = useState({
+    siteId: null,
+    siteName: '',
+    clientCount: 0,
+    totalLobCount: 0,
+    totalSubLobCount: 0
+  });
+
+  
+
+  const slideInOut = {
+    position: 'fixed',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 1000,
+    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+    borderRadius: '4px',
+    animation: 'slideInOut 3s forwards',
+    width: '400px',
+    backgroundColor: '#f0fff4',
+    borderLeft: '4px solid #68d391',
+  };
 
   // Initial data loading
   useEffect(() => {
@@ -295,15 +331,34 @@ const SiteManagement = () => {
   /**
    * Adds a new site to the database
    */
-  const handleAddSite = async () => {
+  const handleAddSite = () => {
     if (!newSiteName.trim()) return;
-  
+    setShowAddSiteConfirmModal(true);
+  };
+
+  // Add the actual site creation logic in a new function
+  const confirmAddSite = async () => {
     try {
       await manageSite('add', { siteName: newSiteName });
+      
+      // Close the confirmation modal immediately
+      setShowAddSiteConfirmModal(false);
+      
+      // Show the success message
+      setSuccessMessage(`Site "${newSiteName}" successfully added`);
+      setShowSuccessModal(true);
+      
+      // Reset form and refresh data
       setNewSiteName('');
       fetchSites();
+      
+      // Auto-hide the success message after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
     } catch (error) {
       // Error already handled by manageSite
+      setShowAddSiteConfirmModal(false);
     }
   };
 
@@ -334,48 +389,59 @@ const SiteManagement = () => {
   const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
       const clientName = clients.find(c => c.id == selectedClientId)?.name;
-  
       const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
       const lobName = selectedLob ? selectedLob.name : null;
-  
       const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
       const subLobName = selectedSubLob ? selectedSubLob.name : null;
   
-      let confirmMessage = "";
-      if (lobName && subLobName) {
-        confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" to site "${selectedSite.dSiteName}"?`;
-      } else if (lobName) {
-        confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and all its Sub LOBs to site "${selectedSite.dSiteName}"?`;
-      } else {
-        confirmMessage = `Adding Client "${clientName}" and ALL AVAILABLE LOBs and Sub LOBs under it to site "${selectedSite.dSiteName}". Continue?`;
-      }
+      // Set confirmation details
+      setClientSiteConfirmDetails({
+        clientName,
+        lobName,
+        subLobName
+      });
+      
+      // Show confirmation modal
+      setShowAddClientSiteConfirmModal(true);
+    }
+  };
 
-      if (!window.confirm(confirmMessage)) return;
-
-      try {
-        await manageSite('addClientToSite', {
-          clientId: parseInt(selectedClientId),
-          siteId: parseInt(selectedSite.dSite_ID),
-          lobName: lobName,
-          subLobName: subLobName
-        });
-
-        alert(`Client "${clientName}" successfully added to site "${selectedSite.dSiteName}"`);
-
-        // Reset form
-        setSelectedClientId('');
-        setSelectedLobId('');
-        setSelectedSubLobId('');
-        setClientLobs([]);
-        setClientSubLobs([]);
-
-        // Refresh data
-        await fetchSiteClients();
-        await fetchSites();
-        await fetchExistingAssignments(selectedSite.dSite_ID);
-      } catch (error) {
-        console.error('Error adding client to site:', error);
-      }
+  const confirmAddClient = async () => {
+    try {
+      // First API call to add the client to site
+      await manageSite('addClientToSite', {
+        clientId: parseInt(selectedClientId),
+        siteId: parseInt(selectedSite.dSite_ID),
+        lobName: clientSiteConfirmDetails.lobName,
+        subLobName: clientSiteConfirmDetails.subLobName
+      });
+  
+      // Close the confirmation modal immediately
+      setShowAddClientSiteConfirmModal(false);
+      
+      // Show the success message
+      setSuccessMessage(`Client "${clientSiteConfirmDetails.clientName}" successfully added to site "${selectedSite.dSiteName}"`);
+      setShowSuccessModal(true);
+  
+      // Reset form
+      setSelectedClientId('');
+      setSelectedLobId('');
+      setSelectedSubLobId('');
+      setClientLobs([]);
+      setClientSubLobs([]);
+  
+      // Refresh data in the background - don't block UI
+      fetchSiteClients();
+      fetchSites();
+      fetchExistingAssignments(selectedSite.dSite_ID);
+      
+      // Auto-hide the success message after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error adding client to site:', error);
+      setShowAddClientSiteConfirmModal(false);
     }
   };
 
@@ -419,64 +485,39 @@ const SiteManagement = () => {
   const getAvailableClients = async (siteId, editingClientId = null) => {
     if (!siteId) return clients;
     
-    const availableClients = [];
-    
-    for (const client of clients) {
-      // Always include the client we're currently editing
-      if (editingClientId && String(client.id) === String(editingClientId)) {
-        availableClients.push(client);
-        continue;
-      }
+    // Get the list of clients already fully assigned to this site
+    try {
+      const response = await manageSite('getAvailableClients', { 
+        siteId: parseInt(siteId)
+      });
       
-      try {
-        // Get all LOBs and Sub LOBs for this client
-        const response = await manageSite('getClientLobs', { clientId: client.id });
-        const allLobs = response.lobs || [];
-        
-        if (allLobs.length === 0) {
-          availableClients.push(client);
-          continue;
-        }
-        
-        // Get existing assignments for this client at this site
-        const clientAssignments = existingAssignments.filter(
-          assignment => assignment.dClientName === client.name
-        );
-        
-        // If no assignments exist, client is available
-        if (clientAssignments.length === 0) {
-          availableClients.push(client);
-          continue;
-        }
-        
-        // Check if all LOBs and Sub LOBs are already assigned
-        let hasAvailableLobs = false;
-        
-        for (const lob of allLobs) {
-          const matchingAssignments = clientAssignments.filter(
-            assignment => assignment.dLOB === lob.name
-          );
-          
-          const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
-          const availableSubLobs = lob.subLobs.filter(subLob => 
-            !existingSubLobs.includes(subLob.name)
-          );
-          
-          if (availableSubLobs.length > 0) {
-            hasAvailableLobs = true;
-            break;
+      // Extract the IDs of clients already assigned to this site
+      const assignedClientIds = new Set();
+      
+      existingAssignments.forEach(assignment => {
+        if (assignment.dSite_ID === parseInt(siteId)) {
+          // Get client ID from the assignment or lookup by name
+          const clientId = assignment.dClient_ID || 
+            clients.find(c => c.name === assignment.dClientName)?.id;
+            
+          if (clientId) {
+            assignedClientIds.add(clientId.toString());
           }
         }
-        
-        if (hasAvailableLobs) {
-          availableClients.push(client);
-        }
-      } catch (error) {
-        console.error(`Error checking availability for client ${client.id}:`, error);
-      }
+      });
+      
+      // Return all clients except those fully assigned (unless we're editing)
+      return clients.filter(client => 
+        // Include the client we're editing
+        (editingClientId && client.id.toString() === editingClientId.toString()) ||
+        // Or include clients not fully assigned
+        !assignedClientIds.has(client.id.toString())
+      );
+    } catch (error) {
+      console.error('Error determining available clients:', error);
+      // If there's an error, return all clients to be safe
+      return clients;
     }
-    
-    return availableClients;
   };
 
   /**
@@ -1028,17 +1069,42 @@ const SiteManagement = () => {
    */
   const handleBulkAddClients = async () => {
     if (!bulkAddSelectedSite || bulkAddSelectedClients.length === 0) return;
-
+  
     const siteName = sites.find(s => s.dSite_ID === parseInt(bulkAddSelectedSite))?.dSiteName;
     const selectedClients = clients.filter(c => bulkAddSelectedClients.includes(c.id.toString()));
+    
+    // Calculate totals for LOBs and Sub LOBs
+    const totalLobCount = availableBulkClients
+      .filter(client => bulkAddSelectedClients.includes(client.id.toString()))
+      .reduce((sum, client) => sum + client.lobCount, 0);
+      
+    const totalSubLobCount = availableBulkClients
+      .filter(client => bulkAddSelectedClients.includes(client.id.toString()))
+      .reduce((sum, client) => sum + client.subLobCount, 0);
+    
+    // Set details for confirmation modal
+    setBulkClientSiteDetails({
+      siteId: bulkAddSelectedSite,
+      siteName: siteName,
+      clientCount: selectedClients.length,
+      totalLobCount: totalLobCount,
+      totalSubLobCount: totalSubLobCount
+    });
+    
+    // Show confirmation modal
+    setShowBulkAddClientSiteConfirmModal(true);
+  };
 
-    if (!window.confirm(`Adding Selected Clients and All their LOBs and Sub LOBs to site "${siteName}". Continue?`)) {
-      return;
-    }
-
+  // Add this function to handle the confirmation (after handleBulkAddClients)
+  const confirmBulkAddClients = async () => {
     try {
       // First, get all LOBs and Sub LOBs for each selected client
       const clientAssignments = [];
+      const selectedClients = clients.filter(c => bulkAddSelectedClients.includes(c.id.toString()));
+      
+      // Get the site name for the success message
+      const siteName = sites.find(s => s.dSite_ID === parseInt(bulkClientSiteDetails.siteId))?.dSiteName;
+      const clientCount = bulkClientSiteDetails.clientCount;
       
       for (const client of selectedClients) {
         try {
@@ -1072,29 +1138,40 @@ const SiteManagement = () => {
           console.error(`Error getting LOBs for client ${client.id}:`, error);
         }
       }
-
+  
       // Now add all assignments to the site
       await manageSite('bulkAddClientsToSite', {
-        siteId: parseInt(bulkAddSelectedSite),
+        siteId: parseInt(bulkClientSiteDetails.siteId),
         assignments: clientAssignments
       });
-
+  
+      // Close the modal
+      setShowBulkAddClientSiteConfirmModal(false);
+      
+      // Show success message using the local variables we've captured
+      setSuccessMessage(`${clientCount} clients successfully added to site "${siteName}"`);
+      setShowSuccessModal(true);
+      
       // Reset state
       setBulkAddModalOpen(false);
       setBulkAddSelectedSite(null);
       setBulkAddSelectedClients([]);
       setSelectAllBulkClients(false);
-
+  
       // Refresh data
-      await fetchSiteClients();
-      await fetchSites();
+      fetchSiteClients();
+      fetchSites();
       if (selectedSite) {
-        await fetchExistingAssignments(selectedSite.dSite_ID);
+        fetchExistingAssignments(selectedSite.dSite_ID);
       }
-
-      alert('Selected clients successfully added to site');
+      
+      // Auto-hide success message
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
     } catch (error) {
       console.error('Error bulk adding clients:', error);
+      setShowBulkAddClientSiteConfirmModal(false);
       alert('Error adding clients to site. Please try again.');
     }
   };
@@ -1394,6 +1471,7 @@ const SiteManagement = () => {
             }))}
             isClearable
             placeholder="Select a LOB"
+            noOptionsMessage={() => "No LOBs - Add More in Client Mgt."}
             isDisabled={!selectedClientId}
             className="react-select-container"
             classNamePrefix="react-select"
@@ -1414,6 +1492,7 @@ const SiteManagement = () => {
             }))}
             isClearable
             placeholder="Select a Sub LOB"
+            noOptionsMessage={() => "No Sub LOBs - Add More in Client Mgt."}
             isDisabled={!selectedLobId}
             className="react-select-container"
             classNamePrefix="react-select"
@@ -1715,6 +1794,7 @@ const SiteManagement = () => {
                   }))}
                   isClearable
                   placeholder="Select a LOB"
+                  noOptionsMessage={() => "No LOBs - Add More in Client Mgt."}
                   isDisabled={!editSelectedClientId}
                   className={`react-select-container ${editSelectedClientId && !editSelectedLobId && editClientLobs.length > 0 ? "validation-warning" : ""}`}
                   classNamePrefix="react-select"
@@ -1734,6 +1814,7 @@ const SiteManagement = () => {
                   }))}
                   isClearable
                   placeholder="Select a Sub LOB"
+                  noOptionsMessage={() => "No Sub LOBs - Add More in Client Mgt."}
                   isDisabled={!editSelectedLobId}
                   className={`react-select-container ${editSelectedLobId && !editSelectedSubLobId && editClientSubLobs.length > 0 ? "validation-warning" : ""}`}
                   classNamePrefix="react-select"
@@ -1870,108 +1951,224 @@ const SiteManagement = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-{showDeleteModal && (
-  <div className="modal-overlay">
-    <div className="modal delete-confirmation-modal" style={{ maxWidth: "350px" }}>
-      <div className="modal-header">
-        <h2><FaTrash /> Confirm Deletion</h2>
-        <button 
-          onClick={() => {
-            setShowDeleteModal(false);
-            setDeleteConfirmText('');
-          }} 
-          className="close-btn"
-        >
-          <FaTimes />
-        </button>
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal delete-confirmation-modal" style={{ maxWidth: "350px" }}>
+            <div className="modal-header">
+              <h2><FaTrash /> Confirm Deletion</h2>
+              <button 
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }} 
+                className="close-btn"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            
+            {deleteType === 'site' && (
+              <p>
+                You are about to delete site "<strong>{itemToDelete?.name}</strong>".
+                <br />This will also remove all associated client relationships.
+                <br />This action cannot be undone.
+              </p>
+            )}
+            {deleteType === 'client' && (
+              <p>
+                You are about to remove client "<strong>{itemToDelete?.name}</strong>" from this site.
+                <br />This action cannot be undone.
+              </p>
+            )}
+            {deleteType === 'bulk-sites' && (
+              <p>
+                You are about to delete <strong>{itemToDelete?.count} selected sites</strong>.
+                <br />This will also remove all associated client relationships.
+                <br />This action cannot be undone.
+              </p>
+            )}
+            {deleteType === 'bulk-clients' && (
+              <p>
+                You are about to delete <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                <br />This action cannot be undone.
+              </p>
+            )}
+            
+            <div className="confirmation-input" style={{ textAlign: "center" }}>
+              <p style={{ textAlign: "center" }}>Type <strong>CONFIRM</strong> to proceed:</p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(sanitizeInput(e.target.value))}
+                placeholder="CONFIRM"
+                style={{ 
+                  width: "120px", 
+                  fontSize: "14px",
+                  padding: "8px 10px",
+                  textAlign: "center",
+                  margin: "0 auto",
+                  display: "block"
+                }}
+              />
+            </div>
+            
+            <div className="modal-actions" style={{ display: "flex", justifyContent: "space-between" }}>
+              <button 
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }} 
+                className="cancel-btn"
+                style={{
+                  flex: "1",
+                  maxWidth: "45%",
+                  margin: "0 5px",
+                  fontSize: "15px",
+                  textAlign: "center"
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmedDelete} 
+                className="delete-btn"
+                disabled={deleteConfirmText !== 'CONFIRM'}
+                style={{ 
+                  backgroundColor: "#e53e3e",
+                  color: "white",
+                  border: "none",
+                  flex: "1",
+                  maxWidth: "45%",
+                  margin: "0 5px",
+                  fontSize: "15px",
+                  textAlign: "center",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center"
+                }}
+              >
+                <FaTrash style={{ marginRight: "5px" }} /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddSiteConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>Confirm Add Site</h2>
+              <button onClick={() => setShowAddSiteConfirmModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <p>Are you sure you want to add site "{newSiteName}"?</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => setShowAddSiteConfirmModal(false)}>No</button>
+              <button
+                className="save-btn"
+                onClick={confirmAddSite}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddClientSiteConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '450px' }}>
+            <div className="modal-header">
+              <h2>Confirm Add Client to Site</h2>
+              <button onClick={() => setShowAddClientSiteConfirmModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-content">
+              <p>Are you sure you want to add:</p>
+              <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+                <li><strong>Client:</strong> {clientSiteConfirmDetails.clientName}</li>
+                {clientSiteConfirmDetails.lobName && (
+                  <li><strong>LOB:</strong> {clientSiteConfirmDetails.lobName}</li>
+                )}
+                {clientSiteConfirmDetails.subLobName && (
+                  <li><strong>Sub LOB:</strong> {clientSiteConfirmDetails.subLobName}</li>
+                )}
+                <li><strong>To site:</strong> {selectedSite?.dSiteName}</li>
+              </ul>
+              {!clientSiteConfirmDetails.lobName && (
+                <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                  <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
+                </p>
+              )}
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => setShowAddClientSiteConfirmModal(false)}>No</button>
+              <button
+                className="save-btn"
+                onClick={confirmAddClient}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Modal */}
+      {showSuccessModal && (
+      <div className="success-toast" style={slideInOut}>
+        <div style={{ padding: '16px 20px' }}>
+          <p style={{ 
+            color: '#2f855a', 
+            display: 'flex', 
+            alignItems: 'center',
+            fontSize: '14px',
+            margin: 0
+          }}>
+            <span style={{ marginRight: '10px', fontSize: '18px' }}>✓</span>
+            {successMessage}
+          </p>
+        </div>
       </div>
-      
-      {deleteType === 'site' && (
-        <p>
-          You are about to delete site "<strong>{itemToDelete?.name}</strong>".
-          <br />This will also remove all associated client relationships.
-          <br />This action cannot be undone.
-        </p>
-      )}
-      {deleteType === 'client' && (
-        <p>
-          You are about to remove client "<strong>{itemToDelete?.name}</strong>" from this site.
-          <br />This action cannot be undone.
-        </p>
-      )}
-      {deleteType === 'bulk-sites' && (
-        <p>
-          You are about to delete <strong>{itemToDelete?.count} selected sites</strong>.
-          <br />This will also remove all associated client relationships.
-          <br />This action cannot be undone.
-        </p>
-      )}
-      {deleteType === 'bulk-clients' && (
-        <p>
-          You are about to delete <strong>{itemToDelete?.count} selected client-site assignments</strong>.
-          <br />This action cannot be undone.
-        </p>
-      )}
-      
-      <div className="confirmation-input" style={{ textAlign: "center" }}>
-        <p style={{ textAlign: "center" }}>Type <strong>CONFIRM</strong> to proceed:</p>
-        <input
-          type="text"
-          value={deleteConfirmText}
-          onChange={(e) => setDeleteConfirmText(sanitizeInput(e.target.value))}
-          placeholder="CONFIRM"
-          style={{ 
-            width: "120px", 
-            fontSize: "14px",
-            padding: "8px 10px",
-            textAlign: "center",
-            margin: "0 auto",
-            display: "block"
-          }}
-        />
+    )}
+
+    {/* Bulk Add Clients Confirmation Modal */}
+    {showBulkAddClientSiteConfirmModal && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '450px' }}>
+          <div className="modal-header">
+            <h2>Confirm Bulk Add Clients</h2>
+            <button onClick={() => setShowBulkAddClientSiteConfirmModal(false)} className="close-btn">
+              <FaTimes />
+            </button>
+          </div>
+          <div className="modal-content">
+            <p>Are you sure you want to add:</p>
+            <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+              <li><strong>{bulkClientSiteDetails.clientCount}</strong> clients</li>
+              <li><strong>{bulkClientSiteDetails.totalLobCount}</strong> LOBs</li>
+              <li><strong>{bulkClientSiteDetails.totalSubLobCount}</strong> Sub LOBs</li>
+              <li><strong>To site:</strong> {bulkClientSiteDetails.siteName}</li>
+            </ul>
+            <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+              <strong>Note:</strong> This will add all available LOBs and Sub LOBs for the selected clients.
+            </p>
+          </div>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="cancel-btn" onClick={() => setShowBulkAddClientSiteConfirmModal(false)}>No</button>
+            <button
+              className="save-btn"
+              onClick={confirmBulkAddClients}
+            >
+              Yes
+            </button>
+          </div>
+        </div>
       </div>
-      
-      <div className="modal-actions" style={{ display: "flex", justifyContent: "space-between" }}>
-        <button 
-          onClick={() => {
-            setShowDeleteModal(false);
-            setDeleteConfirmText('');
-          }} 
-          className="cancel-btn"
-          style={{
-            flex: "1",
-            maxWidth: "45%",
-            margin: "0 5px",
-            fontSize: "15px",
-            textAlign: "center"
-          }}
-        >
-          Cancel
-        </button>
-        <button 
-          onClick={handleConfirmedDelete} 
-          className="delete-btn"
-          disabled={deleteConfirmText !== 'CONFIRM'}
-          style={{ 
-            backgroundColor: "#e53e3e",
-            color: "white",
-            border: "none",
-            flex: "1",
-            maxWidth: "45%",
-            margin: "0 5px",
-            fontSize: "15px",
-            textAlign: "center",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center"
-          }}
-        >
-          <FaTrash style={{ marginRight: "5px" }} /> Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+    )}
     </div>
   );
 };
