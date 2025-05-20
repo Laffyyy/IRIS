@@ -465,10 +465,34 @@ const ClientManagement = () => {
     return options;
   };
   
+  // Utility function to validate input (no emojis, no special chars, only alphanumeric and single spaces between words)
+  const isValidInput = (str) => {
+    // Regex: only alphanumeric and single spaces between words, no leading/trailing/multiple spaces, no emojis/special chars
+    return /^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(str);
+  };
+  
   // Handle adding a new client
   const handleAddClient = async () => {
     if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
       try {
+        // Validate all input fields
+        if (!isValidInput(clientName.trim())) {
+          alert('Invalid client name. Only letters, numbers, and single spaces between words are allowed.');
+          return;
+        }
+        for (const card of lobCards) {
+          if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
+            alert('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.');
+            return;
+          }
+          for (const subLobName of card.subLobNames) {
+            if (subLobName.trim() && !isValidInput(subLobName.trim())) {
+              alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
+              return;
+            }
+          }
+        }
+
         // Check for duplicate LOB names (case-insensitive, trimmed)
         const lobNames = lobCards.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
         const uniqueLobNames = new Set(lobNames);
@@ -628,6 +652,20 @@ const ClientManagement = () => {
   const handleAddLob = async () => {
     if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
       try {
+        // Validate all input fields
+        for (const card of lobCardsForLob) {
+          if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
+            alert('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.');
+            return;
+          }
+          for (const subLobName of card.subLobNames) {
+            if (subLobName.trim() && !isValidInput(subLobName.trim())) {
+              alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
+              return;
+            }
+          }
+        }
+
         // Validate that each LOB has at least one SubLOB
         const hasValidSubLobs = lobCardsForLob.every(card => 
           card.lobName.trim() && card.subLobNames.some(name => name.trim())
@@ -855,12 +893,12 @@ const handleAddSubLob = async () => {
     return;
   }
   
-  // Check for duplicate Sub LOB names (case-insensitive, trimmed)
-  const trimmedNames = subLobNames.map(name => name.trim().toLowerCase()).filter(name => name);
-  const uniqueNames = new Set(trimmedNames);
-  if (trimmedNames.length !== uniqueNames.size) {
-    alert('Error: Duplicate Sub LOB names are not allowed.');
-    return;
+  // Validate all subLobNames
+  for (const name of subLobNames) {
+    if (name.trim() && !isValidInput(name.trim())) {
+      alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
+      return;
+    }
   }
 
   const validSubLobs = subLobNames.filter(name => name.trim());
@@ -1057,6 +1095,28 @@ const handleEditRow = (type, data) => {
 // Fixed handleSave function to properly use the original LOB names
 const handleSave = async (updatedClient) => {
   try {
+    // Validate all updated fields
+    if (updatedClient.name && !isValidInput(updatedClient.name.trim())) {
+      alert('Invalid client name. Only letters, numbers, and single spaces between words are allowed.');
+      return;
+    }
+    if (updatedClient.lobs) {
+      for (const lob of updatedClient.lobs) {
+        if (lob.name && !isValidInput(lob.name.trim())) {
+          alert('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.');
+          return;
+        }
+      }
+    }
+    if (updatedClient.subLobs) {
+      for (const subLob of updatedClient.subLobs) {
+        if (subLob.name && !isValidInput(subLob.name.trim())) {
+          alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
+          return;
+        }
+      }
+    }
+
     if (updatedClient.type === 'client') {
       // Update client name if changed
       if (updatedClient.originalName !== updatedClient.name) {
