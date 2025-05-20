@@ -176,7 +176,7 @@ const Otp = ({ onBack, onComplete }) => {
         localStorage.removeItem('token');
         localStorage.setItem('token', data.data.token);
         console.log('Token set in localStorage:', localStorage.getItem('token'));
-
+        
         // Decode token to get user roles
         const decoded = jwtDecode(data.data.token);
         console.log('Decoded token:', decoded);
@@ -265,6 +265,8 @@ const Otp = ({ onBack, onComplete }) => {
                 // Decode token to get user roles
                 const decoded = jwtDecode(loginData.data.token);
                 console.log('Decoded token:', decoded);
+
+                startSessionValidation();
                 
                 const roles = decoded.roles
                     ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]

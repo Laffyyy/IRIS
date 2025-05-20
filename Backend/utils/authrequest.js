@@ -5,12 +5,13 @@ async function verifySession(userId, sessionId, table) {
     try {
         // Immediately check if the session exists and is valid
         const [rows] = await db.query(
-            `SELECT dSession_ID FROM ${table} WHERE dUser_ID = ? AND dSession_ID = ?`,
+            `SELECT dSession_ID, tLast_Login FROM ${table} WHERE dUser_ID = ? AND dSession_ID = ?`,
             [userId, sessionId]
         );
 
         // If no valid session found, return false immediately
         if (rows.length === 0) {
+            console.log('No valid session found in database');
             // Clear any invalid session data
             await db.query(
                 `UPDATE ${table} SET dSession_ID = NULL, dDevice_Info = NULL WHERE dUser_ID = ?`,
@@ -18,6 +19,27 @@ async function verifySession(userId, sessionId, table) {
             );
             return false;
         }
+
+        // Check if the session is too old (e.g., more than 24 hours)
+        const lastLogin = new Date(rows[0].tLast_Login);
+        const now = new Date();
+        const hoursSinceLastLogin = (now - lastLogin) / (1000 * 60 * 60);
+
+        if (hoursSinceLastLogin > 24) {
+            console.log('Session is too old');
+            // Clear the expired session
+            await db.query(
+                `UPDATE ${table} SET dSession_ID = NULL, dDevice_Info = NULL WHERE dUser_ID = ?`,
+                [userId]
+            );
+            return false;
+        }
+
+        // Update last login time
+        await db.query(
+            `UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ? AND dSession_ID = ?`,
+            [userId, sessionId]
+        );
 
         return true;
     } catch (error) {
@@ -61,8 +83,15 @@ function authorizeRoles(...allowedRoles) {
                 });
             }
 
-            // Check roles
-            const userRoles = Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles];
+            // Check roles - handle both role and roles fields
+            const userRoles = [];
+            if (decoded.roles) {
+                userRoles.push(...(Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]));
+            }
+            if (decoded.role) {
+                userRoles.push(decoded.role);
+            }
+            
             const hasRole = allowedRoles.some(role => userRoles.includes(role));
             
             if (!hasRole) {
@@ -74,15 +103,10 @@ function authorizeRoles(...allowedRoles) {
 
             req.user = decoded;
             next();
-        } catch (err) {
-            if (err.name === 'TokenExpiredError') {
-                return res.status(401).json({
-                    message: 'Token has expired. Please login again.',
-                    error: 'TOKEN_EXPIRED'
-                });
-            }
-            return res.status(400).json({
-                message: 'Invalid token.',
+        } catch (error) {
+            console.error('Authorization error:', error);
+            return res.status(401).json({
+                message: 'Invalid token',
                 error: 'INVALID_TOKEN'
             });
         }

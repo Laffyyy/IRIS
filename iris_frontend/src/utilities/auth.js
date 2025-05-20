@@ -19,7 +19,15 @@ export function getUserRoles() {
   }
 }
 
+// List of paths that should not trigger session validation
+const excludedPaths = ['/otp', '/change-password', '/security-questions', '/update-password'];
+
 export async function validateSession() {
+  // Skip validation for excluded paths
+  if (excludedPaths.includes(window.location.pathname)) {
+    return true;
+  }
+
   console.log('Starting session validation...');
   const token = localStorage.getItem('token');
   if (!token) {
@@ -45,24 +53,34 @@ export async function validateSession() {
     }
 
     console.log('Making validation request to server...');
+    console.log('Using token:', token);
+    
     const response = await fetch('http://localhost:3000/api/auth/validate-session', {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token.trim()}`,
+        'Content-Type': 'application/json'
       }
     });
 
     console.log('Server response status:', response.status);
+    const responseData = await response.json();
+    console.log('Server response data:', responseData);
+
     if (!response.ok) {
-      const data = await response.json();
-      console.log('Server error response:', data);
-      if (data.error === 'INVALID_SESSION' || data.error === 'TOKEN_EXPIRED') {
-        console.log('Session is invalid or expired');
-        clearSession();
-      }
+      console.log('Session validation failed:', responseData.error);
+      clearSession();
       return false;
     }
 
-    console.log('Session is valid');
+    // Verify that the session ID in the response matches the one in the token
+    if (responseData.data && responseData.data.sessionId !== decoded.sessionId) {
+      console.log('Session ID mismatch - possible session hijacking attempt');
+      clearSession();
+      return false;
+    }
+
+    console.log('Session validation successful:', responseData);
     return true;
   } catch (error) {
     console.error('Session validation error:', error);
@@ -78,6 +96,9 @@ export function clearSession() {
   localStorage.removeItem('userId');
   localStorage.removeItem('password');
   
+  // Stop any ongoing validation
+  stopSessionValidation();
+  
   console.log('Redirecting to login page...');
   // Force redirect to login page
   window.location.replace('/');
@@ -87,6 +108,11 @@ export function clearSession() {
 let validationInterval = null;
 
 export function startSessionValidation(interval = 3000) { // Check every 3 seconds
+  // Skip validation for excluded paths
+  if (excludedPaths.includes(window.location.pathname)) {
+    return;
+  }
+
   console.log('Starting session validation interval...');
   if (validationInterval) {
     console.log('Clearing existing validation interval');
@@ -95,17 +121,30 @@ export function startSessionValidation(interval = 3000) { // Check every 3 secon
   
   // Immediate validation
   console.log('Performing immediate session validation');
-  validateSession();
-  
-  validationInterval = setInterval(async () => {
-    console.log('Running periodic session validation...');
-    const isValid = await validateSession();
-    console.log('Session validation result:', isValid);
+  validateSession().then(isValid => {
     if (!isValid) {
-      console.log('Session is invalid, stopping validation interval');
-      clearInterval(validationInterval);
+      console.log('Initial session validation failed');
+      return; // Don't start interval if initial validation fails
     }
-  }, interval);
+    
+    validationInterval = setInterval(async () => {
+      // Skip validation for excluded paths
+      if (excludedPaths.includes(window.location.pathname)) {
+        return;
+      }
+
+      console.log('Running periodic session validation...');
+      const isValid = await validateSession();
+      console.log('Session validation result:', isValid);
+      if (!isValid) {
+        console.log('Session is invalid, stopping validation interval');
+        clearInterval(validationInterval);
+      }
+    }, interval);
+  }).catch(error => {
+    console.error('Error in initial session validation:', error);
+    clearSession();
+  });
 }
 
 export function stopSessionValidation() {
@@ -123,4 +162,18 @@ window.addEventListener('storage', (event) => {
     console.log('Token was removed from storage');
     clearSession();
   }
+});
+
+// Add event listener for visibility change
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    console.log('Page became visible, validating session...');
+    validateSession();
+  }
+});
+
+// Add event listener for focus
+window.addEventListener('focus', () => {
+  console.log('Window focused, validating session...');
+  validateSession();
 });
