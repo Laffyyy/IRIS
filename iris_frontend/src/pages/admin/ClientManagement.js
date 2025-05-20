@@ -469,6 +469,41 @@ const ClientManagement = () => {
   const handleAddClient = async () => {
     if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
       try {
+        // Check for duplicate LOB names (case-insensitive, trimmed)
+        const lobNames = lobCards.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
+        const uniqueLobNames = new Set(lobNames);
+        if (lobNames.length !== uniqueLobNames.size) {
+          alert('Error: Duplicate LOB names are not allowed.');
+          return;
+        }
+
+        // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed)
+        const allSubLobNames = lobCards.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
+        const uniqueSubLobNames = new Set(allSubLobNames);
+        if (allSubLobNames.length !== uniqueSubLobNames.size) {
+          alert('Error: Duplicate Sub LOB names are not allowed across all LOBs.');
+          return;
+        }
+
+        // Check for duplicate Sub LOBs within each LOB (already present)
+        const hasDuplicateSubLobs = lobCards.some(card => {
+          const uniqueSubLobs = new Set();
+          return card.subLobNames.some(subLobName => {
+            const trimmedName = subLobName.trim();
+            if (trimmedName && uniqueSubLobs.has(trimmedName)) {
+              return true; // Found a duplicate
+            }
+            if (trimmedName) {
+              uniqueSubLobs.add(trimmedName);
+            }
+            return false;
+          });
+        });
+        if (hasDuplicateSubLobs) {
+          alert('Error: Duplicate Sub LOB names are not allowed within the same LOB.');
+          return;
+        }
+
         // Prepare data for API
         const clientData = {
           clientName: clientName.trim(),
@@ -1536,7 +1571,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               <button 
                 onClick={handleAddClient} 
                 className="submit-button"
-                disabled={!clientName.trim() || !lobCards.some(card => card.lobName.trim())}
+                disabled={
+                  !clientName.trim() || 
+                  !lobCards.some(card => card.lobName.trim()) ||
+                  !lobCards.some(card => card.subLobNames.some(name => name.trim()))
+                }
               >
                 Submit Client
               </button>
