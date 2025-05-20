@@ -2075,19 +2075,33 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   <div className="sub-lob-name-fields-row" key={idx}>
                     <div className="sub-lob-name-field">
                       <div className="form-group" style={{ position: 'relative' }}>
-                        {idx > 0 && (
-                          <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(idx)}>
-                            <FaTimes className="times-icon" />
-                          </button>
-                        )}
                         <label>{`Sub LOB Name${idx > 0 ? ` ${idx + 1}` : ''}`}</label>
-                        <div className="sub-lob-input-container">
+                        <div className="sub-lob-input-container" style={{ display: 'flex', alignItems: 'center' }}>
                           <input
                             type="text"
                             value={name}
                             onChange={(e) => handleSubLobNameChange2(idx, e.target.value)}
                             disabled={!selectedLobForSubLob}
+                            style={idx > 0 ? { paddingRight: '10px', width: '100%', maxWidth: '330px' } : {}}
                           />
+                          {idx > 0 && (
+                            <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(idx)}
+                              style={{
+                                marginLeft: 4,
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'red',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                height: '100%'
+                              }}
+                              title="Remove Sub LOB"
+                            >
+                              <FaTimes className="times-icon" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
