@@ -291,9 +291,9 @@ class SiteManagementService {
             WHERE cs.dClient_ID IS NULL
           `);
           
-          // Then retrieve all records with the updated data
+          // Then retrieve all records with the updated data - ADD dCreatedBy and tCreatedAt to the query
           const [result] = await db.query(
-            'SELECT DISTINCT dClientSite_ID, dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
+            'SELECT DISTINCT dClientSite_ID, dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB, dCreatedBy, tCreatedAt FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
           );
           
           return result;

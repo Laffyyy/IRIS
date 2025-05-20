@@ -149,6 +149,8 @@ const SiteManagement = () => {
           dSubLOB: sc.dSubLOB,
           dSite_ID: sc.dSite_ID,
           dSiteName: sc.dSiteName,
+          dCreatedBy: sc.dCreatedBy,
+          tCreatedAt: sc.tCreatedAt
         })));
       }
     } catch (error) {
@@ -767,6 +769,8 @@ const SiteManagement = () => {
               <tr>
                 <th>Site ID</th>
                 <th>Site Name</th>
+                <th>Created By</th>
+                <th>Created At</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -776,6 +780,8 @@ const SiteManagement = () => {
                   <tr key={site.dSite_ID}>
                     <td>{site.dSite_ID}</td>
                     <td>{site.dSiteName}</td>
+                    <td>{site.dCreatedBy || '-'}</td>
+                    <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
                         <button
@@ -934,6 +940,8 @@ const SiteManagement = () => {
                 <th>LOB</th>
                 <th>Sub LOB</th>
                 <th>Site Name</th>
+                <th>Created By</th>
+                <th>Created At</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -945,6 +953,8 @@ const SiteManagement = () => {
                   <td>{clientSite.dLOB || '-'}</td>
                   <td>{clientSite.dSubLOB || '-'}</td>
                   <td>{clientSite.dSiteName}</td>
+                  <td>{clientSite.dCreatedBy || '-'}</td>
+                  <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
                   <td>
                     <div className="action-buttons">
                       <button
