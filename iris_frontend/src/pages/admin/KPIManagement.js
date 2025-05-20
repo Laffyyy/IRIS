@@ -1262,59 +1262,73 @@ const KPIManagement = () => {
 
         <div className={`tab-content ${activeTab === 'viewKPIs' ? 'active' : ''}`}>
           <div className="existing-kpis">
-            {renderFilterControls()} {/* Add this line */}
-            <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
-                      onChange={handleSelectAll}
-                    />
-                  </th>
-                  <th>ID</th>
-                  <th>KPI Name</th>
-                  <th>Category</th>
-                  <th>Calculation Behavior</th>
-                  <th>Description</th>
-                  <th>Created By</th>
-                  <th>Created At</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getFilteredKPIs().map((kpi, index) => (
-                  <tr key={kpi.dKPI_ID}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
-                        onChange={() => handleSelectKPI(kpi)}
-                      />
-                    </td>
-                    <td>{kpi.dKPI_ID}</td>
-                    <td>{kpi.dKPI_Name}</td>
-                    <td>{kpi.dCategory}</td>
-                    <td>{kpi.dCalculationBehavior}</td>
-                    <td>{kpi.dDescription}</td>
-                    <td>{kpi.dCreatedBy || '-'}</td>
-                    <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
-                          <FaTrash size={12} /> Disable
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {renderFilterControls()}
+            <div className="table-container">
+              {selectedKPIs.length > 0 && (
+                <div className="bulk-actions">
+                  <button 
+                    className="bulk-disable-btn"
+                    onClick={() => setShowBulkDisableModal(true)}
+                  >
+                    <FaTimes size={12} />
+                    Disable Selected KPIs
+                    <span className="count">{selectedKPIs.length}</span>
+                  </button>
+                </div>
+              )}
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
+                          onChange={handleSelectAll}
+                        />
+                      </th>
+                      <th>ID</th>
+                      <th>KPI Name</th>
+                      <th>Category</th>
+                      <th>Calculation Behavior</th>
+                      <th>Description</th>
+                      <th>Created By</th>
+                      <th>Created At</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredKPIs().map((kpi, index) => (
+                      <tr key={kpi.dKPI_ID}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
+                            onChange={() => handleSelectKPI(kpi)}
+                          />
+                        </td>
+                        <td>{kpi.dKPI_ID}</td>
+                        <td>{kpi.dKPI_Name}</td>
+                        <td>{kpi.dCategory}</td>
+                        <td>{kpi.dCalculationBehavior}</td>
+                        <td>{kpi.dDescription}</td>
+                        <td>{kpi.dCreatedBy || '-'}</td>
+                        <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
+                              <FaTimes size={12} /> Disable
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Edit KPI Modal */}
@@ -1506,6 +1520,7 @@ const KPIManagement = () => {
                   type="text"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  onPaste={(e) => e.preventDefault()}
                   placeholder="Type the KPI name to confirm"
                   className={deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() ? 'error' : ''}
                 />
@@ -1573,6 +1588,7 @@ const KPIManagement = () => {
                   type="text"
                   value={bulkDisableConfirmation}
                   onChange={(e) => setBulkDisableConfirmation(e.target.value)}
+                  onPaste={(e) => e.preventDefault()}
                   placeholder="Type DISABLE to confirm"
                   className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' ? 'error' : ''}
                 />
