@@ -398,14 +398,122 @@ class SiteManagementService {
     
     async bulkDeleteClientSiteAssignments(clientSiteIds) {
       try {
-        const [result] = await db.query(
-          'DELETE FROM tbl_clientsite WHERE dClientSite_ID IN (?)',
-          [clientSiteIds]
-        );
-        
-        return result;
+        // Using a transaction to ensure all operations succeed or fail together
+        await db.query('START TRANSACTION');
+
+        try {
+          const [result] = await db.query(
+            'DELETE FROM tbl_clientsite WHERE dClientSite_ID IN (?)',
+            [clientSiteIds]
+          );
+
+          await db.query('COMMIT');
+          return { affectedRows: result.affectedRows };
+        } catch (error) {
+          await db.query('ROLLBACK');
+          throw error;
+        }
       } catch (error) {
-        console.error('Error in SiteManagementService.bulkDeleteClientSiteAssignments:', error);
+        console.error('Error in bulkDeleteClientSiteAssignments:', error);
+        throw error;
+      }
+    }
+
+    async bulkAddClientsToSite(siteId, assignments) {
+      try {
+        // Start a transaction
+        await db.query('START TRANSACTION');
+
+        try {
+          let affectedRows = 0;
+
+          // Get the site name for the selected site ID
+          const [siteResult] = await db.query(
+            'SELECT dSiteName FROM tbl_site WHERE dSite_ID = ?',
+            [siteId]
+          );
+          
+          if (siteResult.length === 0) {
+            throw new Error('Site not found');
+          }
+          
+          const siteName = siteResult[0].dSiteName;
+          const userId = 'SYSTEM';
+          const currentDate = new Date();
+
+          // Process each assignment
+          for (const assignment of assignments) {
+            // First get the client name
+            const [clientNameResult] = await db.query(
+              'SELECT dClientName FROM tbl_clientlob WHERE dClient_ID = ? LIMIT 1',
+              [assignment.clientId]
+            );
+            
+            if (clientNameResult.length === 0) {
+              throw new Error(`Client not found for ID ${assignment.clientId}`);
+            }
+            
+            const clientName = clientNameResult[0].dClientName;
+
+            // Get ALL client details from tbl_clientlob that match the client name and LOB
+            const [clientDetails] = await db.query(
+              'SELECT dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?',
+              [clientName, assignment.lobName]
+            );
+
+            if (clientDetails.length === 0) {
+              console.error(`No matching records found for client: ${clientName}, LOB: ${assignment.lobName}`);
+              // Get all LOBs for this client for debugging
+              const [allLobs] = await db.query(
+                'SELECT DISTINCT dLOB FROM tbl_clientlob WHERE dClientName = ?',
+                [clientName]
+              );
+              console.error(`Available LOBs for client ${clientName}:`, allLobs.map(l => l.dLOB));
+              throw new Error(`Client details not found for client ${clientName} and LOB ${assignment.lobName}`);
+            }
+
+            // Process each matching client detail
+            for (const client of clientDetails) {
+              // Check if this specific instance already exists for this site
+              const [existingInstance] = await db.query(
+                'SELECT dClientSite_ID FROM tbl_clientsite WHERE dClient_ID = ? AND dLOB = ? AND dSubLOB = ? AND dSite_ID = ?',
+                [client.dClient_ID, client.dLOB, client.dSubLOB, siteId]
+              );
+
+              // Only insert if this specific instance doesn't already exist for this site
+              if (existingInstance.length === 0) {
+                const [result] = await db.query(
+                  'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [
+                    client.dClient_ID,
+                    client.dClientName,
+                    client.dLOB,
+                    client.dSubLOB,
+                    client.dChannel,
+                    client.dIndustry,
+                    siteId,
+                    siteName,
+                    userId,
+                    currentDate
+                  ]
+                );
+
+                affectedRows += result.affectedRows;
+              }
+            }
+          }
+
+          // Commit the transaction
+          await db.query('COMMIT');
+
+          return { affectedRows };
+        } catch (error) {
+          // Rollback the transaction in case of error
+          await db.query('ROLLBACK');
+          throw error;
+        }
+      } catch (error) {
+        console.error('Error in bulkAddClientsToSite:', error);
         throw error;
       }
     }

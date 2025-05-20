@@ -322,6 +322,40 @@ class SiteManagementController {
         }
       }
 
+    async bulkAddClientsToSite(req, res) {
+      try {
+        const { siteId, assignments } = req.body;
+        
+        if (!siteId || !assignments || !Array.isArray(assignments) || assignments.length === 0) {
+          return res.status(400).json({ 
+            message: 'Site ID and valid assignments array are required' 
+          });
+        }
+
+        // Validate each assignment
+        for (const assignment of assignments) {
+          if (!assignment.clientId || !assignment.clientName || !assignment.lobName) {
+            return res.status(400).json({ 
+              message: 'Each assignment must have clientId, clientName, and lobName' 
+            });
+          }
+        }
+        
+        const result = await this.SiteManagementService.bulkAddClientsToSite(siteId, assignments);
+        
+        res.status(200).json({ 
+          message: `${result.affectedRows} client-site assignments added successfully`,
+          affectedRows: result.affectedRows
+        });
+      } catch (error) {
+        console.error('Error in bulk adding clients to site:', error);
+        res.status(500).json({ 
+          message: 'Failed to add clients to site', 
+          error: error.message 
+        });
+      }
+    }
+
 }
 
 module.exports = SiteManagementController;

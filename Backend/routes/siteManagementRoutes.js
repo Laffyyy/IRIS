@@ -35,9 +35,11 @@ router.post('/manage', (req, res) => {
         return siteManagementController.bulkDeleteSites(req, res);
       case 'bulkDeleteClientSiteAssignments':
         return siteManagementController.bulkDeleteClientSiteAssignments(req, res);
+      case 'bulkAddClientsToSite':
+        return siteManagementController.bulkAddClientsToSite(req, res);
       default:
         return res.status(400).json({ 
-          message: 'Invalid operation type. Valid operations include "add", "edit", "delete", "getAll", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", "updateClientSite", "getClientLobs", "getExistingAssignments", "bulkDeleteSites", and "bulkDeleteClientSiteAssignments"' 
+          message: 'Invalid operation type. Valid operations include "add", "edit", "delete", "getAll", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", "updateClientSite", "getClientLobs", "getExistingAssignments", "bulkDeleteSites", "bulkDeleteClientSiteAssignments", and "bulkAddClientsToSite"' 
         });
     }
 });

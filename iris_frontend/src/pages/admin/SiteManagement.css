@@ -449,3 +449,96 @@ td:last-child {
   width: 30px;
   text-align: center;
 }
+
+/* Bulk Add Modal Styles */
+.bulk-add-modal {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bulk-clients-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.bulk-clients-header {
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.bulk-clients-container {
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.bulk-client-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  gap: 20px;
+}
+
+.bulk-client-item:last-child {
+  border-bottom: none;
+}
+
+.bulk-client-item input[type="checkbox"] {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.bulk-client-item span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  padding-right: 20px;
+}
+
+.loading-message,
+.no-clients-message {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.loading-message {
+  color: #004D8D;
+}
+
+.no-clients-message {
+  color: #666;
+}
+
+/* Add hover effect */
+.bulk-client-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* Style the checkbox container */
+.bulk-clients-header span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.bulk-clients-header input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
