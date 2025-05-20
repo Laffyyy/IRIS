@@ -46,7 +46,7 @@ const KPIManagement = () => {
   const [individualPreview, setIndividualPreview] = useState([]);
 
   const categories = ['Compliance', 'Customer Experience', 'Employee Performance', 'Finance', 'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'];
-  const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
+  const behaviors = ['Lower the Better', 'Higher the Better'];
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -279,8 +279,8 @@ const KPIManagement = () => {
   const generateTemplate = () => {
     const csvHeader = "KPI Name,Category,Behavior,Description,,,Valid Input Reference";
     const exampleData = [
-      "Revenue Growth,Financial,Increase,Measures growth in total revenue,,,Valid Categories: Compliance, Customer Experience, Employee Performance, Finance, Healthcare, Logistics, Operational Efficiency, Sales, Tech",
-      "Customer Satisfaction,Customer,Increase,Measures overall customer satisfaction,,,Valid Behaviors: Increase, Decrease, Maintain, Target",
+      "Revenue Growth,Financial,Higher the Better,Measures growth in total revenue,,,Valid Categories: Compliance, Customer Experience, Employee Performance, Finance, Healthcare, Logistics, Operational Efficiency, Sales, Tech",
+      "Customer Satisfaction,Customer,Higher the Better,Measures overall customer satisfaction,,,Valid Behaviors: Lower the Better, Higher the Better",
       "Employee Turnover,Employee,Decrease,Tracks employee turnover rate"
     ];
 
