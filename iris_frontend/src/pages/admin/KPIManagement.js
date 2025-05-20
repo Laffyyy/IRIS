@@ -76,13 +76,29 @@ const KPIManagement = () => {
   const [showBulkDisableModal, setShowBulkDisableModal] = useState(false);
   const [bulkDisableConfirmation, setBulkDisableConfirmation] = useState('');
 
+  // Add this validation function after the existing functions
+  const validateInput = (value) => {
+    // Allow alphanumeric characters, spaces, and "-" character
+    return value.replace(/[^a-zA-Z0-9\s-]/g, '');
+  };
+
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('error'); // 'error' or 'success'
+
+  const showAlert = (message, type = 'error') => {
+    setAlertMessage(message);
+    setAlertType(type);
+    setShowAlertModal(true);
+  };
+
   const handleFormSubmit = () => {
     if (editingKpi) {
       handleUpdateKpi();
     } else {
       // Check for duplicates in existing KPIs
       if (isDuplicateKPI(kpiName)) {
-        alert('A KPI with this name already exists. Please use a different name.');
+        showAlert('A KPI with this name already exists. Please use a different name.');
         return;
       }
 
@@ -131,16 +147,27 @@ const KPIManagement = () => {
 
       resetForm();
       setShowConfirmModal(false);
-      setShowSuccessModal(true); // Show success modal instead of alert
+      setShowSuccessModal(true);
       setActiveTab('viewKPIs');
 
       // Auto hide success modal after 2 seconds
       setTimeout(() => {
         setShowSuccessModal(false);
       }, 2000);
+
+      setRecentlyAdded(prev => [
+        ...prev,
+        {
+          name: kpiToAdd.name,
+          category: kpiToAdd.category,
+          behavior: kpiToAdd.behavior,
+          description: kpiToAdd.description,
+          // add any other fields you want to show
+        }
+      ]);
     } catch (error) {
       console.error('Error details:', error);
-      alert(`Failed to add KPI: ${error.message}`);
+      showAlert(`Failed to add KPI: ${error.message}`);
     }
   };
 
@@ -162,82 +189,9 @@ const KPIManagement = () => {
 
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
         const file = e.dataTransfer.files[0];
-
-        // Filename validation
-        if (!ALLOWED_FILE_PATTERN.test(file.name)) {
-          alert('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
-          return;
-        }
-
-        // File type validation
-        if (!file.name.endsWith('.csv')) {
-          alert('Please upload a CSV file');
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const text = event.target.result;
-          const kpisToValidate = processFileContent(text);
-          
-          if (kpisToValidate.length === 0) {
-            resetBulkUploadState();
-            return;
-          }
-
-          const validKpis = [];
-          const invalidKpis = [];
-          const seenNames = new Set();
-
-          kpisToValidate.forEach(kpi => {
-            let isValid = true;
-            let reason = '';
-
-            // Validation logic here
-            if (!kpi.name) {
-              isValid = false;
-              reason = 'Missing KPI name';
-            } else if (isDuplicateKPI(kpi.name)) {
-              isValid = false;
-              reason = 'KPI name already exists';
-            } else if (seenNames.has(kpi.name.toLowerCase())) {
-              isValid = false;
-              reason = 'Duplicate KPI name in CSV file';
-            } else if (!kpi.category || !kpi.behavior) {
-              isValid = false;
-              reason = 'Missing required fields';
-            } else if (!categories.includes(kpi.category)) {
-              isValid = false;
-              reason = 'Invalid category';
-            } else if (!behaviors.includes(kpi.behavior)) {
-              isValid = false;
-              reason = 'Invalid behavior';
-            }
-
-            if (isValid) {
-              validKpis.push({
-                ...kpi,
-                category: kpi.category,
-                behavior: kpi.behavior
-              });
-              seenNames.add(kpi.name.toLowerCase());
-            } else {
-              invalidKpis.push({
-                ...kpi,
-                reason
-              });
-            }
-          });
-
-          setFile(file);
-          setBulkKpis(validKpis);
-          setInvalidKpis(invalidKpis);
-          setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
-        };
-
-        reader.readAsText(file);
+        handleFile(file);
       }
-  }, [categories, behaviors, isDuplicateKPI]);
+  }, []);
 
   const handleFileChange = (e) => {
       if (e.target.files && e.target.files[0]) {
@@ -245,7 +199,8 @@ const KPIManagement = () => {
         
         // Add filename validation
         if (!ALLOWED_FILE_PATTERN.test(file.name)) {
-          alert('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+          setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+          setShowValidationModal(true);
           // Reset the file input
           e.target.value = '';
           return;
@@ -257,17 +212,24 @@ const KPIManagement = () => {
 
   const handleFile = async (file) => {
     try {
-
       if (!ALLOWED_FILE_PATTERN.test(file.name)) {
-      alert('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
-      resetBulkUploadState();
-      return;
-    }
+        setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+        setShowValidationModal(true);
+        resetBulkUploadState();
+        return;
+      }
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
         const kpisToValidate = processFileContent(text);
         
+        if (kpisToValidate.length === 0) {
+          setValidationMessage('No valid KPIs found in the file');
+          setShowValidationModal(true);
+          resetBulkUploadState();
+          return;
+        }
+
         const validKpis = [];
         const invalidKpis = [];
         const seenNames = new Set();
@@ -277,39 +239,40 @@ const KPIManagement = () => {
           let reason = '';
 
           if (!kpi.name) {
-          isValid = false;
-          reason = 'Missing KPI name';
-        } else if (isDuplicateKPI(kpi.name)) {
-          isValid = false;
-          reason = 'KPI name already exists';
-        } else if (seenNames.has(kpi.name.toLowerCase())) {
-          isValid = false;
-          reason = 'Duplicate KPI name in CSV file';
-        } else if (!kpi.category || !kpi.behavior) {
-          isValid = false;
-          reason = 'Missing required fields';
-        } else if (!categories.includes(kpi.category)) {
-          isValid = false;
-          reason = 'Invalid category';
-        } else if (!behaviors.includes(kpi.behavior)) {
-          isValid = false;
-          reason = 'Invalid behavior';
-        }
+            isValid = false;
+            reason = 'Missing KPI name';
+          } else if (isDuplicateKPI(kpi.name)) {
+            isValid = false;
+            reason = 'KPI name already exists';
+          } else if (seenNames.has(kpi.name.toLowerCase())) {
+            isValid = false;
+            reason = 'Duplicate KPI name in CSV file';
+          } else if (!kpi.category || !kpi.behavior) {
+            isValid = false;
+            reason = 'Missing required fields';
+          } else if (!categories.includes(kpi.category)) {
+            isValid = false;
+            reason = 'Invalid category';
+          } else if (!behaviors.includes(kpi.behavior)) {
+            isValid = false;
+            reason = 'Invalid behavior';
+          }
 
-        if (isValid) {
-          validKpis.push({
-            ...kpi,
-            category: kpi.category,
-            behavior: kpi.behavior
-          });
-          seenNames.add(kpi.name.toLowerCase());
-        } else {
-          invalidKpis.push({
-            ...kpi,
-            reason
-          });
-        }
-      });
+          if (isValid) {
+            validKpis.push({
+              ...kpi,
+              category: kpi.category,
+              behavior: kpi.behavior
+            });
+            seenNames.add(kpi.name.toLowerCase());
+          } else {
+            invalidKpis.push({
+              ...kpi,
+              reason
+            });
+          }
+        });
+
         setFile(file);
         setBulkKpis(validKpis);
         setInvalidKpis(invalidKpis);
@@ -319,8 +282,9 @@ const KPIManagement = () => {
       reader.readAsText(file);
     } catch (error) {
       console.error('Error processing file:', error);
+      setValidationMessage('Error processing file. Please check the file format.');
+      setShowValidationModal(true);
       resetBulkUploadState();
-      alert('Error processing file. Please check the file format.');
     }
   };
 
@@ -366,7 +330,7 @@ const KPIManagement = () => {
       const structureValidation = validateCSVStructure(headers);
       
       if (!structureValidation.isValid) {
-        alert(structureValidation.error);
+        showAlert(structureValidation.errors.length > 0 ? structureValidation.errors : 'Invalid CSV structure.');
         return [];
       }
 
@@ -416,7 +380,7 @@ const KPIManagement = () => {
       return dataRows;
     } catch (error) {
       console.error('Error processing CSV:', error);
-      alert('Error processing file. Please check the file format.');
+      showAlert('Error processing file. Please check the file format.');
       return [];
     }
   };
@@ -427,14 +391,15 @@ const KPIManagement = () => {
     const missingColumns = requiredColumns.filter(col => 
       !headers.some(header => header.trim() === col)
     );
-
+    const errors = [];
     if (missingColumns.length > 0) {
-      return {
-        isValid: false,
-        error: `Missing required columns: ${missingColumns.join(', ')}`
-      };
+      errors.push(`Missing required columns: ${missingColumns.join(', ')}`);
     }
-    return { isValid: true };
+    // Add more checks and push to errors as needed
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   };
 
   const handleAddKpi = async () => {
@@ -480,10 +445,10 @@ const KPIManagement = () => {
 
         resetForm();
         setActiveTab('viewKPIs');
-        alert('KPIs added successfully!');
+        showAlert('KPIs added successfully!');
     } catch (error) {
         console.error('Error details:', error);
-        alert(`Failed to add KPIs: ${error.message}`);
+        showAlert(`Failed to add KPIs: ${error.message}`);
     }
 };
 
@@ -605,11 +570,11 @@ const KPIManagement = () => {
         setInvalidKpis([]);
         setFile(null);
         
-        alert('KPI updated successfully!');
+        showAlert('KPI updated successfully!');
 
       } catch (error) {
         console.error('Error updating KPI:', error);
-        alert(`Failed to update KPI: ${error.message}`);
+        showAlert(`Failed to update KPI: ${error.message}`);
       }
     }
   };
@@ -641,7 +606,7 @@ const KPIManagement = () => {
       
     } catch (error) {
       console.error('Error fetching KPI for edit:', error);
-      alert('Failed to load KPI data for editing. Please try again.');
+      showAlert('Failed to load KPI data for editing. Please try again.');
     }
   };
 
@@ -663,7 +628,7 @@ const KPIManagement = () => {
         
       } catch (error) {
         console.error('Error saving KPI:', error);
-        alert('Failed to save changes. Please try again.');
+        showAlert('Failed to save changes. Please try again.');
       }
     };
 
@@ -726,9 +691,20 @@ const KPIManagement = () => {
           resetBulkUploadState();
           setActiveTab('viewKPIs');
 
+          setRecentlyAdded(prev => [
+            ...prev,
+            ...bulkKpis.map(kpi => ({
+              name: kpi.name,
+              category: kpi.category,
+              behavior: kpi.behavior,
+              description: kpi.description,
+              // add any other fields you want to show
+            }))
+          ]);
+
       } catch (error) {
           console.error('Bulk upload error:', error);
-          alert(`Failed to upload KPIs: ${error.message}`);
+          showAlert(`Failed to upload KPIs: ${error.message}`);
       }
   };
 
@@ -766,13 +742,13 @@ const KPIManagement = () => {
         setShowDeleteModal(false);
         setKpiToDelete(null);
         setDeleteConfirmation('');
-        setShowDisableSuccessModal(true); // Show success modal
+        setShowDisableSuccessModal(true);
       } catch (error) {
         console.error('Error disabling KPI:', error);
-        alert('Failed to disable KPI. Please try again.');
+        showAlert('Failed to disable KPI. Please try again.');
       }
     } else {
-      alert('Please type the exact KPI name to confirm disabling');
+      showAlert('Please type the exact KPI name to confirm disabling');
     }
   };
 
@@ -783,7 +759,7 @@ const KPIManagement = () => {
   
 
   const handleDescriptionChange = (e) => {
-    const text = e.target.value;
+    const text = validateInput(e.target.value);
     if (text.length <= MAX_CHARS) {
       setDescription(text);
       setDescriptionCount(text.length);
@@ -791,7 +767,7 @@ const KPIManagement = () => {
   };
 
   const handleKpiNameChange = (e) => {
-    const text = e.target.value;
+    const text = validateInput(e.target.value);
     if (text.length <= MAX_NAME_LENGTH) {
       setKpiName(text);
       // Check for duplicates whenever name changes
@@ -841,17 +817,11 @@ const KPIManagement = () => {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              setShowSuggestions(true);
               setSelectedKpi(null);
             }}
             onKeyDown={handleKeyDown}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => {
-              // Small delay to allow clicking on suggestions
-              setTimeout(() => setShowSuggestions(false), 200);
-              }}
           />
-           {searchQuery && (
+          {searchQuery && (
             <button 
               className="clear-search"
               onClick={() => {
@@ -863,23 +833,6 @@ const KPIManagement = () => {
             </button>
           )}
         </div>
-        {showSuggestions && searchQuery && (
-          <div className="suggestions-dropdown">
-            {getKpiSuggestions().map(kpi => (
-              <div
-                key={kpi.id}
-                className="suggestion-item"
-                onClick={() => {
-                  setSelectedKpi(kpi.id);
-                  setSearchQuery(kpi.name);
-                  setShowSuggestions(false);
-                }}
-              >
-                {kpi.name}
-              </div>
-         ))}
-          </div>
-        )}
       </div>
       <div className="filter-selects">
           <select
@@ -993,10 +946,10 @@ const KPIManagement = () => {
         setBulkDisableConfirmation('');
       } catch (error) {
         console.error('Bulk disable error:', error);
-        alert(`Failed to disable KPIs: ${error.message}`);
+        showAlert(`Failed to disable KPIs: ${error.message}`);
       }
     } else {
-      alert('Please type "DISABLE" to confirm bulk disabling');
+      showAlert('Please type "DISABLE" to confirm bulk disabling');
     }
   };
 
@@ -1015,6 +968,12 @@ const KPIManagement = () => {
       setSelectedKPIs(getFilteredKPIs());
     }
   };
+
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
+
+  const [recentlyAdded, setRecentlyAdded] = useState([]);
+  const [editRecentKpi, setEditRecentKpi] = useState(null); // for editing modal
 
   return (
     <div className="kpi-management-container">
@@ -1101,7 +1060,7 @@ const KPIManagement = () => {
                     <label>Description</label>
                     <textarea
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      onChange={handleDescriptionChange}
                       placeholder="Describe what this KPI measures and why it's important"
                       rows="3"
                       disabled={isDuplicateName}
@@ -1331,89 +1290,6 @@ const KPIManagement = () => {
         </div>
       </div>
 
-      {/* Edit KPI Modal */}
-      {editModalOpen && currentKpi && (
-        <div className="modal-overlay">
-          <div className="modal edit-kpi-modal">
-            <div className="modal-header">
-              <h2>Edit KPI</h2>
-              <button onClick={() => setEditModalOpen(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>KPI Name</label>
-                <input
-                  type="text"
-                  value={currentKpi.name}
-                  onChange={(e) => setCurrentKpi({...currentKpi, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={currentKpi.category}
-                  onChange={(e) => setCurrentKpi({...currentKpi, category: e.target.value})}
-                >
-                  <option value="">Select category</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Calculation Behavior</label>
-                <select
-                  value={currentKpi.behavior}
-                  onChange={(e) => setCurrentKpi({...currentKpi, behavior: e.target.value})}
-                >
-                  <option value="">Select behavior</option>
-                  {behaviors.map((beh) => (
-                    <option key={`behavior-${beh}`} value={beh}>
-                      {beh}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                value={description}
-                onChange={handleDescriptionChange}
-                placeholder="Describe what this KPI measures and why it's important"
-                rows="3"
-                maxLength={MAX_CHARS}
-              />
-
-              <small className={`char-count ${descriptionCount === MAX_CHARS ? 'limit-reached' : ''}`}>
-                {descriptionCount}/{MAX_CHARS}
-              </small>
-
-
-            </div>
-
-            <div className="modal-actions">
-              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
-              <button 
-                onClick={() => handleSave(currentKpi)} 
-                className="save-btn"
-                disabled={!currentKpi.name.trim() || !currentKpi.category || !currentKpi.behavior}
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showConfirmModal && kpiToAdd && (
       <div className="modal-overlay">
         <div className="modal confirm-modal">
@@ -1519,7 +1395,7 @@ const KPIManagement = () => {
                 <input
                   type="text"
                   value={deleteConfirmation}
-                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  onChange={(e) => setDeleteConfirmation(validateInput(e.target.value))}
                   onPaste={(e) => e.preventDefault()}
                   placeholder="Type the KPI name to confirm"
                   className={deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() ? 'error' : ''}
@@ -1587,7 +1463,7 @@ const KPIManagement = () => {
                 <input
                   type="text"
                   value={bulkDisableConfirmation}
-                  onChange={(e) => setBulkDisableConfirmation(e.target.value)}
+                  onChange={(e) => setBulkDisableConfirmation(validateInput(e.target.value))}
                   onPaste={(e) => e.preventDefault()}
                   placeholder="Type DISABLE to confirm"
                   className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' ? 'error' : ''}
@@ -1619,7 +1495,169 @@ const KPIManagement = () => {
           </div>
         </div>
       )}
-    
+
+      {/* Add Validation Modal */}
+      {showValidationModal && (
+        <div className="modal-overlay">
+          <div className="modal validation-modal">
+            <div className="modal-header">
+              <h2>Validation Error</h2>
+              <button onClick={() => setShowValidationModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="warning-message">
+                <FaTimesCircle className="warning-icon" />
+                <p>{validationMessage}</p>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button 
+                onClick={() => setShowValidationModal(false)} 
+                className="ok-btn"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Alert Modal */}
+      {showAlertModal && (
+        <div className="modal-overlay">
+          <div className="modal alert-modal">
+            <div className="modal-header">
+              <h2>{alertType === 'error' ? 'Error' : 'Success'}</h2>
+              <button onClick={() => setShowAlertModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className={`alert-message ${alertType}`}>
+                {alertType === 'error' ? (
+                  <FaTimesCircle className="alert-icon" />
+                ) : (
+                  <FaCheckCircle className="alert-icon" />
+                )}
+                {Array.isArray(alertMessage) ? (
+                  <ul style={{ textAlign: 'left', margin: '0 auto' }}>
+                    {alertMessage.map((msg, idx) => (
+                      <li key={idx}>{msg}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>{alertMessage}</p>
+                )}
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button 
+                onClick={() => setShowAlertModal(false)} 
+                className="ok-btn"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="recently-added-table">
+        <h2>Recently Added</h2>
+        {recentlyAdded.length === 0 ? (
+          <p>No recently added KPIs.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>KPI Name</th>
+                <th>Category</th>
+                <th>Behavior</th>
+                <th>Description</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentlyAdded.map((kpi, idx) => (
+                <tr key={idx}>
+                  <td>{kpi.name}</td>
+                  <td>{kpi.category}</td>
+                  <td>{kpi.behavior}</td>
+                  <td>{kpi.description}</td>
+                  <td>
+                    <button onClick={() => setEditRecentKpi({ ...kpi, idx })}>Edit</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {editRecentKpi && (
+        <EditKpiModal
+          kpi={editRecentKpi}
+          onSave={updatedKpi => {
+            // update in recentlyAdded
+            setRecentlyAdded(prev => prev.map((k, i) => i === editRecentKpi.idx ? updatedKpi : k));
+            setEditRecentKpi(null);
+            // optionally update in backend as well
+          }}
+          onCancel={() => setEditRecentKpi(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+const EditKpiModal = ({ kpi, onSave, onCancel }) => {
+  const [name, setName] = useState(kpi.name);
+  const [category, setCategory] = useState(kpi.category);
+  const [behavior, setBehavior] = useState(kpi.behavior);
+  const [description, setDescription] = useState(kpi.description);
+
+  const handleSave = () => {
+    onSave({
+      ...kpi,
+      name,
+      category,
+      behavior,
+      description,
+    });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal edit-kpi-modal">
+        <div className="modal-header">
+          <h2>Edit KPI</h2>
+          <button onClick={onCancel} className="close-btn">×</button>
+        </div>
+        <div className="modal-content">
+          <div>
+            <label>KPI Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div>
+            <label>Category</label>
+            <input value={category} onChange={e => setCategory(e.target.value)} />
+          </div>
+          <div>
+            <label>Behavior</label>
+            <input value={behavior} onChange={e => setBehavior(e.target.value)} />
+          </div>
+          <div>
+            <label>Description</label>
+            <input value={description} onChange={e => setDescription(e.target.value)} />
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button onClick={onCancel} className="cancel-btn">Cancel</button>
+          <button onClick={handleSave} className="save-btn">Save</button>
+        </div>
+      </div>
     </div>
   );
 };

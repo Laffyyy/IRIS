@@ -1303,3 +1303,54 @@ input[type="checkbox"] {
   border-radius: 12px;
   font-size: 12px;
 }
+
+/* Alert Modal Styles */
+.alert-modal {
+  max-width: 400px;
+  width: 90%;
+}
+
+.alert-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.alert-message.error {
+  background-color: #fff5f5;
+}
+
+.alert-message.success {
+  background-color: #f0fff4;
+}
+
+.alert-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.alert-message.error .alert-icon {
+  color: #e53e3e;
+}
+
+.alert-message.success .alert-icon {
+  color: #38a169;
+}
+
+.alert-message p {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.alert-message.error p {
+  color: #e53e3e;
+}
+
+.alert-message.success p {
+  color: #38a169;
+}
