@@ -855,6 +855,14 @@ const handleAddSubLob = async () => {
     return;
   }
   
+  // Check for duplicate Sub LOB names (case-insensitive, trimmed)
+  const trimmedNames = subLobNames.map(name => name.trim().toLowerCase()).filter(name => name);
+  const uniqueNames = new Set(trimmedNames);
+  if (trimmedNames.length !== uniqueNames.size) {
+    alert('Error: Duplicate Sub LOB names are not allowed.');
+    return;
+  }
+
   const validSubLobs = subLobNames.filter(name => name.trim());
   
   if (validSubLobs.length === 0) {
@@ -972,7 +980,11 @@ const handleAddSubLob = async () => {
       // Reset Sub LOB form after successful addition
       setSubLobNames(['']);
       setSelectedLobForSubLob(null);
-      
+      setFilterClientForSubLob(null);
+      setFilterSiteForSubLob(null);
+      setSubLobClientSearchTerm('');
+      setSubLobSiteSearchTerm('');
+      setSubLobLobSearchTerm('');
       // Show success message
       alert('Sub LOBs added successfully!');
     } catch (refreshError) {
