@@ -587,6 +587,7 @@ const UserManagement = () => {
 
   // Add state for last add count
   const [lastAddCount, setLastAddCount] = useState(0);
+  const [lastDeleteCount, setLastDeleteCount] = useState(0);
 
   // Submit individual users
   const handleAddIndividual = async () => {
@@ -606,10 +607,9 @@ const UserManagement = () => {
         });
         if (!response.ok) throw new Error('Failed to add users');
         const result = await response.json();
-        setUsers(prev => [...prev, ...individualPreview]);
         setAddModalOpen(false);
         setIndividualPreview([]);
-        fetchUsers();
+        // Do NOT call setUsers here. Let fetchUsers update the table.
       } catch (error) {
         console.error('Error adding users:', error);
       }
@@ -648,14 +648,13 @@ const UserManagement = () => {
         return;
       }
 
-      setUsers(prev => [...prev, ...bulkUsers]);
       setAddModalOpen(false);
       setBulkUsers([]);
       setFile(null);
       setShowBulkResultModal(true);
       setBulkResultSuccess(true);
       setBulkResultMessage(bulkUsers.length === 1 ? 'User uploaded successfully!' : `Users (${bulkUsers.length}) uploaded successfully!`);
-      fetchUsers();
+      // Do NOT call setUsers here. Let fetchUsers update the table.
     } catch (error) {
       setShowBulkResultModal(true);
       setBulkResultSuccess(false);
@@ -665,8 +664,7 @@ const UserManagement = () => {
 
   // Delete selected users
   const handleDeleteUsers = async () => {
-    if (deleteConfirmText === 'CONFIRM' && selectedUsers.length > 0) {
-      const countToDelete = selectedUsers.length;
+    if (deleteConfirmText === 'DELETE' && selectedUsers.length > 0) {
       try {
         const response = await fetch('http://localhost:5000/api/users/delete', {
           method: 'POST',
@@ -686,14 +684,13 @@ const UserManagement = () => {
           return;
         }
 
-        setUsers(prev => prev.map(user => selectedUsers.includes(user.dUser_ID) ? { ...user, dStatus: 'DEACTIVATED' } : user));
         setSelectedUsers([]);
         setShowDeleteModal(false);
         setDeleteConfirmText('');
         setShowDeleteResultModal(true);
         setDeleteResultSuccess(true);
         setDeleteResultMessage('User(s) deactivated successfully!');
-        fetchUsers();
+        // Do NOT call setUsers here. Let fetchUsers update the table.
       } catch (error) {
         setShowDeleteResultModal(true);
         setDeleteResultSuccess(false);
@@ -838,12 +835,11 @@ const UserManagement = () => {
         setShowEditResultModal(true);
         return;
       }
-      setUsers(users.map(user => user.dLogin_ID === updatedUser.dLogin_ID ? { ...user, ...changedFields } : user));
       setEditModalOpen(false);
       setEditResultSuccess(true);
       setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
       setShowEditResultModal(true);
-      fetchUsers();
+      // Do NOT call setUsers here. Let fetchUsers update the table.
     } catch (error) {
       setEditResultSuccess(false);
       setEditResultMessage(error.message || 'Failed to update user');
@@ -948,7 +944,6 @@ const UserManagement = () => {
   const [showDeleteResultModal, setShowDeleteResultModal] = useState(false);
   const [deleteResultSuccess, setDeleteResultSuccess] = useState(false);
   const [deleteResultMessage, setDeleteResultMessage] = useState('');
-  const [lastDeleteCount, setLastDeleteCount] = useState(0);
 
   // Add state for reset account in Edit User modal
   const [showResetDropdown, setShowResetDropdown] = useState(false);
@@ -1027,19 +1022,36 @@ const UserManagement = () => {
     return false;
   }
 
-  // WebSocket for real-time updates
+  // Improved WebSocket for real-time updates with auto-reconnect
   useEffect(() => {
-    const ws = new window.WebSocket('ws://localhost:5000');
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'USER_UPDATE') {
-          fetchUsers();
-        }
-      } catch (e) {}
-    };
+    let ws;
+    let reconnectTimeout;
+
+    function connect() {
+      ws = new window.WebSocket('ws://localhost:5000');
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'USER_UPDATE') {
+            console.log('USER_UPDATE received');
+            fetchUsers();
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => {
+        // Try to reconnect after 2 seconds
+        reconnectTimeout = setTimeout(connect, 2000);
+      };
+      ws.onerror = () => {
+        ws.close();
+      };
+    }
+
+    connect();
+
     return () => {
-      ws.close();
+      if (ws) ws.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
   }, []);
 
@@ -1156,14 +1168,13 @@ const UserManagement = () => {
           return;
         }
 
-        setUsers(prev => prev.map(user => selectedUsers.includes(user.dUser_ID) ? { ...user, dStatus: 'FIRST-TIME' } : user));
         setSelectedUsers([]);
         setShowRestoreModal(false);
         setRestoreConfirmText('');
         setShowRestoreResultModal(true);
         setRestoreResultSuccess(true);
         setRestoreResultMessage(selectedUsers.length === 1 ? 'User restored successfully!' : `Users (${selectedUsers.length}) restored successfully!`);
-        fetchUsers();
+        // Do NOT call setUsers here. Let fetchUsers update the table.
       } catch (error) {
         setShowRestoreResultModal(true);
         setRestoreResultSuccess(false);
@@ -2373,8 +2384,11 @@ const UserManagement = () => {
               </button>
               <button
                 className="delete-btn"
-                disabled={deleteConfirmText !== 'DELETE'}
-                onClick={handleDeleteUsers}
+                disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+                onClick={() => {
+                  setLastDeleteCount(selectedUsers.length);
+                  handleDeleteUsers();
+                }}
               >
                 <FaTrash /> Delete Permanently
               </button>
@@ -2748,7 +2762,7 @@ const UserManagement = () => {
                     setIndividualResultSuccess(true);
                     setIndividualResultMessage('Users added successfully!');
                     setIndividualPreview([]);
-                    fetchUsers();
+                    // Do NOT call fetchUsers here. Let it be handled by WebSocket.
                   } catch (error) {
                     setShowIndividualResultModal(true);
                     setIndividualResultSuccess(false);
