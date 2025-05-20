@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import './UpdatePassword.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const UpdatePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [passwords, setPasswords] = useState({
     newPassword: '',
     confirmPassword: ''
   });
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Only use values from navigation state
+  const selectedQuestion = location.state?.selectedQuestion || '';
+  const answer = location.state?.answer || '';
+  const email = location.state?.email || '';
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
@@ -25,13 +30,68 @@ const UpdatePassword = () => {
   };
 
   const handleCancel = () => {
-    navigate('/security-questions'); // Redirect to SecurityQuestions page
+    navigate('/security-questions', {
+      state: {
+        email,
+        answer,
+        selectedQuestion,
+        isVerified: true
+      }
+    });
   };
 
-  const handleSaveChanges = (e) => {
+  const handleSaveChanges = async (e) => {
     e.preventDefault();
-    // Add your save changes logic here (e.g., API call to save password)
-    navigate('/security-questions'); // After saving, navigate back to SecurityQuestions
+
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      alert("Passwords don't match");
+      return;
+    }
+
+    if (passwords.newPassword.length < 8) {
+      alert("Password must be at least 8 characters long");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:3000/api/password/forgot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          newPassword: passwords.newPassword,
+        }),
+      });
+
+      const contentType = response.headers.get("Content-Type");
+
+      let data;
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error("Unexpected server response: " + text);
+      }
+
+      if (!response.ok) {
+        if (data.message === "Password is the same as the past 3 passwords") {
+          alert("Password is the same as the past 3 passwords");
+        } else {
+          alert("Password is the same as the past 3 passwords");
+        }
+        return;
+      }
+
+      if (data.success) {
+        alert("Password updated successfully");
+        navigate("/");
+      }
+
+    } catch (error) {
+      alert("Failed to update password: " + error.message);
+    }
   };
 
   return (
@@ -40,7 +100,6 @@ const UpdatePassword = () => {
       <p className="subtitle">Enter a new password for your account</p>
 
       <form className="form-grid" onSubmit={handleSaveChanges}>
-        {/* Password Info */}
         <div className="form-section">
           <h3>Password Information</h3>
 
@@ -53,6 +112,8 @@ const UpdatePassword = () => {
                 placeholder="Enter new password"
                 value={passwords.newPassword}
                 onChange={(e) => handlePasswordChange(e, 'newPassword')}
+                minLength={8}
+                required
               />
               <button
                 type="button"
@@ -74,6 +135,8 @@ const UpdatePassword = () => {
                 placeholder="Confirm new password"
                 value={passwords.confirmPassword}
                 onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
+                minLength={8}
+                required
               />
               <button
                 type="button"
@@ -86,12 +149,12 @@ const UpdatePassword = () => {
             </div>
           </div>
         </div>
-      </form>
 
-      <div className="form-buttons">
-        <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>
-        <button type="submit" className="save-btn">Save Changes</button>
-      </div>
+        <div className="form-buttons">
+          <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>
+          <button type="submit" className="save-btn">Save Changes</button>
+        </div>
+      </form>
     </div>
   );
 };

@@ -1,23 +1,39 @@
-import React, { useState, useRef, useEffect } from 'react';
-import './Login.css';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from "react";
+import "./Login.css";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+// Login.js or EmailContext.js
+import { createContext, useContext } from "react";
+
+export const EmailContext = createContext();
+export const useEmail = () => useContext(EmailContext);
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(email);
-    navigate('/otp');
+    setIsSending(true);
+
+    try {
+      await onSubmit(email); // wait for OTP sending process
+      navigate("/otp", { state: { email } }); // navigate with email state
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <h3>Reset Your Password</h3>
-        <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
+        <p className="modal-text">
+          Please enter your registered email to receive an OTP code.
+        </p>
         <form onSubmit={handleSubmit} className="modal-form">
           <input
             type="email"
@@ -27,16 +43,18 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
             required
           />
           <div className="modal-buttons">
-            <button type="button" onClick={onClose}>Cancel</button>
-            <button type="submit">Send OTP</button>
+            <button type="button" onClick={onClose} disabled={isSending}>
+              Cancel
+            </button>
+            <button type="submit" disabled={isSending}>
+              {isSending ? "Sending..." : "Send OTP"}
+            </button>
           </div>
         </form>
       </div>
     </div>
   );
 };
-
-
 
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -129,20 +147,23 @@ const [passwords, setPasswords] = useState({
   return (
     <div className="iris-wrapper">
       <div className="iris-login-box">
+        {/* Left Panel */}
         <div className="iris-left">
-          <img src="/assets/logo.png" alt="IRIS Logo" className="iris-logo" />
+          <img src="assets/logo.png" alt="IRIS Logo" className="iris-logo" />
           <h2 className="iris-title">IRIS</h2>
-          <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
+          <p className="iris-subtitle">
+            Incentive Reporting & Insight Solution
+          </p>
 
           <form className="iris-form" onSubmit={handleSubmit}>
             <div className="iris-input-wrapper">
-              <label className="iris-label">Username</label>
+              <label htmlFor="employee-id" className="iris-label">Employee ID</label>
               <span className="iris-icon">
-                <img src="/assets/user-icon.png" alt="User Icon" />
+                <img src="assets/user-icon.png" alt="User Icon" />
               </span>
-              <input
-                id="employee-id"
-                type="text"
+              <input 
+                id="employee-id" 
+                type="text" 
                 value={employeeId}
                 onChange={handleEmployeeIdChange}
                 required
@@ -158,7 +179,7 @@ const [passwords, setPasswords] = useState({
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={handlePasswordChange}
                   required
@@ -172,7 +193,11 @@ const [passwords, setPasswords] = useState({
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   tabIndex={-1}
                 >
-                  {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                  {showPassword ? (
+                    <FaEyeSlash size={14} />
+                  ) : (
+                    <FaEye size={14} />
+                  )}
                 </button>
               </div>
             </div>

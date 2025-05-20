@@ -14,6 +14,7 @@ import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
 
+
 function App() {
   return (
     <Router>
@@ -26,28 +27,52 @@ function App() {
         <Route path="/update-password" element={<UpdatePassword />} />
 
         {/* Dashboard/admin routes - with sidebar */}
-        <Route
-          path="/*"
-          element={
-            <div className="app-container">
-              <Sidebar />
-              <main className="main-content">
-                <Routes>
-                  <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="admin/users" element={<UserManagement />} />
-                  <Route path="admin/apps" element={<AppManagement />} />
-                  <Route path="admin/clients" element={<ClientManagement />} />
-                  <Route path="admin/sites" element={<SiteManagement />} />
-                  <Route path="admin/kpis" element={<KPIManagement />} />
-                  <Route path="hr" element={<div>HR Page</div>} />
-                  <Route path="reports" element={<div>Reports Page</div>} />
-                  <Route path="compensation" element={<div>C&B Page</div>} />
-                  <Route path="faqs" element={<div>FAQs Page</div>} />
-                </Routes>
-              </main>
-            </div>
-          }
-        />
+       <Route
+  path="/*"
+  element={
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        <Routes>
+          <Route
+            path="admin/*"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="hr"
+            element={
+              <ProtectedRoute allowedRoles={['HR', 'admin']}>
+                <div>HR Page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="reports"
+            element={
+              <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+                <div>Reports Page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="compensation"
+            element={
+              <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+                <div>C&B Page</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="faqs" element={<div>FAQs Page</div>} />
+          <Route path="unauthorized" element={<Unauthorize />} />
+        </Routes>
+      </main>
+    </div>
+  }
+/>
       </Routes>
     </Router>
   );

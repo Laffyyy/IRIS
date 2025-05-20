@@ -1,19 +1,21 @@
 // Otp.js
-import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import './Otp.css';
+import React, { useRef, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom"; // Import useLocation and useNavigate
+import "./Otp.css";
 
-  const Otp = ({ onBack, onComplete }) => {
+const Otp = ({ onBack, onComplete }) => {
+  const location = useLocation(); // Initialize useLocation
   const navigate = useNavigate(); // Initialize useNavigate
+  const email = location.state?.email || ""; // Get email from previous step
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
   const [resendTime, setResendTime] = useState(90);
   const [canResend, setCanResend] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [otpValues, setOtpValues] = useState(Array(6).fill(""));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
-
-  
 
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
@@ -22,8 +24,6 @@ import './Otp.css';
       setUserId(storedUserId);
     }
   }, []);
-  const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -40,6 +40,15 @@ import './Otp.css';
       setCanResend(true);
     }
   }, [resendTime, canResend]);
+
+  useEffect(() => {
+    const allFilled = otpValues.every((value) => value !== "");
+    setIsComplete(allFilled);
+
+    if (allFilled) {
+      document.getElementById("otp-submit-button").focus();
+    }
+  }, [otpValues]);
 
   const handleResendCode = async () => {
     if (!canResend) return;
@@ -78,7 +87,6 @@ import './Otp.css';
   const handleInputChange = (e, index) => {
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
- 
 
     if (value.length > 1) return;
 
@@ -91,7 +99,6 @@ import './Otp.css';
       inputsRef.current[index + 1].focus();
       setIsComplete(true);
     }
-    
   };
 
   const handleKeyDown = (e, index) => {
@@ -104,8 +111,8 @@ import './Otp.css';
   };
 
   const handlePaste = (e) => {
-    const pastedData = e.clipboardData.getData('Text').toUpperCase();
-    const filtered = pastedData.replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const pastedData = e.clipboardData.getData("Text").toUpperCase();
+    const filtered = pastedData.replace(/[^A-Z0-9]/g, "").slice(0, 6);
 
     if (filtered.length === 6) {
       const newOtpValues = Array(6).fill('');
@@ -123,71 +130,84 @@ import './Otp.css';
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleOtpSuccess = () => {
+    // After successful OTP verification
+    navigate("/security-questions", { state: { email } });
+  };
+
+  const onotphandleSubmit = () => {
+    if (isComplete) {
+      // Trigger onComplete callback if provided
+      if (onComplete) {
+        onComplete();
+      }
+      // Navigate to the Security Questions page
+      handleOtpSuccess();
+    }
   };
 
   const handleSubmit = async () => {
-  const otp = otpValues.join(''); // Combine OTP values into a single string
+    const otp = otpValues.join(''); // Combine OTP values into a single string
 
-  // Retrieve userId and password from localStorage
-  const userId = localStorage.getItem('userId');
-  const password = localStorage.getItem('password');
+    // Retrieve userId and password from localStorage
+    const userId = localStorage.getItem('userId');
+    const password = localStorage.getItem('password');
 
-  if (!userId || !password) {
-    alert('User ID or password is missing. Please log in again.');
-    return;
-  }
+    if (!userId || !password) {
+      alert('User ID or password is missing. Please log in again.');
+      return;
+    }
 
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
+    // Prepare the payload
+    const payload = {
+      userId,
+      password,
+      otp
+    };
+
+    try {
+      // Send POST request to the API
+      const response = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Handle successful OTP verification
+        const userStatus = data.data.user.status;
+        localStorage.setItem('token', data.data.token); // Save token to localStorage
+        alert(data.data.message);
+
+        if (userStatus === 'FIRST-TIME') {
+          navigate('../change-password'); // Redirect to change password page
+        } else if (userStatus === 'ACTIVE') {
+          alert('Login successful');
+          navigate('../dashboard'); // Redirect to dashboard or home page
+        }
+      } else {
+        // Handle failed OTP verification
+        alert(data.data.message || 'Failed to verify OTP. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error during OTP verification:', error);
+      alert('An error occurred while verifying the OTP. Please try again.');
+    }
   };
 
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // Handle successful OTP verification
-      const userStatus = data.data.user.status;
-      localStorage.setItem('token', data.data.token); // Save token to localStorage
-      alert(data.data.message);
-
-      if (userStatus === 'FIRST-TIME') {
-        navigate('../change-password'); // Redirect to change password page
-      } else if (userStatus === 'ACTIVE') {
-        alert('Login successful');
-        navigate('../dashboard'); // Redirect to dashboard or home page
-      }
-    } else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
-    }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
-};
- const handleBack = () => {
+  const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
     navigate('/'); // Redirect to the login page
-  }
+  };
 
   return (
     <div className="otp-container">
@@ -207,18 +227,20 @@ import './Otp.css';
 
         <label className="otp-label">Enter OTP</label>
         <div className="otp-input-group" onPaste={handlePaste}>
-          {Array(6).fill('').map((_, i) => (
-            <input
-              key={i}
-              type="text"
-              maxLength="1"
-              className="otp-input"
-              inputMode="numeric"
-              onChange={(e) => handleInputChange(e, i)}
-              onKeyDown={(e) => handleKeyDown(e, i)}
-              ref={(el) => (inputsRef.current[i] = el)}
-            />
-          ))}
+          {Array(6)
+            .fill("")
+            .map((_, i) => (
+              <input
+                key={i}
+                type="text"
+                maxLength="1"
+                className="otp-input"
+                inputMode="numeric"
+                onChange={(e) => handleInputChange(e, i)}
+                onKeyDown={(e) => handleKeyDown(e, i)}
+                ref={(el) => (inputsRef.current[i] = el)}
+              />
+            ))}
         </div>
 
         <div className="otp-footer">
@@ -232,19 +254,18 @@ import './Otp.css';
             onClick={handleResendCode}
             disabled={!canResend}
           >
-            {canResend ? 'Resend Code' : `Resend in ${formatTime(resendTime)}`}
+            {canResend ? "Resend Code" : `Resend in ${formatTime(resendTime)}`}
           </button>
         </div>
 
         <div className="otp-button-group">
-          <button 
-          className="otp-back" 
-          onClick={handleBack}
-          >Back</button>
+          <button className="otp-back" onClick={onBack || (() => navigate(-1))}>
+            Back
+          </button>
           <button
             id="otp-submit-button"
-            className={`otp-submit ${isComplete ? 'otp-submit-enabled' : ''}`}
-            onClick={handleSubmit}
+            className={`otp-submit ${isComplete ? "otp-submit-enabled" : ""}`}
+            onClick={onotphandleSubmit}
             disabled={!isComplete}
             type="button"
           >
