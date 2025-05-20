@@ -943,3 +943,20 @@ textarea:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
+
+.kpi-upload-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.kpi-upload-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 32px 24px;
+  min-width: 0;
+  box-sizing: border-box;
+}

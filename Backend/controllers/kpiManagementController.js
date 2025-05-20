@@ -26,9 +26,31 @@ exports.createKPI = async (req, res) => {
     try {
         const { dKPI_Name, dCategory, dDescription, dCalculationBehavior, dCreatedBy } = req.body;
         
+        // Add validation
+        if (!dKPI_Name || !dCategory || !dCalculationBehavior || !dCreatedBy) {
+            return res.status(400).json({ 
+                message: "Missing required fields",
+                details: {
+                    name: !dKPI_Name,
+                    category: !dCategory,
+                    behavior: !dCalculationBehavior,
+                    createdBy: !dCreatedBy
+                }
+            });
+        }
+
+        // Log the incoming data
+        console.log('Creating KPI with data:', {
+            dKPI_Name,
+            dCategory,
+            dDescription,
+            dCalculationBehavior,
+            dCreatedBy
+        });
+        
         const [result] = await db.execute(
             'INSERT INTO tbl_kpi (dKPI_Name, dCategory, dDescription, dCalculationBehavior, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, NOW())',
-            [dKPI_Name, dCategory, dDescription, dCalculationBehavior, dCreatedBy]
+            [dKPI_Name, dCategory, dDescription || '', dCalculationBehavior, dCreatedBy]
         );
 
         res.status(201).json({
@@ -36,7 +58,12 @@ exports.createKPI = async (req, res) => {
             kpiId: result.insertId
         });
     } catch (error) {
-        res.status(500).json({ message: "Error creating KPI", error: error.message });
+        console.error('Database error:', error);
+        res.status(500).json({ 
+            message: "Error creating KPI", 
+            error: error.message,
+            details: error.stack
+        });
     }
 };
 
