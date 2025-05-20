@@ -1276,250 +1276,264 @@ const SiteManagement = () => {
 </div>
         
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Select Site</label>
-              <Select
-                value={selectedSite ? { value: selectedSite.dSite_ID, label: selectedSite.dSiteName } : null}
-                onChange={async (selectedOption) => {
-                  try {
-                    const site = sites.find(s => s.dSite_ID === selectedOption.value);
-                    setSelectedSite(site || null);
-                    setSelectedClientId('');
-                    setClientLobs([]);
-                    setClientSubLobs([]);
-                    setSelectedLobId('');
-                    setSelectedSubLobId('');
-                    
-                    if (site) {
-                      const siteId = site.dSite_ID;
-                      const response = await manageSite('getExistingAssignments', { 
-                        siteId: parseInt(siteId)
-                      });
-                      
-                      if (response && response.assignments) {
-                        setExistingAssignments(response.assignments);
-                      } else {
-                        setExistingAssignments([]);
-                      }
-                    } else {
-                      setExistingAssignments([]);
-                    }
-                    
-                    await fetchSiteClients();
-                  } catch (error) {
-                    console.error('Error updating site data:', error);
-                  }
-                }}
-                options={sites.map(site => ({
-                  value: site.dSite_ID,
-                  label: site.dSiteName
-                }))}
-                isClearable
-                placeholder="Select a site"
-                isDisabled={false}
-                className="react-select-container"
-                classNamePrefix="react-select"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>Select Client</label>
-              <Select
-                value={selectedClientId ? { value: selectedClientId, label: clients.find(c => c.id === selectedClientId)?.name } : null}
-                onChange={(selectedOption) => {
-                  setSelectedClientId(selectedOption ? selectedOption.value : '');
-                  if (selectedOption) {
-                    fetchClientLobsAndSubLobs(selectedOption.value);
-                  } else {
-                    setClientLobs([]);
-                    setClientSubLobs([]);
-                    setSelectedLobId('');
-                    setSelectedSubLobId('');
-                  }
-                }}
-                options={availableClients.map(client => ({
-                  value: client.id,
-                  label: client.name
-                }))}
-                isClearable
-                placeholder="Select a client"
-                isDisabled={!selectedSite}
-                className="react-select-container"
-                classNamePrefix="react-select"
-              />
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label>Select LOB</label>
-              <Select
-                value={selectedLobId ? { value: selectedLobId, label: clientLobs.find(l => l.id === selectedLobId)?.name } : null}
-                onChange={(selectedOption) => {
-                  const lobId = selectedOption ? selectedOption.value : '';
-                  setSelectedLobId(lobId);
+  <div className="site-management-two-column">
+    {/* Left Card - Client Form */}
+    <div className="site-management-card">
+      <div className="form-row">
+        <div className="form-group">
+          <label>Select Site</label>
+          <Select
+            value={selectedSite ? { value: selectedSite.dSite_ID, label: selectedSite.dSiteName } : null}
+            onChange={async (selectedOption) => {
+              try {
+                const site = sites.find(s => s.dSite_ID === selectedOption.value);
+                setSelectedSite(site || null);
+                setSelectedClientId('');
+                setClientLobs([]);
+                setClientSubLobs([]);
+                setSelectedLobId('');
+                setSelectedSubLobId('');
+                
+                if (site) {
+                  const siteId = site.dSite_ID;
+                  const response = await manageSite('getExistingAssignments', { 
+                    siteId: parseInt(siteId)
+                  });
                   
-                  if (lobId) {
-                    const selectedLob = clientLobs.find(l => l.id === lobId);
-                    if (selectedLob && Array.isArray(selectedLob.subLobs)) {
-                      setClientSubLobs(selectedLob.subLobs);
-                    } else {
-                      setClientSubLobs([]);
-                    }
+                  if (response && response.assignments) {
+                    setExistingAssignments(response.assignments);
                   } else {
-                    setClientSubLobs([]);
+                    setExistingAssignments([]);
                   }
-                  setSelectedSubLobId('');
-                }}
-                options={clientLobs.map(lob => ({
-                  value: lob.id,
-                  label: lob.name
-                }))}
-                isClearable
-                placeholder="Select a LOB"
-                isDisabled={!selectedClientId}
-                className="react-select-container"
-                classNamePrefix="react-select"
-              />
-            </div>
-            <div className="form-group">
-              <label>Select Sub LOB</label>
-              <Select
-                value={selectedSubLobId ? { value: selectedSubLobId, label: clientSubLobs.find(s => s.id === selectedSubLobId)?.name } : null}
-                onChange={(selectedOption) => {
-                  setSelectedSubLobId(selectedOption ? selectedOption.value : '');
-                }}
-                options={clientSubLobs.map(subLob => ({
-                  value: subLob.id,
-                  label: subLob.name
-                }))}
-                isClearable
-                placeholder="Select a Sub LOB"
-                isDisabled={!selectedLobId}
-                className="react-select-container"
-                classNamePrefix="react-select"
-              />
-            </div>
-          </div>
+                } else {
+                  setExistingAssignments([]);
+                }
+                
+                await fetchSiteClients();
+              } catch (error) {
+                console.error('Error updating site data:', error);
+              }
+            }}
+            options={sites.map(site => ({
+              value: site.dSite_ID,
+              label: site.dSiteName
+            }))}
+            isClearable
+            placeholder="Select a site"
+            isDisabled={false}
+            className="react-select-container"
+            classNamePrefix="react-select"
+          />
+        </div>
+      </div>
+            
+      <div className="form-row">
+        <div className="form-group">
+          <label>Select Client</label>
+          <Select
+            value={selectedClientId ? { value: selectedClientId, label: clients.find(c => c.id === selectedClientId)?.name } : null}
+            onChange={(selectedOption) => {
+              setSelectedClientId(selectedOption ? selectedOption.value : '');
+              if (selectedOption) {
+                fetchClientLobsAndSubLobs(selectedOption.value);
+              } else {
+                setClientLobs([]);
+                setClientSubLobs([]);
+                setSelectedLobId('');
+                setSelectedSubLobId('');
+              }
+            }}
+            options={availableClients.map(client => ({
+              value: client.id,
+              label: client.name
+            }))}
+            isClearable
+            placeholder="Select a client"
+            isDisabled={!selectedSite}
+            className="react-select-container"
+            classNamePrefix="react-select"
+          />
+        </div>
+      </div>
           
-          <div className="buttons-container">
-            <button 
-              onClick={handleAddClient} 
-              className="add-button equal-width-button"
-              disabled={!selectedSite || !selectedClientId}
-            >
-              + Add Client to Site
-            </button>
-            <button 
-              onClick={() => setBulkAddModalOpen(true)} 
-              className="add-button equal-width-button"
-            >
-              + Bulk Add Clients to Site
-            </button>
-          </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label>Select LOB</label>
+          <Select
+            value={selectedLobId ? { value: selectedLobId, label: clientLobs.find(l => l.id === selectedLobId)?.name } : null}
+            onChange={(selectedOption) => {
+              const lobId = selectedOption ? selectedOption.value : '';
+              setSelectedLobId(lobId);
+              
+              if (lobId) {
+                const selectedLob = clientLobs.find(l => l.id === lobId);
+                if (selectedLob && Array.isArray(selectedLob.subLobs)) {
+                  setClientSubLobs(selectedLob.subLobs);
+                } else {
+                  setClientSubLobs([]);
+                }
+              } else {
+                setClientSubLobs([]);
+              }
+              setSelectedSubLobId('');
+            }}
+            options={clientLobs.map(lob => ({
+              value: lob.id,
+              label: lob.name
+            }))}
+            isClearable
+            placeholder="Select a LOB"
+            isDisabled={!selectedClientId}
+            className="react-select-container"
+            classNamePrefix="react-select"
+          />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label>Select Sub LOB</label>
+          <Select
+            value={selectedSubLobId ? { value: selectedSubLobId, label: clientSubLobs.find(s => s.id === selectedSubLobId)?.name } : null}
+            onChange={(selectedOption) => {
+              setSelectedSubLobId(selectedOption ? selectedOption.value : '');
+            }}
+            options={clientSubLobs.map(subLob => ({
+              value: subLob.id,
+              label: subLob.name
+            }))}
+            isClearable
+            placeholder="Select a Sub LOB"
+            isDisabled={!selectedLobId}
+            className="react-select-container"
+            classNamePrefix="react-select"
+          />
+        </div>
+      </div>
           
-          <h2>Existing Client-Site Assignments</h2>
-          <div className="search-container">
-            <div className="search-box">
-              <FaSearch className="search-icon" />
+      <div className="buttons-container">
+        <button 
+          onClick={handleAddClient} 
+          className="add-button equal-width-button"
+          disabled={!selectedSite || !selectedClientId}
+        >
+          + Add Client to Site
+        </button>
+        <button 
+          onClick={() => setBulkAddModalOpen(true)} 
+          className="add-button equal-width-button"
+        >
+          + Bulk Add Clients to Site
+        </button>
+      </div>
+    </div>
+    
+    {/* Right Card - Existing Client-Site Assignments Table */}
+    <div className="site-management-card">
+      <h3>Existing Client-Site Assignments</h3>
+      <div className="search-container">
+      <div className="search-box">
+        <FaSearch className="search-icon" />
+        <input
+          type="text"
+          placeholder="Search by client name, LOB, Sub LOB, or site name..."
+          value={clientSiteSearchTerm}
+          onChange={(e) => setClientSiteSearchTerm(e.target.value)}
+        />
+      </div>
+    </div>
+    <div className="client-site-table-container">
+      <table className="existing-client-site-table">
+        <thead>
+          <tr>
+            <th>
               <input
-                type="text"
-                placeholder="Search by client name, LOB, Sub LOB, or site name..."
-                value={clientSiteSearchTerm}
-                onChange={(e) => setClientSiteSearchTerm(e.target.value)}
+                type="checkbox"
+                checked={selectAllClientSites}
+                onChange={handleSelectAllClientSites}
               />
-            </div>
-          </div>
-          <table className="existing-client-site-table">
-            <thead>
-              <tr>
-                <th>
+            </th>
+            <th onClick={() => handleClientSiteSort('dClientSite_ID')} className="sortable-header">
+              Client Site ID {clientSiteSortConfig.key === 'dClientSite_ID' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleClientSiteSort('dClientName')} className="sortable-header">
+              Client Name {clientSiteSortConfig.key === 'dClientName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleClientSiteSort('dLOB')} className="sortable-header">
+              LOB {clientSiteSortConfig.key === 'dLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleClientSiteSort('dSubLOB')} className="sortable-header">
+              Sub LOB {clientSiteSortConfig.key === 'dSubLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleClientSiteSort('dSiteName')} className="sortable-header">
+              Site Name {clientSiteSortConfig.key === 'dSiteName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleClientSiteSort('dCreatedBy')} className="sortable-header">
+              Created By {clientSiteSortConfig.key === 'dCreatedBy' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleClientSiteSort('tCreatedAt')} className="sortable-header">
+              Created At {clientSiteSortConfig.key === 'tCreatedAt' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredSiteClients.length > 0 ? (
+            filteredSiteClients.map(clientSite => (
+              <tr key={clientSite.dClientSite_ID}>
+                <td>
                   <input
                     type="checkbox"
-                    checked={selectAllClientSites}
-                    onChange={handleSelectAllClientSites}
+                    checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
+                    onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
                   />
-                </th>
-                <th onClick={() => handleClientSiteSort('dClientSite_ID')} className="sortable-header">
-                  Client Site ID {clientSiteSortConfig.key === 'dClientSite_ID' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleClientSiteSort('dClientName')} className="sortable-header">
-                  Client Name {clientSiteSortConfig.key === 'dClientName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleClientSiteSort('dLOB')} className="sortable-header">
-                  LOB {clientSiteSortConfig.key === 'dLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleClientSiteSort('dSubLOB')} className="sortable-header">
-                  Sub LOB {clientSiteSortConfig.key === 'dSubLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleClientSiteSort('dSiteName')} className="sortable-header">
-                  Site Name {clientSiteSortConfig.key === 'dSiteName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleClientSiteSort('dCreatedBy')} className="sortable-header">
-                  Created By {clientSiteSortConfig.key === 'dCreatedBy' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleClientSiteSort('tCreatedAt')} className="sortable-header">
-                  Created At {clientSiteSortConfig.key === 'tCreatedAt' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th>Actions</th>
+                </td>
+                <td>{clientSite.dClientSite_ID}</td>
+                <td>{clientSite.dClientName}</td>
+                <td>{clientSite.dLOB || '-'}</td>
+                <td>{clientSite.dSubLOB || '-'}</td>
+                <td>{clientSite.dSiteName}</td>
+                <td>{clientSite.dCreatedBy || '-'}</td>
+                <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
+                <td>
+                  <div className="action-buttons">
+                    <button
+                      className="edit-btn"
+                      onClick={() => handleEditClientSite(clientSite)}
+                    >
+                      <FaPencilAlt size={12} /> Edit
+                    </button>
+                    <button
+                      className="delete-btn"
+                      onClick={() =>
+                        handleRemoveClient(clientSite.dClientSite_ID, clientSite.dClientName)
+                      }
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredSiteClients.length > 0 ? (
-                filteredSiteClients.map(clientSite => (
-                  <tr key={clientSite.dClientSite_ID}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
-                        onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
-                      />
-                    </td>
-                    <td>{clientSite.dClientSite_ID}</td>
-                    <td>{clientSite.dClientName}</td>
-                    <td>{clientSite.dLOB || '-'}</td>
-                    <td>{clientSite.dSubLOB || '-'}</td>
-                    <td>{clientSite.dSiteName}</td>
-                    <td>{clientSite.dCreatedBy || '-'}</td>
-                    <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="edit-btn"
-                          onClick={() => handleEditClientSite(clientSite)}
-                        >
-                          <FaPencilAlt size={12} /> Edit
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={() =>
-                            handleRemoveClient(clientSite.dClientSite_ID, clientSite.dClientName)
-                          }
-                        >
-                          <FaTrash size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="9" style={{ textAlign: 'center' }}>
-                    {siteClients.length > 0 ? 'No matching client-site assignments found' : 'No client-site assignments available'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          {selectedClientSiteIds.length > 0 && (
-            <div className="bulk-delete-container">
-              <button onClick={handleBulkDeleteClientSites} className="delete-btn bulk-delete-btn">
-                <FaTrash size={12} /> Delete Selected ({selectedClientSiteIds.length})
-              </button>
-            </div>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="9" style={{ textAlign: 'center' }}>
+                {siteClients.length > 0 ? 'No matching client-site assignments found' : 'No client-site assignments available'}
+              </td>
+            </tr>
           )}
+        </tbody>
+      </table>
+    </div>
+      {selectedClientSiteIds.length > 0 && (
+        <div className="bulk-delete-container">
+          <button onClick={handleBulkDeleteClientSites} className="delete-btn bulk-delete-btn">
+            <FaTrash size={12} /> Delete Selected ({selectedClientSiteIds.length})
+          </button>
         </div>
+      )}
+    </div>
+  </div>
+</div>
       </div>
 
       {/* Edit Site Modal */}

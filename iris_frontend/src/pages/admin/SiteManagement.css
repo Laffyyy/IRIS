@@ -12,10 +12,23 @@
   padding: 20px;
 }
 
+.site-management-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.site-management-header h1 {
+  font-size: 40px;
+  color: #004D8D;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
 .site-management-header .subtitle {
   font-size: 12px;
   color: #666;
   margin-bottom: 16px;
+  text-align: center; /* Ensure subtitle is also centered */
 }
 
 .tab-container {
@@ -680,6 +693,12 @@ td:last-child {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Add more space between the last form-row and buttons */
+.site-management-card .form-row:last-of-type {
+  margin-bottom: 30px; /* Increase from 20px to 30px */
+}
+
+
 /* Left card for add site section */
 .site-management-card:first-child {
   flex: 0 0 320px;
@@ -709,4 +728,76 @@ td:last-child {
   flex: 0 1 auto; /* Change from flex: 1 to prevent full expansion */
   width: 300px; /* Set a fixed width */
   max-width: 100%;
+}
+
+/* Two-column layout for Add Client to Site tab */
+.tab-content[class*="addClient"] .site-management-two-column {
+  display: flex;
+  gap: 50px;
+  margin-top: 10px;
+}
+
+/* Left card for client form */
+.tab-content[class*="addClient"] .client-form-card {
+  flex: 0 0 320px;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  align-self: flex-start;
+}
+
+/* Right card for client site assignments table */
+.tab-content[class*="addClient"] .client-table-card {
+  flex: 1;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-content[class*="addClient"] .client-table-card h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+/* Add a container for the client-site assignments table */
+.client-site-table-container {
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+/* Make the table header sticky when scrolling */
+.existing-client-site-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: white;
+}
+
+/* Add scrollbar styles consistent with your existing ones */
+.client-site-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.client-site-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.client-site-table-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.client-site-table-container::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
