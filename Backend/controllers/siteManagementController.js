@@ -272,6 +272,56 @@ class SiteManagementController {
         }
     }
 
+    async bulkDeleteSites(req, res) {
+        try {
+          const { siteIds } = req.body;
+          
+          if (!siteIds || !Array.isArray(siteIds) || siteIds.length === 0) {
+            return res.status(400).json({ 
+              message: 'Valid site IDs array is required' 
+            });
+          }
+          
+          const result = await this.SiteManagementService.bulkDeleteSites(siteIds);
+          
+          res.status(200).json({ 
+            message: `${result.affectedRows} sites deleted successfully`,
+            affectedRows: result.affectedRows
+          });
+        } catch (error) {
+          console.error('Error in bulk deleting sites:', error);
+          res.status(500).json({ 
+            message: 'Failed to delete sites', 
+            error: error.message 
+          });
+        }
+      }
+      
+      async bulkDeleteClientSiteAssignments(req, res) {
+        try {
+          const { clientSiteIds } = req.body;
+          
+          if (!clientSiteIds || !Array.isArray(clientSiteIds) || clientSiteIds.length === 0) {
+            return res.status(400).json({ 
+              message: 'Valid client site IDs array is required' 
+            });
+          }
+          
+          const result = await this.SiteManagementService.bulkDeleteClientSiteAssignments(clientSiteIds);
+          
+          res.status(200).json({ 
+            message: `${result.affectedRows} client-site assignments deleted successfully`,
+            affectedRows: result.affectedRows
+          });
+        } catch (error) {
+          console.error('Error in bulk deleting client-site assignments:', error);
+          res.status(500).json({ 
+            message: 'Failed to delete client-site assignments', 
+            error: error.message 
+          });
+        }
+      }
+
 }
 
 module.exports = SiteManagementController;

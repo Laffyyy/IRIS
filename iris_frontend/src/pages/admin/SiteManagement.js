@@ -35,6 +35,12 @@ const SiteManagement = () => {
   const [editSelectedSiteId, setEditSelectedSiteId] = useState('');
   const [editSelectedLobId, setEditSelectedLobId] = useState('');
   const [editSelectedSubLobId, setEditSelectedSubLobId] = useState('');
+
+  const [selectedSiteIds, setSelectedSiteIds] = useState([]);
+  const [selectedClientSiteIds, setSelectedClientSiteIds] = useState([]);
+  const [selectAllSites, setSelectAllSites] = useState(false);
+  const [selectAllClientSites, setSelectAllClientSites] = useState(false);
+
   
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false);
@@ -343,6 +349,106 @@ const SiteManagement = () => {
       
       return clientLobsResponse[client.id] !== false;
     });
+  };
+
+  /**
+   * Handles site row checkbox selection
+   */
+  const handleSiteSelection = (siteId) => {
+    setSelectedSiteIds(prev => {
+      if (prev.includes(siteId)) {
+        return prev.filter(id => id !== siteId);
+      } else {
+        return [...prev, siteId];
+      }
+    });
+  };
+
+  /**
+   * Handles "select all sites" checkbox
+   */
+  const handleSelectAllSites = () => {
+    if (selectAllSites) {
+      setSelectedSiteIds([]);
+    } else {
+      setSelectedSiteIds(sites.map(site => site.dSite_ID));
+    }
+    setSelectAllSites(!selectAllSites);
+  };
+
+  /**
+   * Handles client-site row checkbox selection
+   */
+  const handleClientSiteSelection = (clientSiteId) => {
+    setSelectedClientSiteIds(prev => {
+      if (prev.includes(clientSiteId)) {
+        return prev.filter(id => id !== clientSiteId);
+      } else {
+        return [...prev, clientSiteId];
+      }
+    });
+  };
+
+  /**
+   * Handles "select all client sites" checkbox
+   */
+  const handleSelectAllClientSites = () => {
+    if (selectAllClientSites) {
+      setSelectedClientSiteIds([]);
+    } else {
+      setSelectedClientSiteIds(siteClients.map(clientSite => clientSite.dClientSite_ID));
+    }
+    setSelectAllClientSites(!selectAllClientSites);
+  };
+
+  /**
+   * Bulk deletes selected sites
+   */
+  const handleBulkDeleteSites = async () => {
+    if (selectedSiteIds.length === 0) return;
+    
+    if (!window.confirm(`Delete ${selectedSiteIds.length} selected sites? This will also remove all associated client relationships.`)) {
+      return;
+    }
+    
+    try {
+      await manageSite('bulkDeleteSites', { siteIds: selectedSiteIds });
+      
+      // Update state and reset selection
+      fetchSites();
+      fetchSiteClients();
+      setSelectedSiteIds([]);
+      setSelectAllSites(false);
+      
+      alert(`${selectedSiteIds.length} sites successfully deleted with all their client associations`);
+    } catch (error) {
+      console.error('Error bulk deleting sites:', error);
+    }
+  };
+
+  /**
+   * Bulk deletes selected client-site assignments
+   */
+  const handleBulkDeleteClientSites = async () => {
+    if (selectedClientSiteIds.length === 0) return;
+    
+    if (!window.confirm(`Delete ${selectedClientSiteIds.length} selected client-site assignments?`)) {
+      return;
+    }
+    
+    try {
+      await manageSite('bulkDeleteClientSiteAssignments', { clientSiteIds: selectedClientSiteIds });
+      
+      // Update state and reset selection
+      fetchSiteClients();
+      fetchSites();
+      setSelectedClientSiteIds([]);
+      setSelectAllClientSites(false);
+      
+      alert(`${selectedClientSiteIds.length} client-site assignments successfully deleted`);
+    } catch (error) {
+      console.error('Error bulk deleting client-site assignments:', error);
+    }
   };
   
   /**
@@ -767,6 +873,13 @@ const SiteManagement = () => {
           <table className="existing-sites-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={selectAllSites}
+                    onChange={handleSelectAllSites}
+                  />
+                </th>
                 <th>Site ID</th>
                 <th>Site Name</th>
                 <th>Created By</th>
@@ -778,6 +891,13 @@ const SiteManagement = () => {
               {sites.length > 0 ? (
                 sites.map(site => (
                   <tr key={site.dSite_ID}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedSiteIds.includes(site.dSite_ID)}
+                        onChange={() => handleSiteSelection(site.dSite_ID)}
+                      />
+                    </td>
                     <td>{site.dSite_ID}</td>
                     <td>{site.dSiteName}</td>
                     <td>{site.dCreatedBy || '-'}</td>
@@ -802,11 +922,18 @@ const SiteManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" style={{ textAlign: 'center' }}>No sites available</td>
+                  <td colSpan="6" style={{ textAlign: 'center' }}>No sites available</td>
                 </tr>
               )}
             </tbody>
           </table>
+          {selectedSiteIds.length > 0 && (
+            <div className="bulk-delete-container">
+              <button onClick={handleBulkDeleteSites} className="delete-btn bulk-delete-btn">
+                <FaTrash size={12} /> Delete Selected ({selectedSiteIds.length})
+              </button>
+            </div>
+          )}
         </div>
         
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
@@ -935,6 +1062,13 @@ const SiteManagement = () => {
           <table className="existing-client-site-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={selectAllClientSites}
+                    onChange={handleSelectAllClientSites}
+                  />
+                </th>
                 <th>Client Site ID</th>
                 <th>Client Name</th>
                 <th>LOB</th>
@@ -948,6 +1082,13 @@ const SiteManagement = () => {
             <tbody>
               {siteClients.map(clientSite => (
                 <tr key={clientSite.dClientSite_ID}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
+                      onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
+                    />
+                  </td>
                   <td>{clientSite.dClientSite_ID}</td>
                   <td>{clientSite.dClientName}</td>
                   <td>{clientSite.dLOB || '-'}</td>
@@ -977,6 +1118,13 @@ const SiteManagement = () => {
               ))}
             </tbody>
           </table>
+          {selectedClientSiteIds.length > 0 && (
+            <div className="bulk-delete-container">
+              <button onClick={handleBulkDeleteClientSites} className="delete-btn bulk-delete-btn">
+                <FaTrash size={12} /> Delete Selected ({selectedClientSiteIds.length})
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

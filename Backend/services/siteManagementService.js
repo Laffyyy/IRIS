@@ -368,6 +368,47 @@ class SiteManagementService {
             return [];
         }
     }
+
+    async bulkDeleteSites(siteIds) {
+      try {
+        // Using a transaction to ensure all operations succeed or fail together
+        await db.query('START TRANSACTION');
+        
+        // First, delete from tbl_clientsite for all selected sites
+        await db.query(
+          'DELETE FROM tbl_clientsite WHERE dSite_ID IN (?)',
+          [siteIds]
+        );
+        
+        // Then delete from tbl_site
+        const [result] = await db.query(
+          'DELETE FROM tbl_site WHERE dSite_ID IN (?)',
+          [siteIds]
+        );
+        
+        await db.query('COMMIT');
+        
+        return result;
+      } catch (error) {
+        await db.query('ROLLBACK');
+        console.error('Error in SiteManagementService.bulkDeleteSites:', error);
+        throw error;
+      }
+    }
+    
+    async bulkDeleteClientSiteAssignments(clientSiteIds) {
+      try {
+        const [result] = await db.query(
+          'DELETE FROM tbl_clientsite WHERE dClientSite_ID IN (?)',
+          [clientSiteIds]
+        );
+        
+        return result;
+      } catch (error) {
+        console.error('Error in SiteManagementService.bulkDeleteClientSiteAssignments:', error);
+        throw error;
+      }
+    }
 }
 
 module.exports = SiteManagementService;

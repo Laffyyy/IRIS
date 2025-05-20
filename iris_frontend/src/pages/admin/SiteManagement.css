@@ -411,3 +411,41 @@ td:last-child {
   font-size: 13px;
   text-align: left;
 }
+
+.bulk-delete-container {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.bulk-delete-btn {
+  background-color: #fff;
+  border: 1px solid #e53e3e;
+  color: #e53e3e;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.bulk-delete-btn:hover {
+  background-color: #e53e3e;
+  color: #fff;
+}
+
+/* Add styling for checkboxes */
+.existing-sites-table input[type="checkbox"],
+.existing-client-site-table input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* Add a checkbox column width */
+.existing-sites-table th:first-child,
+.existing-sites-table td:first-child,
+.existing-client-site-table th:first-child,
+.existing-client-site-table td:first-child {
+  width: 30px;
+  text-align: center;
+}
