@@ -585,9 +585,13 @@ const UserManagement = () => {
     setIndividualAddErrors({});
   };
 
+  // Add state for last add count
+  const [lastAddCount, setLastAddCount] = useState(0);
+
   // Submit individual users
   const handleAddIndividual = async () => {
     if (individualPreview.length > 0) {
+      setLastAddCount(individualPreview.length);
       try {
         const response = await fetch('http://localhost:5000/api/users/bulk', {
           method: 'POST',
@@ -600,9 +604,7 @@ const UserManagement = () => {
             }))
           })
         });
-
         if (!response.ok) throw new Error('Failed to add users');
-        
         const result = await response.json();
         setUsers(prev => [...prev, ...individualPreview]);
         setAddModalOpen(false);
@@ -2384,223 +2386,214 @@ const UserManagement = () => {
       {/* Edit User Modal */}
       {editModalOpen && currentUser && (
         <div className="modal-overlay">
-          <div className="modal edit-user-modal">
+          <div className="modal edit-user-modal" style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }}
+              className="close-btn"
+              style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}
+            >
+              <FaTimes />
+            </button>
             <div className="modal-header">
-              <h2>Edit User</h2>
-              <button onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }} className="close-btn">
-                <FaTimes />
-              </button>
+              <h2 style={{ margin: 0 }}>Edit User</h2>
             </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <div className="employee-id-label-row">
-                  <label htmlFor="employee-id-input">
-                    Employee ID:
-                  </label>
-                  {!employeeIdEditable && (
-                    <FaLock className="locked-indicator" title="Enable editing to change Employee ID" />
-                  )}
-                </div>
-                <input
-                  id="employee-id-input"
-                  type="text"
-                  name="employeeId"
-                  value={currentUser.dUser_ID}
-                  onChange={(e) => setCurrentUser({ ...currentUser, dUser_ID: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
-                  readOnly={!employeeIdEditable}
-                  className={!employeeIdEditable ? 'disabled-input' : ''}
-                  required
-                  maxLength={10}
-                  pattern="\\d{1,10}"
-                  style={{
-                    background: !employeeIdEditable ? '#f5f5f5' : undefined,
-                    color: !employeeIdEditable ? '#aaa' : undefined,
-                    cursor: !employeeIdEditable ? 'not-allowed' : undefined,
-                  }}
-                />
-                {editUserErrors.dUser_ID && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_ID}</div>}
-              </div>
-              <div className="form-group">
-                <label>Name:</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={currentUser.dName}
-                  onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value.slice(0, 50)})}
-                  required
-                  maxLength={50}
-                />
-                {editUserErrors.dName && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dName}</div>}
-              </div>
-            </div>
-            <div className="employee-id-checkbox-row">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                <input
-                  type="checkbox"
-                  id="edit-employee-id"
-                  checked={employeeIdEditable}
-                  onChange={() => setEmployeeIdEditable((v) => !v)}
-                  style={{ margin: 0 }}
-                />
-                Enable editing of Employee ID
-              </label>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Email:</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={currentUser.dEmail}
-                  onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value.slice(0, 50)})}
-                  required
-                  maxLength={50}
-                />
-                {editUserErrors.dEmail && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dEmail}</div>}
-              </div>
-
-              <div className="form-group">
-                <label>Role:</label>
-                <select
-                  name="role"
-                  value={currentUser.dUser_Type}
-                  onChange={(e) => setCurrentUser({...currentUser, dUser_Type: e.target.value})}
-                >
-                  <option value="ADMIN">ADMIN</option>
-                  <option value="HR">HR</option>
-                  <option value="REPORTS">REPORTS</option>
-                  <option value="CNB">CNB</option>
-                </select>
-                {editUserErrors.dUser_Type && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_Type}</div>}
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Status:</label>
-                <select
-                  name="status"
-                  value={currentUser.dStatus}
-                  onChange={(e) => setCurrentUser({...currentUser, dStatus: e.target.value})}
-                >
-                  {currentUser.dStatus === 'RESET-DONE' ? (
-                    <>
-                      <option value="RESET-DONE">RESET-DONE</option>
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="DEACTIVATE">DEACTIVATE</option>
-                    </>
-                  ) : (
-                    <>
-                      {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="DEACTIVATE">DEACTIVATE</option>
-                    </>
-                  )}
-                </select>
-                {editUserErrors.dStatus && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dStatus}</div>}
-              </div>
-            </div>
-
-            <div className="password-security-container">
-              <div className="password-change-section">
-                <h3 className="section-header">
-                  <FaKey size={14} /> Password
-                </h3>
-
-                <button
-                  className="visibility-toggle"
-                  onClick={() => setShowPasswordFields(!showPasswordFields)}
-                >
-                  {showPasswordFields ? <FaChevronDown /> : <FaChevronRight />}
-                  {showPasswordFields ? 'Hide Password Change' : 'Change Password'}
-                </button>
-
-                {showPasswordFields && (
-                  <div className="password-fields">
-                    <div className="form-group">
-                      <label>New Password</label>
-                      <div className="password-input-container">
-                        <input
-                          type={showNewPassword ? "text" : "password"}
-                          name="newPassword"
-                          value={passwordData.newPassword}
-                          onChange={handlePasswordChange}
-                          placeholder="Enter new password"
-                        />
-                        <button
-                          className="toggle-password-btn"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                        >
-                          {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Confirm New Password</label>
-                      <div className="password-input-container">
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          name="confirmPassword"
-                          value={passwordData.confirmPassword}
-                          onChange={handlePasswordChange}
-                          placeholder="Confirm new password"
-                        />
-                        <button
-                          className="toggle-password-btn"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                        </button>
-                      </div>
-                    </div>
-                    {passwordMismatch && (
-                      <p className="error-message" style={{ color: 'red' }}>Passwords do not match</p>
+            <div className="edit-user-flex-row" style={{ display: 'flex', gap: 32 }}>
+              {/* Left column: Employee ID, Email, Name, Role, Status */}
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <div className="employee-id-label-row">
+                    <label htmlFor="employee-id-input">
+                      Employee ID:
+                    </label>
+                    {!employeeIdEditable && (
+                      <FaLock className="locked-indicator" title="Enable editing to change Employee ID" />
                     )}
                   </div>
-                )}
-              </div>
-
-              <div className="security-questions-section">
-                <h3 className="section-header">
-                  <FaShieldAlt size={14} /> Reset Account
-                </h3>
-                <button
-                  className="visibility-toggle"
-                  onClick={() => setShowResetDropdown(v => !v)}
-                  style={{ marginBottom: 8 }}
-                >
-                  {showResetDropdown ? <FaChevronDown /> : <FaChevronRight />}
-                  {showResetDropdown ? 'Hide Reset Account' : 'Reset Account'}
-                </button>
-                {showResetDropdown && !resetConfirmed && (
-                  <div style={{ marginTop: 8 }}>
+                  <input
+                    id="employee-id-input"
+                    type="text"
+                    name="employeeId"
+                    value={currentUser.dUser_ID}
+                    onChange={(e) => setCurrentUser({ ...currentUser, dUser_ID: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
+                    readOnly={!employeeIdEditable}
+                    className={!employeeIdEditable ? 'disabled-input' : ''}
+                    required
+                    maxLength={10}
+                    pattern="\\d{1,10}"
+                    style={{ background: !employeeIdEditable ? '#f5f5f5' : undefined, color: !employeeIdEditable ? '#aaa' : undefined, cursor: !employeeIdEditable ? 'not-allowed' : undefined }}
+                  />
+                  {editUserErrors.dUser_ID && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_ID}</div>}
+                </div>
+                <div className="employee-id-checkbox-row" style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
                     <input
-                      type="text"
-                      placeholder="Type RESET to confirm"
-                      value={resetConfirmText}
-                      onChange={e => setResetConfirmText(e.target.value)}
-                      style={{ padding: 6, border: '1px solid #ccc', borderRadius: 4, marginRight: 8 }}
+                      type="checkbox"
+                      id="edit-employee-id"
+                      checked={employeeIdEditable}
+                      onChange={() => setEmployeeIdEditable((v) => !v)}
+                      style={{ margin: 0 }}
                     />
-                    <button
-                      className="save-btn"
-                      style={{ padding: '6px 14px', fontSize: 13 }}
-                      disabled={resetConfirmText !== 'RESET'}
-                      onClick={() => setResetConfirmed(true)}
-                    >
-                      Confirm Reset
-                    </button>
-                  </div>
-                )}
-                {resetConfirmed && (
-                  <div style={{ color: '#0a7', marginTop: 8, fontWeight: 500 }}>
-                    Reset Confirmation is set. The account will be reset when you save changes.
-                  </div>
-                )}
+                    Enable editing of Employee ID
+                  </label>
+                </div>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label>Email:</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={currentUser.dEmail}
+                    onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value.slice(0, 50)})}
+                    required
+                    maxLength={50}
+                  />
+                  {editUserErrors.dEmail && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dEmail}</div>}
+                </div>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label>Name:</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={currentUser.dName}
+                    onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value.slice(0, 50)})}
+                    required
+                    maxLength={50}
+                  />
+                  {editUserErrors.dName && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dName}</div>}
+                </div>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label>Role:</label>
+                  <select
+                    name="role"
+                    value={currentUser.dUser_Type}
+                    onChange={(e) => setCurrentUser({...currentUser, dUser_Type: e.target.value})}
+                  >
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="HR">HR</option>
+                    <option value="REPORTS">REPORTS</option>
+                    <option value="CNB">CNB</option>
+                  </select>
+                  {editUserErrors.dUser_Type && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_Type}</div>}
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Status:</label>
+                  <select
+                    name="status"
+                    value={currentUser.dStatus}
+                    onChange={(e) => setCurrentUser({...currentUser, dStatus: e.target.value})}
+                  >
+                    {currentUser.dStatus === 'RESET-DONE' ? (
+                      <>
+                        <option value="RESET-DONE">RESET-DONE</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="DEACTIVATE">DEACTIVATE</option>
+                      </>
+                    ) : (
+                      <>
+                        {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="DEACTIVATE">DEACTIVATE</option>
+                      </>
+                    )}
+                  </select>
+                  {editUserErrors.dStatus && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dStatus}</div>}
+                </div>
+              </div>
+              {/* Right column: Password and Reset Account (stacked vertically) */}
+              <div style={{ flex: 1, minWidth: 340, maxWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 24 }}>
+                <div className="password-change-section" style={{ marginBottom: 0, width: '100%' }}>
+                  <h3 className="section-header">
+                    <FaKey size={14} /> Password
+                  </h3>
+                  <button
+                    className="visibility-toggle"
+                    onClick={() => setShowPasswordFields(!showPasswordFields)}
+                  >
+                    {showPasswordFields ? <FaChevronDown /> : <FaChevronRight />}
+                    {showPasswordFields ? 'Hide Password Change' : 'Change Password'}
+                  </button>
+                  {showPasswordFields && (
+                    <div className="password-fields">
+                      <div className="form-group">
+                        <label>New Password</label>
+                        <div className="password-input-container">
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            name="newPassword"
+                            value={passwordData.newPassword}
+                            onChange={handlePasswordChange}
+                            placeholder="Enter new password"
+                          />
+                          <button
+                            className="toggle-password-btn"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                          >
+                            {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>Confirm New Password</label>
+                        <div className="password-input-container">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            name="confirmPassword"
+                            value={passwordData.confirmPassword}
+                            onChange={handlePasswordChange}
+                            placeholder="Confirm new password"
+                          />
+                          <button
+                            className="toggle-password-btn"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      </div>
+                      {passwordMismatch && (
+                        <p className="error-message" style={{ color: 'red' }}>Passwords do not match</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="security-questions-section" style={{ width: '100%' }}>
+                  <h3 className="section-header">
+                    <FaShieldAlt size={14} /> Reset Account
+                  </h3>
+                  <button
+                    className="visibility-toggle"
+                    onClick={() => setShowResetDropdown(v => !v)}
+                    style={{ marginBottom: 8 }}
+                  >
+                    {showResetDropdown ? <FaChevronDown /> : <FaChevronRight />}
+                    {showResetDropdown ? 'Hide Reset Account' : 'Reset Account'}
+                  </button>
+                  {showResetDropdown && !resetConfirmed && (
+                    <div style={{ marginTop: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Type RESET to confirm"
+                        value={resetConfirmText}
+                        onChange={e => setResetConfirmText(e.target.value)}
+                        style={{ padding: 6, border: '1px solid #ccc', borderRadius: 4, marginRight: 8 }}
+                      />
+                      <button
+                        className="save-btn"
+                        style={{ padding: '6px 14px', fontSize: 13 }}
+                        disabled={resetConfirmText !== 'RESET'}
+                        onClick={() => setResetConfirmed(true)}
+                      >
+                        Confirm Reset
+                      </button>
+                    </div>
+                  )}
+                  {resetConfirmed && (
+                    <div style={{ color: '#0a7', marginTop: 8, fontWeight: 500 }}>
+                      Reset Confirmation is set. The account will be reset when you save changes.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="cancel-btn" onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }}>Cancel</button>
               <button
@@ -2727,6 +2720,7 @@ const UserManagement = () => {
               <button
                 className="save-btn"
                 onClick={async () => {
+                  setLastAddCount(individualPreview.length);
                   setShowIndividualConfirmModal(false);
                   try {
                     const response = await fetch('http://localhost:5000/api/users/bulk', {
@@ -2778,9 +2772,9 @@ const UserManagement = () => {
             </div>
             <p>{
               individualResultSuccess
-                ? (individualPreview.length === 1
+                ? (lastAddCount === 1
                     ? 'User added successfully!'
-                    : `Users (${individualPreview.length}) added successfully!`)
+                    : `Users (${lastAddCount}) added successfully!`)
                 : individualResultMessage
             }</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
