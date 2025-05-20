@@ -1,6 +1,6 @@
 // Otp.js
 import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate, useLocation } from 'react-router-dom'; // Import useLocation
 import './Otp.css';
 import { jwtDecode } from 'jwt-decode';
 
