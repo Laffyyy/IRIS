@@ -61,6 +61,12 @@ const SiteManagement = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState(null);
 
+  //Delete Confirmation States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteType, setDeleteType] = useState(''); // 'site', 'client', 'bulk-sites', 'bulk-clients'
+  const [itemToDelete, setItemToDelete] = useState(null);
+
   // Add this new state for available edit clients
   const [availableEditClients, setAvailableEditClients] = useState([]);
 
@@ -317,18 +323,9 @@ const SiteManagement = () => {
    */
   const handleDeleteSite = async (siteId) => {
     const site = sites.find(s => s.dSite_ID === siteId);
-    const siteName = site ? site.dSiteName : '';
-    
-    if (!window.confirm(`Deleting site "${siteName}" will also remove all associated client relationships. Continue?`)) return;
-    
-    try {
-      await manageSite('delete', { siteId });
-      fetchSites();
-      fetchSiteClients();
-      alert(`Site "${siteName}" Successfully Deleted with all its client associations`);
-    } catch (error) {
-      console.error('Error deleting site:', error);
-    }
+    setDeleteType('site');
+    setItemToDelete({ id: siteId, name: site?.dSiteName || 'Unknown site' });
+    setShowDeleteModal(true);
   };
   
   /**
@@ -386,39 +383,9 @@ const SiteManagement = () => {
    * Removes a client from a site
    */
   const handleRemoveClient = async (clientSiteId, clientName) => {
-    if (!window.confirm(`Are you sure you want to remove "${clientName}" from this site?`)) {
-      return;
-    }
-    
-    try {
-      await manageSite('removeClientFromSite', { clientSiteId });
-      
-      // Find the site ID of the deleted relationship
-      const deletedRelationship = siteClients.find(sc => sc.dClientSite_ID === clientSiteId);
-      const siteId = deletedRelationship?.dSite_ID;
-      
-      // Update local state
-      setSiteClients(siteClients.filter(sc => sc.dClientSite_ID !== clientSiteId));
-      
-      // Refresh data
-      fetchSites();
-      fetchSiteClients();
-      
-      // Update assignments
-      if (siteId) {
-        await fetchExistingAssignments(parseInt(siteId));
-      }
-      
-      // Update edit modal if needed
-      if (editSelectedSiteId && siteId && parseInt(editSelectedSiteId) === parseInt(siteId) && editSelectedClientId) {
-        fetchClientLobsForEdit(editSelectedClientId);
-      }
-      
-      alert(`Client "${clientName}" successfully removed from site`);
-    } catch (error) {
-      console.error('Error removing client from site:', error);
-      alert('Error removing client from site');
-    }
+    setDeleteType('client');
+    setItemToDelete({ id: clientSiteId, name: clientName });
+    setShowDeleteModal(true);
   };
 
   /**
@@ -568,23 +535,9 @@ const SiteManagement = () => {
   const handleBulkDeleteSites = async () => {
     if (selectedSiteIds.length === 0) return;
     
-    if (!window.confirm(`Delete ${selectedSiteIds.length} selected sites? This will also remove all associated client relationships.`)) {
-      return;
-    }
-    
-    try {
-      await manageSite('bulkDeleteSites', { siteIds: selectedSiteIds });
-      
-      // Update state and reset selection
-      fetchSites();
-      fetchSiteClients();
-      setSelectedSiteIds([]);
-      setSelectAllSites(false);
-      
-      alert(`${selectedSiteIds.length} sites successfully deleted with all their client associations`);
-    } catch (error) {
-      console.error('Error bulk deleting sites:', error);
-    }
+    setDeleteType('bulk-sites');
+    setItemToDelete({ count: selectedSiteIds.length });
+    setShowDeleteModal(true);
   };
 
   /**
@@ -593,23 +546,9 @@ const SiteManagement = () => {
   const handleBulkDeleteClientSites = async () => {
     if (selectedClientSiteIds.length === 0) return;
     
-    if (!window.confirm(`Delete ${selectedClientSiteIds.length} selected client-site assignments?`)) {
-      return;
-    }
-    
-    try {
-      await manageSite('bulkDeleteClientSiteAssignments', { clientSiteIds: selectedClientSiteIds });
-      
-      // Update state and reset selection
-      fetchSiteClients();
-      fetchSites();
-      setSelectedClientSiteIds([]);
-      setSelectAllClientSites(false);
-      
-      alert(`${selectedClientSiteIds.length} client-site assignments successfully deleted`);
-    } catch (error) {
-      console.error('Error bulk deleting client-site assignments:', error);
-    }
+    setDeleteType('bulk-clients');
+    setItemToDelete({ count: selectedClientSiteIds.length });
+    setShowDeleteModal(true);
   };
   
   /**
@@ -651,6 +590,79 @@ const SiteManagement = () => {
       console.error('Error fetching client LOBs:', error);
       setClientLobs([]);
       setClientSubLobs([]);
+    }
+  };
+
+  //Handle Confirm Delete Modal
+  const handleConfirmedDelete = async () => {
+    try {
+      switch (deleteType) {
+        case 'site':
+          await manageSite('delete', { siteId: itemToDelete.id });
+          fetchSites();
+          fetchSiteClients();
+          alert(`Site "${itemToDelete.name}" successfully deleted with all its client associations`);
+          break;
+          
+        case 'client':
+          await manageSite('removeClientFromSite', { clientSiteId: itemToDelete.id });
+          
+          // Find the site ID of the deleted relationship
+          const deletedRelationship = siteClients.find(sc => sc.dClientSite_ID === itemToDelete.id);
+          const siteId = deletedRelationship?.dSite_ID;
+          
+          // Update local state
+          setSiteClients(siteClients.filter(sc => sc.dClientSite_ID !== itemToDelete.id));
+          
+          // Refresh data
+          fetchSites();
+          fetchSiteClients();
+          
+          // Update assignments
+          if (siteId) {
+            await fetchExistingAssignments(parseInt(siteId));
+          }
+          
+          // Update edit modal if needed
+          if (editSelectedSiteId && siteId && parseInt(editSelectedSiteId) === parseInt(siteId) && editSelectedClientId) {
+            fetchClientLobsForEdit(editSelectedClientId);
+          }
+          
+          alert(`Client "${itemToDelete.name}" successfully removed from site`);
+          break;
+          
+        case 'bulk-sites':
+          await manageSite('bulkDeleteSites', { siteIds: selectedSiteIds });
+          
+          // Update state and reset selection
+          fetchSites();
+          fetchSiteClients();
+          setSelectedSiteIds([]);
+          setSelectAllSites(false);
+          
+          alert(`${itemToDelete.count} sites successfully deleted with all their client associations`);
+          break;
+          
+        case 'bulk-clients':
+          await manageSite('bulkDeleteClientSiteAssignments', { clientSiteIds: selectedClientSiteIds });
+          
+          // Update state and reset selection
+          fetchSiteClients();
+          fetchSites();
+          setSelectedClientSiteIds([]);
+          setSelectAllClientSites(false);
+          
+          alert(`${itemToDelete.count} client-site assignments successfully deleted`);
+          break;
+      }
+    } catch (error) {
+      console.error('Error performing delete operation:', error);
+      alert('Error performing delete operation');
+    } finally {
+      // Reset modal state
+      setShowDeleteModal(false);
+      setDeleteConfirmText('');
+      setItemToDelete(null);
     }
   };
 
@@ -1383,20 +1395,21 @@ const SiteManagement = () => {
             </div>
           </div>
           
-          <button 
-            onClick={handleAddClient} 
-            className="add-button"
-            disabled={!selectedSite || !selectedClientId}
-          >
-            + Add Client to Site
-          </button>
-          <button 
-            onClick={() => setBulkAddModalOpen(true)} 
-            className="add-button"
-            style={{ marginLeft: '10px' }}
-          >
-            + Bulk Add Clients to Site
-          </button>
+          <div className="buttons-container">
+            <button 
+              onClick={handleAddClient} 
+              className="add-button equal-width-button"
+              disabled={!selectedSite || !selectedClientId}
+            >
+              + Add Client to Site
+            </button>
+            <button 
+              onClick={() => setBulkAddModalOpen(true)} 
+              className="add-button equal-width-button"
+            >
+              + Bulk Add Clients to Site
+            </button>
+          </div>
           
           <h2>Existing Client-Site Assignments</h2>
           <div className="search-container">
@@ -1822,6 +1835,110 @@ const SiteManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+{showDeleteModal && (
+  <div className="modal-overlay">
+    <div className="modal delete-confirmation-modal" style={{ maxWidth: "350px" }}>
+      <div className="modal-header">
+        <h2><FaTrash /> Confirm Deletion</h2>
+        <button 
+          onClick={() => {
+            setShowDeleteModal(false);
+            setDeleteConfirmText('');
+          }} 
+          className="close-btn"
+        >
+          <FaTimes />
+        </button>
+      </div>
+      
+      {deleteType === 'site' && (
+        <p>
+          You are about to delete site "<strong>{itemToDelete?.name}</strong>".
+          <br />This will also remove all associated client relationships.
+          <br />This action cannot be undone.
+        </p>
+      )}
+      {deleteType === 'client' && (
+        <p>
+          You are about to remove client "<strong>{itemToDelete?.name}</strong>" from this site.
+          <br />This action cannot be undone.
+        </p>
+      )}
+      {deleteType === 'bulk-sites' && (
+        <p>
+          You are about to delete <strong>{itemToDelete?.count} selected sites</strong>.
+          <br />This will also remove all associated client relationships.
+          <br />This action cannot be undone.
+        </p>
+      )}
+      {deleteType === 'bulk-clients' && (
+        <p>
+          You are about to delete <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+          <br />This action cannot be undone.
+        </p>
+      )}
+      
+      <div className="confirmation-input" style={{ textAlign: "center" }}>
+        <p style={{ textAlign: "center" }}>Type <strong>CONFIRM</strong> to proceed:</p>
+        <input
+          type="text"
+          value={deleteConfirmText}
+          onChange={(e) => setDeleteConfirmText(e.target.value)}
+          placeholder="CONFIRM"
+          style={{ 
+            width: "120px", 
+            fontSize: "14px",
+            padding: "8px 10px",
+            textAlign: "center",
+            margin: "0 auto",
+            display: "block"
+          }}
+        />
+      </div>
+      
+      <div className="modal-actions" style={{ display: "flex", justifyContent: "space-between" }}>
+        <button 
+          onClick={() => {
+            setShowDeleteModal(false);
+            setDeleteConfirmText('');
+          }} 
+          className="cancel-btn"
+          style={{
+            flex: "1",
+            maxWidth: "45%",
+            margin: "0 5px",
+            fontSize: "15px",
+            textAlign: "center"
+          }}
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={handleConfirmedDelete} 
+          className="delete-btn"
+          disabled={deleteConfirmText !== 'CONFIRM'}
+          style={{ 
+            backgroundColor: "#e53e3e",
+            color: "white",
+            border: "none",
+            flex: "1",
+            maxWidth: "45%",
+            margin: "0 5px",
+            fontSize: "15px",
+            textAlign: "center",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center"
+          }}
+        >
+          <FaTrash style={{ marginRight: "5px" }} /> Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

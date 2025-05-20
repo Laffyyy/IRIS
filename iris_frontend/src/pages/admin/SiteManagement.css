@@ -628,3 +628,22 @@ td:last-child {
   display: inline-block;
   margin-left: 5px;
 }
+
+.buttons-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.equal-width-button {
+  width: 180px;
+  min-height: 40px;
+  height: auto;
+  white-space: normal;
+  line-height: 1.2;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
