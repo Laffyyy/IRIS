@@ -1160,112 +1160,120 @@ const SiteManagement = () => {
         </div>
         
         <div className={`tab-content ${activeTab === 'addSite' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Site Name</label>
+  <div className="site-management-two-column">
+    {/* Left Card - Add New Site */}
+    <div className="site-management-card">
+      <div className="form-row">
+        <div className="form-group">
+          <label>Site Name</label>
+          <input
+            type="text"
+            value={newSiteName}
+            onChange={(e) => setNewSiteName(e.target.value)}
+          />
+        </div>
+      </div>
+      <button 
+        onClick={handleAddSite} 
+        className="add-button" 
+        disabled={!newSiteName.trim() || isLoading}
+      >
+        {isLoading ? 'Adding...' : '+ Add New Site'}
+      </button>
+      {error && <p className="error-message">{error}</p>}
+    </div>
+    
+    {/* Right Card - Existing Sites */}
+    <div className="site-management-card">
+      <h3>Existing Sites</h3>
+      <div className="search-container">
+        <div className="search-box">
+          <FaSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search sites by name..."
+            value={siteSearchTerm}
+            onChange={(e) => setSiteSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+      <table className="existing-sites-table">
+        <thead>
+          <tr>
+            <th>
               <input
-                type="text"
-                value={newSiteName}
-                onChange={(e) => setNewSiteName(e.target.value)}
+                type="checkbox"
+                checked={selectAllSites}
+                onChange={handleSelectAllSites}
               />
-            </div>
-          </div>
-          <button 
-            onClick={handleAddSite} 
-            className="add-button" 
-            disabled={!newSiteName.trim() || isLoading}
-          >
-            {isLoading ? 'Adding...' : '+ Add New Site'}
-          </button>
-          {error && <p className="error-message">{error}</p>}
-
-          <h2>Existing Sites</h2>
-          <div className="search-container">
-            <div className="search-box">
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search sites by name..."
-                value={siteSearchTerm}
-                onChange={(e) => setSiteSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-          <table className="existing-sites-table">
-            <thead>
-              <tr>
-                <th>
+            </th>
+            <th onClick={() => handleSiteSort('dSite_ID')} className="sortable-header">
+              Site ID {siteSortConfig.key === 'dSite_ID' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleSiteSort('dSiteName')} className="sortable-header">
+              Site Name {siteSortConfig.key === 'dSiteName' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleSiteSort('dCreatedBy')} className="sortable-header">
+              Created By {siteSortConfig.key === 'dCreatedBy' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header">
+              Created At {siteSortConfig.key === 'tCreatedAt' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredSites.length > 0 ? (
+            filteredSites.map(site => (
+              <tr key={site.dSite_ID}>
+                <td>
                   <input
                     type="checkbox"
-                    checked={selectAllSites}
-                    onChange={handleSelectAllSites}
+                    checked={selectedSiteIds.includes(site.dSite_ID)}
+                    onChange={() => handleSiteSelection(site.dSite_ID)}
                   />
-                </th>
-                <th onClick={() => handleSiteSort('dSite_ID')} className="sortable-header">
-                  Site ID {siteSortConfig.key === 'dSite_ID' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSiteSort('dSiteName')} className="sortable-header">
-                  Site Name {siteSortConfig.key === 'dSiteName' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSiteSort('dCreatedBy')} className="sortable-header">
-                  Created By {siteSortConfig.key === 'dCreatedBy' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header">
-                  Created At {siteSortConfig.key === 'tCreatedAt' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-                </th>
-                <th>Actions</th>
+                </td>
+                <td>{site.dSite_ID}</td>
+                <td>{site.dSiteName}</td>
+                <td>{site.dCreatedBy || '-'}</td>
+                <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
+                <td>
+                  <div className="action-buttons">
+                    <button
+                      className="edit-btn"
+                      onClick={() => handleEditClick(site)}
+                    >
+                      <FaPencilAlt size={12} /> Edit
+                    </button>
+                    <button
+                      className="delete-btn"
+                      onClick={() => handleDeleteSite(site.dSite_ID)}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredSites.length > 0 ? (
-                filteredSites.map(site => (
-                  <tr key={site.dSite_ID}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selectedSiteIds.includes(site.dSite_ID)}
-                        onChange={() => handleSiteSelection(site.dSite_ID)}
-                      />
-                    </td>
-                    <td>{site.dSite_ID}</td>
-                    <td>{site.dSiteName}</td>
-                    <td>{site.dCreatedBy || '-'}</td>
-                    <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="edit-btn"
-                          onClick={() => handleEditClick(site)}
-                        >
-                          <FaPencilAlt size={12} /> Edit
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDeleteSite(site.dSite_ID)}
-                        >
-                          <FaTrash size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center' }}>
-                    {sites.length > 0 ? 'No matching sites found' : 'No sites available'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          {selectedSiteIds.length > 0 && (
-            <div className="bulk-delete-container">
-              <button onClick={handleBulkDeleteSites} className="delete-btn bulk-delete-btn">
-                <FaTrash size={12} /> Delete Selected ({selectedSiteIds.length})
-              </button>
-            </div>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="6" style={{ textAlign: 'center' }}>
+                {sites.length > 0 ? 'No matching sites found' : 'No sites available'}
+              </td>
+            </tr>
           )}
+        </tbody>
+      </table>
+      {selectedSiteIds.length > 0 && (
+        <div className="bulk-delete-container">
+          <button onClick={handleBulkDeleteSites} className="delete-btn bulk-delete-btn">
+            <FaTrash size={12} /> Delete Selected ({selectedSiteIds.length})
+          </button>
         </div>
+      )}
+    </div>
+  </div>
+</div>
         
         <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
           <div className="form-row">

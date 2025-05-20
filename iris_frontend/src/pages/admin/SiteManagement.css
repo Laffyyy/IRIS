@@ -12,13 +12,6 @@
   padding: 20px;
 }
 
-.site-management-header h1 {
-  font-size: 18px;
-  color: #004D8D;
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-
 .site-management-header .subtitle {
   font-size: 12px;
   color: #666;
@@ -90,7 +83,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
-  margin-top: 10px;
+  margin-top: -19px;
 }
 
 .add-button:hover {
@@ -361,13 +354,18 @@ td:last-child {
 
 .existing-client-site-table th,
 .existing-sites-table th {
-  background-color: #f8f8f8;
+  background-color: white;
   font-weight: 600;
 }
 
 .existing-client-site-table tr:nth-child(even),
 .existing-sites-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: white;
+}
+
+.existing-client-site-table tr:nth-child(odd),
+.existing-sites-table tr:nth-child(odd) {
+  background-color: white;
 }
 
 .required-field {
@@ -446,8 +444,26 @@ td:last-child {
 .existing-sites-table td:first-child,
 .existing-client-site-table th:first-child,
 .existing-client-site-table td:first-child {
-  width: 30px;
+  width: 80px; /* Increased from 30px to accommodate text */
   text-align: center;
+}
+
+/* Style the "Select All" text in the header */
+.existing-sites-table th:first-child::after,
+.existing-client-site-table th:first-child::after {
+  content: "Select All";
+  margin-left: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Adjust vertical alignment for the checkbox and text */
+.existing-sites-table th:first-child,
+.existing-client-site-table th:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 10px;
 }
 
 /* Bulk Add Modal Styles */
@@ -646,4 +662,51 @@ td:last-child {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+/* Two-column layout for site management */
+.site-management-two-column {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+/* Cards for site management sections */
+.site-management-card {
+  flex: 1;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Left card for add site section */
+.site-management-card:first-child {
+  flex: 0 0 320px;
+  align-self: flex-start;
+}
+
+.site-management-card:first-child .form-row {
+  margin-bottom: 1px; /* Reduce from the default 20px */
+}
+
+/* Right card for existing sites table */
+.site-management-card:last-child {
+  flex: 1;
+}
+
+.site-management-card h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.search-container, .search-box {
+  position: relative;
+  flex: 0 1 auto; /* Change from flex: 1 to prevent full expansion */
+  width: 300px; /* Set a fixed width */
+  max-width: 100%;
 }
