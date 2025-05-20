@@ -1,7 +1,7 @@
 // KPIManagement.js
 import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle } from 'react-icons/fa';
 
 const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis to /api/kpis
 
@@ -61,34 +61,80 @@ const KPIManagement = () => {
 
   const [isDuplicateName, setIsDuplicateName] = useState(false);
 
-  const handleFormSubmit = () => {
-  if (editingKpi) {
-    handleUpdateKpi();
-  } else {
-    // Check for duplicates in existing KPIs
-    if (isDuplicateKPI(kpiName)) {
-      alert('A KPI with this name already exists. Please use a different name.');
-      return;
-    }
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [kpiToAdd, setKpiToAdd] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [successCount, setSuccessCount] = useState(0);
+  
 
-    // Add to preview by appending to existing array
-    setIndividualPreview([
-      ...individualPreview,
-      {
+  const handleFormSubmit = () => {
+    if (editingKpi) {
+      handleUpdateKpi();
+    } else {
+      // Check for duplicates in existing KPIs
+      if (isDuplicateKPI(kpiName)) {
+        alert('A KPI with this name already exists. Please use a different name.');
+        return;
+      }
+
+      // Set the KPI to add and show confirmation modal
+      setKpiToAdd({
         name: kpiName,
         category: category,
         behavior: behavior,
         description: description
+      });
+      setShowConfirmModal(true);
+    }
+  };
+
+  const handleConfirmAdd = async () => {
+    try {
+      const kpiData = {
+        dKPI_Name: kpiToAdd.name.trim(),
+        dCategory: kpiToAdd.category,
+        dCalculationBehavior: kpiToAdd.behavior,
+        dDescription: kpiToAdd.description || '',
+        dCreatedBy: '2505170018'
+      };
+
+      const response = await fetch(BASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(kpiData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Server error: ${response.status}`);
       }
-    ]);
-    // Clear form for next entry
-    setKpiName('');
-    setCategory('');
-    setBehavior('');
-    setDescription('');
-    setDescriptionCount(0);
-  }
-};
+
+      // Refresh KPI list
+      const refreshResponse = await fetch(BASE_URL);
+      if (!refreshResponse.ok) {
+        throw new Error('Failed to refresh KPI list');
+      }
+      const updatedKpis = await refreshResponse.json();
+      setKpis(updatedKpis);
+
+      resetForm();
+      setShowConfirmModal(false);
+      setShowSuccessModal(true); // Show success modal instead of alert
+      setActiveTab('viewKPIs');
+
+      // Auto hide success modal after 2 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error details:', error);
+      alert(`Failed to add KPI: ${error.message}`);
+    }
+  };
 
   // Handle file drop for bulk upload
   const handleDrag = useCallback((e) => {
@@ -663,11 +709,14 @@ const KPIManagement = () => {
           const updatedKpis = await refreshResponse.json();
           setKpis(updatedKpis);
 
+          // Set success message and count
+          setSuccessMessage('KPIs have been added successfully');
+          setSuccessCount(bulkKpis.length);
+          setShowSuccessModal(true);
+
           // Reset all bulk upload related states
           resetBulkUploadState();
           setActiveTab('viewKPIs');
-          
-          alert(`Successfully added ${bulkKpis.length} KPIs`);
 
       } catch (error) {
           console.error('Bulk upload error:', error);
@@ -996,50 +1045,6 @@ const KPIManagement = () => {
                   >
                     {editingKpi ? 'Save Changes' : '+ Add New KPI'}
                   </button>
-
-                  {individualPreview.length > 0 && (
-                    <div className="individual-preview">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>KPI Name</th>
-                            <th>Category</th>
-                            <th>Behavior</th>
-                            <th>Description</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {individualPreview.map((kpi, index) => (
-                            <tr key={`individual-preview-${index}`}>
-                              <td>{kpi.name}</td>
-                              <td>{kpi.category}</td>
-                              <td>{kpi.behavior}</td>
-                              <td>{kpi.description}</td>
-                              <td>
-                                <button 
-                                  onClick={() => removeFromPreview(index)} 
-                                  className="delete-btn"
-                                >
-                                  <FaTrash size={12} /> Delete
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  <div className="modal-actions">
-                    <button 
-                      onClick={handleAddKpi} 
-                      className="save-btn"
-                      disabled={individualPreview.length === 0}
-                    >
-                      Add KPI
-                    </button>
-                  </div>
                 </div>
               </div>
               <div className="kpi-upload-card">
@@ -1313,6 +1318,60 @@ const KPIManagement = () => {
           </div>
         </div>
       )}
+
+      {showConfirmModal && kpiToAdd && (
+      <div className="modal-overlay">
+        <div className="modal confirm-modal">
+          <div className="modal-header">
+            <h2>Confirm KPI Addition</h2>
+            <button onClick={() => setShowConfirmModal(false)} className="close-btn">
+              <FaTimes />
+            </button>
+          </div>
+          
+          <div className="modal-content">
+            <p>Please confirm the details of the KPI to be added:</p>
+            <div className="kpi-details">
+              <p>Name:<strong>{kpiToAdd.name}</strong></p>
+              <p>Category:<strong>{kpiToAdd.category}</strong></p>
+              <p>Behavior:<strong>{kpiToAdd.behavior}</strong></p>
+              <p>Description:<strong>{kpiToAdd.description || '-'}</strong></p>
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button onClick={() => setShowConfirmModal(false)} className="cancel-btn">
+              Cancel
+            </button>
+            <button onClick={handleConfirmAdd} className="save-btn">
+              Confirm Add
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+          {showSuccessModal && (
+        <div className="modal-overlay">
+          <div className="modal success-modal">
+            <div className="success-content">
+              <FaCheckCircle className="success-icon" />
+              <h2>Success!</h2>
+              <p>{successMessage}</p>
+              {successCount > 0 && (
+                <p className="success-count">{successCount} KPI{successCount !== 1 ? 's' : ''} added</p>
+              )}
+              <button 
+                onClick={() => setShowSuccessModal(false)} 
+                className="ok-btn"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    
     </div>
   );
 };
