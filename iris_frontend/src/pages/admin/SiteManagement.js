@@ -53,6 +53,9 @@ const SiteManagement = () => {
   const [availableBulkClients, setAvailableBulkClients] = useState([]);
   const [isLoadingBulkClients, setIsLoadingBulkClients] = useState(false);
 
+  const [siteSortConfig, setSiteSortConfig] = useState({ key: null, direction: 'ascending' });
+  const [clientSiteSortConfig, setClientSiteSortConfig] = useState({ key: null, direction: 'ascending' });
+
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
@@ -227,6 +230,60 @@ const SiteManagement = () => {
     } catch (error) {
       console.error('Error fetching site clients:', error);
     }
+  };
+
+  const sortData = (data, sortConfig) => {
+    if (!sortConfig.key) return data;
+    
+    return [...data].sort((a, b) => {
+      if (a[sortConfig.key] === null) return 1;
+      if (b[sortConfig.key] === null) return -1;
+      
+      // Handle string, number and date comparisons
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+      
+      // Convert date strings to Date objects for proper comparison
+      if (typeof aValue === 'string' && aValue.includes('-') && !isNaN(Date.parse(aValue))) {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      }
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'ascending' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'ascending' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+  
+  // Add these handler functions to toggle sort direction
+  const handleSiteSort = (key) => {
+    setSiteSortConfig(prevConfig => {
+      if (prevConfig.key === key) {
+        if (prevConfig.direction === 'ascending') {
+          return { key, direction: 'descending' };
+        } else if (prevConfig.direction === 'descending') {
+          return { key: null, direction: 'ascending' };
+        }
+      }
+      return { key, direction: 'ascending' };
+    });
+  };
+  
+  const handleClientSiteSort = (key) => {
+    setClientSiteSortConfig(prevConfig => {
+      if (prevConfig.key === key) {
+        if (prevConfig.direction === 'ascending') {
+          return { key, direction: 'descending' };
+        } else if (prevConfig.direction === 'descending') {
+          return { key: null, direction: 'ascending' };
+        }
+      }
+      return { key, direction: 'ascending' };
+    });
   };
 
   /**
@@ -651,18 +708,24 @@ const SiteManagement = () => {
     }
   };
 
-  const filteredSites = sites.filter(site => {
-    return site.dSiteName.toLowerCase().includes(siteSearchTerm.toLowerCase());
-  });
+  const filteredSites = sortData(
+    sites.filter(site => {
+      return site.dSiteName.toLowerCase().includes(siteSearchTerm.toLowerCase());
+    }),
+    siteSortConfig
+  );
   
-  const filteredSiteClients = siteClients.filter(clientSite => {
-    return (
-      clientSite.dClientName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase()) ||
-      (clientSite.dLOB && clientSite.dLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
-      (clientSite.dSubLOB && clientSite.dSubLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
-      clientSite.dSiteName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())
-    );
-  });
+  const filteredSiteClients = sortData(
+    siteClients.filter(clientSite => {
+      return (
+        clientSite.dClientName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase()) ||
+        (clientSite.dLOB && clientSite.dLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
+        (clientSite.dSubLOB && clientSite.dSubLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
+        clientSite.dSiteName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())
+      );
+    }),
+    clientSiteSortConfig
+  );
 
   /**
    * Updates the cache of which clients are available for a site
@@ -1126,10 +1189,18 @@ const SiteManagement = () => {
                     onChange={handleSelectAllSites}
                   />
                 </th>
-                <th>Site ID</th>
-                <th>Site Name</th>
-                <th>Created By</th>
-                <th>Created At</th>
+                <th onClick={() => handleSiteSort('dSite_ID')} className="sortable-header">
+                  Site ID {siteSortConfig.key === 'dSite_ID' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSiteSort('dSiteName')} className="sortable-header">
+                  Site Name {siteSortConfig.key === 'dSiteName' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSiteSort('dCreatedBy')} className="sortable-header">
+                  Created By {siteSortConfig.key === 'dCreatedBy' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header">
+                  Created At {siteSortConfig.key === 'tCreatedAt' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1349,13 +1420,27 @@ const SiteManagement = () => {
                     onChange={handleSelectAllClientSites}
                   />
                 </th>
-                <th>Client Site ID</th>
-                <th>Client Name</th>
-                <th>LOB</th>
-                <th>Sub LOB</th>
-                <th>Site Name</th>
-                <th>Created By</th>
-                <th>Created At</th>
+                <th onClick={() => handleClientSiteSort('dClientSite_ID')} className="sortable-header">
+                  Client Site ID {clientSiteSortConfig.key === 'dClientSite_ID' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dClientName')} className="sortable-header">
+                  Client Name {clientSiteSortConfig.key === 'dClientName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dLOB')} className="sortable-header">
+                  LOB {clientSiteSortConfig.key === 'dLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dSubLOB')} className="sortable-header">
+                  Sub LOB {clientSiteSortConfig.key === 'dSubLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dSiteName')} className="sortable-header">
+                  Site Name {clientSiteSortConfig.key === 'dSiteName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dCreatedBy')} className="sortable-header">
+                  Created By {clientSiteSortConfig.key === 'dCreatedBy' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleClientSiteSort('tCreatedAt')} className="sortable-header">
+                  Created At {clientSiteSortConfig.key === 'tCreatedAt' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>

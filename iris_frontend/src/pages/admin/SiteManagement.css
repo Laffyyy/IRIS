@@ -613,3 +613,18 @@ td:last-child {
 .react-select__dropdown-indicator {
   padding: 4px !important;
 }
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background-color: #f0f7ff;
+}
+
+.sortable-header::after {
+  display: inline-block;
+  margin-left: 5px;
+}
