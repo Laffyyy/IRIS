@@ -1495,7 +1495,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 
                 {lobCards.length < 4 && (
                   <div className="add-lob-card-container">
-                    <button onClick={handleAddAnotherLobCard} className="add-lob-card-button">
+                    <button 
+                      onClick={handleAddAnotherLobCard} 
+                      className="add-lob-card-button"
+                      title="Add another LOB"
+                    >
                       +
                     </button>
                   </div>
