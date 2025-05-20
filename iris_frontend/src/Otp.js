@@ -177,61 +177,72 @@ import './Otp.css';
   };
 
   const handleSubmit = async () => {
-  const otp = otpValues.join(''); // Combine OTP values into a single string
-
-  // Retrieve userId and password from localStorage
-  const userId = localStorage.getItem('userId');
-  const password = localStorage.getItem('password');
-
-  if (!userId || !password) {
-    alert('User ID or password is missing. Please log in again.');
-    return;
-  }
-
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
-  };
-
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // Handle successful OTP verification
-      const userStatus = data.data.user.status;
-      localStorage.setItem('token', data.data.token); // Save token to localStorage
-      alert(data.data.message);
-
-      if (userStatus === 'FIRST-TIME') {
-        navigate('../change-password'); // Redirect to change password page
-      } else if (userStatus === 'ACTIVE') {
-        alert('Login successful');
-        navigate('../dashboard'); // Redirect to dashboard or home page
-      }
-    } else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
+    // Comment out these testing lines when you want to use actual verification
+    localStorage.setItem('token', 'mock-token-for-testing');
+    
+    // For testing: Choose which path to simulate:
+    // Uncomment ONE of these options based on what you want to test:
+    
+    // Option 1: Simulate first-time login
+    console.log('Bypassing OTP verification - simulating FIRST-TIME user');
+    navigate('../change-password');
+    
+    // Option 2: Simulate active user
+    // console.log('Bypassing OTP verification - simulating ACTIVE user');
+    // navigate('../dashboard');
+    
+    // REAL IMPLEMENTATION (uncomment when ready to use actual verification)
+    /*
+    const otp = otpValues.join('');
+    const userId = localStorage.getItem('userId');
+    const password = localStorage.getItem('password');
+  
+    if (!userId || !password) {
+      alert('User ID or password is missing. Please log in again.');
+      return;
     }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
   
+    const payload = {
+      userId,
+      password,
+      otp
+    };
   
-
-};
+    try {
+      const response = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        const userStatus = data.data.user.status;
+        localStorage.setItem('token', data.data.token);
+  
+        if (userStatus === 'FIRST-TIME') {
+          console.log('First-time user detected, redirecting to change password');
+          navigate('../change-password');
+        } else if (userStatus === 'ACTIVE') {
+          console.log('Active user detected, redirecting to dashboard');
+          navigate('../dashboard');
+        } else {
+          console.warn('Unknown user status:', userStatus);
+          alert(`Login successful but unknown status: ${userStatus}`);
+        }
+      } else {
+        alert(data.data.message || 'Failed to verify OTP. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error during OTP verification:', error);
+      alert('An error occurred while verifying the OTP. Please try again.');
+    }
+    */
+  };
+  
  const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');

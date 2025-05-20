@@ -48,6 +48,7 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
+  const [password, setPassword] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);

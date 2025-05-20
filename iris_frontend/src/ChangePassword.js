@@ -3,7 +3,7 @@ import './ChangePassword.css';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-const ChangePassword = ({ onCancel }) => {
+const ChangePassword = ({  }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [userId, setUserId] = useState('');
@@ -141,6 +141,15 @@ const handlePasswordChange = (e, field) => {
     }
   };
 
+  const handleCancel = () => {
+    // Clear any stored credentials to prevent security issues
+    localStorage.removeItem('userId');
+    localStorage.removeItem('password');
+    
+    // Navigate back to the login page
+    navigate('/');
+  };
+
   return (
     <div className="change-password-container">
       <h2>Change Password</h2>
@@ -204,7 +213,11 @@ const handlePasswordChange = (e, field) => {
             {/* Question 1 */}
             <div className="security-question-group">
               <label htmlFor="security-question-1">Security Question 1</label>
-              <select id="security-question-1">
+              <select 
+                id="security-question-1" 
+                value={securityQuestions.question1}
+                onChange={(e) => handleQuestionChange(e, 'question1')}
+              >
                 <option>Select a question</option>
                 <option>What is your mother's maiden name?</option>
                 <option>What was the name of your first pet?</option>
@@ -222,7 +235,11 @@ const handlePasswordChange = (e, field) => {
             {/* Question 2 */}
             <div className="security-question-group">
               <label htmlFor="security-question-2">Security Question 2</label>
-              <select id="security-question-2">
+              <select 
+                id="security-question-2"
+                value={securityQuestions.question2}
+                onChange={(e) => handleQuestionChange(e, 'question2')}
+              >
                 <option>Select a question</option>
                 <option>What is your favorite book?</option>
                 <option>What city were you born in?</option>
@@ -240,7 +257,11 @@ const handlePasswordChange = (e, field) => {
             {/* Question 3 */}
             <div className="security-question-group">
               <label htmlFor="security-question-3">Security Question 3</label>
-              <select id="security-question-3">
+              <select 
+                id="security-question-3"
+                value={securityQuestions.question3}
+                onChange={(e) => handleQuestionChange(e, 'question3')}
+              >
                 <option>Select a question</option>
                 <option>What is your favorite movie?</option>
                 <option>What is your dream job?</option>
@@ -258,8 +279,8 @@ const handlePasswordChange = (e, field) => {
         </form>
 
         <div className="form-actions-row">
-          <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
-          <button type="submit" className="save-btn">Save Changes</button>
+          <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>
+          <button type="submit" className="save-btn" onClick={handleSubmit} >Save Changes</button>
         </div>
       </div>
     </div>
