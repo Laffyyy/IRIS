@@ -88,6 +88,11 @@
   font-size: 13px;
 }
 
+.input-invalid {
+  border-color: #e53e3e !important;
+  background-color: #fff5f5;
+}
+
 .add-button {
   background-color: #004D8D;
   color: white;

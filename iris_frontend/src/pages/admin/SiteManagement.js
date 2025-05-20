@@ -1012,6 +1012,17 @@ const SiteManagement = () => {
     }
   };
 
+  // Reusable utility function
+  const sanitizeInput = (value) => {
+    // First, trim leading spaces
+    let trimmedValue = value.trimStart();
+    
+    // Then apply other sanitization rules
+    return trimmedValue.replace(/[^\w\s]/g, '')  // Remove special characters
+                       .replace(/[\r\n\t\f\v]/g, '') // Remove all whitespace except normal spaces
+                       .replace(/\s+/g, ' '); // Replace multiple spaces with single space
+  };
+
   /**
    * Handles bulk adding clients to a site
    */
@@ -1169,7 +1180,7 @@ const SiteManagement = () => {
           <input
             type="text"
             value={newSiteName}
-            onChange={(e) => setNewSiteName(e.target.value)}
+            onChange={(e) => setNewSiteName(sanitizeInput(e.target.value))}
           />
         </div>
       </div>
@@ -1193,7 +1204,7 @@ const SiteManagement = () => {
             type="text"
             placeholder="Search sites by name..."
             value={siteSearchTerm}
-            onChange={(e) => setSiteSearchTerm(e.target.value)}
+            onChange={(e) => setSiteSearchTerm(sanitizeInput(e.target.value))}
           />
         </div>
       </div>
@@ -1437,7 +1448,7 @@ const SiteManagement = () => {
           type="text"
           placeholder="Search by client name, LOB, Sub LOB, or site name..."
           value={clientSiteSearchTerm}
-          onChange={(e) => setClientSiteSearchTerm(e.target.value)}
+          onChange={(e) => setClientSiteSearchTerm(sanitizeInput(e.target.value))}
         />
       </div>
     </div>
@@ -1556,7 +1567,7 @@ const SiteManagement = () => {
                 <input
                   type="text"
                   value={currentSite.name}
-                  onChange={(e) => setCurrentSite({...currentSite, name: e.target.value})}
+                  onChange={(e) => setCurrentSite(sanitizeInput({...currentSite, name: e.target.value}))}
                   required
                 />
               </div>
@@ -1907,7 +1918,7 @@ const SiteManagement = () => {
         <input
           type="text"
           value={deleteConfirmText}
-          onChange={(e) => setDeleteConfirmText(e.target.value)}
+          onChange={(e) => setDeleteConfirmText(sanitizeInput(e.target.value))}
           placeholder="CONFIRM"
           style={{ 
             width: "120px", 
