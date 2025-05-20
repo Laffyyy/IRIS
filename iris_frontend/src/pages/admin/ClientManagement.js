@@ -1410,711 +1410,621 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
   return (
     <div className="client-management-container">
-      <div className="white-card">
-        <div className="client-management-header">
-          <h1>Client Management</h1>
-          <p className="subtitle">Manage clients, LOBs, and Sub LOBs</p>
-        </div>
-
-        <div className="tab-container">
-          <div className={`tab ${activeTab === 'addClient' ? 'active' : ''}`} onClick={() => setActiveTab('addClient')}>
-            Add Client
+      <div className="client-management-flex">
+        {/* Sidebar: Tabs and Tab Content */}
+        <div className="client-management-sidebar">
+          <div className="client-management-header">
+            <h1>Client Management</h1>
+            <p className="subtitle">Manage clients, LOBs, and Sub LOBs</p>
           </div>
-          <div className={`tab ${activeTab === 'addLOB' ? 'active' : ''}`} onClick={() => setActiveTab('addLOB')}>
-            Add LOB
-          </div>
-          <div className={`tab ${activeTab === 'addSubLOB' ? 'active' : ''}`} onClick={() => setActiveTab('addSubLOB')}>
-            Add Sub LOB
-          </div>
-        </div>
-
-        {/* Add Client Tab */}
-        <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
-          <div className="client-name-container">
-            <label>Client Name</label>
-            <input
-              type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              placeholder="Enter client name"
-            />
-          </div>
-
-          <div className="lob-cards-container">
-            {lobCards.map((card, lobCardIndex) => (
-              <div key={`lob-card-${lobCardIndex}`} className="lob-card">
-                {lobCardIndex > 0 && (
-                  <button className="remove-lob-card-btn" onClick={() => handleRemoveLobCard(lobCardIndex)}>
-                    <FaTimes size={10} className="times-icon" />
-                  </button>
-                )}
-                
-                <div className="form-group inline-form-group">
-                  <label>LOB Name:</label>
-                  <input
-                    type="text"
-                    value={card.lobName}
-                    onChange={(e) => handleLobNameChange(lobCardIndex, e.target.value)}
-                  />
-                </div>
-
-                <div className="sub-lobs-container">
-                  {card.subLobNames.map((subLobName, subLobIndex) => (
-                    <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
-                      <label>Sub LOB {subLobIndex + 1}:</label>
-                      <div className="sub-lob-input-container">
-                        <input
-                          type="text"
-                          value={subLobName}
-                          onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, e.target.value)}
-                        />
-                        {subLobIndex > 0 && (
-                          <button 
-                            className="remove-sub-lob-field-btn"
-                            onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
-                          >
-                            <FaTimes size={10} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {card.subLobNames.length < 4 && (
-                  <button 
-                    onClick={() => handleAddAnotherSubLob(lobCardIndex)} 
-                    className="add-another-button"
-                  >
-                    + Add Sub LOB
-                  </button>
-                )}
-              </div>
-            ))}
-            
-            {lobCards.length < 4 && (
-              <div className="add-lob-card-container">
-                <button onClick={handleAddAnotherLobCard} className="add-lob-card-button">
-                  + Add LOB Card
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button 
-            onClick={handleAddClient} 
-            className="submit-button"
-            disabled={!clientName.trim() || !lobCards.some(card => card.lobName.trim())}
-          >
-            Submit Client
-          </button>
-        </div>
-
-        {/* Add LOB Tab */}
-        <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
-          <div className="client-name-container">
-            <label>Select Client</label>
-            <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`}>
-              <input
-                type="text"
-                value={clientSearchTerm}
-                onChange={(e) => {
-                  setClientSearchTerm(e.target.value);
-                  setIsClientDropdownOpen(true);
-                  // Clear selected client if search term doesn't match
-                  const matchingClient = clients.find(c => c.name === e.target.value);
-                  if (!matchingClient) {
-                    setSelectedClientForLob(null);
-                    setSelectedSiteForLob(null);
-                    setSiteSearchTerm('');
-                  }
-                }}
-                onFocus={() => setIsClientDropdownOpen(true)}
-                placeholder="Search or select a client"
-                className="searchable-input"
-              />
-              {isClientDropdownOpen && (
-                <div className="dropdown-list">
-                  {filteredClientOptions().map(([name, id]) => (
-                    <div
-                      key={id}
-                      className="dropdown-item"
-                      onClick={() => {
-                        setSelectedClientForLob(id);
-                        setClientSearchTerm(name);
-                        setIsClientDropdownOpen(false);
-                        setSelectedSiteForLob(null);
-                        setSiteSearchTerm(''); // Clear site search when client changes
-                      }}
-                    >
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="tab-container">
+            <div className={`tab ${activeTab === 'addClient' ? 'active' : ''}`} onClick={() => setActiveTab('addClient')}>
+              Add Client
+            </div>
+            <div className={`tab ${activeTab === 'addLOB' ? 'active' : ''}`} onClick={() => setActiveTab('addLOB')}>
+              Add LOB
+            </div>
+            <div className={`tab ${activeTab === 'addSubLOB' ? 'active' : ''}`} onClick={() => setActiveTab('addSubLOB')}>
+              Add Sub LOB
             </div>
           </div>
-          <div className="client-name-container">
-            <label>Select Site</label>
-            <div className={`site-searchable-dropdown ${isSiteDropdownOpen ? 'active' : ''}`}>
-              <input
-                type="text"
-                value={siteSearchTerm}
-                onChange={(e) => {
-                  setSiteSearchTerm(e.target.value);
-                  setIsSiteDropdownOpen(true);
-                }}
-                onFocus={() => {
-                  if (validateClientSelection()) {
-                    setIsSiteDropdownOpen(true);
-                  }
-                }}
-                placeholder="Search or select a site"
-                className="searchable-input"
-                disabled={!validateClientSelection()}
-              />
-              {isSiteDropdownOpen && validateClientSelection() && (
-                <div className="dropdown-list">
-                  {filteredSiteOptions().length > 0 ? (
-                    filteredSiteOptions().map(site => (
-                      <div
-                        key={site.id}
-                        className="dropdown-item"
-                        onClick={() => {
-                          setSelectedSiteForLob(site.id);
-                          setSiteSearchTerm(site.name);
-                          setIsSiteDropdownOpen(false);
-                        }}
-                      >
-                        {site.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="dropdown-item no-results">No sites found</div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="lob-cards-container">
-            {lobCardsForLob.map((card, lobCardIndex) => (
-              <div key={`lob-card-${lobCardIndex}`} className="lob-card">
-                {lobCardIndex > 0 && (
-                  <button className="remove-lob-card-btn" onClick={() => handleRemoveLobCardForLob(lobCardIndex)}>
-                    <FaTimes size={10} className="times-icon" />
-                  </button>
-                )}
-                
-                <div className="form-group inline-form-group">
-                  <label>LOB Name:</label>
-                  <input
-                    type="text"
-                    value={card.lobName}
-                    onChange={(e) => handleLobNameChangeForLob(lobCardIndex, e.target.value)}
-                    disabled={!validateClientSelection()}
-                  />
-                </div>
-
-                <div className="sub-lobs-container">
-                  {card.subLobNames.map((subLobName, subLobIndex) => (
-                    <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
-                      <label>Sub LOB {subLobIndex + 1}:</label>
-                      <div className="sub-lob-input-container">
-                        <input
-                          type="text"
-                          value={subLobName}
-                          onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, e.target.value)}
-                          disabled={!validateClientSelection()}
-                        />
-                        {subLobIndex > 0 && (
-                          <button 
-                            className="remove-sub-lob-field-btn"
-                            onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
-                          >
-                            <FaTimes size={10} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {card.subLobNames.length < 4 && (
-                  <button 
-                    onClick={() => handleAddAnotherSubLobForLob(lobCardIndex)} 
-                    className="add-another-button"
-                    disabled={!validateClientSelection()}
-                  >
-                    + Add Sub LOB
-                  </button>
-                )}
-              </div>
-            ))}
-            
-            {lobCardsForLob.length < 4 && (
-              <div className="add-lob-card-container">
-                <button 
-                  onClick={handleAddAnotherLobCardForLob} 
-                  className="add-lob-card-button"
-                  disabled={!validateClientSelection()}
-                >
-                  + Add LOB Card
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button 
-            onClick={handleAddLob} 
-            className="submit-button"
-            disabled={
-              !validateClientSelection() || 
-              !lobCardsForLob.some(card => card.lobName.trim()) ||
-              !lobCardsForLob.every(card => 
-                card.lobName.trim() && card.subLobNames.some(name => name.trim())
-              )
-            }
-          >
-            Submit LOB(s)
-          </button>
-        </div>
-
-        {/* Add Sub LOB Tab */}
-        <div className={`tab-content ${activeTab === 'addSubLOB' ? 'active' : ''}`}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Select Client</label>
-              <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`}>
+          {/* Tab Contents */}
+          <div className="tab-contents-wrapper">
+            <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
+              <div className="client-name-container">
+                <label>Client Name</label>
                 <input
                   type="text"
-                  value={subLobClientSearchTerm}
-                  onChange={(e) => {
-                    setSubLobClientSearchTerm(e.target.value);
-                    setIsSubLobClientDropdownOpen(true);
-                    // Clear selected client if search term doesn't match
-                    const matchingClient = clients.find(c => c.name === e.target.value);
-                    if (!matchingClient) {
-                      setFilterClientForSubLob(null);
-                      setFilterSiteForSubLob(null);
-                      setSubLobSiteSearchTerm('');
-                      setSelectedLobForSubLob(null);
-                      setSubLobLobSearchTerm('');
-                    }
-                  }}
-                  onFocus={() => setIsSubLobClientDropdownOpen(true)}
-                  placeholder="Search or select a client"
-                  className="searchable-input"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="Enter client name"
                 />
-                {isSubLobClientDropdownOpen && (
-                  <div className="dropdown-list">
-                    {filteredSubLobClientOptions().map(([name, id]) => (
-                      <div
-                        key={id}
-                        className="dropdown-item"
-                        onClick={() => {
-                          setFilterClientForSubLob(id);
-                          setSubLobClientSearchTerm(name);
-                          setIsSubLobClientDropdownOpen(false);
-                          // Clear site and LOB selections when client changes
+              </div>
+
+              <div className="lob-cards-container">
+                {lobCards.map((card, lobCardIndex) => (
+                  <div key={`lob-card-${lobCardIndex}`} className="lob-card">
+                    {lobCardIndex > 0 && (
+                      <button className="remove-lob-card-btn" onClick={() => handleRemoveLobCard(lobCardIndex)}>
+                        <FaTimes size={10} className="times-icon" />
+                      </button>
+                    )}
+                    
+                    <div className="form-group inline-form-group">
+                      <label>LOB Name:</label>
+                      <input
+                        type="text"
+                        value={card.lobName}
+                        onChange={(e) => handleLobNameChange(lobCardIndex, e.target.value)}
+                      />
+                    </div>
+
+                    <div className="sub-lobs-container">
+                      {card.subLobNames.map((subLobName, subLobIndex) => (
+                        <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
+                          <label>Sub LOB {subLobIndex + 1}:</label>
+                          <div className="sub-lob-input-container">
+                            <input
+                              type="text"
+                              value={subLobName}
+                              onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, e.target.value)}
+                            />
+                            {subLobIndex > 0 && (
+                              <button 
+                                className="remove-sub-lob-field-btn"
+                                onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
+                              >
+                                <FaTimes size={10} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {card.subLobNames.length < 4 && (
+                      <button 
+                        onClick={() => handleAddAnotherSubLob(lobCardIndex)} 
+                        className="add-another-button"
+                      >
+                        + Add Sub LOB
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                {lobCards.length < 4 && (
+                  <div className="add-lob-card-container">
+                    <button onClick={handleAddAnotherLobCard} className="add-lob-card-button">
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={handleAddClient} 
+                className="submit-button"
+                disabled={!clientName.trim() || !lobCards.some(card => card.lobName.trim())}
+              >
+                Submit Client
+              </button>
+            </div>
+            <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
+              <div className="client-name-container">
+                <label>Select Client</label>
+                <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`}>
+                  <input
+                    type="text"
+                    value={clientSearchTerm}
+                    onChange={(e) => {
+                      setClientSearchTerm(e.target.value);
+                      setIsClientDropdownOpen(true);
+                      // Clear selected client if search term doesn't match
+                      const matchingClient = clients.find(c => c.name === e.target.value);
+                      if (!matchingClient) {
+                        setSelectedClientForLob(null);
+                        setSelectedSiteForLob(null);
+                        setSiteSearchTerm('');
+                      }
+                    }}
+                    onFocus={() => setIsClientDropdownOpen(true)}
+                    placeholder="Search or select a client"
+                    className="searchable-input"
+                  />
+                  {isClientDropdownOpen && (
+                    <div className="dropdown-list">
+                      {filteredClientOptions().map(([name, id]) => (
+                        <div
+                          key={id}
+                          className="dropdown-item"
+                          onClick={() => {
+                            setSelectedClientForLob(id);
+                            setClientSearchTerm(name);
+                            setIsClientDropdownOpen(false);
+                            setSelectedSiteForLob(null);
+                            setSiteSearchTerm(''); // Clear site search when client changes
+                          }}
+                        >
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="client-name-container">
+                <label>Select Site</label>
+                <div className={`site-searchable-dropdown ${isSiteDropdownOpen ? 'active' : ''}`}>
+                  <input
+                    type="text"
+                    value={siteSearchTerm}
+                    onChange={(e) => {
+                      setSiteSearchTerm(e.target.value);
+                      setIsSiteDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (validateClientSelection()) {
+                        setIsSiteDropdownOpen(true);
+                      }
+                    }}
+                    placeholder="Search or select a site"
+                    className="searchable-input"
+                    disabled={!validateClientSelection()}
+                  />
+                  {isSiteDropdownOpen && validateClientSelection() && (
+                    <div className="dropdown-list">
+                      {filteredSiteOptions().length > 0 ? (
+                        filteredSiteOptions().map(site => (
+                          <div
+                            key={site.id}
+                            className="dropdown-item"
+                            onClick={() => {
+                              setSelectedSiteForLob(site.id);
+                              setSiteSearchTerm(site.name);
+                              setIsSiteDropdownOpen(false);
+                            }}
+                          >
+                            {site.name}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="dropdown-item no-results">No sites found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="lob-cards-container">
+                {lobCardsForLob.map((card, lobCardIndex) => (
+                  <div key={`lob-card-${lobCardIndex}`} className="lob-card">
+                    {lobCardIndex > 0 && (
+                      <button className="remove-lob-card-btn" onClick={() => handleRemoveLobCardForLob(lobCardIndex)}>
+                        <FaTimes size={10} className="times-icon" />
+                      </button>
+                    )}
+                    
+                    <div className="form-group inline-form-group">
+                      <label>LOB Name:</label>
+                      <input
+                        type="text"
+                        value={card.lobName}
+                        onChange={(e) => handleLobNameChangeForLob(lobCardIndex, e.target.value)}
+                        disabled={!validateClientSelection()}
+                      />
+                    </div>
+
+                    <div className="sub-lobs-container">
+                      {card.subLobNames.map((subLobName, subLobIndex) => (
+                        <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
+                          <label>Sub LOB {subLobIndex + 1}:</label>
+                          <div className="sub-lob-input-container">
+                            <input
+                              type="text"
+                              value={subLobName}
+                              onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, e.target.value)}
+                              disabled={!validateClientSelection()}
+                            />
+                            {subLobIndex > 0 && (
+                              <button 
+                                className="remove-sub-lob-field-btn"
+                                onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
+                              >
+                                <FaTimes size={10} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {card.subLobNames.length < 4 && (
+                      <button 
+                        onClick={() => handleAddAnotherSubLobForLob(lobCardIndex)} 
+                        className="add-another-button"
+                        disabled={!validateClientSelection()}
+                      >
+                        + Add Sub LOB
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                {lobCardsForLob.length < 4 && (
+                  <div className="add-lob-card-container">
+                    <button 
+                      onClick={handleAddAnotherLobCardForLob} 
+                      className="add-lob-card-button"
+                      disabled={!validateClientSelection()}
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={handleAddLob} 
+                className="submit-button"
+                disabled={
+                  !validateClientSelection() || 
+                  !lobCardsForLob.some(card => card.lobName.trim()) ||
+                  !lobCardsForLob.every(card => 
+                    card.lobName.trim() && card.subLobNames.some(name => name.trim())
+                  )
+                }
+              >
+                Submit LOB(s)
+              </button>
+            </div>
+            <div className={`tab-content ${activeTab === 'addSubLOB' ? 'active' : ''}`}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Select Client</label>
+                  <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`}>
+                    <input
+                      type="text"
+                      value={subLobClientSearchTerm}
+                      onChange={(e) => {
+                        setSubLobClientSearchTerm(e.target.value);
+                        setIsSubLobClientDropdownOpen(true);
+                        // Clear selected client if search term doesn't match
+                        const matchingClient = clients.find(c => c.name === e.target.value);
+                        if (!matchingClient) {
+                          setFilterClientForSubLob(null);
                           setFilterSiteForSubLob(null);
                           setSubLobSiteSearchTerm('');
                           setSelectedLobForSubLob(null);
                           setSubLobLobSearchTerm('');
-                        }}
-                      >
-                        {name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Select Site</label>
-              <div className={`sublob-site-searchable-dropdown ${isSubLobSiteDropdownOpen ? 'active' : ''}`}>
-                <input
-                  type="text"
-                  value={subLobSiteSearchTerm}
-                  onChange={(e) => {
-                    setSubLobSiteSearchTerm(e.target.value);
-                    setIsSubLobSiteDropdownOpen(true);
-                    // Clear site filter if input is empty
-                    if (!e.target.value) {
-                      setFilterSiteForSubLob(null);
-                      setSelectedLobForSubLob(null);
-                      setSubLobLobSearchTerm('');
-                    }
-                  }}
-                  onFocus={() => {
-                    if (validateSubLobClientSelection()) {
-                      setIsSubLobSiteDropdownOpen(true);
-                    }
-                  }}
-                  placeholder="Search or select a site"
-                  className="searchable-input"
-                  disabled={!validateSubLobClientSelection()}
-                />
-                {isSubLobSiteDropdownOpen && validateSubLobClientSelection() && (
-                  <div className="dropdown-list">
-                    {filteredSubLobSiteOptions().length > 0 ? (
-                      filteredSubLobSiteOptions().map(site => (
-                        <div
-                          key={site.id}
-                          className="dropdown-item"
-                          onClick={() => {
-                            setFilterSiteForSubLob(site.id);
-                            setSubLobSiteSearchTerm(site.name);
-                            setIsSubLobSiteDropdownOpen(false);
-                            // Clear LOB selection when site changes
-                            setSelectedLobForSubLob(null);
-                            setSubLobLobSearchTerm('');
-                          }}
-                        >
-                          {site.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="dropdown-item no-results">No sites found</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Select LOB</label>
-              <div className={`sublob-lob-searchable-dropdown ${isSubLobLobDropdownOpen ? 'active' : ''}`}>
-                <input
-                  type="text"
-                  value={subLobLobSearchTerm}
-                  onChange={(e) => {
-                    setSubLobLobSearchTerm(e.target.value);
-                    setIsSubLobLobDropdownOpen(true);
-                  }}
-                  onFocus={() => {
-                    if (validateSubLobClientSelection()) {
-                      setIsSubLobLobDropdownOpen(true);
-                    }
-                  }}
-                  placeholder="Search or select a LOB"
-                  className="searchable-input"
-                  disabled={!validateSubLobClientSelection()}
-                />
-                {isSubLobLobDropdownOpen && validateSubLobClientSelection() && (
-                  <div className="dropdown-list">
-                    {filteredSubLobLobOptions().length > 0 ? (
-                      filteredSubLobLobOptions().map(lob => {
-                        // Get site name for this LOB
-                        let siteName = 'None';
-                        if (lob.sites && lob.sites.length > 0) {
-                          const site = lob.sites[0]; // Take the first site
-                          siteName = site.siteName || 'None';
-                        } else if (lob.siteName) {
-                          siteName = lob.siteName;
                         }
-                        
-                        return (
+                      }}
+                      onFocus={() => setIsSubLobClientDropdownOpen(true)}
+                      placeholder="Search or select a client"
+                      className="searchable-input"
+                    />
+                    {isSubLobClientDropdownOpen && (
+                      <div className="dropdown-list">
+                        {filteredSubLobClientOptions().map(([name, id]) => (
                           <div
-                            key={lob.id}
+                            key={id}
                             className="dropdown-item"
                             onClick={() => {
-                              setSelectedLobForSubLob(lob.id);
-                              setSubLobLobSearchTerm(`${lob.name} (Site: ${siteName})`);
-                              setIsSubLobLobDropdownOpen(false);
+                              setFilterClientForSubLob(id);
+                              setSubLobClientSearchTerm(name);
+                              setIsSubLobClientDropdownOpen(false);
+                              // Clear site and LOB selections when client changes
+                              setFilterSiteForSubLob(null);
+                              setSubLobSiteSearchTerm('');
+                              setSelectedLobForSubLob(null);
+                              setSubLobLobSearchTerm('');
                             }}
                           >
-                            {`${lob.name} (Site: ${siteName})`}
+                            {name}
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className="dropdown-item no-results">No LOBs found</div>
+                        ))}
+                      </div>
                     )}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Select Site</label>
+                  <div className={`sublob-site-searchable-dropdown ${isSubLobSiteDropdownOpen ? 'active' : ''}`}>
+                    <input
+                      type="text"
+                      value={subLobSiteSearchTerm}
+                      onChange={(e) => {
+                        setSubLobSiteSearchTerm(e.target.value);
+                        setIsSubLobSiteDropdownOpen(true);
+                        // Clear site filter if input is empty
+                        if (!e.target.value) {
+                          setFilterSiteForSubLob(null);
+                          setSelectedLobForSubLob(null);
+                          setSubLobLobSearchTerm('');
+                        }
+                      }}
+                      onFocus={() => {
+                        if (validateSubLobClientSelection()) {
+                          setIsSubLobSiteDropdownOpen(true);
+                        }
+                      }}
+                      placeholder="Search or select a site"
+                      className="searchable-input"
+                      disabled={!validateSubLobClientSelection()}
+                    />
+                    {isSubLobSiteDropdownOpen && validateSubLobClientSelection() && (
+                      <div className="dropdown-list">
+                        {filteredSubLobSiteOptions().length > 0 ? (
+                          filteredSubLobSiteOptions().map(site => (
+                            <div
+                              key={site.id}
+                              className="dropdown-item"
+                              onClick={() => {
+                                setFilterSiteForSubLob(site.id);
+                                setSubLobSiteSearchTerm(site.name);
+                                setIsSubLobSiteDropdownOpen(false);
+                                // Clear LOB selection when site changes
+                                setSelectedLobForSubLob(null);
+                                setSubLobLobSearchTerm('');
+                              }}
+                            >
+                              {site.name}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="dropdown-item no-results">No sites found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Select LOB</label>
+                  <div className={`sublob-lob-searchable-dropdown ${isSubLobLobDropdownOpen ? 'active' : ''}`}>
+                    <input
+                      type="text"
+                      value={subLobLobSearchTerm}
+                      onChange={(e) => {
+                        setSubLobLobSearchTerm(e.target.value);
+                        setIsSubLobLobDropdownOpen(true);
+                      }}
+                      onFocus={() => {
+                        if (validateSubLobClientSelection()) {
+                          setIsSubLobLobDropdownOpen(true);
+                        }
+                      }}
+                      placeholder="Search or select a LOB"
+                      className="searchable-input"
+                      disabled={!validateSubLobClientSelection()}
+                    />
+                    {isSubLobLobDropdownOpen && validateSubLobClientSelection() && (
+                      <div className="dropdown-list">
+                        {filteredSubLobLobOptions().length > 0 ? (
+                          filteredSubLobLobOptions().map(lob => {
+                            // Get site name for this LOB
+                            let siteName = 'None';
+                            if (lob.sites && lob.sites.length > 0) {
+                              const site = lob.sites[0]; // Take the first site
+                              siteName = site.siteName || 'None';
+                            } else if (lob.siteName) {
+                              siteName = lob.siteName;
+                            }
+                            
+                            return (
+                              <div
+                                key={lob.id}
+                                className="dropdown-item"
+                                onClick={() => {
+                                  setSelectedLobForSubLob(lob.id);
+                                  setSubLobLobSearchTerm(`${lob.name} (Site: ${siteName})`);
+                                  setIsSubLobLobDropdownOpen(false);
+                                }}
+                              >
+                                {`${lob.name} (Site: ${siteName})`}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="dropdown-item no-results">No LOBs found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="sub-lob-name-fields-container">
+                {subLobNames.map((name, idx) => (
+                  <div className="sub-lob-name-fields-row" key={idx}>
+                    <div className="sub-lob-name-field">
+                      <div className="form-group" style={{ position: 'relative' }}>
+                        {idx > 0 && (
+                          <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(idx)}>
+                            <FaTimes className="times-icon" />
+                          </button>
+                        )}
+                        <label>{`Sub LOB Name${idx > 0 ? ` ${idx + 1}` : ''}`}</label>
+                        <div className="sub-lob-input-container">
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => handleSubLobNameChange2(idx, e.target.value)}
+                            disabled={!selectedLobForSubLob}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {subLobNames.length < 4 && (
+                  <div className="add-lob-card-container">
+                    <button 
+                      onClick={handleAddAnotherSubLobField} 
+                      className="add-lob-card-button"
+                      disabled={!selectedLobForSubLob}
+                    >
+                      +
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-          <div className="sub-lob-name-fields-container">
-            <div className="sub-lob-name-fields-row">
-              {/* Sub LOB Name 1 */}
-              <div className="sub-lob-name-field">
-                <div className="form-group">
-                  <label>Sub LOB Name</label>
-                  <div className="sub-lob-input-container">
-                    <input
-                      type="text"
-                      value={subLobNames[0]}
-                      onChange={(e) => handleSubLobNameChange2(0, e.target.value)}
-                      disabled={!selectedLobForSubLob}
-                    />
-                  </div>
-                </div>
+              <div className="lob-actions">
+                <button 
+                  onClick={handleAddSubLob} 
+                  className="add-button"
+                  disabled={!subLobNames.some(name => name && name.length > 0) || !selectedLobForSubLob}
+                >
+                  + Add Sub LOB(s)
+                </button>
               </div>
-              
-              {/* Sub LOB Name 2 */}
-              {subLobNames.length > 1 && (
-                <div className="sub-lob-name-field">
-                  <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(1)}>
-                      <FaTimes className="times-icon" />
-                    </button>
-                    <label>Sub LOB Name 2</label>
-                    <div className="sub-lob-input-container">
-                      <input
-                        type="text"
-                        value={subLobNames[1]}
-                        onChange={(e) => handleSubLobNameChange2(1, e.target.value)}
-                        disabled={!selectedLobForSubLob}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-
-            <div className="sub-lob-name-fields-row">
-              {/* Sub LOB Name 3 */}
-              {subLobNames.length > 2 && (
-                <div className="sub-lob-name-field">
-                  <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(2)}>
-                      <FaTimes className="times-icon" />
-                    </button>
-                    <label>Sub LOB Name 3</label>
-                    <div className="sub-lob-input-container">
-                      <input
-                        type="text"
-                        value={subLobNames[2]}
-                        onChange={(e) => handleSubLobNameChange2(2, e.target.value)}
-                        disabled={!selectedLobForSubLob}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Sub LOB Name 4 */}
-              {subLobNames.length > 3 && (
-                <div className="sub-lob-name-field">
-                  <div className="form-group">
-                    <button className="remove-lob-field-btn" onClick={() => handleRemoveSubLobNameField(3)}>
-                      <FaTimes className="times-icon" />
-                    </button>
-                    <label>Sub LOB Name 4</label>
-                    <div className="sub-lob-input-container">
-                      <input
-                        type="text"
-                        value={subLobNames[3]}
-                        onChange={(e) => handleSubLobNameChange2(3, e.target.value)}
-                        disabled={!selectedLobForSubLob}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="lob-actions">
-            {subLobNames.length < 4 && (
-              <button 
-                onClick={handleAddAnotherSubLobField} 
-                className="add-another-button"
-                disabled={!selectedLobForSubLob}
-              >
-                + Add Another Sub LOB
-              </button>
-            )}
-            <button 
-              onClick={handleAddSubLob} 
-              className="add-button"
-              disabled={!subLobNames.some(name => name && name.length > 0) || !selectedLobForSubLob}
-            >
-              + Add Sub LOB(s)
-            </button>
           </div>
         </div>
-
-        <div className="existing-items">
-          <h2>Existing Items</h2>
-          
-          <div className="table-controls">
-            <div className="search-box" style={{ position: 'relative' }}>
-              <FaSearch className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSearchTerm(value);
-                  setSearchFilter(null); // Reset filter when typing
-                  if (value.trim().length === 0) {
-                    setSearchDropdown([]);
-                    setSearchDropdownVisible(false);
-                    return;
-                  }
-                  // Gather all matches
-                  const lower = value.toLowerCase();
-                  const clientMatches = clients
-                    .filter(c => c.name && c.name.toLowerCase().includes(lower))
-                    .map(c => ({ type: 'client', value: c.name }));
-                  const lobMatches = lobs
-                    .filter(l => l.name && l.name.toLowerCase().includes(lower))
-                    .map(l => ({ type: 'lob', value: l.name }));
-                  const subLobMatches = subLobs
-                    .filter(s => s.name && s.name.toLowerCase().includes(lower))
-                    .map(s => ({ type: 'sublob', value: s.name }));
-                  // Remove duplicates by type+value
-                  const seen = new Set();
-                  const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches].filter(item => {
-                    const key = item.type + ':' + item.value.toLowerCase();
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                  });
-                  setSearchDropdown(allMatches);
-                  setSearchDropdownVisible(allMatches.length > 0);
-                }}
-                onFocus={() => {
-                  if (searchDropdown.length > 0) setSearchDropdownVisible(true);
-                }}
-                onBlur={() => {
-                  setTimeout(() => setSearchDropdownVisible(false), 150); // Delay to allow click
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchTerm.trim().length > 0 && !searchFilter) {
-                    setSearchFilter({ type: 'partial', value: searchTerm });
-                    setSearchDropdownVisible(false);
-                  }
-                }}
-              />
-              {searchDropdownVisible && searchDropdown.length > 0 && (
-                <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
-                  {searchDropdown.map((item, idx) => (
-                    <div
-                      key={item.type + '-' + item.value + '-' + idx}
-                      className="search-dropdown-item"
-                      style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-                      onMouseDown={() => {
-                        setSearchTerm(item.value);
-                        setSearchFilter({ type: item.type, value: item.value });
+        {/* Main Content: Table */}
+        <div className="client-management-table-area">
+          <div className="white-card table-card">
+            <div className="existing-items">
+              <h2>Existing Items</h2>
+              
+              <div className="table-controls">
+                <div className="search-box" style={{ position: 'relative' }}>
+                  <FaSearch className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSearchTerm(value);
+                      setSearchFilter(null); // Reset filter when typing
+                      if (value.trim().length === 0) {
+                        setSearchDropdown([]);
                         setSearchDropdownVisible(false);
-                      }}
-                    >
-                      {item.value} {item.type === 'client' ? '(Client)' : item.type === 'lob' ? '(LOB)' : '(Sub LOB)'}
+                        return;
+                      }
+                      // Gather all matches
+                      const lower = value.toLowerCase();
+                      const clientMatches = clients
+                        .filter(c => c.name && c.name.toLowerCase().includes(lower))
+                        .map(c => ({ type: 'client', value: c.name }));
+                      const lobMatches = lobs
+                        .filter(l => l.name && l.name.toLowerCase().includes(lower))
+                        .map(l => ({ type: 'lob', value: l.name }));
+                      const subLobMatches = subLobs
+                        .filter(s => s.name && s.name.toLowerCase().includes(lower))
+                        .map(s => ({ type: 'sublob', value: s.name }));
+                      // Remove duplicates by type+value
+                      const seen = new Set();
+                      const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches].filter(item => {
+                        const key = item.type + ':' + item.value.toLowerCase();
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                      });
+                      setSearchDropdown(allMatches);
+                      setSearchDropdownVisible(allMatches.length > 0);
+                    }}
+                    onFocus={() => {
+                      if (searchDropdown.length > 0) setSearchDropdownVisible(true);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setSearchDropdownVisible(false), 150); // Delay to allow click
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchTerm.trim().length > 0 && !searchFilter) {
+                        setSearchFilter({ type: 'partial', value: searchTerm });
+                        setSearchDropdownVisible(false);
+                      }
+                    }}
+                  />
+                  {searchDropdownVisible && searchDropdown.length > 0 && (
+                    <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
+                      {searchDropdown.map((item, idx) => (
+                        <div
+                          key={item.type + '-' + item.value + '-' + idx}
+                          className="search-dropdown-item"
+                          style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                          onMouseDown={() => {
+                            setSearchTerm(item.value);
+                            setSearchFilter({ type: item.type, value: item.value });
+                            setSearchDropdownVisible(false);
+                          }}
+                        >
+                          {item.value} {item.type === 'client' ? '(Client)' : item.type === 'lob' ? '(LOB)' : '(Sub LOB)'}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-            
-            <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
-              <label style={{ marginRight: 8 }}>Filter by Date:</label>
-              <input
-                type="date"
-                value={filterDate}
-                onChange={e => setFilterDate(e.target.value)}
-                style={{ minWidth: 150, height: 32 }}
-              />
-              {filterDate && (
-                <button
-                  type="button"
-                  onClick={() => setFilterDate('')}
-                  style={{ marginLeft: 4, height: 24, width: 24, minWidth: 24, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', border: '1px solid #ccc', borderRadius: '50%', cursor: 'pointer', padding: 0 }}
-                  title="Clear date filter"
-                >
-                  <FaTimes size={14} color="red" />
-                </button>
-              )}
-            </div>
-          </div>
+                
+                <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
+                  <label style={{ marginRight: 8 }}>Filter by Date:</label>
+                  <input
+                    type="date"
+                    value={filterDate}
+                    onChange={e => setFilterDate(e.target.value)}
+                    style={{ minWidth: 150, height: 32 }}
+                  />
+                  {filterDate && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterDate('')}
+                      style={{ marginLeft: 4, height: 24, width: 24, minWidth: 24, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', border: '1px solid #ccc', borderRadius: '50%', cursor: 'pointer', padding: 0 }}
+                      title="Clear date filter"
+                    >
+                      <FaTimes size={14} color="red" />
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          <div className="table-tabs-container">
-            <div className={`table-tab ${activeTableTab === 'clients' ? 'active' : ''}`} onClick={() => setActiveTableTab('clients')}>
-              Clients
-            </div>
-            <div className={`table-tab ${activeTableTab === 'lobs' ? 'active' : ''}`} onClick={() => setActiveTableTab('lobs')}>
-              LOBs
-            </div>
-            <div className={`table-tab ${activeTableTab === 'subLobs' ? 'active' : ''}`} onClick={() => setActiveTableTab('subLobs')}>
-              Sub LOBs
-            </div>
-          </div>
+              <div className="table-tabs-container">
+                <div className={`table-tab ${activeTableTab === 'clients' ? 'active' : ''}`} onClick={() => setActiveTableTab('clients')}>
+                  Clients
+                </div>
+                <div className={`table-tab ${activeTableTab === 'lobs' ? 'active' : ''}`} onClick={() => setActiveTableTab('lobs')}>
+                  LOBs
+                </div>
+                <div className={`table-tab ${activeTableTab === 'subLobs' ? 'active' : ''}`} onClick={() => setActiveTableTab('subLobs')}>
+                  Sub LOBs
+                </div>
+              </div>
 
-          <div className="modern-table-container">
-            <table className="modern-table">
-              <thead>
-                <tr>
-                  <th>Client ID</th>
-                  <th>Client Name</th>
-                  <th>LOB</th>
-                  <th>Sub LOB</th>
-                  <th>Created At</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeTableTab === 'clients' ? (
-                  // Flatten all rows into a single array, then sort by Client ID (descending)
-                  (() => {
-                    let rows = [];
-                    filteredClients.forEach(client => {
-                      const clientLobs = lobs.filter(lob => lob.clientId === client.id);
-                      if (clientLobs.length === 0) {
-                        rows.push({
-                          clientId: client.id,
-                          row: (
-                            <tr key={`client-${client.id}-no-lob`}>
-                              <td>{client.id}</td>
-                              <td>{client.name}</td>
-                              <td>-</td>
-                              <td>-</td>
-                              <td>{client.createdBy || '-'}</td>
-                              <td>{client.createdAt || '-'}</td>
-                              <td>
-                                <div className="action-buttons">
-                                  <button onClick={() => handleEditRow('client', client)} className="edit-btn">
-                                    <FaPencilAlt size={12} /> Edit
-                                  </button>
-                                  <button onClick={() => handleDeleteClient('client', client.id)} className="delete-btn">
-                                    <FaTrash size={12} /> Delete
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        });
-                      } else {
-                        let filteredLobs = clientLobs;
-                        let filteredSubLobs = subLobs;
-                        if (searchFilter && searchFilter.type === 'lob') {
-                          filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
-                        }
-                        if (searchFilter && searchFilter.type === 'sublob') {
-                          filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
-                          const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
-                          filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
-                        }
-                        filteredLobs.forEach(lob => {
-                          const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
-                          if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
+              <div className="modern-table-container">
+                <table className="modern-table">
+                  <thead>
+                    <tr>
+                      <th>Client ID</th>
+                      <th>Client Name</th>
+                      <th>LOB</th>
+                      <th>Sub LOB</th>
+                      <th>Created At</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeTableTab === 'clients' ? (
+                      // Flatten all rows into a single array, then sort by Client ID (descending)
+                      (() => {
+                        let rows = [];
+                        filteredClients.forEach(client => {
+                          const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+                          if (clientLobs.length === 0) {
                             rows.push({
-                              clientId: lob.clientRowId,
+                              clientId: client.id,
                               row: (
-                                <tr key={`client-${client.id}-lob-${lob.id}`}>
-                                  <td>{lob.clientRowId}</td>
+                                <tr key={`client-${client.id}-no-lob`}>
+                                  <td>{client.id}</td>
                                   <td>{client.name}</td>
-                                  <td>{lob.name}</td>
+                                  <td>-</td>
                                   <td>-</td>
                                   <td>{client.createdBy || '-'}</td>
                                   <td>{client.createdAt || '-'}</td>
                                   <td>
                                     <div className="action-buttons">
-                                      <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
+                                      <button onClick={() => handleEditRow('client', client)} className="edit-btn">
                                         <FaPencilAlt size={12} /> Edit
                                       </button>
-                                      <button onClick={() => handleDeleteLob('lob', lob.id)} className="delete-btn">
+                                      <button onClick={() => handleDeleteClient('client', client.id)} className="delete-btn">
                                         <FaTrash size={12} /> Delete
                                       </button>
                                     </div>
@@ -2123,292 +2033,329 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               )
                             });
                           } else {
-                            lobSubLobs.forEach(subLob => {
-                              rows.push({
-                                clientId: subLob.clientRowId,
-                                row: (
-                                  <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
-                                    <td>{subLob.clientRowId}</td>
-                                    <td>{client.name}</td>
-                                    <td>{lob.name}</td>
-                                    <td>{subLob.name}</td>
-                                    <td>{client.createdAt || '-'}</td>
-                                    <td>
-                                      <div className="action-buttons">
-                                        <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                          <FaPencilAlt size={12} /> Edit
-                                        </button>
-                                        <button 
-                                          onClick={() => {
-                                            if (activeTab === 'addClient') {
-                                              if (activeTableTab === 'clients') {
-                                                handleDeleteClient('client', client.id);
-                                              } else if (activeTableTab === 'lobs') {
-                                                handleDeleteLob('lob', lob.id);
-                                              } else if (activeTableTab === 'subLobs') {
-                                                handleDelete('subLob', subLob.id);
-                                              }
-                                            } else if (activeTab === 'addLOB') {
-                                              handleDeleteLob('lob', lob.id);
-                                            } else if (activeTab === 'addSubLOB') {
-                                              handleDeleteSubLob('subLob', subLob.id);
-                                            } else {
-                                              if (activeTableTab === 'clients') {
-                                                handleDelete('client', client.id);
-                                              } else if (activeTableTab === 'lobs') {
-                                                handleDelete('lob', lob.id);
-                                              } else if (activeTableTab === 'subLobs') {
-                                                handleDelete('subLob', subLob.id);
-                                              }
-                                            }
-                                          }} 
-                                          className="delete-btn"
-                                        >
-                                          <FaTrash size={12} /> Delete
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )
-                              });
+                            let filteredLobs = clientLobs;
+                            let filteredSubLobs = subLobs;
+                            if (searchFilter && searchFilter.type === 'lob') {
+                              filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
+                            }
+                            if (searchFilter && searchFilter.type === 'sublob') {
+                              filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
+                              const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
+                              filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
+                            }
+                            filteredLobs.forEach(lob => {
+                              const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
+                              if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
+                                rows.push({
+                                  clientId: lob.clientRowId,
+                                  row: (
+                                    <tr key={`client-${client.id}-lob-${lob.id}`}>
+                                      <td>{lob.clientRowId}</td>
+                                      <td>{client.name}</td>
+                                      <td>{lob.name}</td>
+                                      <td>-</td>
+                                      <td>{client.createdBy || '-'}</td>
+                                      <td>{client.createdAt || '-'}</td>
+                                      <td>
+                                        <div className="action-buttons">
+                                          <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
+                                            <FaPencilAlt size={12} /> Edit
+                                          </button>
+                                          <button onClick={() => handleDeleteLob('lob', lob.id)} className="delete-btn">
+                                            <FaTrash size={12} /> Delete
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
+                                });
+                              } else {
+                                lobSubLobs.forEach(subLob => {
+                                  rows.push({
+                                    clientId: subLob.clientRowId,
+                                    row: (
+                                      <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
+                                        <td>{subLob.clientRowId}</td>
+                                        <td>{client.name}</td>
+                                        <td>{lob.name}</td>
+                                        <td>{subLob.name}</td>
+                                        <td>{client.createdAt || '-'}</td>
+                                        <td>
+                                          <div className="action-buttons">
+                                            <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
+                                              <FaPencilAlt size={12} /> Edit
+                                            </button>
+                                            <button 
+                                              onClick={() => {
+                                                if (activeTab === 'addClient') {
+                                                  if (activeTableTab === 'clients') {
+                                                    handleDeleteClient('client', client.id);
+                                                  } else if (activeTableTab === 'lobs') {
+                                                    handleDeleteLob('lob', lob.id);
+                                                  } else if (activeTableTab === 'subLobs') {
+                                                    handleDelete('subLob', subLob.id);
+                                                  }
+                                                } else if (activeTab === 'addLOB') {
+                                                  handleDeleteLob('lob', lob.id);
+                                                } else if (activeTab === 'addSubLOB') {
+                                                  handleDeleteSubLob('subLob', subLob.id);
+                                                } else {
+                                                  if (activeTableTab === 'clients') {
+                                                    handleDelete('client', client.id);
+                                                  } else if (activeTableTab === 'lobs') {
+                                                    handleDelete('lob', lob.id);
+                                                  } else if (activeTableTab === 'subLobs') {
+                                                    handleDelete('subLob', subLob.id);
+                                                  }
+                                                }
+                                              }} 
+                                              className="delete-btn"
+                                            >
+                                              <FaTrash size={12} /> Delete
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )
+                                  });
+                                });
+                              }
                             });
                           }
                         });
-                      }
-                    });
-                    // If partial search, filter the rows themselves for the search term
-                    if (searchFilter && searchFilter.type === 'partial') {
-                      const lower = searchFilter.value.toLowerCase();
-                      rows = rows.filter(({ row }) => {
-                        // row.props.children is an array of <td> elements
-                        const tds = row.props.children;
-                        // Only check the columns for client, lob, sublob name
-                        // Client name: tds[1], LOB: tds[2], Sub LOB: tds[3]
-                        return [tds[1], tds[2], tds[3]].some(td => {
-                          if (!td || !td.props || typeof td.props.children !== 'string') return false;
-                          return td.props.children.toLowerCase().includes(lower);
-                        });
-                      });
-                    }
-                    // Sort all rows by clientId descending
-                    return rows.sort((a, b) => b.clientId - a.clientId).map(r => r.row);
-                  })()
-                ) : activeTableTab === 'lobs' ? (
-                  // LOB view - show each LOB-SubLOB combination in separate rows
-                  lobs
-                    .filter(lob => {
-                      const client = clients.find(c => c.id === lob.clientId);
-                      return client && 
-                            client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                            (!filterClient || lob.clientId === filterClient);
-                    })
-                    .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
-                    .flatMap(lob => {
-                      const client = clients.find(c => c.id === lob.clientId);
-                      const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                      
-                      // If no SubLOBs, show just the LOB
-                      if (lobSubLobs.length === 0) {
-                        return [(
-                          <tr key={`lob-view-${lob.id}`}>
-                            <td>{lob.clientRowId}</td> {/* Use just the LOB's clientRowId */}
-                            <td>{client ? client.name : '-'}</td>
-                            <td>{lob.name}</td>
-                            <td>-</td>
-                            <td>{client ? client.createdBy : '-'}</td>
-                            <td>{client ? client.createdAt : '-'}</td>
-                            <td>
-                              <div className="action-buttons">
-                                <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
-                                  <FaPencilAlt size={12} /> Edit
-                                </button>
-                                <button onClick={() => handleDelete('lob', lob.id)} className="delete-btn">
-                                  <FaTrash size={12} /> Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )];
-                      }
-                      
-                      // Otherwise create one row for each SubLOB
-                      // Sort lobSubLobs by clientRowId descending
-                      const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
-                      return sortedLobSubLobs.map(subLob => (
-                        <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
-                          <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
-                          <td>{client ? client.name : '-'}</td>
-                          <td>{lob.name}</td>
-                          <td>{subLob.name}</td>
-                          <td>{client ? client.createdBy : '-'}</td>
-                          <td>{client ? client.createdAt : '-'}</td>
-                          <td>
-                            <div className="action-buttons">
-                              <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                <FaPencilAlt size={12} /> Edit
-                              </button>
-                              <button onClick={() => handleDelete('sublob', subLob.id)} className="delete-btn">
-                                <FaTrash size={12} /> Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ));
-                    })
-                ) : (
-                  // SubLOB view - already shows individual rows for each SubLOB
-                  subLobs
-                    .filter(subLob => {
-                      const lob = lobs.find(l => l.id === subLob.lobId);
-                      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
-                      
-                      return (
-                        client && 
-                        (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
-                         safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
-                         safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
-                        (!filterClient || (lob && lob.clientId === filterClient))
-                      );
-                    })
-                    .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
-                    .map(subLob => {
-                      const lob = lobs.find(l => l.id === subLob.lobId);
-                      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
-                      
-                      return (
-                        <tr key={`sublob-${subLob.id}`}>
-                          <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
-                          <td>{client ? client.name : '-'}</td>
-                          <td>{lob ? lob.name : '-'}</td>
-                          <td>{subLob.name}</td>
-                          <td>{client ? client.createdBy : '-'}</td>
-                          <td>{client ? client.createdAt : '-'}</td>
-                          <td>
-                            <div className="action-buttons">
-                              <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                <FaPencilAlt size={12} /> Edit
-                              </button>
-                              <button onClick={() => handleDelete('sublob', subLob.id)} className="delete-btn">
-                                <FaTrash size={12} /> Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                )}
-              </tbody>
-            </table>
+                        // If partial search, filter the rows themselves for the search term
+                        if (searchFilter && searchFilter.type === 'partial') {
+                          const lower = searchFilter.value.toLowerCase();
+                          rows = rows.filter(({ row }) => {
+                            // row.props.children is an array of <td> elements
+                            const tds = row.props.children;
+                            // Only check the columns for client, lob, sublob name
+                            // Client name: tds[1], LOB: tds[2], Sub LOB: tds[3]
+                            return [tds[1], tds[2], tds[3]].some(td => {
+                              if (!td || !td.props || typeof td.props.children !== 'string') return false;
+                              return td.props.children.toLowerCase().includes(lower);
+                            });
+                          });
+                        }
+                        // Sort all rows by clientId descending
+                        return rows.sort((a, b) => b.clientId - a.clientId).map(r => r.row);
+                      })()
+                    ) : activeTableTab === 'lobs' ? (
+                      // LOB view - show each LOB-SubLOB combination in separate rows
+                      lobs
+                        .filter(lob => {
+                          const client = clients.find(c => c.id === lob.clientId);
+                          return client && 
+                                client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                                (!filterClient || lob.clientId === filterClient);
+                        })
+                        .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
+                        .flatMap(lob => {
+                          const client = clients.find(c => c.id === lob.clientId);
+                          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+                          
+                          // If no SubLOBs, show just the LOB
+                          if (lobSubLobs.length === 0) {
+                            return [(
+                              <tr key={`lob-view-${lob.id}`}>
+                                <td>{lob.clientRowId}</td> {/* Use just the LOB's clientRowId */}
+                                <td>{client ? client.name : '-'}</td>
+                                <td>{lob.name}</td>
+                                <td>-</td>
+                                <td>{client ? client.createdBy : '-'}</td>
+                                <td>{client ? client.createdAt : '-'}</td>
+                                <td>
+                                  <div className="action-buttons">
+                                    <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
+                                      <FaPencilAlt size={12} /> Edit
+                                    </button>
+                                    <button onClick={() => handleDelete('lob', lob.id)} className="delete-btn">
+                                      <FaTrash size={12} /> Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )];
+                          }
+                          
+                          // Otherwise create one row for each SubLOB
+                          // Sort lobSubLobs by clientRowId descending
+                          const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
+                          return sortedLobSubLobs.map(subLob => (
+                            <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
+                              <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
+                              <td>{client ? client.name : '-'}</td>
+                              <td>{lob.name}</td>
+                              <td>{subLob.name}</td>
+                              <td>{client ? client.createdBy : '-'}</td>
+                              <td>{client ? client.createdAt : '-'}</td>
+                              <td>
+                                <div className="action-buttons">
+                                  <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
+                                    <FaPencilAlt size={12} /> Edit
+                                  </button>
+                                  <button onClick={() => handleDelete('sublob', subLob.id)} className="delete-btn">
+                                    <FaTrash size={12} /> Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ));
+                        })
+                    ) : (
+                      // SubLOB view - already shows individual rows for each SubLOB
+                      subLobs
+                        .filter(subLob => {
+                          const lob = lobs.find(l => l.id === subLob.lobId);
+                          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                          
+                          return (
+                            client && 
+                            (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
+                             safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
+                             safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
+                            (!filterClient || (lob && lob.clientId === filterClient))
+                          );
+                        })
+                        .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
+                        .map(subLob => {
+                          const lob = lobs.find(l => l.id === subLob.lobId);
+                          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                          
+                          return (
+                            <tr key={`sublob-${subLob.id}`}>
+                              <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
+                              <td>{client ? client.name : '-'}</td>
+                              <td>{lob ? lob.name : '-'}</td>
+                              <td>{subLob.name}</td>
+                              <td>{client ? client.createdBy : '-'}</td>
+                              <td>{client ? client.createdAt : '-'}</td>
+                              <td>
+                                <div className="action-buttons">
+                                  <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
+                                    <FaPencilAlt size={12} /> Edit
+                                  </button>
+                                  <button onClick={() => handleDelete('sublob', subLob.id)} className="delete-btn">
+                                    <FaTrash size={12} /> Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
       {/* Edit Client Modal */}
-      {/* Edit Client Modal */}
-{editModalOpen && currentClient && (
-  <div className="modal-overlay">
-    <div className="modal edit-client-modal">
-      <div className="modal-header">
-        <h2>Edit Client</h2>
-        <button onClick={() => setEditModalOpen(false)} className="close-btn">
-          <FaTimes />
-        </button>
-      </div>
+      {editModalOpen && currentClient && (
+        <div className="modal-overlay">
+          <div className="modal edit-client-modal">
+            <div className="modal-header">
+              <h2>Edit Client</h2>
+              <button onClick={() => setEditModalOpen(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
 
-      <div className="form-row">
-        <div className="form-group">
-          <label>Client ID</label>
-          <input
-            type="text"
-            value={currentClient.id}
-            disabled
-            className="disabled-input"
-          />
-        </div>
-        <div className="form-group">
-          <label>Client Name</label>
-          <input
-            type="text"
-            value={currentClient.name}
-            onChange={(e) => setCurrentClient({...currentClient, name: e.target.value})}
-            required
-            disabled={activeTab === 'addLOB' || activeTab === 'addSubLOB'}
-            className={activeTab === 'addLOB' || activeTab === 'addSubLOB' ? 'disabled-input' : ''}
-          />
-        </div>
-      </div>
-
-      <div className="form-section">
-        <h3>LOBs and Sub LOBs</h3>
-        {currentClient.lobs.map((lob, index) => (
-          <div key={lob.id} className="lob-edit-section">
             <div className="form-row">
               <div className="form-group">
-                <label>LOB Name</label>
+                <label>Client ID</label>
                 <input
                   type="text"
-                  value={lob.name}
-                  onChange={(e) => {
-                    const updatedLobs = [...currentClient.lobs];
-                    updatedLobs[index] = {...lob, name: e.target.value};
-                    setCurrentClient({...currentClient, lobs: updatedLobs});
-                  }}
-                  disabled={activeTab === 'addClient' || activeTab === 'addSubLOB'}
-                  className={activeTab === 'addClient' || activeTab === 'addSubLOB' ? 'disabled-input' : ''}
+                  value={currentClient.id}
+                  disabled
+                  className="disabled-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Client Name</label>
+                <input
+                  type="text"
+                  value={currentClient.name}
+                  onChange={(e) => setCurrentClient({...currentClient, name: e.target.value})}
+                  required
+                  disabled={activeTab === 'addLOB' || activeTab === 'addSubLOB'}
+                  className={activeTab === 'addLOB' || activeTab === 'addSubLOB' ? 'disabled-input' : ''}
                 />
               </div>
             </div>
-            <div className="sub-lobs-container">
-              {currentClient.subLobs
-                .filter(subLob => subLob.lobId === lob.id)
-                .map((subLob, subIndex) => (
-                  <div key={subLob.id} className="form-row">
+
+            <div className="form-section">
+              <h3>LOBs and Sub LOBs</h3>
+              {currentClient.lobs.map((lob, index) => (
+                <div key={lob.id} className="lob-edit-section">
+                  <div className="form-row">
                     <div className="form-group">
-                      <label>Sub LOB Name</label>
+                      <label>LOB Name</label>
                       <input
                         type="text"
-                        value={subLob.name}
+                        value={lob.name}
                         onChange={(e) => {
-                          const updatedSubLobs = [...currentClient.subLobs];
-                          const globalSubIndex = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
-                          updatedSubLobs[globalSubIndex] = {...subLob, name: e.target.value};
-                          setCurrentClient({...currentClient, subLobs: updatedSubLobs});
+                          const updatedLobs = [...currentClient.lobs];
+                          updatedLobs[index] = {...lob, name: e.target.value};
+                          setCurrentClient({...currentClient, lobs: updatedLobs});
                         }}
-                        disabled={activeTab === 'addClient' || activeTab === 'addLOB'}
-                        className={activeTab === 'addClient' || activeTab === 'addLOB' ? 'disabled-input' : ''}
+                        disabled={activeTab === 'addClient' || activeTab === 'addSubLOB'}
+                        className={activeTab === 'addClient' || activeTab === 'addSubLOB' ? 'disabled-input' : ''}
                       />
                     </div>
                   </div>
+                  <div className="sub-lobs-container">
+                    {currentClient.subLobs
+                      .filter(subLob => subLob.lobId === lob.id)
+                      .map((subLob, subIndex) => (
+                        <div key={subLob.id} className="form-row">
+                          <div className="form-group">
+                            <label>Sub LOB Name</label>
+                            <input
+                              type="text"
+                              value={subLob.name}
+                              onChange={(e) => {
+                                const updatedSubLobs = [...currentClient.subLobs];
+                                const globalSubIndex = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
+                                updatedSubLobs[globalSubIndex] = {...subLob, name: e.target.value};
+                                setCurrentClient({...currentClient, subLobs: updatedSubLobs});
+                              }}
+                              disabled={activeTab === 'addClient' || activeTab === 'addLOB'}
+                              className={activeTab === 'addClient' || activeTab === 'addLOB' ? 'disabled-input' : ''}
+                            />
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        ))}
-      </div>
-      
-      <div className="form-row">
-        <div className="form-group">
-          <label>Created At</label>
-          <input
-            type="text"
-            value={currentClient.createdAt || ''}
-            onChange={(e) => setCurrentClient({...currentClient, createdAt: e.target.value})}
-          />
-        </div>
-      </div>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label>Created At</label>
+                <input
+                  type="text"
+                  value={currentClient.createdAt || ''}
+                  onChange={(e) => setCurrentClient({...currentClient, createdAt: e.target.value})}
+                />
+              </div>
+            </div>
 
-      <div className="modal-actions">
-        <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
-        <button 
-          onClick={() => handleSave(currentClient)} 
-          className="save-btn"
-          disabled={!currentClient.name.trim()}
-        >
-          Save Changes
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <div className="modal-actions">
+              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
+              <button 
+                onClick={() => handleSave(currentClient)} 
+                className="save-btn"
+                disabled={!currentClient.name.trim()}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
