@@ -128,6 +128,14 @@
   margin-top: 0; /* Remove top margin */
 }
 
+/* Make table header sticky */
+.existing-kpis thead {
+  position: sticky;
+  top: 0;
+  background-color: #f8f8f8;
+  z-index: 5;
+}
+
 .existing-kpis th,
 .existing-kpis td {
   padding: 12px 15px;
@@ -238,6 +246,25 @@
 }
 
 .existing-kpis::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+
+.preview-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.preview-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.preview-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.preview-content::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
 
@@ -424,13 +451,26 @@
   cursor: not-allowed;
 }
 
+/* Add these new styles for preview content */
+.upload-preview {
+  margin-top: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden; /* Add this */
+}
+
+.preview-content {
+  max-height: 400px;
+  overflow-y: auto;
+  position: relative;
+}
+
 /* Preview Tables */
 .valid-kpis-table,
 .invalid-kpis-table {
-  margin-top: 15px;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  overflow: hidden;
+  margin-top: 0;
+  border: none;
+  border-radius: 0;
 }
 
 .valid-kpis-table table,
@@ -438,6 +478,15 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+.valid-kpis-table thead,
+.invalid-kpis-table thead {
+  position: sticky;
+  top: 0;
+  background-color: #f8f8f8;
+  z-index: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .valid-kpis-table th,
@@ -704,11 +753,13 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: #f8f9fa;
+  background-color: white;
   padding: 15px;
   border-bottom: 1px solid #eee;
-  flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
 
 .table-wrapper {
@@ -717,11 +768,33 @@
   flex-grow: 1;
 }
 
+.table-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
 .search-bar {
-  position: relative;
   display: flex;
   align-items: center;
-  width: 250px;
+  background-color: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px 12px;
+  width: 100%;
 }
 
 .search-bar .search-icon {
@@ -733,12 +806,14 @@
 }
 
 .search-bar input {
-  width: 100%;
-  padding: 6px 32px 6px 32px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0 28px;
   font-size: 13px;
-  height: 32px; /* Match the height of your select dropdowns */
+  width: 100%;
+  min-width: 200px;
+  color: #333;
 }
 
 .search-bar .clear-search {
@@ -748,7 +823,7 @@
   border: none;
   color: #666;
   cursor: pointer;
-  padding: 4px;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -761,15 +836,16 @@
 .filter-selects {
   display: flex;
   gap: 10px;
+  flex-shrink: 0; 
 }
 
 .filter-selects select {
-  width: 150px; /* Fixed width for dropdowns */
-  padding: 6px 12px;
+  padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 13px;
-  background-color: white;
+  background-color: #f8f9fa;
+  min-width: 150px;
 }
 
 /* Hover and focus states */
@@ -781,28 +857,26 @@
 .search-bar input:focus,
 .filter-selects select:focus {
   outline: none;
-  border-color: #004D8D;
-  box-shadow: 0 0 0 2px rgba(0, 77, 141, 0.1);
+  background: transparent;
 }
 
 .search-bar-container {
+  flex: 1;
   position: relative;
-  width: 250px; /* Fixed width to match your requirements */
+  min-width: 300px; /* Remove fixed width, use min-width instead */
 }
 
 .suggestions-dropdown {
   position: absolute;
-  top: calc(100% + 2px); /* Small gap between input and dropdown */
+  top: 100%;
   left: 0;
   right: 0;
   background: white;
   border: 1px solid #ddd;
   border-radius: 4px;
-  max-height: 180px;
-  overflow-y: auto;
+  margin-top: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  padding: 4px 0; /* Small padding top and bottom */
 }
 
 .suggestion-item {

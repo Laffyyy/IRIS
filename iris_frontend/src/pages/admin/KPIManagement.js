@@ -15,7 +15,7 @@ const KPIManagement = () => {
       existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
     );
   };
-
+  
   const [activeTab, setActiveTab] = useState('addKPI');
   const [editingKpi, setEditingKpi] = useState(null);
   const [kpis, setKpis] = useState([
@@ -219,28 +219,7 @@ const KPIManagement = () => {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
-        const allRows = text.split('\n');
-        
-        const notesIndex = allRows.findIndex(row => row.trim().startsWith('Note:'));
-        const dataRows = notesIndex !== -1 
-          ? allRows.slice(0, notesIndex) 
-          : allRows;
-        
-        const rows = dataRows
-          .filter(row => row.trim() !== '')
-          .map(row => row.split(','));
-
-        const headers = rows[0];
-        const kpisToValidate = rows.slice(1)
-          .filter(row => row[0]?.trim())
-          .map(row => ({
-            name: row[0]?.trim(),
-            category: row[1]?.trim(),
-            behavior: row[2]?.trim(),
-            description: row[3]?.trim()
-          }));
-
-        setFile(file);
+        const kpisToValidate = processFileContent(text);
         
         const validKpis = [];
         const invalidKpis = [];
@@ -250,33 +229,22 @@ const KPIManagement = () => {
           let isValid = true;
           let reason = '';
 
-          // First check if KPI name exists
           if (!kpi.name) {
             isValid = false;
             reason = 'Missing KPI name';
-          }
-          // Then check for duplicates with existing KPIs
-          else if (isDuplicateKPI(kpi.name)) {
+          } else if (isDuplicateKPI(kpi.name)) {
             isValid = false;
             reason = 'KPI name already exists';
-          }
-          // Then check for duplicates within the CSV file
-          else if (seenNames.has(kpi.name.toLowerCase())) {
+          } else if (seenNames.has(kpi.name.toLowerCase())) {
             isValid = false;
             reason = 'Duplicate KPI name in CSV file';
-          }
-          // Then check other required fields
-          else if (!kpi.category || !kpi.behavior) {
+          } else if (!kpi.category || !kpi.behavior) {
             isValid = false;
             reason = 'Missing required fields';
-          }
-          // Validate category
-          else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
+          } else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
             isValid = false;
             reason = 'Invalid category';
-          }
-          // Validate behavior
-          else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
+          } else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
             isValid = false;
             reason = 'Invalid behavior';
           }
@@ -287,7 +255,7 @@ const KPIManagement = () => {
               category: capitalizeFirstLetter(kpi.category),
               behavior: capitalizeFirstLetter(kpi.behavior)
             });
-            seenNames.add(kpi.name.toLowerCase().trim());
+            seenNames.add(kpi.name.toLowerCase());
           } else {
             invalidKpis.push({
               ...kpi,
@@ -296,6 +264,7 @@ const KPIManagement = () => {
           }
         });
 
+        setFile(file);
         setBulkKpis(validKpis);
         setInvalidKpis(invalidKpis);
         setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
@@ -316,39 +285,54 @@ const KPIManagement = () => {
 
   // Generate template for bulk upload
   const generateTemplate = () => {
-      const csvHeader = "KPI Name,Category,Behavior,Description";
-      const exampleData = [
-        "Revenue Growth,Financial,Increase,Measures growth in total revenue",
-        "Customer Satisfaction,Customer,Increase,Measures overall customer satisfaction",
-        "Employee Turnover,Employee,Decrease,Tracks employee turnover rate"
-      ];
-      
-      // Create separate sections
-      const templateData = [csvHeader, ...exampleData].join('\n');
-      const notes = [
-        "",
-        "Note: Valid Categories: Financial, Operational, Customer, Employee",
-        "Valid Behaviors: Increase, Decrease, Maintain, Target"
-      ].join('\n');
+    const csvHeader = "KPI Name,Category,Behavior,Description,,,Valid Input Reference";
+    const exampleData = [
+      "Revenue Growth,Financial,Increase,Measures growth in total revenue,,,Valid Categories: Financial, Operational, Customer, Employee",
+      "Customer Satisfaction,Customer,Increase,Measures overall customer satisfaction,,,Valid Behaviors: Increase, Decrease, Maintain, Target",
+      "Employee Turnover,Employee,Decrease,Tracks employee turnover rate"
+    ];
 
-      // Combine template and notes with a clear separator
-      const fileContent = `${templateData}\n${notes}`;
+    // Combine header and data rows
+    const fileContent = [csvHeader, ...exampleData].join('\n');
 
-      const today = new Date();
-      const dateString = today.getFullYear().toString() +
-          (today.getMonth() + 1).toString().padStart(2, '0') +
-          today.getDate().toString().padStart(2, '0');
-      
-      const filename = `kpi_upload_${dateString}.csv`;
+    const today = new Date();
+    const dateString = today.getFullYear().toString() +
+        (today.getMonth() + 1).toString().padStart(2, '0') +
+        today.getDate().toString().padStart(2, '0');
+    
+    const filename = `kpi_upload_${dateString}.csv`;
 
-      const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-};
+    const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const processFileContent = (text) => {
+    const rows = text.split('\n')
+      .filter(row => row.trim() !== '' && !row.startsWith(',,,')) // Skip empty rows and note rows
+      .map(row => {
+        const columns = row.split(',');
+        // Only process rows that have data in the first column (KPI Name)
+        if (columns[0]?.trim()) {
+          return {
+            name: columns[0]?.trim(),
+            category: columns[1]?.trim(),
+            behavior: columns[2]?.trim(),
+            description: columns[3]?.trim()
+          };
+        }
+        return null;
+      })
+      .filter(row => row !== null); // Remove null entries
+
+    // First row is header, so remove it
+    const dataRows = rows.slice(1);
+    return dataRows;
+  };
 
   const handleAddKpi = async () => {
     try {
@@ -1174,6 +1158,7 @@ const KPIManagement = () => {
         <div className={`tab-content ${activeTab === 'viewKPIs' ? 'active' : ''}`}>
           <div className="existing-kpis">
             {renderFilterControls()} {/* Add this line */}
+            <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
@@ -1213,6 +1198,7 @@ const KPIManagement = () => {
             </table>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Edit KPI Modal */}
