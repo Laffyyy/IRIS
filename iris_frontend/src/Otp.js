@@ -1,7 +1,8 @@
 // Otp.js
-import React, { useRef, useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom"; // Import useLocation and useNavigate
-import "./Otp.css";
+import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import './Otp.css';
+import { jwtDecode } from 'jwt-decode';
 
 const Otp = ({ onBack, onComplete }) => {
   const location = useLocation(); // Initialize useLocation
@@ -16,6 +17,9 @@ const Otp = ({ onBack, onComplete }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
+  
+
+  
 
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
@@ -186,23 +190,44 @@ const Otp = ({ onBack, onComplete }) => {
         localStorage.setItem('token', data.data.token); // Save token to localStorage
         alert(data.data.message);
 
-        if (userStatus === 'FIRST-TIME') {
-          navigate('../change-password'); // Redirect to change password page
-        } else if (userStatus === 'ACTIVE') {
-          alert('Login successful');
-          navigate('../dashboard'); // Redirect to dashboard or home page
-        }
-      } else {
-        // Handle failed OTP verification
-        alert(data.data.message || 'Failed to verify OTP. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error during OTP verification:', error);
-      alert('An error occurred while verifying the OTP. Please try again.');
-    }
-  };
+  // Decode token to get user roles
+  const decoded = jwtDecode(data.data.token);
+  const roles = decoded.roles
+    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+    : decoded.role
+      ? [decoded.role]
+      : [];
 
-  const handleBack = () => {
+  if (userStatus === 'FIRST-TIME') {
+    navigate('../change-password');
+  } else if (userStatus === 'ACTIVE') {
+    alert('Login successful');
+    if (roles.includes('admin')) {
+      navigate('../dashboard');
+    } else if (roles.includes('HR')) {
+      navigate('../hr');
+    } else if (roles.includes('REPORTS')) {
+      navigate('../reports');
+    } else if (roles.includes('CNB')) {
+      navigate('../cb');
+    } else {
+      navigate('/'); // fallback
+    }
+  }
+} else {
+      // Handle failed OTP verification
+      alert(data.data.message || 'Failed to verify OTP. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error during OTP verification:', error);
+    alert('An error occurred while verifying the OTP. Please try again.');
+  }
+
+  
+  
+
+};
+ const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');
     localStorage.removeItem('password');

@@ -13,6 +13,9 @@ import Otp from './Otp';
 import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
+import  ProtectedRoute  from './utilities/ProtectedRoute';
+import Unauthorize from './utilities/Unautorize';
+import AdminPage from './adminpagecollection';
 
 
 function App() {
