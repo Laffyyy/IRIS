@@ -139,9 +139,10 @@ const ClientManagement = () => {
   // Add filtered LOB options function for Sub LOB tab
   const filteredSubLobLobOptions = () => {
     if (!validateSubLobClientSelection()) return [];
-    
+
     let filteredLobOptions = lobs.filter(lob => lob.clientId === filterClientForSubLob);
-    
+
+    // If a site is selected, only include LOBs that have that site
     if (filterSiteForSubLob) {
       filteredLobOptions = filteredLobOptions.filter(lob => {
         if (lob.sites && lob.sites.length > 0) {
@@ -151,14 +152,36 @@ const ClientManagement = () => {
       });
     }
 
-    if (!subLobLobSearchTerm) {
-      return filteredLobOptions;
+    // Build array of { lob, site } pairs
+    let result = [];
+    filteredLobOptions.forEach(lob => {
+      if (lob.sites && lob.sites.length > 0) {
+        lob.sites.forEach(site => {
+          // If a site is selected, only include that site
+          if (!filterSiteForSubLob || site.siteId === filterSiteForSubLob) {
+            result.push({ lob, site });
+          }
+        });
+      } else if (!filterSiteForSubLob || lob.siteId === filterSiteForSubLob) {
+        result.push({ lob, site: lob.siteId ? { siteId: lob.siteId, siteName: lob.siteName } : null });
+      }
+    });
+
+    // Filter by search term
+    if (subLobLobSearchTerm) {
+      const searchLower = subLobLobSearchTerm.toLowerCase();
+      result = result.filter(({ lob }) => lob.name.toLowerCase().includes(searchLower));
     }
 
-    const searchLower = subLobLobSearchTerm.toLowerCase();
-    return filteredLobOptions.filter(lob => 
-      lob.name.toLowerCase().includes(searchLower)
-    );
+    // Deduplicate by lob name + site name
+    const seen = new Set();
+    const deduped = result.filter(({ lob, site }) => {
+      const key = lob.name + '|' + (site ? site.siteName : '');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return deduped;
   };
 
   // Add click outside handler for both dropdowns
@@ -2022,30 +2045,19 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     {isSubLobLobDropdownOpen && validateSubLobClientSelection() && (
                       <div className="dropdown-list">
                         {filteredSubLobLobOptions().length > 0 ? (
-                          filteredSubLobLobOptions().map(lob => {
-                            // Get site name for this LOB
-                            let siteName = 'None';
-                            if (lob.sites && lob.sites.length > 0) {
-                              const site = lob.sites[0]; // Take the first site
-                              siteName = site.siteName || 'None';
-                            } else if (lob.siteName) {
-                              siteName = lob.siteName;
-                            }
-                            
-                            return (
-                              <div
-                                key={lob.id}
-                                className="dropdown-item"
-                                onClick={() => {
-                                  setSelectedLobForSubLob(lob.id);
-                                  setSubLobLobSearchTerm(`${lob.name} (Site: ${siteName})`);
-                                  setIsSubLobLobDropdownOpen(false);
-                                }}
-                              >
-                                {`${lob.name} (Site: ${siteName})`}
-                              </div>
-                            );
-                          })
+                          filteredSubLobLobOptions().map(({ lob, site }, idx) => (
+                            <div
+                              key={lob.id + '-' + (site ? site.siteId : 'none') + '-' + idx}
+                              className="dropdown-item"
+                              onClick={() => {
+                                setSelectedLobForSubLob(lob.id);
+                                setSubLobLobSearchTerm(`${lob.name} (Site: ${site ? site.siteName : 'None'})`);
+                                setIsSubLobLobDropdownOpen(false);
+                              }}
+                            >
+                              {`${lob.name} (Site: ${site ? site.siteName : 'None'})`}
+                            </div>
+                          ))
                         ) : (
                           <div className="dropdown-item no-results">No LOBs found</div>
                         )}
