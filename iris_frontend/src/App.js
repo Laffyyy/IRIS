@@ -7,6 +7,7 @@ import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
+import AdminLogs from './pages/admin/AdminLogs';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';
@@ -39,6 +40,7 @@ function App() {
                   <Route path="admin/clients" element={<ClientManagement />} />
                   <Route path="admin/sites" element={<SiteManagement />} />
                   <Route path="admin/kpis" element={<KPIManagement />} />
+                  <Route path="admin/logs" element={<AdminLogs />} />
                   <Route path="hr" element={<div>HR Page</div>} />
                   <Route path="reports" element={<div>Reports Page</div>} />
                   <Route path="compensation" element={<div>C&B Page</div>} />
