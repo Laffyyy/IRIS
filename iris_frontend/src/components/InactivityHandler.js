@@ -10,8 +10,8 @@ const InactivityHandler = ({ children }) => {
   const logoutTimeout = useRef(null);
   const loggedOutRef = useRef(false); // ⬅️ Added
 
-  const WARNING_DELAY = 30 * 1000;
-  const LOGOUT_DELAY = 60 * 1000;
+  const WARNING_DELAY = 1 * 30 * 1000;
+  const LOGOUT_DELAY = 3 * 60 * 1000;
 
   const clearTimers = () => {
     if (warningTimeout.current) clearTimeout(warningTimeout.current);
