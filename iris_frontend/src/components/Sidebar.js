@@ -15,6 +15,7 @@ import appManagementIcon from '../assets/icons/apps.png';
 import siteManagementIcon from '../assets/icons/sites.png';
 import clientManagementIcon from '../assets/icons/clients.png';
 import kpiManagementIcon from '../assets/icons/kpis.png';
+import logsIcon from '../assets/icons/logs.png';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
@@ -26,7 +27,8 @@ const navItems = [
       { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
       { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
       { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
-      { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
+      { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon },
+      { name: 'Admin Logs', path: '/admin/logs', icon: logsIcon }
     ]
   },
   { name: 'HR', path: '/hr', icon: hrIcon },

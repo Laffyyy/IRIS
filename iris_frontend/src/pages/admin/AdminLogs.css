@@ -1,0 +1,315 @@
+.admin-logs-container {
+  padding: 20px;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+}
+
+.white-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.admin-logs-header h1 {
+  font-size: 18px;
+  color: #004D8D;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.admin-logs-header .subtitle {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+/* Controls Section */
+.controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-container {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-container input {
+  width: 100%;
+  padding: 8px 8px 8px 30px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 12px;
+}
+
+.filter-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-container label {
+  font-size: 12px;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.filter-container select {
+  padding: 8px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Date Picker Styles */
+.date-picker-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.date-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-icon {
+  position: absolute;
+  left: 10px;
+  color: #999;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.date-picker-input {
+  padding: 8px 30px 8px 30px !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  font-size: 13px !important;
+  min-width: 250px !important;
+  height: 35px !important;
+  cursor: pointer !important;
+}
+
+.date-picker-input:focus {
+  outline: none !important;
+  border-color: #004D8D !important;
+  box-shadow: 0 0 0 2px rgba(0, 77, 141, 0.1) !important;
+}
+
+/* React DatePicker Customization */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+.react-datepicker {
+  font-family: 'Inter', sans-serif !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  z-index: 9999 !important;
+}
+
+.react-datepicker__header {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #eee !important;
+  border-top-left-radius: 8px !important;
+  border-top-right-radius: 8px !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--in-range {
+  background-color: #004D8D !important;
+  color: white !important;
+}
+
+.react-datepicker__day--in-selecting-range {
+  background-color: rgba(0, 77, 141, 0.1) !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #f0f0f0 !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: rgba(0, 77, 141, 0.2) !important;
+}
+
+/* Clear button styles */
+.react-datepicker__close-icon {
+  padding: 0 !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}
+
+.react-datepicker__close-icon::after {
+  background-color: #004D8D !important;
+  font-size: 12px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  color: white !important;
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+.react-datepicker__close-icon:hover::after {
+  background-color: #003d70 !important;
+}
+
+/* Table Styles */
+.table-container {
+  overflow-x: auto;
+  margin-top: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  max-height: 500px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.table-container th,
+.table-container td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 48px;
+  box-sizing: border-box;
+}
+
+/* Column Widths */
+.table-container th:nth-child(1),
+.table-container td:nth-child(1) {
+  width: 150px; /* Timestamp */
+}
+
+.table-container th:nth-child(2),
+.table-container td:nth-child(2) {
+  width: 120px; /* User */
+}
+
+.table-container th:nth-child(3),
+.table-container td:nth-child(3) {
+  width: 120px; /* Action */
+}
+
+.table-container th:nth-child(4),
+.table-container td:nth-child(4) {
+  width: 120px; /* Module */
+}
+
+.table-container th:nth-child(5),
+.table-container td:nth-child(5) {
+  width: 30%; /* Details */
+}
+
+.table-container th:nth-child(6),
+.table-container td:nth-child(6) {
+  width: 100px; /* Status */
+}
+
+.table-container th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table-container tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* Status Badge */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.success {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.status-badge.error {
+  background-color: #fce8e6;
+  color: #d32f2f;
+}
+
+.status-badge.warning {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+/* Scrollbar Styles */
+.table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+  }
+  
+  .search-container,
+  .filter-container,
+  .date-picker-wrapper {
+    width: 100%;
+  }
+  
+  .filter-container select,
+  .date-picker-input {
+    width: 100%;
+  }
+} 

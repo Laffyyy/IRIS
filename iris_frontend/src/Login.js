@@ -7,6 +7,13 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
 
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    // Allow alphanumeric characters and specific symbols: -._!@
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
+    setEmail(filteredValue);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(email);
@@ -20,11 +27,13 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
         <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
         <form onSubmit={handleSubmit} className="modal-form">
           <input
-            type="email"
+            type="text"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleEmailChange}
             required
+            pattern="[a-zA-Z0-9\-._!@]+"
+            title="Email can contain letters, numbers, and -._!@ symbols"
           />
           <div className="modal-buttons">
             <button type="button" onClick={onClose}>Cancel</button>
@@ -35,8 +44,6 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
     </div>
   );
 };
-
-
 
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -54,9 +61,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
   });
 
   const carouselImages = [
-    '/assets/stephen1.jpg',
-    '/assets/stephen2.jpg',
-    '/assets/stephen3.jpg',
+    '/assets/loginimage1.jpg',
+    '/assets/loginimage2.jpg',
+    '/assets/loginimage3.jpg',
   ];
 
   useEffect(() => {
@@ -209,15 +216,6 @@ const Login = ({ onContinue, onForgotPassword }) => {
                 backgroundPosition: 'center'
               }}
             />
-            <div className="carousel-indicators">
-              {carouselImages.map((_, index) => (
-                <span
-                  key={index}
-                  className={`indicator ${index === currentImageIndex ? 'active' : ''}`}
-                  onClick={() => setCurrentImageIndex(index)}
-                />
-              ))}
-            </div>
           </div>
         </div>
       </div>

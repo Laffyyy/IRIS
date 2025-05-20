@@ -74,6 +74,7 @@
   margin-bottom: 6px;
   font-weight: 500;
   font-size: 13px;
+  text-align: left;
 }
 
 .form-group input,
@@ -648,6 +649,7 @@
   font-size: 13px;
   color: #666;
   margin-bottom: 20px;
+  text-align: left;
 }
 
 /* Edit KPI Modal */
@@ -664,4 +666,10 @@
 .modal.edit-kpi-modal .form-group select,
 .modal.edit-kpi-modal .form-group textarea {
   width: 100%;
+}
+
+.filter-container label {
+  font-size: 12px;
+  white-space: nowrap;
+  text-align: left;
 }
