@@ -638,6 +638,41 @@ const ClientManagement = () => {
           return;
         }
 
+        // Check for duplicate LOB names (case-insensitive, trimmed)
+        const lobNames = lobCardsForLob.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
+        const uniqueLobNames = new Set(lobNames);
+        if (lobNames.length !== uniqueLobNames.size) {
+          alert('Error: Duplicate LOB names are not allowed.');
+          return;
+        }
+
+        // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed)
+        const allSubLobNames = lobCardsForLob.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
+        const uniqueSubLobNames = new Set(allSubLobNames);
+        if (allSubLobNames.length !== uniqueSubLobNames.size) {
+          alert('Error: Duplicate Sub LOB names are not allowed across all LOBs.');
+          return;
+        }
+
+        // Check for duplicate Sub LOBs within each LOB card (case-insensitive, trimmed)
+        const hasDuplicateSubLobs = lobCardsForLob.some(card => {
+          const uniqueSubLobs = new Set();
+          return card.subLobNames.some(subLobName => {
+            const trimmedName = subLobName.trim().toLowerCase();
+            if (trimmedName && uniqueSubLobs.has(trimmedName)) {
+              return true; // Found a duplicate
+            }
+            if (trimmedName) {
+              uniqueSubLobs.add(trimmedName);
+            }
+            return false;
+          });
+        });
+        if (hasDuplicateSubLobs) {
+          alert('Error: Duplicate Sub LOB names are not allowed within the same LOB.');
+          return;
+        }
+
         // Get the client name from the selected client ID
         const client = clients.find(c => c.id === selectedClientForLob);
         if (!client) {
