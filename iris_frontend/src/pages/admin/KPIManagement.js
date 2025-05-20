@@ -18,9 +18,7 @@ const KPIManagement = () => {
   
   const [activeTab, setActiveTab] = useState('addKPI');
   const [editingKpi, setEditingKpi] = useState(null);
-  const [kpis, setKpis] = useState([
-    { id: 1, name: 'Revenue Growth', category: 'Financial', behavior: 'Increase', description: 'Measures growth in total revenue' }
-  ]);
+  const [kpis, setKpis] = useState([]);
   
   // Add this at the top with other state declarations
   const [descriptionCount, setDescriptionCount] = useState(0);
@@ -47,7 +45,7 @@ const KPIManagement = () => {
   const [previewTab, setPreviewTab] = useState('valid');
   const [individualPreview, setIndividualPreview] = useState([]);
 
-  const categories = ['Financial', 'Operational', 'Customer', 'Employee'];
+  const categories = ['Compliance', 'Customer Experience', 'Employee Performance', 'Finance', 'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'];
   const behaviors = ['Increase', 'Decrease', 'Maintain', 'Target'];
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,119 +101,113 @@ const KPIManagement = () => {
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
+    e.stopPropagation();
+    setDragActive(false);
 
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        const file = e.dataTransfer.files[0];
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+
+      // Filename validation
+      if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+        alert('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+        return;
+      }
+
+      // File type validation
+      if (!file.name.endsWith('.csv')) {
+        alert('Please upload a CSV file');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        const kpisToValidate = processFileContent(text);
         
-        // Validate file type
-        if (!file.name.endsWith('.csv')) {
-          alert('Please upload a CSV file');
+        if (kpisToValidate.length === 0) {
+          // processFileContent returns empty array if validation fails
+          resetBulkUploadState();
           return;
         }
 
-        // Create a new FileReader instance
-        const reader = new FileReader();
-        
-        reader.onload = (event) => {
-          const text = event.target.result;
-          const allRows = text.split('\n');
-          
-          const notesIndex = allRows.findIndex(row => row.trim().startsWith('Note:'));
-          const dataRows = notesIndex !== -1 
-            ? allRows.slice(0, notesIndex) 
-            : allRows;
-          
-          const rows = dataRows
-            .filter(row => row.trim() !== '')
-            .map(row => row.split(','));
+        const validKpis = [];
+        const invalidKpis = [];
+        const seenNames = new Set();
 
-          const headers = rows[0];
-          const kpisToValidate = rows.slice(1)
-            .filter(row => row[0]?.trim())
-            .map(row => ({
-              name: row[0]?.trim(),
-              category: row[1]?.trim(),
-              behavior: row[2]?.trim(),
-              description: row[3]?.trim()
-            }));
+        // Validate each KPI
+        kpisToValidate.forEach(kpi => {
+          let isValid = true;
+          let reason = '';
 
-          setFile(file);
-          
-          const validKpis = [];
-          const invalidKpis = [];
-          const seenNames = new Set();
+          if (!kpi.name) {
+            isValid = false;
+            reason = 'Missing KPI name';
+          } else if (isDuplicateKPI(kpi.name)) {
+            isValid = false;
+            reason = 'KPI name already exists';
+          } else if (seenNames.has(kpi.name.toLowerCase())) {
+            isValid = false;
+            reason = 'Duplicate KPI name in CSV file';
+          } else if (!kpi.category || !kpi.behavior) {
+            isValid = false;
+            reason = 'Missing required fields';
+          } else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
+            isValid = false;
+            reason = 'Invalid category';
+          } else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
+            isValid = false;
+            reason = 'Invalid behavior';
+          }
 
-          // Validate each KPI
-          kpisToValidate.forEach(kpi => {
-            let isValid = true;
-            let reason = '';
+          if (isValid) {
+            validKpis.push({
+              ...kpi,
+              category: capitalizeFirstLetter(kpi.category),
+              behavior: capitalizeFirstLetter(kpi.behavior)
+            });
+            seenNames.add(kpi.name.toLowerCase());
+          } else {
+            invalidKpis.push({
+              ...kpi,
+              reason
+            });
+          }
+        });
 
-            // Check for missing name
-            if (!kpi.name) {
-              isValid = false;
-              reason = 'Missing KPI name';
-            }
-            // Check for duplicates with existing KPIs
-            else if (isDuplicateKPI(kpi.name)) {
-              isValid = false;
-              reason = 'KPI name already exists';
-            }
-            // Check for duplicates within CSV
-            else if (seenNames.has(kpi.name.toLowerCase())) {
-              isValid = false;
-              reason = 'Duplicate KPI name in CSV file';
-            }
-            // Check required fields
-            else if (!kpi.category || !kpi.behavior) {
-              isValid = false;
-              reason = 'Missing required fields';
-            }
-            // Validate category
-            else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
-              isValid = false;
-              reason = 'Invalid category';
-            }
-            // Validate behavior
-            else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
-              isValid = false;
-              reason = 'Invalid behavior';
-            }
+        setFile(file);
+        setBulkKpis(validKpis);
+        setInvalidKpis(invalidKpis);
+        setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
+      };
 
-            if (isValid) {
-              validKpis.push({
-                ...kpi,
-                category: capitalizeFirstLetter(kpi.category),
-                behavior: capitalizeFirstLetter(kpi.behavior)
-              });
-              seenNames.add(kpi.name.toLowerCase());
-            } else {
-              invalidKpis.push({
-                ...kpi,
-                reason
-              });
-            }
-          });
-
-          // Update state with validated KPIs
-          setBulkKpis(validKpis);
-          setInvalidKpis(invalidKpis);
-          setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
-        };
-
-        reader.readAsText(file);
-      }
-    }, [categories, behaviors, isDuplicateKPI]);
+      reader.readAsText(file);
+    }
+  }, [categories, behaviors, isDuplicateKPI]);
 
   const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-          handleFile(e.target.files[0]);
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        
+        // Add filename validation
+        if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+          alert('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+          // Reset the file input
+          e.target.value = '';
+          return;
         }
-      };
+        
+        handleFile(file);
+      }
+    };
 
   const handleFile = async (file) => {
     try {
+
+      if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+      alert('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+      resetBulkUploadState();
+      return;
+    }
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
@@ -287,7 +279,7 @@ const KPIManagement = () => {
   const generateTemplate = () => {
     const csvHeader = "KPI Name,Category,Behavior,Description,,,Valid Input Reference";
     const exampleData = [
-      "Revenue Growth,Financial,Increase,Measures growth in total revenue,,,Valid Categories: Financial, Operational, Customer, Employee",
+      "Revenue Growth,Financial,Increase,Measures growth in total revenue,,,Valid Categories: Compliance, Customer Experience, Employee Performance, Finance, Healthcare, Logistics, Operational Efficiency, Sales, Tech",
       "Customer Satisfaction,Customer,Increase,Measures overall customer satisfaction,,,Valid Behaviors: Increase, Decrease, Maintain, Target",
       "Employee Turnover,Employee,Decrease,Tracks employee turnover rate"
     ];
@@ -312,26 +304,61 @@ const KPIManagement = () => {
   };
 
   const processFileContent = (text) => {
-    const rows = text.split('\n')
-      .filter(row => row.trim() !== '' && !row.startsWith(',,,')) // Skip empty rows and note rows
-      .map(row => {
-        const columns = row.split(',');
-        // Only process rows that have data in the first column (KPI Name)
-        if (columns[0]?.trim()) {
-          return {
-            name: columns[0]?.trim(),
-            category: columns[1]?.trim(),
-            behavior: columns[2]?.trim(),
-            description: columns[3]?.trim()
-          };
-        }
-        return null;
-      })
-      .filter(row => row !== null); // Remove null entries
+    try {
+      // Split into rows and filter out empty rows and notes
+      const rows = text.split('\n')
+        .filter(row => row.trim() !== '' && !row.startsWith(',,,'));
 
-    // First row is header, so remove it
-    const dataRows = rows.slice(1);
-    return dataRows;
+      // Get headers from first row
+      const headers = rows[0].split(',').map(header => header.trim());
+      
+      // Validate CSV structure
+      const structureValidation = validateCSVStructure(headers);
+      if (!structureValidation.isValid) {
+        alert(structureValidation.error);
+        return [];
+      }
+
+      // Process data rows (skip header row)
+      const dataRows = rows.slice(1)
+        .filter(row => row.trim()) // Remove empty rows
+        .map(row => {
+          const columns = row.split(',');
+          // Only process rows that have data in the KPI Name column
+          if (columns[0]?.trim()) {
+            return {
+              name: columns[0]?.trim(),
+              category: columns[1]?.trim(),
+              behavior: columns[2]?.trim(),
+              description: columns[3]?.trim()
+            };
+          }
+          return null;
+        })
+        .filter(row => row !== null); // Remove null entries
+
+      return dataRows;
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+      alert('Error processing file. Please check the file format.');
+      return [];
+    }
+  };
+
+  // Add this function to validate CSV structure
+  const validateCSVStructure = (headers) => {
+    const requiredColumns = ['KPI Name', 'Category', 'Behavior', 'Description'];
+    const missingColumns = requiredColumns.filter(col => 
+      !headers.some(header => header.trim() === col)
+    );
+
+    if (missingColumns.length > 0) {
+      return {
+        isValid: false,
+        error: `Missing required columns: ${missingColumns.join(', ')}`
+      };
+    }
+    return { isValid: true };
   };
 
   const handleAddKpi = async () => {
