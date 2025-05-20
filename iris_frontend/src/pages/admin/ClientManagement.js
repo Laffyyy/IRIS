@@ -1513,7 +1513,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
               <div className="client-name-container">
                 <label>Select Client</label>
-                <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`}>
+                <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                   <input
                     type="text"
                     value={clientSearchTerm}
@@ -1531,7 +1531,51 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     onFocus={() => setIsClientDropdownOpen(true)}
                     placeholder="Search or select a client"
                     className="searchable-input"
+                    style={{ paddingRight: '56px' }}
                   />
+                  {/* Clear button */}
+                  {clientSearchTerm && (
+                    <button
+                      type="button"
+                      className="clear-select-btn"
+                      onClick={() => {
+                        setClientSearchTerm('');
+                        setSelectedClientForLob(null);
+                        setSelectedSiteForLob(null);
+                        setSiteSearchTerm('');
+                      }}
+                      tabIndex={-1}
+                      aria-label="Clear client selection"
+                    >
+                      <FaTimes />
+                    </button>
+                  )}
+                  {/* Divider */}
+                  <span style={{
+                    position: 'absolute',
+                    right: 36,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    height: 24,
+                    width: 1,
+                    background: '#ddd',
+                    zIndex: 1
+                  }} />
+                  {/* Dropdown icon */}
+                  <span style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none',
+                    color: '#004D8D',
+                    fontSize: 20,
+                    zIndex: 1
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 8L10 13L15 8" stroke="#004D8D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
                   {isClientDropdownOpen && (
                     <div className="dropdown-list">
                       {filteredClientOptions().map(([name, id]) => (
@@ -1555,7 +1599,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               </div>
               <div className="client-name-container">
                 <label>Select Site</label>
-                <div className={`site-searchable-dropdown ${isSiteDropdownOpen ? 'active' : ''}`}>
+                <div className={`site-searchable-dropdown ${isSiteDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                   <input
                     type="text"
                     value={siteSearchTerm}
@@ -1571,7 +1615,49 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     placeholder="Search or select a site"
                     className="searchable-input"
                     disabled={!validateClientSelection()}
+                    style={{ paddingRight: '56px' }}
                   />
+                  {/* Clear button */}
+                  {siteSearchTerm && (
+                    <button
+                      type="button"
+                      className="clear-select-btn"
+                      onClick={() => {
+                        setSiteSearchTerm('');
+                        setSelectedSiteForLob(null);
+                      }}
+                      tabIndex={-1}
+                      aria-label="Clear site selection"
+                    >
+                      <FaTimes />
+                    </button>
+                  )}
+                  {/* Divider */}
+                  <span style={{
+                    position: 'absolute',
+                    right: 36,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    height: 24,
+                    width: 1,
+                    background: '#ddd',
+                    zIndex: 1
+                  }} />
+                  {/* Dropdown icon */}
+                  <span style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none',
+                    color: '#004D8D',
+                    fontSize: 20,
+                    zIndex: 1
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 8L10 13L15 8" stroke="#004D8D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
                   {isSiteDropdownOpen && validateClientSelection() && (
                     <div className="dropdown-list">
                       {filteredSiteOptions().length > 0 ? (
@@ -1682,7 +1768,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               <div className="form-row">
                 <div className="form-group">
                   <label>Select Client</label>
-                  <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`}>
+                  <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                     <input
                       type="text"
                       value={subLobClientSearchTerm}
@@ -1702,7 +1788,53 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       onFocus={() => setIsSubLobClientDropdownOpen(true)}
                       placeholder="Search or select a client"
                       className="searchable-input"
+                      style={{ paddingRight: '56px' }}
                     />
+                    {/* Clear button */}
+                    {subLobClientSearchTerm && (
+                      <button
+                        type="button"
+                        className="clear-select-btn"
+                        onClick={() => {
+                          setSubLobClientSearchTerm('');
+                          setFilterClientForSubLob(null);
+                          setFilterSiteForSubLob(null);
+                          setSubLobSiteSearchTerm('');
+                          setSelectedLobForSubLob(null);
+                          setSubLobLobSearchTerm('');
+                        }}
+                        tabIndex={-1}
+                        aria-label="Clear client selection"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                    {/* Divider */}
+                    <span style={{
+                      position: 'absolute',
+                      right: 36,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      height: 24,
+                      width: 1,
+                      background: '#ddd',
+                      zIndex: 1
+                    }} />
+                    {/* Dropdown icon */}
+                    <span style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      color: '#004D8D',
+                      fontSize: 20,
+                      zIndex: 1
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 8L10 13L15 8" stroke="#004D8D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
                     {isSubLobClientDropdownOpen && (
                       <div className="dropdown-list">
                         {filteredSubLobClientOptions().map(([name, id]) => (
@@ -1729,7 +1861,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 </div>
                 <div className="form-group">
                   <label>Select Site</label>
-                  <div className={`sublob-site-searchable-dropdown ${isSubLobSiteDropdownOpen ? 'active' : ''}`}>
+                  <div className={`sublob-site-searchable-dropdown ${isSubLobSiteDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                     <input
                       type="text"
                       value={subLobSiteSearchTerm}
@@ -1751,7 +1883,51 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       placeholder="Search or select a site"
                       className="searchable-input"
                       disabled={!validateSubLobClientSelection()}
+                      style={{ paddingRight: '56px' }}
                     />
+                    {/* Clear button */}
+                    {subLobSiteSearchTerm && (
+                      <button
+                        type="button"
+                        className="clear-select-btn"
+                        onClick={() => {
+                          setSubLobSiteSearchTerm('');
+                          setFilterSiteForSubLob(null);
+                          setSelectedLobForSubLob(null);
+                          setSubLobLobSearchTerm('');
+                        }}
+                        tabIndex={-1}
+                        aria-label="Clear site selection"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                    {/* Divider */}
+                    <span style={{
+                      position: 'absolute',
+                      right: 36,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      height: 24,
+                      width: 1,
+                      background: '#ddd',
+                      zIndex: 1
+                    }} />
+                    {/* Dropdown icon */}
+                    <span style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      color: '#004D8D',
+                      fontSize: 20,
+                      zIndex: 1
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 8L10 13L15 8" stroke="#004D8D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
                     {isSubLobSiteDropdownOpen && validateSubLobClientSelection() && (
                       <div className="dropdown-list">
                         {filteredSubLobSiteOptions().length > 0 ? (
@@ -1780,7 +1956,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 </div>
                 <div className="form-group">
                   <label>Select LOB</label>
-                  <div className={`sublob-lob-searchable-dropdown ${isSubLobLobDropdownOpen ? 'active' : ''}`}>
+                  <div className={`sublob-lob-searchable-dropdown ${isSubLobLobDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                     <input
                       type="text"
                       value={subLobLobSearchTerm}
@@ -1796,7 +1972,49 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       placeholder="Search or select a LOB"
                       className="searchable-input"
                       disabled={!validateSubLobClientSelection()}
+                      style={{ paddingRight: '56px' }}
                     />
+                    {/* Clear button */}
+                    {subLobLobSearchTerm && (
+                      <button
+                        type="button"
+                        className="clear-select-btn"
+                        onClick={() => {
+                          setSubLobLobSearchTerm('');
+                          setSelectedLobForSubLob(null);
+                        }}
+                        tabIndex={-1}
+                        aria-label="Clear LOB selection"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                    {/* Divider */}
+                    <span style={{
+                      position: 'absolute',
+                      right: 36,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      height: 24,
+                      width: 1,
+                      background: '#ddd',
+                      zIndex: 1
+                    }} />
+                    {/* Dropdown icon */}
+                    <span style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      color: '#004D8D',
+                      fontSize: 20,
+                      zIndex: 1
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 8L10 13L15 8" stroke="#004D8D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
                     {isSubLobLobDropdownOpen && validateSubLobClientSelection() && (
                       <div className="dropdown-list">
                         {filteredSubLobLobOptions().length > 0 ? (
