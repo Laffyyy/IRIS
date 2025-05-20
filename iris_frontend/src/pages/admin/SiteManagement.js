@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SiteManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaSearch } from 'react-icons/fa';
 import Select from 'react-select';
 
 const SiteManagement = () => {
@@ -42,6 +42,8 @@ const SiteManagement = () => {
   const [selectedClientSiteIds, setSelectedClientSiteIds] = useState([]);
   const [selectAllSites, setSelectAllSites] = useState(false);
   const [selectAllClientSites, setSelectAllClientSites] = useState(false);
+  const [siteSearchTerm, setSiteSearchTerm] = useState('');
+  const [clientSiteSearchTerm, setClientSiteSearchTerm] = useState('');
   
   // Add new state variables for bulk add modal
   const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
@@ -649,6 +651,19 @@ const SiteManagement = () => {
     }
   };
 
+  const filteredSites = sites.filter(site => {
+    return site.dSiteName.toLowerCase().includes(siteSearchTerm.toLowerCase());
+  });
+  
+  const filteredSiteClients = siteClients.filter(clientSite => {
+    return (
+      clientSite.dClientName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase()) ||
+      (clientSite.dLOB && clientSite.dLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
+      (clientSite.dSubLOB && clientSite.dSubLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
+      clientSite.dSiteName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())
+    );
+  });
+
   /**
    * Updates the cache of which clients are available for a site
    */
@@ -1090,6 +1105,17 @@ const SiteManagement = () => {
           {error && <p className="error-message">{error}</p>}
 
           <h2>Existing Sites</h2>
+          <div className="search-container">
+            <div className="search-box">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search sites by name..."
+                value={siteSearchTerm}
+                onChange={(e) => setSiteSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
           <table className="existing-sites-table">
             <thead>
               <tr>
@@ -1108,8 +1134,8 @@ const SiteManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {sites.length > 0 ? (
-                sites.map(site => (
+              {filteredSites.length > 0 ? (
+                filteredSites.map(site => (
                   <tr key={site.dSite_ID}>
                     <td>
                       <input
@@ -1142,7 +1168,9 @@ const SiteManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center' }}>No sites available</td>
+                  <td colSpan="6" style={{ textAlign: 'center' }}>
+                    {sites.length > 0 ? 'No matching sites found' : 'No sites available'}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -1300,6 +1328,17 @@ const SiteManagement = () => {
           </button>
           
           <h2>Existing Client-Site Assignments</h2>
+          <div className="search-container">
+            <div className="search-box">
+              <FaSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search by client name, LOB, Sub LOB, or site name..."
+                value={clientSiteSearchTerm}
+                onChange={(e) => setClientSiteSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
           <table className="existing-client-site-table">
             <thead>
               <tr>
@@ -1321,42 +1360,50 @@ const SiteManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {siteClients.map(clientSite => (
-                <tr key={clientSite.dClientSite_ID}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
-                      onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
-                    />
-                  </td>
-                  <td>{clientSite.dClientSite_ID}</td>
-                  <td>{clientSite.dClientName}</td>
-                  <td>{clientSite.dLOB || '-'}</td>
-                  <td>{clientSite.dSubLOB || '-'}</td>
-                  <td>{clientSite.dSiteName}</td>
-                  <td>{clientSite.dCreatedBy || '-'}</td>
-                  <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        className="edit-btn"
-                        onClick={() => handleEditClientSite(clientSite)}
-                      >
-                        <FaPencilAlt size={12} /> Edit
-                      </button>
-                      <button
-                        className="delete-btn"
-                        onClick={() =>
-                          handleRemoveClient(clientSite.dClientSite_ID, clientSite.dClientName)
-                        }
-                      >
-                        <FaTrash size={12} /> Delete
-                      </button>
-                    </div>
+              {filteredSiteClients.length > 0 ? (
+                filteredSiteClients.map(clientSite => (
+                  <tr key={clientSite.dClientSite_ID}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
+                        onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
+                      />
+                    </td>
+                    <td>{clientSite.dClientSite_ID}</td>
+                    <td>{clientSite.dClientName}</td>
+                    <td>{clientSite.dLOB || '-'}</td>
+                    <td>{clientSite.dSubLOB || '-'}</td>
+                    <td>{clientSite.dSiteName}</td>
+                    <td>{clientSite.dCreatedBy || '-'}</td>
+                    <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          className="edit-btn"
+                          onClick={() => handleEditClientSite(clientSite)}
+                        >
+                          <FaPencilAlt size={12} /> Edit
+                        </button>
+                        <button
+                          className="delete-btn"
+                          onClick={() =>
+                            handleRemoveClient(clientSite.dClientSite_ID, clientSite.dClientName)
+                          }
+                        >
+                          <FaTrash size={12} /> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center' }}>
+                    {siteClients.length > 0 ? 'No matching client-site assignments found' : 'No client-site assignments available'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
           {selectedClientSiteIds.length > 0 && (
