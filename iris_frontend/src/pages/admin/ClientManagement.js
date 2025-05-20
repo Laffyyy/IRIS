@@ -1406,6 +1406,10 @@ if (filterDate) {
   const filterDateString = new Date(filterDate).toLocaleDateString();
   filteredClients = filteredClients.filter(client => client.createdAt === filterDateString);
 }
+// Apply client name filter if searchFilter is set to client
+if (searchFilter && searchFilter.type === 'client') {
+  filteredClients = filteredClients.filter(client => safeToLowerCase(client.name) === safeToLowerCase(searchFilter.value));
+}
 filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
   // Add this function to validate client selection
@@ -2129,8 +2133,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     onChange={(e) => {
                       const value = e.target.value;
                       setSearchTerm(value);
-                      setSearchFilter(null); // Reset filter when typing
+                      // Rebuild dropdown suggestions as user types
                       if (value.trim().length === 0) {
+                        setSearchFilter(null);
                         setSearchDropdown([]);
                         setSearchDropdownVisible(false);
                         return;
@@ -2156,6 +2161,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       });
                       setSearchDropdown(allMatches);
                       setSearchDropdownVisible(allMatches.length > 0);
+                      // Set filter immediately for dynamic search
+                      setSearchFilter({ type: 'partial', value });
                     }}
                     onFocus={() => {
                       if (searchDropdown.length > 0) setSearchDropdownVisible(true);
