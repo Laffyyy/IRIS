@@ -1,0 +1,236 @@
+/* Main Sidebar */
+.sidebar {
+  width: 80px;
+  height: 100vh;
+  background-color: #EBF6FF;
+  position: fixed;
+  left: 0;
+  top: 0;
+  transition: width 0.3s ease;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 2px 0 10px rgba(0, 77, 141, 0.1);
+  overflow: hidden;
+}
+
+.sidebar:hover:not(.locked),
+.sidebar.locked {
+  width: 250px;
+}
+
+/* Lock Button */
+.lock-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid #D9EDFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #004D8D;
+  z-index: 101;
+  transition: all 0.2s ease;
+}
+
+.lock-btn:hover {
+  background: #f0f0f0;
+}
+
+/* Logo Section */
+.sidebar-header {
+  padding: 40px 20px 20px;
+  margin-bottom: 10px;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #004D8D;
+  white-space: nowrap;
+}
+
+/* Navigation Links */
+.nav-links {
+  flex: 1;
+  padding: 0;
+  list-style: none;
+  margin: 0;
+  overflow-y: auto;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  text-decoration: none;
+  color: #333;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.nav-link:hover {
+  background-color: #D9EDFF;
+}
+
+.nav-link.active {
+  background-color: #D9EDFF;
+}
+
+.active-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 24px;
+  background-color: #004D8D;
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-link.active .active-indicator {
+  opacity: 1;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
+  object-fit: contain;
+  transition: margin 0.3s ease;
+}
+
+.sidebar:hover:not(.locked) .nav-icon,
+.sidebar.locked .nav-icon {
+  margin: 0 12px 0 0;
+}
+
+.nav-text {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar:hover:not(.locked) .nav-text,
+.sidebar.locked .nav-text {
+  opacity: 1;
+}
+
+/* Log Out Section */
+.logout-section {
+  padding: 16px 20px;
+  margin-top: auto;
+  border-top: 1px solid #D9EDFF;
+}
+
+.logout-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #333;
+  transition: color 0.2s ease;
+}
+
+.logout-link:hover {
+  color: #004D8D;
+}
+
+.logout-icon {
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
+  object-fit: contain;
+  transition: margin 0.3s ease;
+}
+
+.sidebar:hover:not(.locked) .logout-icon,
+.sidebar.locked .logout-icon {
+  margin: 0 12px 0 0;
+}
+
+.sidebar .logout-link span {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar:hover:not(.locked) .logout-link span,
+.sidebar.locked .logout-link span {
+  opacity: 1;
+}
+
+/* Add these to your existing Sidebar.css */
+
+/* Submenu Styles */
+.submenu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.submenu-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px 12px 52px;
+  text-decoration: none;
+  color: #333;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.submenu-link:hover {
+  background-color: rgba(217, 237, 255, 0.5);
+}
+
+.submenu-link.active {
+  background-color: rgba(217, 237, 255, 0.7);
+}
+
+.submenu-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 12px;
+  object-fit: contain;
+}
+
+.submenu-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Chevron Icon */
+.chevron-icon {
+  margin-left: auto;
+  font-size: 12px;
+  color: #666;
+}
+
+/* Active Parent Item */
+.active-parent {
+  background-color: #D9EDFF;
+}
