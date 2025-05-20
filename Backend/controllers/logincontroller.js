@@ -4,19 +4,23 @@ class LoginController {
     constructor() {
         this.loginService = new LoginService();
     }
-
     async login(req, res) {
         try {
+            const { userId, password, otp } = req.body;
+            const result = await this.loginService.loginUser(userId, password, otp);
             
-            const { userId , password, otp } = req.body;
-            const result = await this.loginService.loginUser(userId, password,otp);
+            // Check if the result indicates an error
+            if (result.status === 'error') {
+                return res.status(401).json({ message: result.message });
+            }
+            
             if (result) {
                 res.status(200).json({ message: 'Login successful', data: result });
             } else {
-                res.status(401).json({ message: 'Invalid email or password' });
+                res.status(401).json({ message: 'Invalid username or password' });
             }
         } catch (error) {
-            res.status(500).json({ message: 'Internal server error', error: error.message });
+            res.status(500).json({ message: 'Something went wrong', error: error.message });
         }
     }
 

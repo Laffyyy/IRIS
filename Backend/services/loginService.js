@@ -2,7 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const login = require('../models/login');
-const OtpService = require('./otpService'); // Import the OtpService
+const OtpService = require('./otpservice'); // Import the OtpService
 
 class LoginService {
     constructor() {
@@ -31,25 +31,25 @@ class LoginService {
 
         // If user is not found in either table
         if (!user) {
-            throw new Error('User not found');
+            return { status: 'error', message: 'Invalid username or password' };
         }
 
         // Step 3: Verify the password
         let isMatch = false;
         if (table === 'tbl_login') {
             if (!user.dPassword1_hash) {
-                throw new Error('Password hash is missing for tbl_login');
+                return { status: 'error', message: 'Invalid username or password' };
             }
             isMatch = await bcrypt.compare(password, user.dPassword1_hash);
         } else if (table === 'tbl_admin') {
             if (!user.dPassword1_hash) {
-                throw new Error('Password hash is missing for tbl_admin');
+                return { status: 'error', message: 'Invalid username or password' };
             }
             isMatch = await bcrypt.compare(password, user.dPassword1_hash);
         }
 
         if (!isMatch) {
-            throw new Error('Invalid password');
+            return { status: 'error', message: 'Invalid username or password' };
         }
 
         // Step 4: Check the user's status (if applicable)
