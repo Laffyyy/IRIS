@@ -1,11 +1,21 @@
 // KPIManagement.js
 import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch } from 'react-icons/fa';
 
 const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis to /api/kpis
 
 const KPIManagement = () => {
+
+  const isDuplicateKPI = (name) => {
+    if (!name) return false;
+    
+    // Check if any existing KPI has the same name (case-insensitive)
+    return kpis.some(existingKpi => 
+      existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+  };
+
   const [activeTab, setActiveTab] = useState('addKPI');
   const [editingKpi, setEditingKpi] = useState(null);
   const [kpis, setKpis] = useState([
@@ -44,13 +54,20 @@ const KPIManagement = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [behaviorFilter, setBehaviorFilter] = useState('');
 
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedKpi, setSelectedKpi] = useState(null);
+  
+  const ALLOWED_FILE_PATTERN = /^kpi_upload_\d{8}\.csv$/;
+
+  const [isDuplicateName, setIsDuplicateName] = useState(false);
+
   const handleFormSubmit = () => {
   if (editingKpi) {
     handleUpdateKpi();
   } else {
     // Check for duplicates in existing KPIs
-    if (isDuplicateKPI(kpiName, category, behavior)) {
-      alert('This KPI already exists. Please check the existing KPIs.');
+    if (isDuplicateKPI(kpiName)) {
+      alert('A KPI with this name already exists. Please use a different name.');
       return;
     }
 
@@ -86,40 +103,129 @@ const KPIManagement = () => {
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  }, []);
+      e.stopPropagation();
+      setDragActive(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
+        
+        // Validate file type
+        if (!file.name.endsWith('.csv')) {
+          alert('Please upload a CSV file');
+          return;
+        }
+
+        // Create a new FileReader instance
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+          const text = event.target.result;
+          const allRows = text.split('\n');
+          
+          const notesIndex = allRows.findIndex(row => row.trim().startsWith('Note:'));
+          const dataRows = notesIndex !== -1 
+            ? allRows.slice(0, notesIndex) 
+            : allRows;
+          
+          const rows = dataRows
+            .filter(row => row.trim() !== '')
+            .map(row => row.split(','));
+
+          const headers = rows[0];
+          const kpisToValidate = rows.slice(1)
+            .filter(row => row[0]?.trim())
+            .map(row => ({
+              name: row[0]?.trim(),
+              category: row[1]?.trim(),
+              behavior: row[2]?.trim(),
+              description: row[3]?.trim()
+            }));
+
+          setFile(file);
+          
+          const validKpis = [];
+          const invalidKpis = [];
+          const seenNames = new Set();
+
+          // Validate each KPI
+          kpisToValidate.forEach(kpi => {
+            let isValid = true;
+            let reason = '';
+
+            // Check for missing name
+            if (!kpi.name) {
+              isValid = false;
+              reason = 'Missing KPI name';
+            }
+            // Check for duplicates with existing KPIs
+            else if (isDuplicateKPI(kpi.name)) {
+              isValid = false;
+              reason = 'KPI name already exists';
+            }
+            // Check for duplicates within CSV
+            else if (seenNames.has(kpi.name.toLowerCase())) {
+              isValid = false;
+              reason = 'Duplicate KPI name in CSV file';
+            }
+            // Check required fields
+            else if (!kpi.category || !kpi.behavior) {
+              isValid = false;
+              reason = 'Missing required fields';
+            }
+            // Validate category
+            else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
+              isValid = false;
+              reason = 'Invalid category';
+            }
+            // Validate behavior
+            else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
+              isValid = false;
+              reason = 'Invalid behavior';
+            }
+
+            if (isValid) {
+              validKpis.push({
+                ...kpi,
+                category: capitalizeFirstLetter(kpi.category),
+                behavior: capitalizeFirstLetter(kpi.behavior)
+              });
+              seenNames.add(kpi.name.toLowerCase());
+            } else {
+              invalidKpis.push({
+                ...kpi,
+                reason
+              });
+            }
+          });
+
+          // Update state with validated KPIs
+          setBulkKpis(validKpis);
+          setInvalidKpis(invalidKpis);
+          setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
+        };
+
+        reader.readAsText(file);
+      }
+    }, [categories, behaviors, isDuplicateKPI]);
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
-    }
-  };
+        if (e.target.files && e.target.files[0]) {
+          handleFile(e.target.files[0]);
+        }
+      };
 
-  // Simulate file processing
   const handleFile = async (file) => {
     try {
-      // Reset previous states before processing new file
-        setBulkKpis([]);
-        setInvalidKpis([]);
-        
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
         const allRows = text.split('\n');
         
-        // Find the index where notes section begins
         const notesIndex = allRows.findIndex(row => row.trim().startsWith('Note:'));
-        
-        // Only process rows before the notes section
         const dataRows = notesIndex !== -1 
           ? allRows.slice(0, notesIndex) 
           : allRows;
         
-        // Filter empty rows and split into columns
         const rows = dataRows
           .filter(row => row.trim() !== '')
           .map(row => row.split(','));
@@ -134,29 +240,45 @@ const KPIManagement = () => {
             description: row[3]?.trim()
           }));
 
-        // Set the file first
         setFile(file);
         
-        // Then validate the KPIs
         const validKpis = [];
         const invalidKpis = [];
+        const seenNames = new Set();
 
         kpisToValidate.forEach(kpi => {
           let isValid = true;
           let reason = '';
 
-          if (!kpi.name || !kpi.category || !kpi.behavior) {
+          // First check if KPI name exists
+          if (!kpi.name) {
+            isValid = false;
+            reason = 'Missing KPI name';
+          }
+          // Then check for duplicates with existing KPIs
+          else if (isDuplicateKPI(kpi.name)) {
+            isValid = false;
+            reason = 'KPI name already exists';
+          }
+          // Then check for duplicates within the CSV file
+          else if (seenNames.has(kpi.name.toLowerCase())) {
+            isValid = false;
+            reason = 'Duplicate KPI name in CSV file';
+          }
+          // Then check other required fields
+          else if (!kpi.category || !kpi.behavior) {
             isValid = false;
             reason = 'Missing required fields';
-          } else if (!categories.some(cat => cat.toLowerCase() === kpi.category?.toLowerCase())) {
+          }
+          // Validate category
+          else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
             isValid = false;
             reason = 'Invalid category';
-          } else if (!behaviors.some(beh => beh.toLowerCase() === kpi.behavior?.toLowerCase())) {
+          }
+          // Validate behavior
+          else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
             isValid = false;
             reason = 'Invalid behavior';
-          } else if (isDuplicateKPI(kpi.name, kpi.category, kpi.behavior)) {
-            isValid = false;
-            reason = 'Duplicate KPI';
           }
 
           if (isValid) {
@@ -165,6 +287,7 @@ const KPIManagement = () => {
               category: capitalizeFirstLetter(kpi.category),
               behavior: capitalizeFirstLetter(kpi.behavior)
             });
+            seenNames.add(kpi.name.toLowerCase().trim());
           } else {
             invalidKpis.push({
               ...kpi,
@@ -178,18 +301,13 @@ const KPIManagement = () => {
         setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
       };
 
-      reader.onerror = () => {
-            resetBulkUploadState();
-            alert('Error reading file. Please try again.');
-        };
-
-        reader.readAsText(file);
+      reader.readAsText(file);
     } catch (error) {
-        console.error('Error processing file:', error);
-        resetBulkUploadState();
-        alert('Error processing file. Please check the file format.');
+      console.error('Error processing file:', error);
+      resetBulkUploadState();
+      alert('Error processing file. Please check the file format.');
     }
-};
+  };
 
   // Remove uploaded file
   const removeFile = () => {
@@ -216,10 +334,17 @@ const KPIManagement = () => {
       // Combine template and notes with a clear separator
       const fileContent = `${templateData}\n${notes}`;
 
+      const today = new Date();
+      const dateString = today.getFullYear().toString() +
+          (today.getMonth() + 1).toString().padStart(2, '0') +
+          today.getDate().toString().padStart(2, '0');
+      
+      const filename = `kpi_upload_${dateString}.csv`;
+
       const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', 'kpi_upload_template.csv');
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -302,61 +427,66 @@ const KPIManagement = () => {
 
   // Add this new function to handle revalidation
   const revalidateBulkKPIs = () => {
-    const validKpis = [];
-    const newInvalidKpis = [];
+      const validKpis = [];
+      const newInvalidKpis = [];
+      const seenNames = new Set();
 
-    // Combine current bulk and invalid KPIs for revalidation
-    const kpisToValidate = [...bulkKpis, ...invalidKpis];
+      const kpisToValidate = [...bulkKpis, ...invalidKpis];
 
-    kpisToValidate.forEach(kpi => {
-      let isValid = true;
-      let reason = '';
+      kpisToValidate.forEach(kpi => {
+        let isValid = true;
+        let reason = '';
 
-      // Validate required fields
-      if (!kpi.name || !kpi.category || !kpi.behavior) {
-        isValid = false;
-        reason = 'Missing required fields';
-      }
-      // Validate category
-      else if (!categories.some(cat => cat.toLowerCase() === kpi.category?.toLowerCase())) {
-        isValid = false;
-        reason = 'Invalid category';
-      }
-      // Validate behavior
-      else if (!behaviors.some(beh => beh.toLowerCase() === kpi.behavior?.toLowerCase())) {
-        isValid = false;
-        reason = 'Invalid behavior';
-      }
-      // Check for duplicates in existing KPIs
-      else if (isDuplicateKPI(kpi.name, kpi.category, kpi.behavior)) {
-        isValid = false;
-        reason = 'Duplicate KPI';
-      }
+        // Check required fields
+        if (!kpi.name || !kpi.category || !kpi.behavior) {
+          isValid = false;
+          reason = 'Missing required fields';
+        }
+        // Check for duplicates within CSV file
+        else if (seenNames.has(kpi.name.toLowerCase())) {
+          isValid = false;
+          reason = 'Duplicate KPI name in CSV file';
+        }
+        // Check for duplicates with existing KPIs - only check name
+        else if (isDuplicateKPI(kpi.name)) {
+          isValid = false;
+          reason = 'KPI name already exists in system';
+        }
+        // Validate category
+        else if (!categories.includes(capitalizeFirstLetter(kpi.category))) {
+          isValid = false;
+          reason = 'Invalid category';
+        }
+        // Validate behavior
+        else if (!behaviors.includes(capitalizeFirstLetter(kpi.behavior))) {
+          isValid = false;
+          reason = 'Invalid behavior';
+        }
 
-      if (isValid) {
-        validKpis.push({
-          ...kpi,
-          category: capitalizeFirstLetter(kpi.category),
-          behavior: capitalizeFirstLetter(kpi.behavior)
-        });
-      } else {
-        newInvalidKpis.push({
-          ...kpi,
-          reason
-        });
-      }
-    });
+        if (isValid) {
+          validKpis.push({
+            ...kpi,
+            category: capitalizeFirstLetter(kpi.category),
+            behavior: capitalizeFirstLetter(kpi.behavior)
+          });
+          seenNames.add(kpi.name.toLowerCase());
+        } else {
+          newInvalidKpis.push({
+            ...kpi,
+            reason
+          });
+        }
+      });
 
-    setBulkKpis(validKpis);
-    setInvalidKpis(newInvalidKpis);
-    
-    // Update preview tab if needed
-    if (newInvalidKpis.length > 0 && validKpis.length === 0) {
-      setPreviewTab('invalid');
-    } else if (validKpis.length > 0 && newInvalidKpis.length === 0) {
-      setPreviewTab('valid');
-    }
-  };
+      setBulkKpis(validKpis);
+      setInvalidKpis(newInvalidKpis);
+      
+      if (newInvalidKpis.length > 0 && validKpis.length === 0) {
+        setPreviewTab('invalid');
+      } else if (validKpis.length > 0 && newInvalidKpis.length === 0) {
+        setPreviewTab('valid');
+      }
+    };
 
   const handleUpdateKpi = async () => {
     if (kpiName?.trim() && category && behavior) {
@@ -555,25 +685,7 @@ const KPIManagement = () => {
     return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
   };
 
-  const isDuplicateKPI = (name, category, behavior) => {
-    // Add null checks for input parameters
-    if (!name || !category || !behavior) {
-      return false;
-    }
-
-    return kpis.some(existingKpi => {
-      // Add null checks for existing KPI properties
-      const existingName = existingKpi?.dKPI_Name || '';
-      const existingCategory = existingKpi?.dCategory || '';
-      const existingBehavior = existingKpi?.dCalculationBehavior || '';
-
-      return (
-        existingName.toLowerCase() === name.toLowerCase() &&
-        existingCategory.toLowerCase() === category.toLowerCase() &&
-        existingBehavior.toLowerCase() === behavior.toLowerCase()
-      );
-    });
-  };
+  
 
   const handleDescriptionChange = (e) => {
     const text = e.target.value;
@@ -587,6 +699,8 @@ const KPIManagement = () => {
     const text = e.target.value;
     if (text.length <= MAX_NAME_LENGTH) {
       setKpiName(text);
+      // Check for duplicates whenever name changes
+      setIsDuplicateName(isDuplicateKPI(text));
     }
   };
 
@@ -623,15 +737,56 @@ const KPIManagement = () => {
   const renderFilterControls = () => {
     return (
       <div className="filter-controls">
+      <div className="search-bar-container">
         <div className="search-bar">
+          <FaSearch className="search-icon" />
           <input
             type="text"
             placeholder="Search KPIs..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowSuggestions(true);
+              setSelectedKpi(null);
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              // Small delay to allow clicking on suggestions
+              setTimeout(() => setShowSuggestions(false), 200);
+              }}
           />
+           {searchQuery && (
+            <button 
+              className="clear-search"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedKpi(null);
+              }}
+            >
+              <FaTimes />
+            </button>
+          )}
         </div>
-        <div className="filter-selects">
+        {showSuggestions && searchQuery && (
+          <div className="suggestions-dropdown">
+            {getKpiSuggestions().map(kpi => (
+              <div
+                key={kpi.id}
+                className="suggestion-item"
+                onClick={() => {
+                  setSelectedKpi(kpi.id);
+                  setSearchQuery(kpi.name);
+                  setShowSuggestions(false);
+                }}
+              >
+                {kpi.name}
+              </div>
+         ))}
+          </div>
+        )}
+      </div>
+      <div className="filter-selects">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -655,22 +810,64 @@ const KPIManagement = () => {
     );
   };
 
+  const getKpiSuggestions = () => {
+      if (!searchQuery) return [];
+      
+      return kpis.filter(kpi => 
+        kpi.dKPI_Name.toLowerCase().startsWith(searchQuery.toLowerCase())
+      ).map(kpi => ({
+        id: kpi.dKPI_ID,
+        name: kpi.dKPI_Name
+      }));
+    };
+
     // Add this function to filter KPIs
   const getFilteredKPIs = () => {
-      return kpis.filter(kpi => {
-        // Category filter
-        if (categoryFilter && kpi.dCategory !== categoryFilter) {
-          return false;
-        }
-        
-        // Behavior filter
-        if (behaviorFilter && kpi.dCalculationBehavior !== behaviorFilter) {
-          return false;
-        }
+    return kpis.filter(kpi => {
+      // If a specific KPI is selected from dropdown
+      if (selectedKpi) {
+        return kpi.dKPI_ID === selectedKpi;
+      }
 
-        return true;
-      });
+      // Search query filter - using startsWith() for KPI names
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = kpi.dKPI_Name?.toLowerCase().startsWith(query);
+
+        if (!matchesName) {
+          return false;
+        }
+      }
+
+      // Category filter
+      if (categoryFilter && kpi.dCategory !== categoryFilter) {
+        return false;
+      }
+
+      // Behavior filter
+      if (behaviorFilter && kpi.dCalculationBehavior !== behaviorFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  };
+
+  const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && searchQuery) {
+        // Apply the search filter when Enter is pressed
+        setShowSuggestions(false);
+      } else if (e.key === 'Escape') {
+        // Clear search when Escape is pressed
+        setSearchQuery('');
+        setShowSuggestions(false);
+        setSelectedKpi(null);
+      } else if (e.key === 'ArrowDown' && showSuggestions) {
+        // Prevent cursor movement in input
+        e.preventDefault();
+      }
     };
+
 
   
 
@@ -732,19 +929,23 @@ const KPIManagement = () => {
                   onChange={handleKpiNameChange}
                   placeholder="Enter KPI name"
                   maxLength={MAX_NAME_LENGTH}
-
+                  className={isDuplicateName ? 'duplicate-error' : ''}
                     />
+                    {isDuplicateName && (
+                      <span className="error-message">This KPI name already exists</span>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Category</label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
+                      disabled={isDuplicateName}
                     >
-                      <option value="">Select category</option>
-                      {categories.map(cat => (
-                        <option key={`category-${cat}`} value={cat}>{cat}</option>
-                      ))}
+                     <option value="">Select category</option>
+                    {categories.map(cat => (
+                      <option key={`category-${cat}`} value={cat}>{cat}</option>
+                    ))}
                     </select>
                   </div>
                 </div>
@@ -755,6 +956,7 @@ const KPIManagement = () => {
                     <select
                       value={behavior}
                       onChange={(e) => setBehavior(e.target.value)}
+                      disabled={isDuplicateName}
                     >
                       <option value="">Select behavior</option>
                       {behaviors.map(opt => (
@@ -771,6 +973,7 @@ const KPIManagement = () => {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe what this KPI measures and why it's important"
                     rows="3"
+                    disabled={isDuplicateName}
                   />
                 </div>
 
@@ -843,18 +1046,20 @@ const KPIManagement = () => {
                   onDrop={handleDrop}
                 >
                   <div className="drop-zone-content">
-                    <p>Drag and drop your file here or</p>
-                    <p>CSV or Excel files only (max 5MB)</p>
-                    <input
-                      type="file"
-                      id="file-upload"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileChange}
-                      style={{ display: 'none' }}
-                    />
-                    <label htmlFor="file-upload" className="browse-files-btn">
-                      Browse Files
-                    </label>
+                      <p>Drag and drop your CSV file here</p>
+                      <p>File name format: kpi_upload_YYYYMMDD.csv</p>
+                      <p>Example: kpi_upload_20250520.csv</p>
+                      <p>Maximum file size: 5MB</p>
+                      <input
+                          type="file"
+                          id="file-upload"
+                          accept=".csv"
+                          onChange={handleFileChange}
+                          style={{ display: 'none' }}
+                      />
+                      <label htmlFor="file-upload" className="browse-files-btn">
+                          Browse Files
+                      </label>
                   </div>
                 </div>
 
@@ -956,7 +1161,7 @@ const KPIManagement = () => {
                   <button
                     onClick={handleBulkUpload}
                     className="save-btn"
-                    disabled={bulkKpis.length === 0}
+                    disabled={!file || bulkKpis.length === 0}
                   >
                     Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
                   </button>

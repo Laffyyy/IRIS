@@ -113,18 +113,19 @@
 
 .existing-kpis {
   margin-top: 20px;
-  overflow-x: auto;
-  max-height: 500px;
   border: 1px solid #eee;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 250px);
 }
 
 .existing-kpis table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
   font-size: 13px;
   table-layout: fixed;
+  margin-top: 0; /* Remove top margin */
 }
 
 .existing-kpis th,
@@ -356,7 +357,7 @@
 
 .browse-files-btn {
   background-color: #004D8D;
-  color: white;
+  color: #ffffff !important;
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
@@ -489,10 +490,18 @@
   border: none;
   color: white;
 }
-
 .save-btn:disabled {
-  background-color: #cccccc;
+  background-color: #e0e0e0;
+  color: #999;
   cursor: not-allowed;
+  border: none;
+}
+
+.save-btn:disabled:hover {
+  background-color: #e0e0e0;
+  color: #999;
+  transform: none;
+  box-shadow: none;
 }
 
 .cancel-btn:hover {
@@ -692,25 +701,61 @@
 
 /* Filter controls styling */
 .filter-controls {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background-color: #f8f9fa;
-  border-radius: 8px;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.table-wrapper {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex-grow: 1;
 }
 
 .search-bar {
-  width: 250px; /* Fixed width for search bar */
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 250px;
+}
+
+.search-bar .search-icon {
+  position: absolute;
+  left: 10px;
+  color: #666;
+  font-size: 14px;
+  pointer-events: none;
 }
 
 .search-bar input {
   width: 100%;
-  padding: 6px 12px;
+  padding: 6px 32px 6px 32px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 13px;
+  height: 32px; /* Match the height of your select dropdowns */
+}
+
+.search-bar .clear-search {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-bar .clear-search:hover {
+  color: #333;
 }
 
 .filter-selects {
@@ -738,4 +783,89 @@
   outline: none;
   border-color: #004D8D;
   box-shadow: 0 0 0 2px rgba(0, 77, 141, 0.1);
+}
+
+.search-bar-container {
+  position: relative;
+  width: 250px; /* Fixed width to match your requirements */
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 2px); /* Small gap between input and dropdown */
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 4px 0; /* Small padding top and bottom */
+}
+
+.suggestion-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 13px; /* Match table font size */
+  color: #333; /* Match table text color */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-item:hover {
+  background-color: #f0f7ff; /* Light blue background on hover */
+  color: #004D8D; /* Brand blue color on hover */
+}
+
+/* Add click-away behavior */
+.search-bar input:focus + .suggestions-dropdown {
+  display: block;
+}
+
+/* Scrollbar styles for suggestions dropdown */
+.suggestions-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.suggestions-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.suggestions-dropdown::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.suggestions-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+.form-group input.duplicate-error {
+  border-color: #dc3545;
+}
+
+.form-group input.duplicate-error:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Style for disabled inputs */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.65;
 }
