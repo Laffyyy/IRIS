@@ -207,20 +207,20 @@ const SiteManagement = () => {
   const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
       const clientName = clients.find(c => c.id == selectedClientId)?.name;
-
+  
       const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
       const lobName = selectedLob ? selectedLob.name : null;
-
+  
       const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
       const subLobName = selectedSubLob ? selectedSubLob.name : null;
-
+  
       let confirmMessage = "";
       if (lobName && subLobName) {
         confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and Sub LOB "${subLobName}" to site "${selectedSite.dSiteName}"?`;
       } else if (lobName) {
         confirmMessage = `Are you sure you want to add client "${clientName}" with LOB "${lobName}" and all its Sub LOBs to site "${selectedSite.dSiteName}"?`;
       } else {
-        confirmMessage = `Are you sure you want to add client "${clientName}" with all its LOBs and Sub LOBs to site "${selectedSite.dSiteName}"?`;
+        confirmMessage = `Adding Client "${clientName}" and ALL AVAILABLE LOBs and Sub LOBs under it to site "${selectedSite.dSiteName}". Continue?`;
       }
 
       if (!window.confirm(confirmMessage)) return;
