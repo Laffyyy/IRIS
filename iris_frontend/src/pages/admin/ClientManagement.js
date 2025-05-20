@@ -2176,7 +2176,36 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         setSearchDropdownVisible(false);
                       }
                     }}
+                    style={{ paddingRight: searchTerm ? '30px' : '10px' }}
                   />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      className="clear-select-btn"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setSearchFilter(null);
+                        setSearchDropdown([]);
+                        setSearchDropdownVisible(false);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#666'
+                      }}
+                    >
+                      <FaTimes size={14} />
+                    </button>
+                  )}
                   {searchDropdownVisible && searchDropdown.length > 0 && (
                     <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
                       {searchDropdown.map((item, idx) => (
