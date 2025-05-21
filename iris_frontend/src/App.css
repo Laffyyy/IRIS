@@ -29,3 +29,7 @@ body {
 .sidebar.locked ~ .main-content {
   margin-left: 250px;
 }
+
+.selected-row {
+  background-color: #f0f8ff; /* Light blue background */
+}
