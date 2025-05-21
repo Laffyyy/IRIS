@@ -2273,7 +2273,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <tr
             key={rowKey}
             onClick={e => {
-              if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+              // Prevent toggling when clicking the checkbox itself or action buttons
+              if (e.target.type === 'checkbox') return;
+              if (e.target.closest && e.target.closest('.action-buttons')) return;
+              handleRowSelect(rowKey, rowIndex, e);
             }}
             style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
           >
@@ -2390,7 +2393,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             <tr
               key={rowKey}
               onClick={e => {
-                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+                // Prevent toggling when clicking the checkbox itself or action buttons
+                if (e.target.type === 'checkbox') return;
+                if (e.target.closest && e.target.closest('.action-buttons')) return;
+                handleRowSelect(rowKey, rowIndex, e);
               }}
               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
             >
@@ -3633,7 +3639,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <tr
                               key={rowKey}
                               onClick={e => {
-                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+                                // Prevent toggling when clicking the checkbox itself or action buttons
+                                if (e.target.type === 'checkbox') return;
+                                if (e.target.closest && e.target.closest('.action-buttons')) return;
+                                handleRowSelect(rowKey, rowIndex, e);
                               }}
                               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
                             >
@@ -3759,7 +3768,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <tr
                               key={rowKey}
                               onClick={e => {
-                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+                                // Prevent toggling when clicking the checkbox itself or action buttons
+                                if (e.target.type === 'checkbox') return;
+                                if (e.target.closest && e.target.closest('.action-buttons')) return;
+                                handleRowSelect(rowKey, rowIndex, e);
                               }}
                               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
                             >
@@ -3855,7 +3867,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <tr
                               key={rowKey}
                               onClick={e => {
-                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+                                // Prevent toggling when clicking the checkbox itself or action buttons
+                                if (e.target.type === 'checkbox') return;
+                                if (e.target.closest && e.target.closest('.action-buttons')) return;
+                                handleRowSelect(rowKey, rowIndex, e);
                               }}
                               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
                             >
