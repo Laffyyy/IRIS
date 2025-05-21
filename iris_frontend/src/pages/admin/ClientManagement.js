@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './ClientManagement.css';
 import { FaTrash, FaSearch, FaTimes, FaPencilAlt, FaBan, FaCheckCircle } from 'react-icons/fa';
 import axios from 'axios';
@@ -43,6 +43,38 @@ const ClientManagement = () => {
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Add ref for client name input
+  const clientNameInputRef = useRef(null);
+  // Add ref for client search input in Add LOB tab
+  const clientSearchInputRef = useRef(null);
+  // Add ref for client search input in Add Sub LOB tab
+  const subLobClientSearchInputRef = useRef(null);
+
+  // Add useEffect to focus input when Add Client tab is opened
+  useEffect(() => {
+    if (activeTab === 'addClient' && clientNameInputRef.current) {
+      clientNameInputRef.current.focus();
+    }
+  }, [activeTab]);
+
+  // Add useEffect to focus client search input when Add LOB tab is opened
+  useEffect(() => {
+    if (activeTab === 'addLOB' && clientSearchInputRef.current) {
+      clientSearchInputRef.current.focus();
+      // Don't show dropdown on initial focus
+      setIsClientDropdownOpen(false);
+    }
+  }, [activeTab]);
+
+  // Add useEffect to focus client search input when Add Sub LOB tab is opened
+  useEffect(() => {
+    if (activeTab === 'addSubLOB' && subLobClientSearchInputRef.current) {
+      subLobClientSearchInputRef.current.focus();
+      // Don't show dropdown on initial focus
+      setIsSubLobClientDropdownOpen(false);
+    }
+  }, [activeTab]);
 
   // Add state for client searchable dropdown
   const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -1416,10 +1448,25 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               <div className="client-name-container">
                 <label>Client Name</label>
                 <input
+                  ref={clientNameInputRef}
                   type="text"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="Enter client name"
+                  style={{ 
+                    outline: 'none',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    padding: '8px 12px',
+                    width: '100%',
+                    transition: 'border-color 0.2s ease-in-out'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#004D8D';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#ccc';
+                  }}
                 />
               </div>
 
@@ -1505,6 +1552,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 <label>Select Client</label>
                 <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                   <input
+                    ref={clientSearchInputRef}
                     type="text"
                     value={clientSearchTerm}
                     onChange={(e) => {
@@ -1518,10 +1566,31 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         setSiteSearchTerm('');
                       }
                     }}
-                    onFocus={() => setIsClientDropdownOpen(true)}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#004D8D';
+                      // Only show dropdown if there's a search term or user explicitly clicked
+                      if (clientSearchTerm) {
+                        setIsClientDropdownOpen(true);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#ccc';
+                    }}
+                    onClick={() => {
+                      // Show dropdown when user clicks the input
+                      setIsClientDropdownOpen(true);
+                    }}
                     placeholder="Search or select a client"
                     className="searchable-input"
-                    style={{ paddingRight: '56px' }}
+                    style={{ 
+                      paddingRight: '56px',
+                      outline: 'none',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px',
+                      padding: '8px 12px',
+                      width: '100%',
+                      transition: 'border-color 0.2s ease-in-out'
+                    }}
                   />
                   {/* Clear button */}
                   {clientSearchTerm && (
@@ -1760,6 +1829,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   <label>Select Client</label>
                   <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                     <input
+                      ref={subLobClientSearchInputRef}
                       type="text"
                       value={subLobClientSearchTerm}
                       onChange={(e) => {
@@ -1775,10 +1845,31 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           setSubLobLobSearchTerm('');
                         }
                       }}
-                      onFocus={() => setIsSubLobClientDropdownOpen(true)}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#004D8D';
+                        // Only show dropdown if there's a search term or user explicitly clicked
+                        if (subLobClientSearchTerm) {
+                          setIsSubLobClientDropdownOpen(true);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#ccc';
+                      }}
+                      onClick={() => {
+                        // Show dropdown when user clicks the input
+                        setIsSubLobClientDropdownOpen(true);
+                      }}
                       placeholder="Search or select a client"
                       className="searchable-input"
-                      style={{ paddingRight: '56px' }}
+                      style={{ 
+                        paddingRight: '56px',
+                        outline: 'none',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '8px 12px',
+                        width: '100%',
+                        transition: 'border-color 0.2s ease-in-out'
+                      }}
                     />
                     {/* Clear button */}
                     {subLobClientSearchTerm && (
