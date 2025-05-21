@@ -758,7 +758,7 @@ const ClientManagement = () => {
   
   // Helper to format add client confirmation details
   const formatAddClientConfirmation = (clientName, lobCards) => {
-    const darkBlue = '#1a237e';
+    const darkBlue = '#636363';
     // LOBs with both a name and at least one sub LOB
     const validLobCards = lobCards.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
     // LOBs that are incomplete: missing LOB name, missing Sub LOB, or both
@@ -983,7 +983,7 @@ const ClientManagement = () => {
 
   // Helper to format add LOB confirmation details
   const formatAddLobConfirmation = (clientName, siteName, lobCards) => {
-    const darkBlue = '#1a237e';
+    const darkBlue = '#636363';
     // LOBs with both a name and at least one sub LOB
     const validLobCards = lobCards.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
     // LOBs that are incomplete: missing LOB name, missing Sub LOB, or both
@@ -1239,22 +1239,52 @@ const ClientManagement = () => {
   };
 
   // Helper to format add Sub LOB confirmation details
-  const formatAddSubLobConfirmation = (clientName, siteName, lobName, subLobNames) => (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ marginBottom: 8, color: '#222' }}><strong>SITE:</strong> {siteName || 'None'}</div>
-      <div style={{ marginBottom: 8, color: '#222' }}><strong>CLIENT:</strong> {clientName}</div>
-      <div style={{ marginBottom: 8, color: '#222' }}><strong>LOB:</strong> {lobName}</div>
-      {subLobNames && subLobNames.filter(name => name.trim()).length > 0 && (
-        <div style={{ marginLeft: 18 }}>
-          {subLobNames.filter(name => name.trim()).map((subLob, j) => (
-            <div key={j} style={{ fontWeight: 400, color: '#333', marginBottom: 2 }}>
-              Sub LOB: <span style={{ color: '#222' }}>{subLob}</span>
-            </div>
-          ))}
+  const formatAddSubLobConfirmation = (clientName, siteName, lobName, subLobNames) => {
+    const darkBlue = '#636363';
+    // Only include sub lobs with a name
+    const validSubLobs = subLobNames.filter(name => name && name.trim());
+    // Incomplete sub lobs (empty or whitespace)
+    const ignoredSubLobs = subLobNames.filter(name => !name || !name.trim());
+
+    return (
+      <div style={{ marginTop: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '18px 20px', fontSize: 15 }}>
+        <div style={{ marginBottom: 8, color: darkBlue, fontWeight: 700, fontSize: 15 }}>
+          CLIENT: <span style={{ fontWeight: 400, color: darkBlue }}>{clientName}</span>
         </div>
-      )}
-    </div>
-  );
+        <div style={{ marginBottom: 8, color: darkBlue, fontWeight: 700, fontSize: 15 }}>
+          SITE: <span style={{ fontWeight: 400, color: darkBlue }}>{siteName || 'None'}</span>
+        </div>
+        <div style={{ marginBottom: 14, color: darkBlue, fontWeight: 700, fontSize: 15 }}>
+          LOB: <span style={{ fontWeight: 400, color: darkBlue }}>{lobName}</span>
+        </div>
+        {validSubLobs.length > 0 && (
+          <div style={{ marginBottom: 0, marginLeft: 0, paddingLeft: 8, borderLeft: `3px solid ${darkBlue}`, background: '#fff', borderRadius: 4, boxShadow: '0 1px 4px rgba(25, 118, 210, 0.04)', paddingTop: 8, paddingBottom: 8 }}>
+            <div style={{ fontWeight: 700, color: darkBlue, marginBottom: 4, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, background: darkBlue, borderRadius: '50%' }}></span>
+              Sub LOB(s):
+            </div>
+            <ul style={{ marginLeft: 24, marginTop: 4, marginBottom: 0, paddingLeft: 0, listStyle: 'disc', color: darkBlue }}>
+              {validSubLobs.map((subLob, j) => (
+                <li key={j} style={{ fontWeight: 700, color: darkBlue, fontSize: 14, marginBottom: 2, marginLeft: 0 }}>
+                  <span style={{ fontWeight: 400, color: darkBlue }}>{subLob}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {ignoredSubLobs.length > 0 && (
+          <div style={{ marginTop: 18, color: '#b10000', background: '#fff3f3', padding: '12px 16px', borderRadius: 6, border: '1px solid #ffd6d6', fontSize: 14 }}>
+            <strong>Note:</strong> The following Sub LOB(s) will <u>not</u> be added because they are incomplete:
+            <ul style={{ margin: '8px 0 0 18px', color: '#b10000' }}>
+              {ignoredSubLobs.map((subLob, i) => (
+                <li key={i}><em>(No Sub LOB Name)</em></li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Add Sub LOB with confirmation
   const handleAddSubLob = async () => {
