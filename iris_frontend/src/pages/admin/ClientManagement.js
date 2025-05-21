@@ -103,7 +103,9 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
                 type="text"
                 value={confirmationText}
                 onChange={(e) => {
-                  setConfirmationText(e.target.value);
+                  // Only allow alphanumeric, max 30 chars
+                  let val = e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 30);
+                  setConfirmationText(val);
                   setError('');
                 }}
                 style={{
@@ -119,6 +121,7 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
                   boxSizing: 'border-box',
                 }}
                 placeholder={inputPlaceholder}
+                maxLength={30}
                 onFocus={e => e.target.style.borderColor = '#3182ce'}
                 onBlur={e => e.target.style.borderColor = error ? '#e53e3e' : '#bdbdbd'}
                 autoComplete="off"
