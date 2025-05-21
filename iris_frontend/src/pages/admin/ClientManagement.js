@@ -224,6 +224,10 @@ const ClientManagement = () => {
   // Add state for table sorting
   const [tableSort, setTableSort] = useState({ column: null, direction: null }); // direction: 'asc' | 'desc' | null
 
+  // Add new state for selected rows
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+
   const showToast = (message, type = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -1609,6 +1613,166 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     });
   };
 
+  // Add function to handle row selection
+  const handleRowSelect = (rowKey) => {
+    setSelectedRows(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(rowKey)) {
+        newSelected.delete(rowKey);
+      } else {
+        newSelected.add(rowKey);
+      }
+      return newSelected;
+    });
+  };
+
+  // Add function to handle select all
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedRows(new Set());
+    } else {
+      const allRowKeys = new Set();
+      // Get all visible rows based on current table tab and filters
+      if (activeTableTab === 'clients') {
+        filteredClients.forEach(client => {
+          const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+          if (clientLobs.length === 0) {
+            allRowKeys.add(`client-${client.name}`);
+          } else {
+            clientLobs.forEach(lob => {
+              const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+              if (lobSubLobs.length === 0) {
+                allRowKeys.add(`lob-${client.name}-${lob.name}`);
+              } else {
+                lobSubLobs.forEach(subLob => {
+                  allRowKeys.add(`sublob-${client.name}-${lob.name}-${subLob.name}`);
+                });
+              }
+            });
+          }
+        });
+      }
+      setSelectedRows(allRowKeys);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  // Add function to handle bulk deactivation
+  const handleBulkDeactivate = async () => {
+    if (selectedRows.size === 0) {
+      showToast('Please select at least one item to deactivate', 'error');
+      return;
+    }
+
+    showConfirm(
+      `Are you sure you want to deactivate ${selectedRows.size} selected item(s)?`,
+      async () => {
+        try {
+          const deactivationPromises = [];
+          selectedRows.forEach(rowKey => {
+            const [type, ...parts] = rowKey.split('-');
+            if (type === 'client') {
+              const clientName = parts.join('-');
+              deactivationPromises.push(
+                axios.post('http://localhost:3000/api/clients/deactivate', {
+                  clientName: clientName
+                })
+              );
+            } else if (type === 'lob') {
+              const [clientName, lobName] = parts;
+              deactivationPromises.push(
+                axios.post('http://localhost:3000/api/clients/lob/deactivate', {
+                  clientName: clientName,
+                  lobName: lobName
+                })
+              );
+            } else if (type === 'sublob') {
+              const [clientName, lobName, subLobName] = parts;
+              deactivationPromises.push(
+                axios.post('http://localhost:3000/api/clients/sublob/deactivate', {
+                  clientName: clientName,
+                  lobName: lobName,
+                  subLOBName: subLobName
+                })
+              );
+            }
+          });
+
+          await Promise.all(deactivationPromises);
+          fetchClientData();
+          setSelectedRows(new Set());
+          setSelectAll(false);
+          showToast(`${selectedRows.size} item(s) deactivated successfully!`);
+        } catch (error) {
+          console.error('Error deactivating items:', error);
+          showToast('Failed to deactivate some items: ' + error.message, 'error');
+        }
+      },
+      () => {}, // onCancel
+      'Deactivate',
+      'Cancel',
+      true // requireConfirmation
+    );
+  };
+
+  // Add function to handle bulk reactivation
+  const handleBulkReactivate = async () => {
+    if (selectedRows.size === 0) {
+      showToast('Please select at least one item to reactivate', 'error');
+      return;
+    }
+
+    showConfirm(
+      `Are you sure you want to reactivate ${selectedRows.size} selected item(s)?`,
+      async () => {
+        try {
+          const reactivationPromises = [];
+          selectedRows.forEach(rowKey => {
+            const [type, ...parts] = rowKey.split('-');
+            if (type === 'client') {
+              const clientName = parts.join('-');
+              reactivationPromises.push(
+                axios.post('http://localhost:3000/api/clients/reactivate', {
+                  clientName: clientName
+                })
+              );
+            } else if (type === 'lob') {
+              const [clientName, lobName] = parts;
+              reactivationPromises.push(
+                axios.post('http://localhost:3000/api/clients/lob/reactivate', {
+                  clientName: clientName,
+                  lobName: lobName
+                })
+              );
+            } else if (type === 'sublob') {
+              const [clientName, lobName, subLobName] = parts;
+              reactivationPromises.push(
+                axios.post('http://localhost:3000/api/clients/sublob/reactivate', {
+                  clientName: clientName,
+                  lobName: lobName,
+                  subLOBName: subLobName
+                })
+              );
+            }
+          });
+
+          await Promise.all(reactivationPromises);
+          fetchClientData('DEACTIVATED');
+          setSelectedRows(new Set());
+          setSelectAll(false);
+          showToast(`${selectedRows.size} item(s) reactivated successfully!`);
+        } catch (error) {
+          console.error('Error reactivating items:', error);
+          showToast('Failed to reactivate some items: ' + error.message, 'error');
+        }
+      },
+      () => {}, // onCancel
+      'Reactivate',
+      'Cancel',
+      true // requireConfirmation
+    );
+  };
+
   return (
     <div className="client-management-container">
       <div className="client-management-flex">
@@ -2376,6 +2540,54 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             <div className="existing-items">
               <h2>Existing Items</h2>
 
+              {/* Add selection controls */}
+              <div className="selection-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div className="selected-count" style={{ color: '#666' }}>
+                    {selectedRows.size} item(s) selected
+                  </div>
+                  {selectedRows.size > 0 && (
+                    itemStatusTab === 'DEACTIVATED' ? (
+                      <button
+                        onClick={handleBulkReactivate}
+                        className="bulk-reactivate-btn"
+                        style={{
+                          background: '#3182ce',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <FaCheckCircle size={14} /> Reactivate Selected
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleBulkDeactivate}
+                        className="bulk-deactivate-btn"
+                        style={{
+                          background: '#e53e3e',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <FaBan size={12} /> Deactivate Selected
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
               {/* Tabs and controls in one flex row */}
               <div className="item-status-and-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 {/* Tab switcher for Active/Deactivated */}
@@ -2536,6 +2748,14 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 <table className="modern-table">
                   <thead>
                     <tr>
+                      <th style={{ width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
                       {['clientId', 'name', 'lob', 'subLob', 'createdAt'].map((col, idx) => {
                         const colMap = {
                           clientId: 'Client ID',
@@ -2748,7 +2968,27 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
-                        return rowData.map(r => r.jsx);
+                        return rowData.map(r => {
+                          const rowKey = r.subLob 
+                            ? `sublob-${r.name}-${r.lob}-${r.subLob}`
+                            : r.lob 
+                              ? `lob-${r.name}-${r.lob}`
+                              : `client-${r.name}`;
+                          
+                          return (
+                            <tr key={rowKey}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.has(rowKey)}
+                                  onChange={() => handleRowSelect(rowKey)}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
+                              {r.jsx.props.children}
+                            </tr>
+                          );
+                        });
                       })()
                     ) : activeTableTab === 'lobs' ? (
                       (() => {
@@ -2841,7 +3081,25 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
-                        return rowData.map(r => r.jsx);
+                        return rowData.map(r => {
+                          const rowKey = r.subLob 
+                            ? `sublob-${r.name}-${r.lob}-${r.subLob}`
+                            : `lob-${r.name}-${r.lob}`;
+                          
+                          return (
+                            <tr key={rowKey}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.has(rowKey)}
+                                  onChange={() => handleRowSelect(rowKey)}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
+                              {r.jsx.props.children}
+                            </tr>
+                          );
+                        });
                       })()
                     ) : (
                       (() => {
@@ -2906,7 +3164,23 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
-                        return rowData.map(r => r.jsx);
+                        return rowData.map(r => {
+                          const rowKey = `sublob-${r.name}-${r.lob}-${r.subLob}`;
+                          
+                          return (
+                            <tr key={rowKey}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.has(rowKey)}
+                                  onChange={() => handleRowSelect(rowKey)}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                              </td>
+                              {r.jsx.props.children}
+                            </tr>
+                          );
+                        });
                       })()
                     )}
                   </tbody>
