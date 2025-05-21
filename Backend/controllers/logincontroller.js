@@ -50,7 +50,8 @@ class LoginController {
                 
                 response = {
                     isExpired: now >= expDate,
-                    minutesLeft: minutesLeft > 0 ? minutesLeft : 0
+                    minutesLeft: minutesLeft > 0 ? minutesLeft : 0,
+                    expirationDate: result.expirationDate // Include the expiration date
                 };
             }
             

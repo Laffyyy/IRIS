@@ -209,18 +209,30 @@ class LoginService {
         }
     }
 
-    async checkPasswordExpiration(userID) {
+    async checkPasswordExpiration(userId) {
         try {
-            console.log('Checking password expiration for user:', userID);
+            console.log('Checking password expiration for user:', userId);
+            // First query to check column existence
+            const [columns] = await db.query(
+                'SHOW COLUMNS FROM tbl_login'
+            );
+            
+            const columnNames = columns.map(col => col.Field);
+            console.log('Available columns in tbl_login:', columnNames);
+            
+            // Original query with correct column name
             const [rows] = await db.query(
-                'SELECT tExpirationDate FROM tbl_login WHERE dUser_ID = ?', 
-                [userID]
+                'SELECT * FROM tbl_login WHERE dUser_ID = ?', 
+                [userId]
             );
             
             if (rows.length === 0) {
                 throw new Error('User not found');
             }
             
+            console.log('Full row data:', rows[0]);
+            
+            // Find the correct expiration date column
             const expirationDate = rows[0].tExpirationDate;
             console.log('Expiration date from DB:', expirationDate);
             
@@ -233,11 +245,14 @@ class LoginService {
             const currentDate = new Date();
             const expDate = new Date(expirationDate);
             const isExpired = currentDate >= expDate;
-            console.log('Current date:', currentDate, 'Expiration date:', expDate, 'Is expired:', isExpired);
+            
+            console.log('Current date:', currentDate);
+            console.log('Expiration date:', expDate);
+            console.log('Is expired:', isExpired);
             
             return {
                 isExpired: isExpired,
-                expirationDate: expirationDate
+                expirationDate: expirationDate // Return the raw expiration date
             };
         } catch (error) {
             console.error('Error checking password expiration:', error);

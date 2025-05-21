@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import ModalWarning from './ModalWarning';
+import ModalPasswordExpired from './ModalPasswordExpired';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
@@ -53,6 +55,10 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
+  // Add new state for the password expiration modals
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(0);
   const [otp, setOtp] = useState('');
   const [userId, setUserId] = useState('');
   const [passwords, setPasswords] = useState({
@@ -74,22 +80,24 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
- 
+  
     // Prepare the payload
     const payload = {
       userId : employeeId,
       password: password,
       otp: "",
     };
-    console.log('Payload:', payload);
     try {
       // First check if password has expired before proceeding with login
-      const expirationCheck = await fetch('http://localhost:3000/api/login/check-password-expiration', {
+      const expirationCheck = await fetch('http://localhost:3000/api/password-expiration/manage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: employeeId })
+        body: JSON.stringify({ 
+          operation: 'check',
+          userId: employeeId 
+        })
       });
       
       if (expirationCheck.ok) {
@@ -97,11 +105,17 @@ const Login = ({ onContinue, onForgotPassword }) => {
         
         // Handle expired password first before attempting login
         if (expirationData.isExpired) {
-          if (window.confirm('Your password has expired. You need to change your password now. Click OK to continue to the password change page.')) {
-            localStorage.setItem('userId', employeeId);
-            return navigate('/change-password');
+          // Store user ID for the change password page
+          localStorage.setItem('userId', employeeId);
+          
+          // Set expiration date for the modal if available
+          if (expirationData.expirationDate) {
+            localStorage.setItem('expirationDate', expirationData.expirationDate);
           }
-          return; // Stop processing if they cancel
+          
+          // Show the expired modal instead of confirm
+          setShowExpiredModal(true);
+          return; // Stop processing until user responds to modal
         }
       }
       
@@ -113,45 +127,73 @@ const Login = ({ onContinue, onForgotPassword }) => {
         },
         body: JSON.stringify(payload)
       });
-
+  
       const data = await response.json();
-
+  
       if (response.ok) {
-        console.log('Response:', data);
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
         
         // Check for soon-to-expire password
         try {
-          const expirationCheck = await fetch('http://localhost:3000/api/login/check-password-expiration', {
+          const expirationCheck = await fetch('http://localhost:3000/api/password-expiration/manage', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ userId: employeeId })
+            body: JSON.stringify({ 
+              operation: 'check',
+              userId: employeeId 
+            })
           });
           
           if (expirationCheck.ok) {
             const expirationData = await expirationCheck.json();
-            if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 10) {
-              // Password expires soon
-              alert(`Your password will expire in ${expirationData.minutesLeft} minute(s). Please change it soon.`);
+            
+            if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
+              // Password will expire soon (10 days or less) - show warning
+              
+              // Calculate days remaining
+              setDaysRemaining(Math.ceil(expirationData.minutesLeft / (24 * 60)));
+              
+              // Store expiration date for the modal
+              if (expirationData.expirationDate) {
+                localStorage.setItem('expirationDate', expirationData.expirationDate);
+              }
+              
+              // Show the warning modal
+              setShowWarningModal(true);
+              return; // Wait for user to acknowledge the warning
+            } else {
+              // Password is fine, continue to OTP page
+              navigate('/otp');
             }
+          } else {
+            // If the check fails, continue to OTP anyway
+            navigate('/otp');
           }
         } catch (expError) {
-          console.error('Error checking password expiration:', expError);
+          // If there's an error, continue to OTP
+          navigate('/otp');
         }
-        
-        // Continue with normal flow
-        navigate('/otp');
       } else {
         alert(`Error: ${data.message}`);
-        console.error('Error:', data);
       }
     } catch (error) {
-      console.error('Error during API call:', error);
       alert('An error occurred while sending the request.');
     }
+  };
+
+  // Handler for the expired password modal
+  const handleChangePassword = () => {
+    setShowExpiredModal(false);
+    navigate('/change-password');
+  };
+
+  // Handler for the warning modal
+  const handleCloseWarning = () => {
+    setShowWarningModal(false);
+    navigate('/otp'); // Continue the login flow after the warning is acknowledged
   };
 
   const handlePasswordChange = (e) => {
@@ -271,6 +313,21 @@ const Login = ({ onContinue, onForgotPassword }) => {
           }}
         />
       )}
+
+      {/* Password Expiration Modals */}
+      <ModalPasswordExpired 
+        open={showExpiredModal} 
+        onClose={() => setShowExpiredModal(false)}
+        onChangePassword={handleChangePassword}
+        expirationDate={localStorage.getItem('expirationDate')}
+      />
+
+        <ModalWarning
+          open={showWarningModal}
+          onClose={handleCloseWarning}
+          daysRemaining={daysRemaining}
+          expirationDate={localStorage.getItem('expirationDate')}
+        />
     </div>
   );
 };

@@ -3,6 +3,7 @@ const cors = require('cors');
 const helment = require('helmet');
 const loginRoutes = require('./routes/loginroutes');
 const otpRoutes = require('./routes/otpcontoller');
+const passwordExpirationRoutes = require('./routes/passwordExpirationRoutes');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use(cors({
 
 
 app.use('/api/login', loginRoutes);
-app.use('/api/otp', otpRoutes)
+app.use('/api/otp', otpRoutes);
+app.use('/api/password-expiration', passwordExpirationRoutes);
 
 module.exports = app;
