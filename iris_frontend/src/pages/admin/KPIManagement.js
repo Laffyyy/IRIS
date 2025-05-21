@@ -185,14 +185,20 @@ const KPIManagement = () => {
   }, []);
 
   const handleDrop = useCallback((e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        const file = e.dataTransfer.files[0];
-        handleFile(file);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      // Use the same validation as handleFileChange
+      if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+        setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+        setShowValidationModal(true);
+        return;
       }
+      handleFile(file);
+    }
   }, []);
 
   const handleFileChange = (e) => {
@@ -224,6 +230,12 @@ const KPIManagement = () => {
       reader.onload = async (e) => {
         const text = e.target.result;
         const kpisToValidate = processFileContent(text);
+
+      // Check for duplicates in existing KPIs
+      if (isDuplicateKPI(kpiName)) {
+        showAlert('A KPI with this name already exists. Please use a different name.');
+        return;
+      }
         
         if (kpisToValidate.length === 0) {
           setValidationMessage('No valid KPIs found in the file');
@@ -231,22 +243,34 @@ const KPIManagement = () => {
           resetBulkUploadState();
           return;
         }
+        
 
-        const seenNames = new Set();
+
+
+        // First, count all names in the file
+        const nameCounts = {};
+        kpisToValidate.forEach(kpi => {
+          const key = kpi.name?.toLowerCase().trim();
+          if (key) {
+            nameCounts[key] = (nameCounts[key] || 0) + 1;
+          }
+        });
+
         const validKpis = [];
         const invalidKpis = [];
 
         kpisToValidate.forEach(kpi => {
           let isValid = true;
           let reason = '';
+          const key = kpi.name?.toLowerCase().trim();
 
           if (!kpi.name) {
             isValid = false;
             reason = 'Missing KPI name';
-          } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === kpi.name.toLowerCase().trim())) {
+          } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === key)) {
             isValid = false;
             reason = 'KPI name already exists in database';
-          } else if (seenNames.has(kpi.name.toLowerCase().trim())) {
+          } else if (nameCounts[key] > 1) {
             isValid = false;
             reason = 'Duplicate KPI name in CSV file';
           } else if (!kpi.category || !kpi.behavior) {
@@ -262,7 +286,6 @@ const KPIManagement = () => {
 
           if (isValid) {
             validKpis.push(kpi);
-            seenNames.add(kpi.name.toLowerCase().trim());
           } else {
             invalidKpis.push({ ...kpi, reason });
           }
@@ -477,23 +500,32 @@ const KPIManagement = () => {
 
   // Add this new function to handle revalidation
   const revalidateBulkKPIs = () => {
-      const validKpis = [];
-      const newInvalidKpis = [];
-      const seenNames = new Set();
+    const kpisToValidate = [...bulkKpis, ...invalidKpis];
 
-      const kpisToValidate = [...bulkKpis, ...invalidKpis];
+    // First pass: count all names
+    const nameCounts = {};
+    kpisToValidate.forEach(kpi => {
+      const key = kpi.name?.toLowerCase().trim();
+      if (key) {
+        nameCounts[key] = (nameCounts[key] || 0) + 1;
+      }
+    });
 
-      kpisToValidate.forEach(kpi => {
-        let isValid = true;
-        let reason = '';
+    const validKpis = [];
+    const newInvalidKpis = [];
 
-        if (!kpi.name) {
+    kpisToValidate.forEach(kpi => {
+      let isValid = true;
+      let reason = '';
+      const key = kpi.name?.toLowerCase().trim();
+
+      if (!kpi.name) {
         isValid = false;
         reason = 'Missing KPI name';
-      } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === kpi.name.toLowerCase().trim())) {
+      } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === key)) {
         isValid = false;
         reason = 'KPI name already exists in database';
-      } else if (seenNames.has(kpi.name.toLowerCase().trim())) {
+      } else if (nameCounts[key] > 1) {
         isValid = false;
         reason = 'Duplicate KPI name in CSV file';
       } else if (!kpi.category || !kpi.behavior) {
@@ -513,24 +545,23 @@ const KPIManagement = () => {
           category: kpi.category,
           behavior: kpi.behavior
         });
-        seenNames.add(kpi.name.toLowerCase().trim());
       } else {
-        invalidKpis.push({
+        newInvalidKpis.push({
           ...kpi,
           reason
         });
       }
     });
 
-      setBulkKpis(validKpis);
-      setInvalidKpis(newInvalidKpis);
-      
-      if (newInvalidKpis.length > 0 && validKpis.length === 0) {
-        setPreviewTab('invalid');
-      } else if (validKpis.length > 0 && newInvalidKpis.length === 0) {
-        setPreviewTab('valid');
-      }
-    };
+    setBulkKpis(validKpis);
+    setInvalidKpis(newInvalidKpis);
+
+    if (newInvalidKpis.length > 0 && validKpis.length === 0) {
+      setPreviewTab('invalid');
+    } else if (validKpis.length > 0 && newInvalidKpis.length === 0) {
+      setPreviewTab('valid');
+    }
+  };
 
   const handleUpdateKpi = async (updatedKpi) => {
     const { dKPI_ID, dKPI_Name, dCategory, dDescription, dCalculationBehavior } = updatedKpi;
