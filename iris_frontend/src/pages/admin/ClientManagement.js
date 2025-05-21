@@ -275,113 +275,114 @@ const ClientManagement = () => {
   }
 }, [filterClientForSubLob, lobs]);
 
-  useEffect(() => {
-    const fetchClientData = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get('http://localhost:3000/api/clients/getAll');
+  // Add fetchClientData function here, before useEffect
+  const fetchClientData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('http://localhost:3000/api/clients/getAll');
+      
+      if (response.data && response.data.data) {
+        console.log('Client data from API:', response.data.data);
         
-        if (response.data && response.data.data) {
-          console.log('Client data from API:', response.data.data);
+        const transformedClients = [];
+        const transformedLobs = [];
+        const transformedSubLobs = [];
+        const sitesMap = new Map();
+        let lobId = 0;
+        let subLobId = 0;
+        
+        // First, create a map of unique clients
+        const uniqueClients = new Map();
+        
+        response.data.data.forEach((client) => {
+          const clientId = client.clientId;
+          // Only add each client once, using their unique ID
+          if (!uniqueClients.has(clientId)) {
+            uniqueClients.set(clientId, {
+              id: clientId,
+              name: client.clientName,
+              createdBy: client.createdBy || '-',
+              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+            });
+          }
+        });
+        
+        // Convert unique clients map to array
+        transformedClients.push(...uniqueClients.values());
+        
+        // Now process LOBs and SubLOBs
+        response.data.data.forEach((client) => {
+          const clientId = client.clientId;
           
-          const transformedClients = [];
-          const transformedLobs = [];
-          const transformedSubLobs = [];
-          const sitesMap = new Map();
-          let lobId = 0;
-          let subLobId = 0;
-          
-          // First, create a map of unique clients
-          const uniqueClients = new Map();
-          
-          response.data.data.forEach((client) => {
-            const clientId = client.clientId;
-            // Only add each client once, using their unique ID
-            if (!uniqueClients.has(clientId)) {
-              uniqueClients.set(clientId, {
-                id: clientId,
-                name: client.clientName,
-                createdBy: client.createdBy || '-',
-                createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-              });
-            }
-          });
-          
-          // Convert unique clients map to array
-          transformedClients.push(...uniqueClients.values());
-          
-          // Now process LOBs and SubLOBs
-          response.data.data.forEach((client) => {
-            const clientId = client.clientId;
-            
-            if (client.LOBs && Array.isArray(client.LOBs)) {
-              client.LOBs.forEach(lob => {
-                lobId++;
-                
-                // Extract site info from LOB
-                if (lob.sites && Array.isArray(lob.sites)) {
-                  lob.sites.forEach(site => {
-                    if (site.siteId && site.siteName) {
-                      sitesMap.set(site.siteId, {
-                        id: site.siteId,
-                        name: site.siteName
-                      });
-                    }
-                  });
-                } else if (lob.siteId && lob.siteName) {
-                  sitesMap.set(lob.siteId, {
-                    id: lob.siteId,
-                    name: lob.siteName
-                  });
-                }
-                
-                transformedLobs.push({
-                  id: lobId,
-                  name: lob.name,
-                  clientId: clientId,
-                  clientRowId: lob.clientRowId || clientId, // Store the unique row-specific clientId
-                  siteId: lob.siteId || null,
-                  siteName: lob.siteName || null,
-                  sites: lob.sites || []
-                });
-                
-                if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                  lob.subLOBs.forEach(subLobName => {
-                    subLobId++;
-                    transformedSubLobs.push({
-                      id: subLobId,
-                      name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                      lobId: lobId,
-                      clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+          if (client.LOBs && Array.isArray(client.LOBs)) {
+            client.LOBs.forEach(lob => {
+              lobId++;
+              
+              // Extract site info from LOB
+              if (lob.sites && Array.isArray(lob.sites)) {
+                lob.sites.forEach(site => {
+                  if (site.siteId && site.siteName) {
+                    sitesMap.set(site.siteId, {
+                      id: site.siteId,
+                      name: site.siteName
                     });
-                  });
-                }
+                  }
+                });
+              } else if (lob.siteId && lob.siteName) {
+                sitesMap.set(lob.siteId, {
+                  id: lob.siteId,
+                  name: lob.siteName
+                });
+              }
+              
+              transformedLobs.push({
+                id: lobId,
+                name: lob.name,
+                clientId: clientId,
+                clientRowId: lob.clientRowId || clientId, // Store the unique row-specific clientId
+                siteId: lob.siteId || null,
+                siteName: lob.siteName || null,
+                sites: lob.sites || []
               });
-            }
-          });
-          
-          // Sort clients by ID in ascending order
-          transformedClients.sort((a, b) => a.id - b.id);
-          
-          setClients(transformedClients);
-          setLobs(transformedLobs);
-          setSubLobs(transformedSubLobs);
-          
-          // Set sites from collected site data
-          const transformedSites = Array.from(sitesMap.values());
-          setSites(transformedSites.length > 0 ? transformedSites : [
-            { id: 1, name: 'Site A' },
-            { id: 2, name: 'Site B' }
-          ]);
-        }
-      } catch (err) {
-        console.error('Error fetching client data:', err);
-        setError('Failed to load clients. Please try again later.');
-      } finally {
-        setLoading(false);
+              
+              if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                lob.subLOBs.forEach(subLobName => {
+                  subLobId++;
+                  transformedSubLobs.push({
+                    id: subLobId,
+                    name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                    lobId: lobId,
+                    clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                  });
+                });
+              }
+            });
+          }
+        });
+        
+        // Sort clients by ID in ascending order
+        transformedClients.sort((a, b) => a.id - b.id);
+        
+        setClients(transformedClients);
+        setLobs(transformedLobs);
+        setSubLobs(transformedSubLobs);
+        
+        // Set sites from collected site data
+        const transformedSites = Array.from(sitesMap.values());
+        setSites(transformedSites.length > 0 ? transformedSites : [
+          { id: 1, name: 'Site A' },
+          { id: 2, name: 'Site B' }
+        ]);
       }
-    };
-    
+    } catch (err) {
+      console.error('Error fetching client data:', err);
+      setError('Failed to load clients. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchClientData();
   }, []);
 
@@ -1577,6 +1578,115 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
   };
 
+  const handleDeactivateClient = async (type, id) => {
+    try {
+      const client = clients.find(c => c.id === id);
+      if (!client) {
+        throw new Error('Client not found');
+      }
+
+      // Confirmation dialog
+      if (!window.confirm(`Are you sure you want to deactivate client "${client.name}"?`)) {
+        return;
+      }
+
+      const response = await axios.post('http://localhost:3000/api/clients/deactivate', {
+        clientName: client.name
+      });
+
+      if (response.data) {
+        // Refresh the data
+        fetchClientData();
+        alert('Client deactivated successfully!');
+      }
+    } catch (error) {
+      console.error('Error deactivating client:', error);
+      alert('Failed to deactivate client: ' + error.message);
+    }
+  };
+
+  const handleDeactivateLOB = async (type, id) => {
+    try {
+      const lob = lobs.find(l => l.id === id);
+      if (!lob) {
+        throw new Error('LOB not found');
+      }
+
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        throw new Error('Client not found');
+      }
+
+      // Confirmation dialog
+      if (!window.confirm(`Are you sure you want to deactivate LOB "${lob.name}" for client "${client.name}"?`)) {
+        return;
+      }
+
+      const response = await axios.post('http://localhost:3000/api/clients/lob/deactivate', {
+        clientName: client.name,
+        lobName: lob.name
+      });
+
+      if (response.data) {
+        // Refresh the data
+        fetchClientData();
+        alert('LOB deactivated successfully!');
+      }
+    } catch (error) {
+      console.error('Error deactivating LOB:', error);
+      alert('Failed to deactivate LOB: ' + error.message);
+    }
+  };
+
+  const handleDeactivateSubLOB = async (type, id) => {
+    try {
+      const subLob = subLobs.find(s => s.id === id);
+      if (!subLob) {
+        throw new Error('Sub LOB not found');
+      }
+
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) {
+        throw new Error('LOB not found');
+      }
+
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        throw new Error('Client not found');
+      }
+
+      // Confirmation dialog
+      if (!window.confirm(`Are you sure you want to deactivate Sub LOB "${subLob.name}" from LOB "${lob.name}" for client "${client.name}"?`)) {
+        return;
+      }
+
+      const response = await axios.post('http://localhost:3000/api/clients/sublob/deactivate', {
+        clientName: client.name,
+        lobName: lob.name,
+        subLOBName: subLob.name
+      });
+
+      if (response.data) {
+        // Refresh the data
+        fetchClientData();
+        alert('Sub LOB deactivated successfully!');
+      }
+    } catch (error) {
+      console.error('Error deactivating Sub LOB:', error);
+      alert('Failed to deactivate Sub LOB: ' + error.message);
+    }
+  };
+
+  const handleDeactivate = (type, id) => {
+    if (type === 'client') {
+      handleDeactivateClient(type, id);
+    } else if (type === 'lob') {
+      handleDeactivateLOB(type, id);
+    } else if (type === 'sublob') {
+      handleDeactivateSubLOB(type, id);
+    }
+  };
+
   return (
     <div className="client-management-container">
       <div className="client-management-flex">
@@ -2454,8 +2564,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                       <button onClick={() => handleEditRow('client', client)} className="edit-btn">
                                         <FaPencilAlt size={12} /> Edit
                                       </button>
-                                      <button onClick={() => handleDeleteClient('client', client.id)} className="delete-btn">
-                                        <FaTrash size={12} /> Delete
+                                      <button onClick={() => handleDeactivate('client', client.id)} className="deactivate-btn">
+                                        <FaTrash size={12} /> Deactivate
                                       </button>
                                     </div>
                                   </td>
@@ -2491,8 +2601,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                           <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
                                             <FaPencilAlt size={12} /> Edit
                                           </button>
-                                          <button onClick={() => handleDeleteLob('lob', lob.id)} className="delete-btn">
-                                            <FaTrash size={12} /> Delete
+                                          <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                            <FaTrash size={12} /> Deactivate
                                           </button>
                                         </div>
                                       </td>
@@ -2512,23 +2622,21 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                         <td>{client.createdAt || '-'}</td>
                                         <td>
                                           <div className="action-buttons">
-                                            <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                              <FaPencilAlt size={12} /> Edit
-                                            </button>
+                                            
                                             <button 
                                               onClick={() => {
                                                 if (activeTab === 'addClient') {
                                                   if (activeTableTab === 'clients') {
-                                                    handleDeleteClient('client', client.id);
+                                                    handleDeactivateClient('client', client.id);
                                                   } else if (activeTableTab === 'lobs') {
                                                     handleDeleteLob('lob', lob.id);
                                                   } else if (activeTableTab === 'subLobs') {
                                                     handleDelete('subLob', subLob.id);
                                                   }
                                                 } else if (activeTab === 'addLOB') {
-                                                  handleDeleteLob('lob', lob.id);
+                                                  handleDeactivateLOB('lob', lob.id);
                                                 } else if (activeTab === 'addSubLOB') {
-                                                  handleDeleteSubLob('subLob', subLob.id);
+                                                  handleDeactivateSubLOB('subLob', subLob.id);
                                                 } else {
                                                   if (activeTableTab === 'clients') {
                                                     handleDelete('client', client.id);
@@ -2541,7 +2649,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                               }} 
                                               className="delete-btn"
                                             >
-                                              <FaTrash size={12} /> Delete
+                                              <FaTrash size={12} /> Deactivate
                                             </button>
                                           </div>
                                         </td>
@@ -2599,8 +2707,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                     <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
                                       <FaPencilAlt size={12} /> Edit
                                     </button>
-                                    <button onClick={() => handleDelete('lob', lob.id)} className="delete-btn">
-                                      <FaTrash size={12} /> Delete
+                                    <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                      <FaTrash size={12} /> Deactivate
                                     </button>
                                   </div>
                                 </td>
@@ -2624,8 +2732,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                     <FaPencilAlt size={12} /> Edit
                                   </button>
-                                  <button onClick={() => handleDelete('sublob', subLob.id)} className="delete-btn">
-                                    <FaTrash size={12} /> Delete
+                                  <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                    <FaTrash size={12} /> Deactivate
                                   </button>
                                 </div>
                               </td>
@@ -2665,8 +2773,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                     <FaPencilAlt size={12} /> Edit
                                   </button>
-                                  <button onClick={() => handleDelete('sublob', subLob.id)} className="delete-btn">
-                                    <FaTrash size={12} /> Delete
+                                  <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                    <FaTrash size={12} /> Deactivate
                                   </button>
                                 </div>
                               </td>

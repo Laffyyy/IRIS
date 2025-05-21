@@ -38,8 +38,8 @@ class ClientManagementService {
                 for (const subLOB of lob.subLOBs) {
                     // Don't specify dClient_ID - let MySQL auto-increment it
                     const [result] = await db.query(
-                        'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?)',
-                        [clientName, lob.name, subLOB, createdBy, currentDate]
+                        'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt, dStatus) VALUES (?, ?, ?, ?, ?, ?)',
+                        [clientName, lob.name, subLOB, createdBy, currentDate, 'ACTIVE']
                     );
                     
                     results.push(result.insertId);
@@ -63,10 +63,25 @@ class ClientManagementService {
     
     async getClients() {
         try {
-            // Get all client-LOB-SubLOB combinations with tCreatedAt included
-            const [lobRows] = await db.query(
-                'SELECT *, tCreatedAt as dCreatedAt FROM tbl_clientlob ORDER BY dClientName, dLOB, dSubLOB'
-            );
+            const [rows] = await db.query(`
+                SELECT 
+                    cl.dClient_ID,
+                    cl.dClientName,
+                    cl.dLOB,
+                    cl.dSubLOB,
+                    cl.dCreatedBy,
+                    cl.tCreatedAt,
+                    cl.dStatus,
+                    cs.dSite_ID,
+                    cs.dSiteName
+                FROM tbl_clientlob cl
+                LEFT JOIN tbl_clientsite cs ON 
+                    cl.dClientName = cs.dClientName AND 
+                    cl.dLOB = cs.dLOB AND 
+                    cl.dSubLOB = cs.dSubLOB
+                WHERE cl.dStatus = 'ACTIVE'
+                ORDER BY cl.dClient_ID DESC
+            `);
             
             // Get site information with LOB associations
             const [lobSiteRows] = await db.query(
@@ -109,12 +124,12 @@ class ClientManagementService {
             // Group by client and organize the data
             const clientsMap = new Map();
             
-            lobRows.forEach(row => {
+            rows.forEach(row => {
                 const clientId = row.dClient_ID;
                 const clientName = row.dClientName;
                 const lob = row.dLOB;
                 const subLOB = row.dSubLOB;
-                const createdAt = row.dCreatedAt; // Make sure to include the timestamp
+                const createdAt = row.tCreatedAt; // Make sure to include the timestamp
                 
                 if (!clientsMap.has(clientName)) {
                     clientsMap.set(clientName, {
@@ -124,7 +139,7 @@ class ClientManagementService {
                         sites: clientSitesMap.get(clientName) ? 
                             Array.from(clientSitesMap.get(clientName).values()) : [],
                         createdBy: row.dCreatedBy,
-                        createdAt: row.dCreatedAt // Include createdAt at client level
+                        createdAt: row.tCreatedAt // Include createdAt at client level
                     });
                 }
                 
@@ -143,7 +158,7 @@ class ClientManagementService {
                         siteId: sitesInfo.length > 0 ? sitesInfo[0].siteId : null,
                         siteName: sitesInfo.length > 0 ? sitesInfo[0].siteName : null,
                         sites: sitesInfo,
-                        createdAt: row.dCreatedAt // Include createdAt at LOB level
+                        createdAt: row.tCreatedAt // Include createdAt at LOB level
                     });
                 }
                 
@@ -159,7 +174,7 @@ class ClientManagementService {
                         client.LOBs.get(lob).subLOBs.push({
                             name: subLOB,
                             clientRowId: row.dClient_ID,
-                            createdAt: row.dCreatedAt // Include createdAt at SubLOB level
+                            createdAt: row.tCreatedAt // Include createdAt at SubLOB level
                         });
                     }
                 }
@@ -334,13 +349,14 @@ class ClientManagementService {
             
             // Add the LOB with the SubLOB
             await db.query(
-                'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?)',
+                'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt, dStatus) VALUES (?, ?, ?, ?, ?, ?)',
                 [
                     clientName,
                     lobName,
                     actualSubLOB,
                     userId,
-                    currentDate
+                    currentDate,
+                    'ACTIVE'
                 ]
             );
             
@@ -582,8 +598,8 @@ class ClientManagementService {
             
             // Insert the new Sub LOB
             const [result] = await db.query(
-                'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?)',
-                [clientName, lobName, subLOBName, userId, currentDate]
+                'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt, dStatus) VALUES (?, ?, ?, ?, ?, ?)',
+                [clientName, lobName, subLOBName, userId, currentDate, 'ACTIVE']
             );
             
             // Check if this LOB has site associations
@@ -799,6 +815,99 @@ class ClientManagementService {
             };
         } catch (error) {
             console.error('Error in ClientManagementService.deleteSubLOB:', error);
+            throw error;
+        }
+    }
+
+    async deactivateClient(clientName, userId) {
+        try {
+            if (!clientName) {
+                throw new Error('Client name is required');
+            }
+
+            // Update dStatus in tbl_clientlob
+            const [result] = await db.query(
+                'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ?',
+                ['DEACTIVATED', clientName]
+            );
+
+            // Update dStatus in tbl_clientsite
+            await db.query(
+                'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ?',
+                ['DEACTIVATED', clientName]
+            );
+
+            return {
+                message: 'Client deactivated successfully',
+                clientName,
+                affectedRows: result.affectedRows,
+                deactivatedBy: userId
+            };
+        } catch (error) {
+            console.error('Error in ClientManagementService.deactivateClient:', error);
+            throw error;
+        }
+    }
+
+    async deactivateLOB(clientName, lobName, userId) {
+        try {
+            if (!clientName || !lobName) {
+                throw new Error('Client name and LOB name are required');
+            }
+
+            // Update dStatus in tbl_clientlob
+            const [result] = await db.query(
+                'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ? AND dLOB = ?',
+                ['DEACTIVATED', clientName, lobName]
+            );
+
+            // Update dStatus in tbl_clientsite
+            await db.query(
+                'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ? AND dLOB = ?',
+                ['DEACTIVATED', clientName, lobName]
+            );
+
+            return {
+                message: 'LOB deactivated successfully',
+                clientName,
+                lobName,
+                affectedRows: result.affectedRows,
+                deactivatedBy: userId
+            };
+        } catch (error) {
+            console.error('Error in ClientManagementService.deactivateLOB:', error);
+            throw error;
+        }
+    }
+
+    async deactivateSubLOB(clientName, lobName, subLOBName, userId) {
+        try {
+            if (!clientName || !lobName || !subLOBName) {
+                throw new Error('Client name, LOB name, and Sub LOB name are required');
+            }
+
+            // Update dStatus in tbl_clientlob
+            const [result] = await db.query(
+                'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                ['DEACTIVATED', clientName, lobName, subLOBName]
+            );
+
+            // Update dStatus in tbl_clientsite
+            await db.query(
+                'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                ['DEACTIVATED', clientName, lobName, subLOBName]
+            );
+
+            return {
+                message: 'Sub LOB deactivated successfully',
+                clientName,
+                lobName,
+                subLOBName,
+                affectedRows: result.affectedRows,
+                deactivatedBy: userId
+            };
+        } catch (error) {
+            console.error('Error in ClientManagementService.deactivateSubLOB:', error);
             throw error;
         }
     }

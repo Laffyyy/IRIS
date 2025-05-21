@@ -1290,3 +1290,22 @@
   font-weight: 600;
   background: #f5faff;
 }
+
+.deactivate-btn {
+  background: none;
+  border: none;
+  color: #e53e3e;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.deactivate-btn:hover {
+  background-color: #fff5f5;
+  transform: scale(1.05);
+}

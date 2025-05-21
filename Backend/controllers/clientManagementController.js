@@ -312,6 +312,94 @@ class ClientManagementController {
             });
         }
     }
+
+    // New methods for deactivation
+    async deactivateClient(req, res) {
+        try {
+            const { clientName } = req.body;
+            
+            // Validate input
+            if (!clientName) {
+                return res.status(400).json({ 
+                    message: 'Client name is required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.deactivateClient(clientName, userId);
+            
+            res.status(200).json({ 
+                message: 'Client deactivated successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error deactivating client:', error);
+            res.status(500).json({ 
+                message: 'Failed to deactivate client', 
+                error: error.message 
+            });
+        }
+    }
+
+    async deactivateLOB(req, res) {
+        try {
+            const { clientName, lobName } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName) {
+                return res.status(400).json({ 
+                    message: 'Client name and LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.deactivateLOB(clientName, lobName, userId);
+            
+            res.status(200).json({ 
+                message: 'LOB deactivated successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error deactivating LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to deactivate LOB', 
+                error: error.message 
+            });
+        }
+    }
+
+    async deactivateSubLOB(req, res) {
+        try {
+            const { clientName, lobName, subLOBName } = req.body;
+            
+            // Validate input
+            if (!clientName || !lobName || !subLOBName) {
+                return res.status(400).json({ 
+                    message: 'Client name, LOB name, and Sub LOB name are required' 
+                });
+            }
+            
+            // Get user ID from the authenticated user
+            const userId = getUserIdFromRequest(req);
+            
+            const result = await this.clientManagementService.deactivateSubLOB(clientName, lobName, subLOBName, userId);
+            
+            res.status(200).json({ 
+                message: 'Sub LOB deactivated successfully', 
+                data: result 
+            });
+        } catch (error) {
+            console.error('Error deactivating Sub LOB:', error);
+            res.status(500).json({ 
+                message: 'Failed to deactivate Sub LOB', 
+                error: error.message 
+            });
+        }
+    }
 }
 
 // Helper function to extract user ID from the request
