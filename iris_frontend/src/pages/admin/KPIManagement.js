@@ -809,35 +809,43 @@ const KPIManagement = () => {
   const renderFilterControls = () => {
     return (
       <div className="filter-controls">
-      <div className="search-bar-container">
-        <div className="search-bar">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search KPIs..."
-            value={searchQuery}
-            onChange={(e) => {
-              // Only allow alphanumeric, spaces, and hyphens
-              const value = e.target.value.replace(/[^a-zA-Z0-9\s-]/g, '');
-              setSearchQuery(value);
-              setSelectedKpi(null);
-            }}
-            onKeyDown={handleKeyDown}
-          />
-          {searchQuery && (
-            <button 
-              className="clear-search"
-              onClick={() => {
-                setSearchQuery('');
+        <select
+          className="status-filter-dropdown"
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+        >
+          <option value="All">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Deactivated">Deactivated</option>
+        </select>
+        <div className="search-bar-container">
+          <div className="search-bar">
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search KPIs..."
+              value={searchQuery}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^a-zA-Z0-9\s-]/g, '');
+                setSearchQuery(value);
                 setSelectedKpi(null);
               }}
-            >
-              <FaTimes />
-            </button>
-          )}
+              onKeyDown={handleKeyDown}
+            />
+            {searchQuery && (
+              <button 
+                className="clear-search"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedKpi(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="filter-selects">
+        <div className="filter-selects">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -1083,6 +1091,33 @@ const KPIManagement = () => {
     return () => clearTimeout(timer);
   }, [showSimpleSuccess]);
 
+  // Add this with other state declarations
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  // Update filteredStatusKPIs to include statusFilter
+  const filteredStatusKPIs = kpis.filter(kpi => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesName = kpi.dKPI_Name?.toLowerCase().startsWith(query);
+      if (!matchesName) {
+        return false;
+      }
+    }
+    if (categoryFilter && kpi.dCategory !== categoryFilter) {
+      return false;
+    }
+    if (behaviorFilter && kpi.dCalculationBehavior !== behaviorFilter) {
+      return false;
+    }
+    if (statusFilter === 'Active' && kpi.dStatus === 'DEACTIVATED') {
+      return false;
+    }
+    if (statusFilter === 'Deactivated' && kpi.dStatus !== 'DEACTIVATED') {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <>
       {showSimpleSuccess && (
@@ -1098,62 +1133,62 @@ const KPIManagement = () => {
             <p className="subtitle">Manage your Key Performance Indicators</p>
           </div>
 
-          <div className="tab-container">
-            <div 
-              className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
-              onClick={() => setActiveTab('addKPI')}
-            >
-              {editingKpi ? 'Edit KPI' : 'Add New KPI'}
-            </div>
-            <div 
-              className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
-              onClick={() => {
-                // Only reset if there's no data being edited
-                if (!kpiName && !category && !behavior && individualPreview.length === 0) {
-                  resetForm();
-                }
-                setActiveTab('viewKPIs');
-              }}
-            >
-              Existing KPIs
-            </div>
+        <div className="tab-container">
+          <div 
+            className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
+            onClick={() => setActiveTab('addKPI')}
+          >
+            {editingKpi ? 'Edit KPI' : 'Add New KPI'}
           </div>
+          <div 
+            className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
+            onClick={() => {
+              // Only reset if there's no data being edited
+              if (!kpiName && !category && !behavior && individualPreview.length === 0) {
+                resetForm();
+              }
+              setActiveTab('viewKPIs');
+            }}
+          >
+            Existing KPIs
+          </div>
+        </div>
 
-          <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
-            <div className="form-section">
-              <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
-              <div className="kpi-upload-sections">
-                <div className="kpi-upload-card">
-                  <div className="individual-upload-form">
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>KPI Name</label>
-                        <input
-                          type="text"
-                          value={kpiName}
-                          onChange={handleKpiNameChange}
-                          placeholder="Enter KPI name"
-                          maxLength={MAX_NAME_LENGTH}
-                          className={isDuplicateName ? 'duplicate-error' : ''}
-                        />
-                        {isDuplicateName && (
-                          <span className="error-message">This KPI name already exists</span>
-                        )}
-                      </div>
-                      <div className="form-group">
-                        <label>Category</label>
-                        <select
-                          value={category}
-                          onChange={(e) => setCategory(e.target.value)}
-                          disabled={isDuplicateName}
-                        >
-                         <option value="">Select category</option>
-                        {categories.map(cat => (
-                          <option key={`category-${cat}`} value={cat}>{cat}</option>
-                        ))}
-                        </select>
-                      </div>
+        <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
+          <div className="form-section">
+            <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
+            <div className="kpi-upload-sections">
+              <div className="kpi-upload-card">
+                <div className="individual-upload-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>KPI Name</label>
+                      <input
+                        type="text"
+                        value={kpiName}
+                        onChange={handleKpiNameChange}
+                        placeholder="Enter KPI name"
+                        maxLength={MAX_NAME_LENGTH}
+                        className={isDuplicateName ? 'duplicate-error' : ''}
+                      />
+                      {isDuplicateName && (
+                        <span className="error-message">This KPI name already exists</span>
+                      )}
                     </div>
+                    <div className="form-group">
+                      <label>Category</label>
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        disabled={isDuplicateName}
+                      >
+                       <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={`category-${cat}`} value={cat}>{cat}</option>
+                      ))}
+                      </select>
+                    </div>
+                  </div>
 
                     <div className="form-row">
                       <div className="form-group">
@@ -1182,23 +1217,23 @@ const KPIManagement = () => {
                       />
                     </div>
 
-                    <button 
-                      onClick={handleFormSubmit}
-                      className="add-to-list-btn"
-                      disabled={!kpiName.trim() || !category || !behavior}
-                    >
-                      {editingKpi ? 'Save Changes' : '+ Add New KPI'}
+                  <button 
+                    onClick={handleFormSubmit}
+                    className="add-to-list-btn"
+                    disabled={!kpiName.trim() || !category || !behavior}
+                  >
+                    {editingKpi ? 'Save Changes' : '+ Add New KPI'}
+                  </button>
+                </div>
+              </div>
+              <div className="kpi-upload-card">
+                <div className="bulk-upload-form">
+                  <div className="bulk-upload-actions">
+                    <h3><FaUpload /> Upload KPIs</h3>
+                    <button onClick={generateTemplate} className="generate-template-btn">
+                      <FaFileDownload /> Generate Template
                     </button>
                   </div>
-                </div>
-                <div className="kpi-upload-card">
-                  <div className="bulk-upload-form">
-                    <div className="bulk-upload-actions">
-                      <h3><FaUpload /> Upload KPIs</h3>
-                      <button onClick={generateTemplate} className="generate-template-btn">
-                        <FaFileDownload /> Generate Template
-                      </button>
-                    </div>
 
                     <div
                       className={`drop-zone ${dragActive ? 'active' : ''}`}
@@ -1600,42 +1635,48 @@ const KPIManagement = () => {
 
        
 
-        <div className="recently-added-table">
+      <div className="recently-added-table">
+        <div className="recently-added-card">
           <h2>Recently Added</h2>
-          <div className="recently-added-table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>KPI Name</th>
-                  <th>Category</th>
-                  <th>Behavior</th>
-                  <th>Description</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentlyAdded.map((kpi, idx) => (
-                  <tr key={idx}>
-                    <td>{kpi.name}</td>
-                    <td>{kpi.category}</td>
-                    <td>{kpi.behavior}</td>
-                    <td>{kpi.description}</td>
-                    <td>
-                      <button
-                        className="edit-btn"
-                        onClick={() => setEditRecentKpi({ ...kpi, idx })}
-                        title="Edit"
-                      >
-                        <FaPencilAlt style={{ marginRight: '6px' }} />
-                        Edit
-                      </button>
-                    </td>
+          <div className="table-container">
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>KPI Name</th>
+                    <th>Category</th>
+                    <th>Behavior</th>
+                    <th>Description</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentlyAdded.map((kpi, idx) => (
+                    <tr key={idx}>
+                      <td>{kpi.name}</td>
+                      <td>{kpi.category}</td>
+                      <td>{kpi.behavior}</td>
+                      <td>{kpi.description}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="edit-btn"
+                            onClick={() => setEditRecentKpi({ ...kpi, idx })}
+                            title="Edit"
+                          >
+                            <FaPencilAlt style={{ marginRight: '6px' }} />
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      </div>
 
         {editRecentKpi && (
           <EditKpiModal
