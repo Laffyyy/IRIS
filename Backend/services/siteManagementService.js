@@ -49,13 +49,31 @@ class SiteManagementService {
 
       async deactivateSite(siteId) {
         try {
-            // Update the site status to DEACTIVATED instead of deleting
-            const [result] = await db.query(
-                'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID = ?',
-                ['DEACTIVATED', siteId]
-            );
+            // Start a transaction to ensure all operations succeed or fail together
+            await db.query('START TRANSACTION');
             
-            return result;
+            try {
+                // 1. Update the site status to DEACTIVATED
+                const [siteResult] = await db.query(
+                    'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID = ?',
+                    ['DEACTIVATED', siteId]
+                );
+                
+                // 2. Also deactivate all client-site associations for this site
+                await db.query(
+                    'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID = ?',
+                    ['DEACTIVATED', siteId]
+                );
+                
+                // Commit the transaction
+                await db.query('COMMIT');
+                
+                return siteResult;
+            } catch (error) {
+                // Rollback on error
+                await db.query('ROLLBACK');
+                throw error;
+            }
         } catch (error) {
             console.error('Error in SiteManagementService.deactivateSite:', error);
             throw error;
@@ -166,20 +184,21 @@ class SiteManagementService {
                 // Only insert if this specific instance doesn't already exist for this site
                 if (existingInstance.length === 0) {
                     await db.query(
-                        'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [
-                            instance.dClient_ID,
-                            instance.dClientName,
-                            instance.dLOB,
-                            instance.dSubLOB,
-                            instance.dChannel,
-                            instance.dIndustry,
-                            siteId,
-                            siteName,
-                            userId,
-                            currentDate
-                        ]
-                    );
+                      'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry, dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      [
+                          instance.dClient_ID,
+                          instance.dClientName,
+                          instance.dLOB,
+                          instance.dSubLOB,
+                          instance.dChannel,
+                          instance.dIndustry,
+                          siteId,
+                          siteName,
+                          'ACTIVE',  // Set default status to ACTIVE
+                          userId,
+                          currentDate
+                      ]
+                  );
                 }
             }
             
@@ -276,9 +295,16 @@ class SiteManagementService {
             WHERE cs.dClient_ID IS NULL
           `);
           
-          // Then retrieve all records with the updated data - ADD dCreatedBy and tCreatedAt to the query
+          // Also update any rows with NULL dStatus to have 'ACTIVE'
+          await db.query(`
+            UPDATE tbl_clientsite 
+            SET dStatus = 'ACTIVE' 
+            WHERE dStatus IS NULL
+          `);
+          
+          // Then retrieve all records with the updated data
           const [result] = await db.query(
-            'SELECT DISTINCT dClientSite_ID, dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB, dCreatedBy, tCreatedAt FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
+            'SELECT DISTINCT dClientSite_ID, dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB, dStatus, dCreatedBy, tCreatedAt FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
           );
           
           return result;
@@ -356,17 +382,36 @@ class SiteManagementService {
 
     async bulkDeactivateSites(siteIds) {
       try {
-          const [result] = await db.query(
-              'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID IN (?)',
-              ['DEACTIVATED', siteIds]
-          );
+          // Start a transaction to ensure all operations succeed or fail together
+          await db.query('START TRANSACTION');
           
-          return result;
+          try {
+              // 1. Update the sites status to DEACTIVATED
+              const [siteResult] = await db.query(
+                  'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID IN (?)',
+                  ['DEACTIVATED', siteIds]
+              );
+              
+              // 2. Also deactivate all client-site associations for these sites
+              await db.query(
+                  'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID IN (?)',
+                  ['DEACTIVATED', siteIds]
+              );
+              
+              // Commit the transaction
+              await db.query('COMMIT');
+              
+              return siteResult;
+          } catch (error) {
+              // Rollback on error
+              await db.query('ROLLBACK');
+              throw error;
+          }
       } catch (error) {
           console.error('Error in SiteManagementService.bulkDeactivateSites:', error);
           throw error;
       }
-    }
+  }
     
     async bulkDeleteClientSiteAssignments(clientSiteIds) {
       try {
@@ -581,6 +626,168 @@ class SiteManagementService {
           console.error(`Error in SiteManagementService.getAllSitesByStatus for status ${status}:`, error);
           throw error;
       }
+  }
+
+  async getClientSitesByStatus(status) {
+    try {
+      // First, update any rows that have dStatus = NULL to have dStatus = 'ACTIVE'
+      await db.query(`
+        UPDATE tbl_clientsite 
+        SET dStatus = 'ACTIVE' 
+        WHERE dStatus IS NULL
+      `);
+      
+      // Then retrieve records with the specified status
+      const [result] = await db.query(
+        'SELECT * FROM tbl_clientsite WHERE dStatus = ? ORDER BY dClientSite_ID',
+        [status]
+      );
+      
+      return result;
+    } catch (error) {
+      console.error(`Error in SiteManagementService.getClientSitesByStatus for status ${status}:`, error);
+      throw error;
+    }
+  }
+  
+  async deactivateClientSite(clientSiteId) {
+    try {
+      const [result] = await db.query(
+        'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID = ?',
+        ['DEACTIVATED', clientSiteId]
+      );
+      
+      return result;
+    } catch (error) {
+      console.error('Error in SiteManagementService.deactivateClientSite:', error);
+      throw error;
+    }
+  }
+  
+  async reactivateClientSite(clientSiteId) {
+    try {
+      const [result] = await db.query(
+        'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID = ?',
+        ['ACTIVE', clientSiteId]
+      );
+      
+      return result;
+    } catch (error) {
+      console.error('Error in SiteManagementService.reactivateClientSite:', error);
+      throw error;
+    }
+  }
+
+    async reactivateSite(siteId) {
+      try {
+          // Start a transaction
+          await db.query('START TRANSACTION');
+          
+          try {
+              // 1. Update the site status from DEACTIVATED to ACTIVE
+              const [siteResult] = await db.query(
+                  'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID = ?',
+                  ['ACTIVE', siteId]
+              );
+              
+              // 2. Also reactivate all client-site associations for this site
+              await db.query(
+                  'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID = ? AND dStatus = ?',
+                  ['ACTIVE', siteId, 'DEACTIVATED']
+              );
+              
+              // Commit the transaction
+              await db.query('COMMIT');
+              
+              return siteResult;
+          } catch (error) {
+              // Rollback on error
+              await db.query('ROLLBACK');
+              throw error;
+          }
+      } catch (error) {
+          console.error('Error in SiteManagementService.reactivateSite:', error);
+          throw error;
+      }
+  }
+  
+  async bulkDeactivateClientSites(clientSiteIds) {
+    try {
+      // Using a transaction to ensure all operations succeed or fail together
+      await db.query('START TRANSACTION');
+  
+      try {
+        const [result] = await db.query(
+          'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID IN (?)',
+          ['DEACTIVATED', clientSiteIds]
+        );
+  
+        await db.query('COMMIT');
+        return { affectedRows: result.affectedRows };
+      } catch (error) {
+        await db.query('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in bulkDeactivateClientSites:', error);
+      throw error;
+    }
+  }
+
+    async bulkReactivateSites(siteIds) {
+      try {
+          // Start a transaction
+          await db.query('START TRANSACTION');
+          
+          try {
+              // 1. Reactivate the sites
+              const [siteResult] = await db.query(
+                  'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID IN (?)',
+                  ['ACTIVE', siteIds]
+              );
+              
+              // 2. Also reactivate all client-site associations for these sites
+              await db.query(
+                  'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID IN (?) AND dStatus = ?',
+                  ['ACTIVE', siteIds, 'DEACTIVATED']
+              );
+              
+              // Commit the transaction
+              await db.query('COMMIT');
+              
+              return siteResult;
+          } catch (error) {
+              // Rollback on error
+              await db.query('ROLLBACK');
+              throw error;
+          }
+      } catch (error) {
+          console.error('Error in SiteManagementService.bulkReactivateSites:', error);
+          throw error;
+      }
+  }
+  
+  async bulkReactivateClientSites(clientSiteIds) {
+    try {
+      // Using a transaction to ensure all operations succeed or fail together
+      await db.query('START TRANSACTION');
+  
+      try {
+        const [result] = await db.query(
+          'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID IN (?)',
+          ['ACTIVE', clientSiteIds]
+        );
+  
+        await db.query('COMMIT');
+        return { affectedRows: result.affectedRows };
+      } catch (error) {
+        await db.query('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in bulkReactivateClientSites:', error);
+      throw error;
+    }
   }
 }
 

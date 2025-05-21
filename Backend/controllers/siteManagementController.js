@@ -409,6 +409,184 @@ class SiteManagementController {
       }
   }
 
+  async getClientSitesByStatus(req, res) {
+    try {
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ 
+          message: 'Status is required' 
+        });
+      }
+      
+      const result = await this.SiteManagementService.getClientSitesByStatus(status);
+      
+      res.status(200).json({
+        message: `Client-site assignments with status ${status} retrieved successfully`,
+        siteClients: result
+      });
+    } catch (error) {
+      console.error('Error retrieving client-site assignments by status:', error);
+      res.status(500).json({ 
+        message: 'Failed to retrieve client-site assignments', 
+        error: error.message 
+      });
+    }
+  }
+  
+  async deactivateClientSite(req, res) {
+    try {
+      const { clientSiteId } = req.body;
+      
+      if (!clientSiteId) {
+        return res.status(400).json({ 
+          message: 'Client-Site ID is required' 
+        });
+      }
+      
+      const result = await this.SiteManagementService.deactivateClientSite(clientSiteId);
+      
+      res.status(200).json({
+        message: 'Client-site assignment deactivated successfully',
+        affectedRows: result.affectedRows
+      });
+    } catch (error) {
+      console.error('Error deactivating client-site assignment:', error);
+      res.status(500).json({ 
+        message: 'Failed to deactivate client-site assignment', 
+        error: error.message 
+      });
+    }
+  }
+
+  async reactivateSite(req, res) {
+    try {
+      const { siteId } = req.body;
+      
+      // Validate input
+      if (!siteId) {
+        return res.status(400).json({ 
+          message: 'Site ID is required' 
+        });
+      }
+      
+      // Call the service to reactivate the site
+      const result = await this.SiteManagementService.reactivateSite(siteId);
+      
+      // Return success response
+      res.status(200).json({ 
+        message: 'Site reactivated successfully',
+        affectedRows: result.affectedRows
+      });
+    } catch (error) {
+      console.error('Error reactivating site:', error);
+      res.status(500).json({ 
+        message: 'Failed to reactivate site', 
+        error: error.message 
+      });
+    }
+  }
+
+  async bulkReactivateSites(req, res) {
+    try {
+      const { siteIds } = req.body;
+      
+      if (!siteIds || !Array.isArray(siteIds) || siteIds.length === 0) {
+        return res.status(400).json({ 
+          message: 'Valid site IDs array is required' 
+        });
+      }
+      
+      const result = await this.SiteManagementService.bulkReactivateSites(siteIds);
+      
+      res.status(200).json({ 
+        message: `${result.affectedRows} sites reactivated successfully`,
+        affectedRows: result.affectedRows
+      });
+    } catch (error) {
+      console.error('Error in bulk reactivating sites:', error);
+      res.status(500).json({ 
+        message: 'Failed to reactivate sites', 
+        error: error.message 
+      });
+    }
+  }
+  
+  async reactivateClientSite(req, res) {
+    try {
+      const { clientSiteId } = req.body;
+      
+      if (!clientSiteId) {
+        return res.status(400).json({ 
+          message: 'Client-Site ID is required' 
+        });
+      }
+      
+      const result = await this.SiteManagementService.reactivateClientSite(clientSiteId);
+      
+      res.status(200).json({
+        message: 'Client-site assignment reactivated successfully',
+        affectedRows: result.affectedRows
+      });
+    } catch (error) {
+      console.error('Error reactivating client-site assignment:', error);
+      res.status(500).json({ 
+        message: 'Failed to reactivate client-site assignment', 
+        error: error.message 
+      });
+    }
+  }
+  
+  async bulkDeactivateClientSites(req, res) {
+    try {
+      const { clientSiteIds } = req.body;
+      
+      if (!clientSiteIds || !Array.isArray(clientSiteIds) || clientSiteIds.length === 0) {
+        return res.status(400).json({ 
+          message: 'Valid client-site IDs array is required' 
+        });
+      }
+      
+      const result = await this.SiteManagementService.bulkDeactivateClientSites(clientSiteIds);
+      
+      res.status(200).json({ 
+        message: `${result.affectedRows} client-site assignments deactivated successfully`,
+        affectedRows: result.affectedRows
+      });
+    } catch (error) {
+      console.error('Error in bulk deactivating client-site assignments:', error);
+      res.status(500).json({ 
+        message: 'Failed to deactivate client-site assignments', 
+        error: error.message 
+      });
+    }
+  }
+  
+  async bulkReactivateClientSites(req, res) {
+    try {
+      const { clientSiteIds } = req.body;
+      
+      if (!clientSiteIds || !Array.isArray(clientSiteIds) || clientSiteIds.length === 0) {
+        return res.status(400).json({ 
+          message: 'Valid client-site IDs array is required' 
+        });
+      }
+      
+      const result = await this.SiteManagementService.bulkReactivateClientSites(clientSiteIds);
+      
+      res.status(200).json({ 
+        message: `${result.affectedRows} client-site assignments reactivated successfully`,
+        affectedRows: result.affectedRows
+      });
+    } catch (error) {
+      console.error('Error in bulk reactivating client-site assignments:', error);
+      res.status(500).json({ 
+        message: 'Failed to reactivate client-site assignments', 
+        error: error.message 
+      });
+    }
+  }
+
 }
 
 module.exports = SiteManagementController;

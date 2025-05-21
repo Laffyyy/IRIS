@@ -77,6 +77,10 @@ const SiteManagement = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const [clientSiteStatusTab, setClientSiteStatusTab] = useState('ACTIVE');
+  const [activeClientSites, setActiveClientSites] = useState([]);
+  const [deactivatedClientSites, setDeactivatedClientSites] = useState([]);
+
   const [showAddClientSiteConfirmModal, setShowAddClientSiteConfirmModal] = useState(false);
   const [clientSiteConfirmDetails, setClientSiteConfirmDetails] = useState({
     clientName: '',
@@ -269,24 +273,36 @@ const SiteManagement = () => {
    */
   const fetchSiteClients = async () => {
     try {
-      const data = await manageSite('getSiteClients', {});
-      if (data?.siteClients) {
-        setSiteClients(data.siteClients.map(sc => ({
-          dClientSite_ID: sc.dClientSite_ID,
-          dClient_ID: sc.dClient_ID,
-          dClientName: sc.dClientName,
-          dLOB: sc.dLOB,
-          dSubLOB: sc.dSubLOB,
-          dSite_ID: sc.dSite_ID,
-          dSiteName: sc.dSiteName,
-          dCreatedBy: sc.dCreatedBy,
-          tCreatedAt: sc.tCreatedAt
-        })));
+      // Fetch active client-site assignments
+      const activeData = await manageSite('getClientSitesByStatus', { status: 'ACTIVE' });
+      if (activeData?.siteClients) {
+        setActiveClientSites(activeData.siteClients);
+      } else {
+        setActiveClientSites([]);
       }
+  
+      // Fetch deactivated client-site assignments
+      const deactivatedData = await manageSite('getClientSitesByStatus', { status: 'DEACTIVATED' });
+      if (deactivatedData?.siteClients) {
+        setDeactivatedClientSites(deactivatedData.siteClients);
+      } else {
+        setDeactivatedClientSites([]);
+      }
+  
+      // Set the appropriate client-sites array based on active tab
+      setSiteClients(clientSiteStatusTab === 'ACTIVE' ? activeData?.siteClients || [] : deactivatedData?.siteClients || []);
     } catch (error) {
       console.error('Error fetching site clients:', error);
+      setSiteClients([]);
     }
   };
+
+  useEffect(() => {
+    setSiteClients(clientSiteStatusTab === 'ACTIVE' ? activeClientSites : deactivatedClientSites);
+    // Reset selection when switching tabs
+    setSelectedClientSiteIds([]);
+    setSelectAllClientSites(false);
+  }, [clientSiteStatusTab, activeClientSites, deactivatedClientSites]);
 
   const sortData = (data, sortConfig) => {
     if (!sortConfig.key) return data;
@@ -491,6 +507,37 @@ const SiteManagement = () => {
     } catch (error) {
       console.error('Error saving site:', error);
     }
+  };
+
+  // Add these handler functions for client-site status changes
+  const handleDeactivateClientSite = async (clientSiteId) => {
+    const clientSite = siteClients.find(sc => sc.dClientSite_ID === clientSiteId);
+    setDeleteType('client-site');
+    setItemToDelete({ id: clientSiteId, name: clientSite?.dClientName || 'Unknown client' });
+    setShowDeleteModal(true);
+  };
+
+  const handleReactivateClientSite = async (clientSiteId) => {
+    const clientSite = siteClients.find(sc => sc.dClientSite_ID === clientSiteId);
+    setDeleteType('reactivate-client-site');
+    setItemToDelete({ id: clientSiteId, name: clientSite?.dClientName || 'Unknown client' });
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkDeactivateClientSites = async () => {
+    if (selectedClientSiteIds.length === 0) return;
+    
+    setDeleteType('bulk-deactivate-client-sites');
+    setItemToDelete({ count: selectedClientSiteIds.length });
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkReactivateClientSites = async () => {
+    if (selectedClientSiteIds.length === 0) return;
+    
+    setDeleteType('bulk-reactivate-client-sites');
+    setItemToDelete({ count: selectedClientSiteIds.length });
+    setShowDeleteModal(true);
   };
 
   /**
@@ -707,43 +754,48 @@ const SiteManagement = () => {
         }, 3000);
         break;
           
-        case 'client':
-          await manageSite('removeClientFromSite', { clientSiteId: itemToDelete.id });
-          
-          // Find the site ID of the deleted relationship
-          const deletedRelationship = siteClients.find(sc => sc.dClientSite_ID === itemToDelete.id);
-          const siteId = deletedRelationship?.dSite_ID;
-          
-          // Update local state
-          setSiteClients(siteClients.filter(sc => sc.dClientSite_ID !== itemToDelete.id));
-          
-          // Refresh data
-          fetchSites();
+        case 'client-site':
+          await manageSite('deactivateClientSite', { clientSiteId: itemToDelete.id });
           fetchSiteClients();
-          
-          // Update assignments
-          if (siteId) {
-            await fetchExistingAssignments(parseInt(siteId));
-          }
-          
-          // Update edit modal if needed
-          if (editSelectedSiteId && siteId && parseInt(editSelectedSiteId) === parseInt(siteId) && editSelectedClientId) {
-            fetchClientLobsForEdit(editSelectedClientId);
-          }
-          
-          alert(`Client "${itemToDelete.name}" successfully removed from site`);
+          setSuccessMessage(`Client "${itemToDelete.name}" assignment successfully deactivated`);
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
           break;
-          
-        case 'bulk-clients':
-          await manageSite('bulkDeleteClientSiteAssignments', { clientSiteIds: selectedClientSiteIds });
-          
-          // Update state and reset selection
+
+        case 'reactivate-client-site':
+          await manageSite('reactivateClientSite', { clientSiteId: itemToDelete.id });
           fetchSiteClients();
-          fetchSites();
+          setSuccessMessage(`Client "${itemToDelete.name}" assignment successfully reactivated`);
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
+          break;
+
+        case 'bulk-deactivate-client-sites':
+          await manageSite('bulkDeactivateClientSites', { clientSiteIds: selectedClientSiteIds });
+          fetchSiteClients();
           setSelectedClientSiteIds([]);
           setSelectAllClientSites(false);
-          
-          alert(`${itemToDelete.count} client-site assignments successfully deleted`);
+          setSuccessMessage(`${itemToDelete.count} client-site assignments successfully deactivated`);
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
+          break;
+
+        case 'bulk-reactivate-client-sites':
+          await manageSite('bulkReactivateClientSites', { clientSiteIds: selectedClientSiteIds });
+          fetchSiteClients();
+          setSelectedClientSiteIds([]);
+          setSelectAllClientSites(false);
+          setSuccessMessage(`${itemToDelete.count} client-site assignments successfully reactivated`);
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
           break;
       }
     } catch (error) {
@@ -1376,11 +1428,14 @@ const SiteManagement = () => {
         <thead>
           <tr>
             <th>
-              <input
-                type="checkbox"
-                checked={selectAllSites}
-                onChange={handleSelectAllSites}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={selectAllSites}
+                  onChange={handleSelectAllSites}
+                />
+                <span style={{ marginLeft: '5px', fontSize: '12px' }}>Select All</span>
+              </div>
             </th>
             <th onClick={() => handleSiteSort('dSite_ID')} className="sortable-header">
               Site ID {siteSortConfig.key === 'dSite_ID' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
@@ -1636,6 +1691,22 @@ const SiteManagement = () => {
     {/* Right Card - Existing Client-Site Assignments Table */}
     <div className="site-management-card">
       <h3>Existing Client-Site Assignments</h3>
+
+      <div className="site-status-tabs">
+        <div 
+          className={`site-status-tab ${clientSiteStatusTab === 'ACTIVE' ? 'active' : ''}`}
+          onClick={() => setClientSiteStatusTab('ACTIVE')}
+        >
+          Active
+        </div>
+        <div 
+          className={`site-status-tab ${clientSiteStatusTab === 'DEACTIVATED' ? 'active' : ''}`}
+          onClick={() => setClientSiteStatusTab('DEACTIVATED')}
+        >
+          Deactivated
+        </div>
+      </div>
+
       <div className="search-container">
       <div className="search-box">
         <FaSearch className="search-icon" />
@@ -1652,11 +1723,14 @@ const SiteManagement = () => {
         <thead>
           <tr>
             <th>
-              <input
-                type="checkbox"
-                checked={selectAllClientSites}
-                onChange={handleSelectAllClientSites}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={selectAllClientSites}
+                  onChange={handleSelectAllClientSites}
+                />
+                <span style={{ marginLeft: '5px', fontSize: '12px' }}>Select All</span>
+              </div>
             </th>
             <th onClick={() => handleClientSiteSort('dClientSite_ID')} className="sortable-header">
               Client Site ID {clientSiteSortConfig.key === 'dClientSite_ID' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
@@ -1702,20 +1776,21 @@ const SiteManagement = () => {
                 <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
                 <td>
                   <div className="action-buttons">
-                    <button
-                      className="edit-btn"
-                      onClick={() => handleEditClientSite(clientSite)}
-                    >
-                      <FaPencilAlt size={12} /> Edit
-                    </button>
-                    <button
-                      className="delete-btn"
-                      onClick={() =>
-                        handleRemoveClient(clientSite.dClientSite_ID, clientSite.dClientName)
-                      }
-                    >
-                      <FaTrash size={12} /> Delete
-                    </button>
+                    {clientSiteStatusTab === 'ACTIVE' ? (
+                      <button
+                        className="deactivate-btn"
+                        onClick={() => handleDeactivateClientSite(clientSite.dClientSite_ID)}
+                      >
+                        <FaMinusCircle size={12} /> Deactivate
+                      </button>
+                    ) : (
+                      <button
+                        className="reactivate-btn"
+                        onClick={() => handleReactivateClientSite(clientSite.dClientSite_ID)}
+                      >
+                        <FaPlusCircle size={12} /> Reactivate
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1723,7 +1798,10 @@ const SiteManagement = () => {
           ) : (
             <tr>
               <td colSpan="9" style={{ textAlign: 'center' }}>
-                {siteClients.length > 0 ? 'No matching client-site assignments found' : 'No client-site assignments available'}
+                {clientSiteStatusTab === 'ACTIVE' ? 
+                  (activeClientSites.length > 0 ? 'No matching active client-site assignments found' : 'No active client-site assignments available') :
+                  (deactivatedClientSites.length > 0 ? 'No matching deactivated client-site assignments found' : 'No deactivated client-site assignments available')
+                }
               </td>
             </tr>
           )}
@@ -1731,12 +1809,18 @@ const SiteManagement = () => {
       </table>
     </div>
       {selectedClientSiteIds.length > 0 && (
-        <div className="bulk-delete-container">
-          <button onClick={handleBulkDeleteClientSites} className="delete-btn bulk-delete-btn">
-            <FaTrash size={12} /> Delete Selected ({selectedClientSiteIds.length})
+      <div className="bulk-delete-container">
+        {clientSiteStatusTab === 'ACTIVE' ? (
+          <button onClick={handleBulkDeactivateClientSites} className="delete-btn bulk-delete-btn">
+            <FaMinusCircle size={12} /> Deactivate Selected ({selectedClientSiteIds.length})
           </button>
-        </div>
-      )}
+        ) : (
+          <button onClick={handleBulkReactivateClientSites} className="reactivate-btn bulk-reactivate-btn">
+            <FaPlusCircle size={12} /> Reactivate Selected ({selectedClientSiteIds.length})
+          </button>
+        )}
+      </div>
+    )}
     </div>
   </div>
 </div>
@@ -2118,6 +2202,31 @@ const SiteManagement = () => {
               <p>
                 You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
                 <br />This will make them visible in the active sites list.
+              </p>
+            )}
+
+            {deleteType === 'client-site' && (
+              <p>
+                You are about to deactivate client "<strong>{itemToDelete?.name}</strong>" assignment.
+                <br />This will hide it from the active client-site assignments list but preserve its data.
+              </p>
+            )}
+            {deleteType === 'reactivate-client-site' && (
+              <p>
+                You are about to reactivate client "<strong>{itemToDelete?.name}</strong>" assignment.
+                <br />This will make it visible in the active client-site assignments list.
+              </p>
+            )}
+            {deleteType === 'bulk-deactivate-client-sites' && (
+              <p>
+                You are about to deactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                <br />This will hide them from the active client-site assignments list but preserve their data.
+              </p>
+            )}
+            {deleteType === 'bulk-reactivate-client-sites' && (
+              <p>
+                You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                <br />This will make them visible in the active client-site assignments list.
               </p>
             )}
             

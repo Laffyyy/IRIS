@@ -446,7 +446,6 @@ td:last-child {
 
 .bulk-delete-btn:hover {
   background-color: #e53e3e;
-  color: #fff;
 }
 
 /* Add styling for checkboxes */
@@ -462,26 +461,9 @@ td:last-child {
 .existing-sites-table td:first-child,
 .existing-client-site-table th:first-child,
 .existing-client-site-table td:first-child {
-  width: 80px; /* Increased from 30px to accommodate text */
+  width: 80px;
   text-align: center;
-}
-
-/* Style the "Select All" text in the header */
-.existing-sites-table th:first-child::after,
-.existing-client-site-table th:first-child::after {
-  content: "Select All";
-  margin-left: 5px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-/* Adjust vertical alignment for the checkbox and text */
-.existing-sites-table th:first-child,
-.existing-client-site-table th:first-child {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-left: 10px;
+  box-sizing: border-box; /* Add this to include padding in width calculation */
 }
 
 /* Bulk Add Modal Styles */
@@ -906,7 +888,6 @@ td:last-child {
 
 .bulk-reactivate-btn:hover {
   background-color: #2f855a;
-  color: #fff;
 }
 
 /* Reactivation Modal Styles */
