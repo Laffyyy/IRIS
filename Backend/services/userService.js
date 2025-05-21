@@ -1,4 +1,4 @@
-const pool = require('../db');
+const pool = require('../config/db');
 
 exports.fetchAllUsers = async () => {
   const [rows] = await pool.query("SELECT * FROM iris.tbl_login ORDER BY tCreatedAt DESC");

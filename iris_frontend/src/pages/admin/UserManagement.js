@@ -295,7 +295,7 @@ const UserManagement = () => {
   // Fetch users function
   const fetchUsers = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/users");
+      const response = await fetch("http://localhost:3000/api/users");
       const data = await response.json();
       setUsers(data);
       setLoading(false);
@@ -509,7 +509,7 @@ const UserManagement = () => {
       try {
         const adminEmployeeIds = parsedUsers.filter(u => u.role && u.role.toUpperCase() === 'ADMIN').map(u => u.employeeId);
         const adminEmails = parsedUsers.filter(u => u.role && u.role.toUpperCase() === 'ADMIN').map(u => u.email);
-        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+        const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -660,14 +660,14 @@ const UserManagement = () => {
     if (!hasErrors) {
       try {
         if (role && role.toUpperCase() === 'ADMIN') {
-          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ employeeIds: [employeeId], emails: [email], admin: true })
           });
           dbDuplicates = await response.json();
         } else {
-          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
@@ -703,7 +703,7 @@ const UserManagement = () => {
     if (individualPreview.length > 0) {
       setLastAddCount(individualPreview.length);
       try {
-        const response = await fetch('http://localhost:5000/api/users/bulk', {
+        const response = await fetch('http://localhost:3000/api/users/bulk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -736,7 +736,7 @@ const UserManagement = () => {
   // Submit bulk users (with result modal)
   const handleBulkUpload = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/users/bulk', {
+      const response = await fetch('http://localhost:3000/api/users/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -786,7 +786,7 @@ const UserManagement = () => {
   const handleDeleteUsers = async () => {
     if (deleteConfirmText === 'DELETE' && selectedUsers.length > 0) {
       try {
-        const response = await fetch('http://localhost:5000/api/users/delete', {
+        const response = await fetch('http://localhost:3000/api/users/delete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userIds: selectedUsers })
@@ -920,7 +920,7 @@ const UserManagement = () => {
           }
         }
         if (securityQuestionsChanged) {
-          await fetch(`http://localhost:5000/api/users/${updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID}/security-questions`, {
+          await fetch(`http://localhost:3000/api/users/${updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID}/security-questions`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ questions: securityQuestionsData })
@@ -944,7 +944,7 @@ const UserManagement = () => {
       }
       // Otherwise, update user fields
       const id = updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID;
-      const response = await fetch(`http://localhost:5000/api/users/${id}`, {
+      const response = await fetch(`http://localhost:3000/api/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changedFields)
@@ -1030,7 +1030,7 @@ const UserManagement = () => {
       // DB duplicate check (only if changed)
       if ((employeeIdChanged && checkedEmployeeId) || (emailChanged && checkedEmail)) {
         try {
-          const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ employeeIds: employeeIdChanged ? [checkedEmployeeId] : [], emails: emailChanged ? [checkedEmail] : [] })
@@ -1098,7 +1098,7 @@ const UserManagement = () => {
     // Check for duplicates independently
     if (user.dUser_ID !== originalUser.dUser_ID || user.dEmail !== originalUser.dEmail) {
       try {
-        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+        const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -1180,7 +1180,7 @@ const UserManagement = () => {
     let reconnectTimeout = null;
 
     function connect() {
-      wsRef.current = new WebSocket('ws://localhost:5000');
+      wsRef.current = new WebSocket('ws://localhost:3000');
       wsRef.current.onopen = () => {
         reconnectAttempts = 0;
       };
@@ -1308,7 +1308,7 @@ const UserManagement = () => {
   const handleRestoreUsers = async () => {
     if (restoreConfirmText === 'RESTORE' && selectedUsers.length > 0) {
       try {
-        const response = await fetch('http://localhost:5000/api/users/restore', {
+        const response = await fetch('http://localhost:3000/api/users/restore', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userIds: selectedUsers })
@@ -3184,7 +3184,7 @@ const UserManagement = () => {
                   setLastAddCount(individualPreview.length);
                   setShowIndividualConfirmModal(false);
                   try {
-                    const response = await fetch('http://localhost:5000/api/users/bulk', {
+                    const response = await fetch('http://localhost:3000/api/users/bulk', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ 
