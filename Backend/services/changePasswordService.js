@@ -65,9 +65,9 @@ class ChangePasswordService {
         }
         
         // Hash the security answers
-        const hashedAnswer1 = await bcrypt.hash(securityQuestions.answer1.toLowerCase(), 10);
-        const hashedAnswer2 = await bcrypt.hash(securityQuestions.answer2.toLowerCase(), 10);
-        const hashedAnswer3 = await bcrypt.hash(securityQuestions.answer3.toLowerCase(), 10);
+        const hashedAnswer1 = await bcrypt.hash(securityQuestions.answer1, 10);
+        const hashedAnswer2 = await bcrypt.hash(securityQuestions.answer2, 10);
+        const hashedAnswer3 = await bcrypt.hash(securityQuestions.answer3, 10);
         
         // Set password expiration date to 15 minutes from now
         const expirationDate = new Date();
@@ -162,9 +162,9 @@ class ChangePasswordService {
     async changeSecurityQuestions(userID, securityQuestions) {
       try {
           // Hash the security answers
-          const hashedAnswer1 = await bcrypt.hash(securityQuestions.answer1.toLowerCase(), 10);
-          const hashedAnswer2 = await bcrypt.hash(securityQuestions.answer2.toLowerCase(), 10);
-          const hashedAnswer3 = await bcrypt.hash(securityQuestions.answer3.toLowerCase(), 10);
+          const hashedAnswer1 = await bcrypt.hash(securityQuestions.answer1, 10);
+          const hashedAnswer2 = await bcrypt.hash(securityQuestions.answer2, 10);
+          const hashedAnswer3 = await bcrypt.hash(securityQuestions.answer3, 10);
   
           await db.query(
               `UPDATE tbl_login 
@@ -214,7 +214,7 @@ class ChangePasswordService {
           }
   
           // Compare provided answer with stored hash
-          return await bcrypt.compare(answer.toLowerCase(), result[0].hashedAnswer);
+          return await bcrypt.compare(answer, result[0].hashedAnswer);
       } catch (error) {
           console.error('Error verifying security answer:', error);
           throw error;
