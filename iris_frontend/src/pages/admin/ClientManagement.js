@@ -898,26 +898,65 @@ const ClientManagement = () => {
   };
 
   // Helper to format add LOB confirmation details
-  const formatAddLobConfirmation = (clientName, siteName, lobCards) => (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ marginBottom: 8, color: '#222' }}><strong>SITE:</strong> {siteName || 'None'}</div>
-      <div style={{ marginBottom: 10, color: '#222' }}><strong>CLIENT:</strong> {clientName}</div>
-      {lobCards.map((card, i) => (
-        <div key={i} style={{ marginBottom: 8, marginLeft: 0 }}>
-          <div style={{ fontWeight: 600, color: '#222', marginBottom: 2 }}>LOB: <span style={{ fontWeight: 500, color: '#222' }}>{card.lobName}</span></div>
-          {card.subLobNames && card.subLobNames.filter(name => name.trim()).length > 0 && (
-            <div style={{ marginLeft: 18 }}>
-              {card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
-                <div key={j} style={{ fontWeight: 400, color: '#333', marginBottom: 2 }}>
-                  Sub LOB: <span style={{ color: '#222' }}>{subLob}</span>
-                </div>
-              ))}
-            </div>
-          )}
+  const formatAddLobConfirmation = (clientName, siteName, lobCards) => {
+    const darkBlue = '#1a237e';
+    // LOBs with both a name and at least one sub LOB
+    const validLobCards = lobCards.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
+    // LOBs that are incomplete: missing LOB name, missing Sub LOB, or both
+    const ignoredLobCards = lobCards.filter(card => !card.lobName.trim() || !card.subLobNames.some(name => name.trim()));
+    // Check if any ignored card has sub lobs but no lob name
+    const hasNoLobWithSubLobs = ignoredLobCards.some(card => !card.lobName.trim() && card.subLobNames.some(name => name.trim()));
+
+    return (
+      <div style={{ marginTop: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '18px 20px', fontSize: 15 }}>
+        <div style={{ marginBottom: 8, color: darkBlue, fontWeight: 700, fontSize: 15 }}>
+          CLIENT: <span style={{ fontWeight: 400, color: darkBlue }}>{clientName}</span>
         </div>
-      ))}
-    </div>
-  );
+        <div style={{ marginBottom: 14, color: darkBlue, fontWeight: 700, fontSize: 15 }}>
+          SITE: <span style={{ fontWeight: 400, color: darkBlue }}>{siteName || 'None'}</span>
+        </div>
+        {validLobCards.map((card, i) => (
+          <div key={i} style={{ marginBottom: 12, marginLeft: 0, paddingLeft: 8, borderLeft: `3px solid ${darkBlue}`, background: '#fff', borderRadius: 4, boxShadow: '0 1px 4px rgba(25, 118, 210, 0.04)', paddingTop: 8, paddingBottom: 8 }}>
+            <div style={{ fontWeight: 700, color: darkBlue, marginBottom: 4, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, background: darkBlue, borderRadius: '50%' }}></span>
+              LOB: <span style={{ fontWeight: 400, color: darkBlue, marginLeft: 4 }}>{card.lobName}</span>
+            </div>
+            {card.subLobNames && card.subLobNames.filter(name => name.trim()).length > 0 && (
+              <ul style={{ marginLeft: 24, marginTop: 4, marginBottom: 0, paddingLeft: 0, listStyle: 'disc', color: darkBlue }}>
+                {card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
+                  <li key={j} style={{ fontWeight: 700, color: darkBlue, fontSize: 14, marginBottom: 2, marginLeft: 0 }}>
+                    Sub LOB: <span style={{ fontWeight: 400, color: darkBlue }}>{subLob}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+        {ignoredLobCards.length > 0 && (
+          <div style={{ marginTop: 18, color: '#b10000', background: '#fff3f3', padding: '12px 16px', borderRadius: 6, border: '1px solid #ffd6d6', fontSize: 14 }}>
+            <strong>Note:</strong> The following {hasNoLobWithSubLobs ? 'Sub LOB(s)' : 'LOB(s)'} will <u>not</u> be added because they are incomplete:
+            <ul style={{ margin: '8px 0 0 18px', color: '#b10000' }}>
+              {ignoredLobCards.map((card, i) => {
+                if (!card.lobName.trim() && card.subLobNames.some(name => name.trim())) {
+                  // For each sub lob, show 'No LOB provided: [Sub LOB Name]'
+                  return card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
+                    <li key={i + '-' + j}>No LOB provided: {subLob}</li>
+                  ));
+                } else if (card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
+                  // LOB name present but no Sub LOB
+                  return <li key={i}>{card.lobName}: No Sub LOB provided</li>;
+                } else if (!card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
+                  // Both missing
+                  return <li key={i}><em>(No LOB Name)</em>: No Sub LOB provided</li>;
+                }
+                return null;
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Add LOB with confirmation
   const handleAddLob = async () => {
@@ -930,7 +969,7 @@ const ClientManagement = () => {
           {formatAddLobConfirmation(
             client ? client.name : '',
             site ? site.name : (selectedSiteForLob ? '' : 'None'),
-            lobCardsForLob.filter(card => card.lobName.trim())
+            lobCardsForLob
           )}
         </span>,
         async () => {
@@ -2231,8 +2270,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 className="submit-button"
                 disabled={
                   !validateClientSelection() || 
-                  !lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ||
-                  lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.length === 1 && !card.subLobNames[0].trim())
+                  !lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))
                 }
               >
                 Submit LOB(s)
