@@ -2610,7 +2610,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     placeholder="Search or select a client"
                     className="searchable-input"
                     style={{ 
-                      paddingRight: '56px',
+                      paddingRight: '80px', // increased padding
                       outline: 'none',
                       border: '1px solid #ccc',
                       borderRadius: '4px',
@@ -2632,6 +2632,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       }}
                       tabIndex={-1}
                       aria-label="Clear client selection"
+                      style={{
+                        position: 'absolute',
+                        right: 44, // move left to avoid overlap
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 2
+                      }}
                     >
                       <FaTimes />
                     </button>
@@ -2896,7 +2903,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       placeholder="Search or select a client"
                       className="searchable-input"
                       style={{ 
-                        paddingRight: '56px',
+                        paddingRight: '80px', // increased padding
                         outline: 'none',
                         border: '1px solid #ccc',
                         borderRadius: '4px',
@@ -2920,6 +2927,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         }}
                         tabIndex={-1}
                         aria-label="Clear client selection"
+                        style={{
+                          position: 'absolute',
+                          right: 44, // move left to avoid overlap
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 2
+                        }}
                       >
                         <FaTimes />
                       </button>
