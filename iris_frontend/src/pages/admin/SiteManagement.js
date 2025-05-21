@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SiteManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes, FaSearch, FaMinusCircle, FaPlusCircle } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaTimes, FaSearch, FaMinusCircle, FaPlusCircle } from 'react-icons/fa';
 import Select from 'react-select';
 
 const SiteManagement = () => {
@@ -76,6 +76,12 @@ const SiteManagement = () => {
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const [showEditSiteConfirmModal, setShowEditSiteConfirmModal] = useState(false);
+  const [siteBeingEdited, setSiteBeingEdited] = useState(null);
 
   const [clientSiteStatusTab, setClientSiteStatusTab] = useState('ACTIVE');
   const [activeClientSites, setActiveClientSites] = useState([]);
@@ -487,25 +493,57 @@ const SiteManagement = () => {
   /**
    * Saves changes to a site
    */
-  const handleSave = async (updatedSite) => {
+  const handleSave = (updatedSite) => {
     if (!updatedSite?.name?.trim()) {
-      alert('Site name cannot be empty.');
+      // Show error modal instead of alert
+      setErrorMessage('Site name cannot be empty');
+      setShowErrorModal(true);
+      
+      // Auto-hide the error message after 3 seconds
+      setTimeout(() => {
+        setShowErrorModal(false);
+      }, 3000);
       return;
     }
-  
+    
+    // Store the original site for the confirmation modal
+    const originalSite = sites.find(s => s.dSite_ID === (updatedSite.id || updatedSite.dSite_ID));
+    setSiteBeingEdited({
+      ...updatedSite,
+      originalName: originalSite?.dSiteName || 'Unknown site'
+    });
+    
+    setShowEditSiteConfirmModal(true);
+  };
+
+  const confirmSaveSite = async () => {
     try {
       await manageSite('edit', { 
-        siteId: updatedSite.id || updatedSite.dSite_ID,
-        siteName: updatedSite.name,
+        siteId: siteBeingEdited.id || siteBeingEdited.dSite_ID,
+        siteName: siteBeingEdited.name,
         updateClientSiteTable: true,
       });
   
+      // Close the edit modal and confirmation modal
+      setEditModalOpen(false);
+      setShowEditSiteConfirmModal(false);
+      
+      // Show the success message
+      setSuccessMessage(`Site "${siteBeingEdited.name}" successfully updated`);
+      setShowSuccessModal(true);
+      
+      // Reset form and refresh data
+      setCurrentSite(null);
       fetchSites();
       fetchSiteClients();
-      setEditModalOpen(false);
-      setCurrentSite(null);
+      
+      // Auto-hide the success message after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
     } catch (error) {
       console.error('Error saving site:', error);
+      setShowEditSiteConfirmModal(false);
     }
   };
 
@@ -1468,14 +1506,22 @@ const SiteManagement = () => {
               <td>{site.dCreatedBy || '-'}</td>
               <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
               <td>
-                <div className="action-buttons">
+              <div className="action-buttons">
                   {siteStatusTab === 'ACTIVE' ? (
-                    <button
-                      className="deactivate-btn"
-                      onClick={() => handleDeactivateSite(site.dSite_ID)}
-                    >
-                      <FaMinusCircle size={12} /> Deactivate
-                    </button>
+                    <>
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEditClick(site)}
+                      >
+                        <FaEdit size={12} /> Edit
+                      </button>
+                      <button
+                        className="deactivate-btn"
+                        onClick={() => handleDeactivateSite(site.dSite_ID)}
+                      >
+                        <FaMinusCircle size={12} /> Deactivate
+                      </button>
+                    </>
                   ) : (
                     <button
                       className="reactivate-btn"
@@ -1846,7 +1892,7 @@ const SiteManagement = () => {
                 <input
                   type="text"
                   value={currentSite.name}
-                  onChange={(e) => setCurrentSite(sanitizeInput({...currentSite, name: e.target.value}))}
+                  onChange={(e) => setCurrentSite({...currentSite, name: sanitizeInput(e.target.value)})}
                   required
                 />
               </div>
@@ -1861,6 +1907,10 @@ const SiteManagement = () => {
                 onClick={() => handleSave(currentSite)} 
                 className="save-btn"
                 disabled={!currentSite.name?.trim()}
+                style={{ 
+                  backgroundColor: !currentSite.name?.trim() ? '#cccccc' : '#004D8D',
+                  cursor: !currentSite.name?.trim() ? 'not-allowed' : 'pointer'
+                }}
               >
                 Save Changes
               </button>
@@ -2154,6 +2204,39 @@ const SiteManagement = () => {
         </div>
       )}
 
+      {/* Edit Site Confirmation Modal */}
+      {showEditSiteConfirmModal && siteBeingEdited && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '450px' }}>
+            <div className="modal-header">
+              <h2>Confirm Edit Site</h2>
+              <button onClick={() => setShowEditSiteConfirmModal(false)} className="close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-content">
+              <p>Are you sure you want to update this site?</p>
+              <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+                <li><strong>Original name:</strong> {siteBeingEdited.originalName}</li>
+                <li><strong>New name:</strong> {siteBeingEdited.name}</li>
+              </ul>
+              <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                <strong>Note:</strong> This will update the site name in all associated client-site relationships.
+              </p>
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="cancel-btn" onClick={() => setShowEditSiteConfirmModal(false)}>Cancel</button>
+              <button
+                className="save-btn"
+                onClick={confirmSaveSite}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="modal-overlay">
@@ -2369,6 +2452,28 @@ const SiteManagement = () => {
           }}>
             <span style={{ marginRight: '10px', fontSize: '18px' }}>✓</span>
             {successMessage}
+          </p>
+        </div>
+      </div>
+    )}
+
+    {/* Error Message Modal */}
+    {showErrorModal && (
+      <div className="success-toast" style={{
+        ...slideInOut, 
+        backgroundColor: '#fff5f5',
+        borderLeft: '4px solid #e53e3e'
+      }}>
+        <div style={{ padding: '16px 20px' }}>
+          <p style={{ 
+            color: '#e53e3e', 
+            display: 'flex', 
+            alignItems: 'center',
+            fontSize: '14px',
+            margin: 0
+          }}>
+            <span style={{ marginRight: '10px', fontSize: '18px' }}>⚠</span>
+            {errorMessage}
           </p>
         </div>
       </div>
