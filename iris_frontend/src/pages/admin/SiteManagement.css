@@ -372,7 +372,8 @@ td:last-child {
 
 .existing-client-site-table th,
 .existing-sites-table th {
-  background-color: white;
+  background-color: #004D8D;
+  color: white;
   font-weight: 600;
 }
 
@@ -637,12 +638,17 @@ td:last-child {
 }
 
 .sortable-header:hover {
-  background-color: #f0f7ff;
+  background-color: #003d70;
 }
 
 .sortable-header::after {
   display: inline-block;
   margin-left: 5px;
+  color: white;
+}
+
+th.sortable-header {
+  position: relative;
 }
 
 .buttons-container {
@@ -766,7 +772,7 @@ td:last-child {
   position: sticky;
   top: 0;
   z-index: 1;
-  background-color: white;
+  background-color: #004D8D;
 }
 
 /* Add scrollbar styles consistent with your existing ones */
