@@ -805,7 +805,9 @@ const KPIManagement = () => {
             placeholder="Search KPIs..."
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
+              // Only allow alphanumeric, spaces, and hyphens
+              const value = e.target.value.replace(/[^a-zA-Z0-9\s-]/g, '');
+              setSearchQuery(value);
               setSelectedKpi(null);
             }}
             onKeyDown={handleKeyDown}
@@ -993,6 +995,57 @@ const KPIManagement = () => {
       });
     }
     return sorted;
+  };
+
+  const handleSaveRecentKpi = async (updatedKpi) => {
+    try {
+      if (updatedKpi.dKPI_ID) {
+        // Update in backend
+        const response = await fetch(`http://localhost:3000/api/kpis/${updatedKpi.dKPI_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            dKPI_Name: updatedKpi.name,
+            dCategory: updatedKpi.category,
+            dCalculationBehavior: updatedKpi.behavior,
+            dDescription: updatedKpi.description
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `Server error: ${response.status}`);
+        }
+
+        // Refresh main kpis list
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+
+        // Update recentlyAdded state as well
+        setRecentlyAdded(prev =>
+          prev.map((k, i) => i === updatedKpi.idx ? updatedKpi : k)
+        );
+
+        setSuccessMessage('KPI updated successfully!');
+        setSuccessCount(0);
+        setShowSuccessModal(true);
+      } else {
+        // Only in recentlyAdded, update local state
+        setRecentlyAdded(prev =>
+          prev.map((k, i) => i === updatedKpi.idx ? updatedKpi : k)
+        );
+        setSuccessMessage('KPI updated successfully!');
+        setSuccessCount(0);
+        setShowSuccessModal(true);
+      }
+      setEditRecentKpi(null);
+    } catch (error) {
+      showAlert(`Failed to update KPI: ${error.message}`);
+    }
   };
 
   return (
@@ -1636,62 +1689,12 @@ const KPIManagement = () => {
       </div>
 
       {editRecentKpi && (
-      <EditKpiModal
-        kpi={editRecentKpi}
-        onSave={async (updatedKpi) => {
-          try {
-            // Check if this KPI exists in the main kpis list
-            const existingKpi = kpis.find(k => k.dKPI_Name === updatedKpi.name);
-            
-            if (existingKpi) {
-              // If it exists, update in backend
-              const updateData = {
-                dKPI_Name: updatedKpi.name,
-                dCategory: updatedKpi.category,
-                dCalculationBehavior: updatedKpi.behavior,
-                dDescription: updatedKpi.description || ''
-              };
-
-              const response = await fetch(`${BASE_URL}/${existingKpi.dKPI_ID}`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json'
-                },
-                body: JSON.stringify(updateData)
-              });
-
-              if (!response.ok) {
-                throw new Error(`Failed to update KPI: ${response.status}`);
-              }
-
-              // Refresh the main kpis list
-              const refreshResponse = await fetch(BASE_URL);
-              if (!refreshResponse.ok) {
-                throw new Error('Failed to refresh KPI list');
-              }
-              const updatedKpis = await refreshResponse.json();
-              setKpis(updatedKpis);
-            }
-
-            // Update recentlyAdded state
-            setRecentlyAdded(prev =>
-              prev.map((k, i) => i === editRecentKpi.idx ? updatedKpi : k)
-            );
-
-            // Show success modal
-            setSuccessMessage('KPI updated successfully!');
-            setSuccessCount(0);
-            setShowSuccessModal(true);
-            setEditRecentKpi(null);
-          } catch (error) {
-            console.error('Error updating KPI:', error);
-            showAlert(`Failed to update KPI: ${error.message}`);
-          }
-        }}
-        onCancel={() => setEditRecentKpi(null)}
-      />
-    )}
+        <EditKpiModal
+          kpi={editRecentKpi}
+          onSave={handleSaveRecentKpi}
+          onCancel={() => setEditRecentKpi(null)}
+        />
+      )}
     </div>
   );
 };
@@ -1702,6 +1705,10 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
     'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'
   ];
   const behaviors = ['Lower the Better', 'Higher the Better'];
+
+  const validateInput = (value) => {
+    return value.replace(/[^a-zA-Z0-9\s-]/g, '');
+  };
 
   const [name, setName] = useState(kpi.name);
   const [category, setCategory] = useState(kpi.category);
@@ -1715,7 +1722,7 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
       category,
       behavior,
       description,
-      dKPI_ID: kpi.dKPI_ID // Preserve the ID if it exists
+      idx: kpi.idx // Pass the index for updating recentlyAdded
     });
   };
 
@@ -1731,7 +1738,7 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
             <label>KPI Name</label>
             <input 
               value={name} 
-              onChange={e => setName(e.target.value)}
+              onChange={e => setName(validateInput(e.target.value))}
               maxLength={30}
             />
           </div>
@@ -1757,7 +1764,7 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
             <label>Description</label>
             <textarea 
               value={description} 
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => setDescription(validateInput(e.target.value))}
               rows="3"
               maxLength={150}
             />
