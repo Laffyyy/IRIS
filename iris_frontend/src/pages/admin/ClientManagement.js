@@ -2964,13 +2964,16 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 <table className="modern-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '40px' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectAll}
-                          onChange={handleSelectAll}
-                          style={{ cursor: 'pointer' }}
-                        />
+                      <th style={{ width: '120px', textAlign: 'left', paddingLeft: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectAll}
+                            onChange={handleSelectAll}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '13px', color: '#2d3748' }}>Select All</span>
+                        </div>
                       </th>
                       {['clientId', 'name', 'lob', 'subLob', 'createdAt'].map((col, idx) => {
                         const colMap = {
