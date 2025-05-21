@@ -70,21 +70,91 @@ exports.createKPI = async (req, res) => {
 };
 
 exports.updateKPI = async (req, res) => {
-    try {
-        const { dKPI_Name, dCategory, dDescription, dCalculationBehavior } = req.body;
-        
-        const [result] = await db.execute(
-            'UPDATE tbl_kpi SET dKPI_Name = ?, dCategory = ?, dDescription = ?, dCalculationBehavior = ? WHERE dKPI_ID = ?',
-            [dKPI_Name, dCategory, dDescription, dCalculationBehavior, req.params.id]
-        );
+    const { id } = req.params;
+    const { dKPI_Name, dCategory, dCalculationBehavior, dDescription, dStatus } = req.body;
 
-        if (result.affectedRows > 0) {
-            res.json({ message: "KPI updated successfully" });
+    try {
+        // Log the incoming request data
+        console.log('Update KPI Request:', {
+            id,
+            body: req.body,
+            params: req.params
+        });
+
+        // Validate required fields
+        if (!dKPI_Name || !dCategory || !dCalculationBehavior) {
+            return res.status(400).json({
+                message: "Missing required fields",
+                details: {
+                    name: !dKPI_Name,
+                    category: !dCategory,
+                    behavior: !dCalculationBehavior
+                }
+            });
+        }
+
+        // Ensure dStatus is in correct case for ENUM and never null
+        const status = dStatus ? dStatus.toUpperCase() : 'ACTIVE';
+        console.log('Processed status:', status);
+
+        // First, check if the KPI exists
+        const [existingKPI] = await db.execute('SELECT * FROM tbl_kpi WHERE dKPI_ID = ?', [id]);
+        console.log('Existing KPI:', existingKPI[0]);
+
+        if (existingKPI.length === 0) {
+            return res.status(404).json({ message: "KPI not found" });
+        }
+
+        // Log the SQL query and parameters
+        const updateQuery = 'UPDATE tbl_kpi SET dKPI_Name = ?, dCategory = ?, dCalculationBehavior = ?, dDescription = ?, dStatus = ? WHERE dKPI_ID = ?';
+        const queryParams = [dKPI_Name, dCategory, dCalculationBehavior, dDescription || '', status, id];
+        console.log('Update Query:', updateQuery);
+        console.log('Query Parameters:', queryParams);
+
+        // Update the KPI
+        const [updated] = await db.execute(updateQuery, queryParams);
+        console.log('Update result:', updated);
+
+        if (updated.affectedRows > 0) {
+            // Fetch the updated KPI
+            const [updatedKPI] = await db.execute('SELECT * FROM tbl_kpi WHERE dKPI_ID = ?', [id]);
+            console.log('Updated KPI:', updatedKPI[0]);
+            res.json(updatedKPI[0]);
         } else {
             res.status(404).json({ message: "KPI not found" });
         }
     } catch (error) {
-        res.status(500).json({ message: "Error updating KPI", error: error.message });
+        // Log the full error object
+        console.error('Detailed error in updateKPI:', {
+            message: error.message,
+            stack: error.stack,
+            sqlMessage: error.sqlMessage,
+            sqlState: error.sqlState,
+            sqlCode: error.sqlCode,
+            error: error
+        });
+
+        // Check for specific MySQL errors
+        if (error.sqlMessage) {
+            if (error.sqlMessage.includes('ENUM')) {
+                return res.status(400).json({
+                    message: "Invalid status value",
+                    details: "Status must be either 'ACTIVE' or 'DEACTIVATED'"
+                });
+            }
+            if (error.sqlMessage.includes('foreign key')) {
+                return res.status(400).json({
+                    message: "Database constraint error",
+                    details: error.sqlMessage
+                });
+            }
+        }
+
+        res.status(500).json({ 
+            message: "Error updating KPI", 
+            error: error.message,
+            details: error.sqlMessage || error.stack
+        });
     }
 };
 
