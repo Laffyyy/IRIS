@@ -2,10 +2,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Otp.css';
-import AlertModal from './components/AlertModal';
-import { jwtDecode } from 'jwt-decode';
 
-const Otp = ({ onBack, onComplete }) => {
+  const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
@@ -14,9 +12,8 @@ const Otp = ({ onBack, onComplete }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
-  const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
-  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
+
+  
 
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
@@ -25,6 +22,8 @@ const Otp = ({ onBack, onComplete }) => {
       setUserId(storedUserId);
     }
   }, []);
+  const [isComplete, setIsComplete] = useState(false);
+  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -47,12 +46,13 @@ const Otp = ({ onBack, onComplete }) => {
     
     try {
       setLoading(true);
+      // API call to resend OTP
       const response = await fetch('http://localhost:3000/api/otp/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userID: userId }),
+        body: JSON.stringify({ userId }),
       });
 
       if (!response.ok) {
@@ -68,17 +68,8 @@ const Otp = ({ onBack, onComplete }) => {
       });
       inputsRef.current[0]?.focus();
       setError('');
-      setAlertModal({
-        isOpen: true,
-        message: 'A new OTP has been sent to your email.',
-        type: 'success'
-      });
     } catch (err) {
-      setAlertModal({
-        isOpen: true,
-        message: 'Failed to resend OTP. Please try again.',
-        type: 'error'
-      });
+      setError('Failed to resend OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -136,92 +127,62 @@ const Otp = ({ onBack, onComplete }) => {
   };
 
   const handleSubmit = async () => {
-    const otp = otpValues.join('');
-    const userId = localStorage.getItem('userId');
-    const password = localStorage.getItem('password');
+  const otp = otpValues.join(''); // Combine OTP values into a single string
 
-    if (!userId || !password) {
-      setAlertModal({
-        isOpen: true,
-        message: 'User ID or password is missing. Please log in again.',
-        type: 'error'
-      });
-      return;
-    }
+  // Retrieve userId and password from localStorage
+  const userId = localStorage.getItem('userId');
+  const password = localStorage.getItem('password');
 
-    const payload = {
-      userID: userId,
-      password: password,
-      otp: otp
-    };
+  if (!userId || !password) {
+    alert('User ID or password is missing. Please log in again.');
+    return;
+  }
 
-    try {
-      const response = await fetch('http://localhost:3000/api/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const userStatus = data.data.user?.status;
-        const token = data.data.token;
-        
-        if (token) {
-          localStorage.setItem('token', token);
-        }
-
-        setAlertModal({
-          isOpen: true,
-          message: data.message || 'Login successful',
-          type: 'success',
-          onClose: () => {
-            // Decode token to get user roles
-            const decoded = jwtDecode(token);
-            const roles = decoded.roles
-              ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
-              : decoded.role
-                ? [decoded.role]
-                : [];
-
-            if (userStatus === 'FIRST-TIME') {
-              navigate('../change-password');
-            } else if (userStatus === 'ACTIVE') {
-              if (roles.includes('admin')) {
-                navigate('../dashboard');
-              } else if (roles.includes('HR')) {
-                navigate('../hr');
-              } else if (roles.includes('REPORTS')) {
-                navigate('../reports');
-              } else if (roles.includes('CNB')) {
-                navigate('../compensation');
-              } else {
-                navigate('/'); // fallback
-              }
-            }
-          }
-        });
-      } else {
-        setAlertModal({
-          isOpen: true,
-          message: data.message || 'Failed to verify OTP. Please try again.',
-          type: 'error'
-        });
-      }
-    } catch (error) {
-      console.error('Error during OTP verification:', error);
-      setAlertModal({
-        isOpen: true,
-        message: 'An error occurred while verifying the OTP. Please try again.',
-        type: 'error'
-      });
-    }
+  // Prepare the payload
+  const payload = {
+    userId,
+    password,
+    otp
   };
 
-  const handleBack = () => {
+  try {
+    // Send POST request to the API
+    const response = await fetch('http://localhost:3000/api/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Handle successful OTP verification
+      const userStatus = data.data.user.status;
+      localStorage.setItem('token', data.data.token); // Save token to localStorage
+      alert(data.data.message);
+
+      if (userStatus === 'FIRST-TIME') {
+        navigate('../change-password'); // Redirect to change password page
+      } else if (userStatus === 'ACTIVE') {
+        alert('Login successful');
+        navigate('../dashboard'); // Redirect to dashboard or home page
+      }
+    } else {
+      // Handle failed OTP verification
+      alert(data.data.message || 'Failed to verify OTP. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error during OTP verification:', error);
+    alert('An error occurred while verifying the OTP. Please try again.');
+  }
+
+  
+  
+
+};
+ const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
@@ -291,18 +252,6 @@ const Otp = ({ onBack, onComplete }) => {
           </button>
         </div>
       </div>
-
-      <AlertModal
-        isOpen={alertModal.isOpen}
-        message={alertModal.message}
-        type={alertModal.type}
-        onClose={() => {
-          if (alertModal.onClose) {
-            alertModal.onClose();
-          }
-          setAlertModal({ ...alertModal, isOpen: false });
-        }}
-      />
     </div>
   );
 };
