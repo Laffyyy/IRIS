@@ -57,7 +57,7 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
                   transition: 'border-color 0.2s',
                   boxSizing: 'border-box',
                 }}
-                placeholder="Type CONFIRM"
+                placeholder="CONFIRM"
                 onFocus={e => e.target.style.borderColor = '#3182ce'}
                 onBlur={e => e.target.style.borderColor = error ? '#e53e3e' : '#bdbdbd'}
                 autoComplete="off"
@@ -1573,6 +1573,50 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
   };
 
+  const handleDeactivateRow = async (type, id) => {
+    try {
+      const subLob = subLobs.find(s => s.id === id);
+      if (!subLob) {
+        showNotification('Sub LOB not found');
+        return;
+      }
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) {
+        showNotification('LOB not found');
+        return;
+      }
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        showNotification('Client not found');
+        return;
+      }
+      showConfirm(
+        `Are you sure you want to deactivate the following: 
+        Client: "${client.name}"
+        LOB: "${lob.name}"
+        Sub LOB: "${subLob.name}"`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/sublob/deactivate', {
+            clientName: client.name,
+            lobName: lob.name,
+            subLOBName: subLob.name
+          });
+          if (response.data) {
+            fetchClientData();
+            showToast('Sub LOB deactivated successfully!');
+          }
+        },
+        () => {}, // onCancel
+        'Deactivate',
+        'Cancel',
+        true // requireConfirmation
+      );
+    } catch (error) {
+      console.error('Error deactivating Sub LOB:', error);
+      showToast('Failed to deactivate Sub LOB: ' + error.message);
+    }
+  };
+
   const handleDeactivate = (type, id) => {
     if (type === 'client') {
       handleDeactivateClient(type, id);
@@ -2061,7 +2105,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
                         </button>
                       ) : (
-                        <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                        <button onClick={() => handleDeactivateRow('lob', lob.id)} className="deactivate-btn">
                           <FaBan size={12} /> Deactivate
                         </button>
                       )}
@@ -2093,7 +2137,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         <FaCheckCircle size={14} color="#38a169" /> Reactivate
                       </button>
                     ) : (
-                      <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                      <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
                         <FaBan size={12} /> Deactivate
                       </button>
                     )}
@@ -2178,7 +2222,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <FaCheckCircle size={14} color="#38a169" /> Reactivate
                           </button>
                         ) : (
-                          <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                          <button onClick={() => handleDeactivateRow('lob', lob.id)} className="deactivate-btn">
                             <FaBan size={12} /> Deactivate
                           </button>
                         )}
@@ -2210,7 +2254,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
                         </button>
                       ) : (
-                        <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                        <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
                           <FaBan size={12} /> Deactivate
                         </button>
                       )}
@@ -3355,7 +3399,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                         </button>
                                       ) : (
-                                        <button onClick={() => handleDeactivate('client', client.id)} className="deactivate-btn">
+                                        <button onClick={() => handleDeactivateRow('client', client.id)} className="deactivate-btn">
                                           <FaBan size={12} /> Deactivate
                                         </button>
                                       )}
@@ -3399,7 +3443,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                               <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                             </button>
                                           ) : (
-                                            <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                            <button onClick={() => handleDeactivateRow('lob', lob.id)} className="deactivate-btn">
                                               <FaBan size={12} /> Deactivate
                                             </button>
                                           )}
@@ -3455,34 +3499,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                                 <FaCheckCircle size={14} color="#3182ce" /> Reactivate
                                               </button>
                                             ) : (
-                                              <button 
-                                              onClick={() => {
-                                                if (activeTab === 'addClient') {
-                                                  if (activeTableTab === 'clients') {
-                                                    handleDeactivateClient('client', client.id);
-                                                  } else if (activeTableTab === 'lobs') {
-                                                    handleDelete('lob', lob.id);
-                                                  } else if (activeTableTab === 'subLobs') {
-                                                    handleDelete('subLob', subLob.id);
-                                                  }
-                                                } else if (activeTab === 'addLOB') {
-                                                  handleDeactivateLOB('lob', lob.id);
-                                                } else if (activeTab === 'addSubLOB') {
-                                                  handleDeactivateSubLOB('subLob', subLob.id);
-                                                } else {
-                                                  if (activeTableTab === 'clients') {
-                                                    handleDelete('client', client.id);
-                                                  } else if (activeTableTab === 'lobs') {
-                                                    handleDelete('lob', lob.id);
-                                                  } else if (activeTableTab === 'subLobs') {
-                                                    handleDelete('subLob', subLob.id);
-                                                  }
-                                                }
-                                              }} 
-                                              className="delete-btn"
-                                            >
-                                              <FaBan size={12} /> Deactivate
-                                            </button>
+                                              <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
+                                          <FaBan size={12} /> Deactivate
+                                        </button>
                                             )}
                                           </div>
                                         </td>
@@ -3580,7 +3599,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                             <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                           </button>
                                         ) : (
-                                          <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                          <button onClick={() => handleDeactivateRow('lob', lob.id)} className="deactivate-btn">
                                             <FaBan size={12} /> Deactivate
                                           </button>
                                         )}
@@ -3612,7 +3631,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                         </button>
                                       ) : (
-                                        <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                        <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
                                           <FaBan size={12} /> Deactivate
                                         </button>
                                       )}
@@ -3710,7 +3729,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                         </button>
                                       ) : (
-                                        <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                        <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
                                           <FaBan size={12} /> Deactivate
                                         </button>
                                       )}
