@@ -203,10 +203,16 @@ exports.updateUser = async (req, res) => {
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No fields to update.' });
     }
-    // Check if user exists
-    const user = await userService.getUserByLoginId(userId);
+    // Check if user exists in tbl_login
+    let user = await userService.getUserByLoginId(userId);
+    let isAdmin = false;
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      // Check if user exists in tbl_admin
+      user = await userService.getAdminByLoginId(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
+      isAdmin = true;
     }
     // If password is present, hash it
     if (updateData.password) {
@@ -214,8 +220,8 @@ exports.updateUser = async (req, res) => {
       updateData.hashedPassword = await bcrypt.hash(updateData.password, 10);
       delete updateData.password;
     }
-    // If securityQuestions is present and is an array of empty questions/answers, clear them
-    if (Array.isArray(updateData.securityQuestions)) {
+    // If securityQuestions is present and is an array of empty questions/answers, clear them (only for tbl_login)
+    if (!isAdmin && Array.isArray(updateData.securityQuestions)) {
       const allEmpty = updateData.securityQuestions.every(q => !q.question && !q.answer);
       if (allEmpty) {
         // Clear security questions in DB
@@ -232,7 +238,12 @@ exports.updateUser = async (req, res) => {
         delete updateData.securityQuestions;
       }
     }
-    const result = await userService.updateUserDynamic(userId, updateData);
+    let result;
+    if (isAdmin) {
+      result = await userService.updateAdminUserDynamic(userId, updateData);
+    } else {
+      result = await userService.updateUserDynamic(userId, updateData);
+    }
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'User not found or no changes made.' });
     }

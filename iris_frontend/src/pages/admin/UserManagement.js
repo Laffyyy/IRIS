@@ -920,7 +920,7 @@ const UserManagement = () => {
           }
         }
         if (securityQuestionsChanged) {
-          await fetch(`http://localhost:3000/api/users/${updatedUser.dLogin_ID}/security-questions`, {
+          await fetch(`http://localhost:3000/api/users/${updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID}/security-questions`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ questions: securityQuestionsData })
@@ -943,7 +943,8 @@ const UserManagement = () => {
         return;
       }
       // Otherwise, update user fields
-      const response = await fetch(`http://localhost:3000/api/users/${updatedUser.dLogin_ID}`, {
+      const id = updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID;
+      const response = await fetch(`http://localhost:3000/api/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changedFields)
@@ -954,11 +955,9 @@ const UserManagement = () => {
       } catch (e) {}
       if (!response.ok) {
         setEditResultSuccess(false);
-        setEditResultMessage(result && result.message ? result.message : 'Failed to update user');
+        setEditResultMessage(result && (result.message || result.error) ? (result.message || result.error) : 'Failed to update user.');
         setShowEditResultModal(true);
-        // Also show unified error modal
-        setActionErrorMessage(result && result.message ? result.message : 'Failed to update user');
-        setShowActionErrorModal(true);
+        // Do NOT show Action Error Modal here for edit failures
         return;
       }
       setEditModalOpen(false);
@@ -1359,6 +1358,78 @@ const UserManagement = () => {
   // Add state for unified action error modal
   const [showActionErrorModal, setShowActionErrorModal] = useState(false);
   const [actionErrorMessage, setActionErrorMessage] = useState('');
+
+  // Add refs for first input in each modal
+  const addFirstInputRef = useRef();
+  const editFirstInputRef = useRef();
+  const confirmFirstInputRef = useRef();
+
+  // Focus first input when add modal opens
+  useEffect(() => {
+    if (addModalOpen && addFirstInputRef.current) {
+      addFirstInputRef.current.focus();
+    }
+  }, [addModalOpen]);
+  // Focus first input when edit modal opens
+  useEffect(() => {
+    if (editModalOpen && editFirstInputRef.current) {
+      editFirstInputRef.current.focus();
+    }
+  }, [editModalOpen]);
+  // Focus first input when confirmation modal opens
+  useEffect(() => {
+    if (showEditConfirmModal && confirmFirstInputRef.current) {
+      confirmFirstInputRef.current.focus();
+    }
+  }, [showEditConfirmModal]);
+
+  // Add ref for confirmation input
+  const deleteConfirmInputRef = useRef();
+  // Auto-select confirmation input when delete modal opens
+  useEffect(() => {
+    if (showDeleteModal && deleteConfirmInputRef.current) {
+      deleteConfirmInputRef.current.focus();
+      deleteConfirmInputRef.current.select();
+    }
+  }, [showDeleteModal]);
+
+  // Add ref for restore confirmation input
+  const restoreConfirmInputRef = useRef();
+  // Auto-select confirmation input when restore modal opens
+  useEffect(() => {
+    if (showRestoreModal && restoreConfirmInputRef.current) {
+      restoreConfirmInputRef.current.focus();
+      restoreConfirmInputRef.current.select();
+    }
+  }, [showRestoreModal]);
+
+  // Add refs for OK buttons in result modals
+  const deleteResultOkBtnRef = useRef();
+  const individualResultOkBtnRef = useRef();
+  const editResultOkBtnRef = useRef();
+  const restoreResultOkBtnRef = useRef();
+  const bulkResultOkBtnRef = useRef();
+  const actionErrorOkBtnRef = useRef();
+  const noChangesOkBtnRef = useRef();
+
+  // Auto-focus OK button when result modals open
+  useEffect(() => { if (showDeleteResultModal && deleteResultOkBtnRef.current) deleteResultOkBtnRef.current.focus(); }, [showDeleteResultModal]);
+  useEffect(() => { if (showIndividualResultModal && individualResultOkBtnRef.current) individualResultOkBtnRef.current.focus(); }, [showIndividualResultModal]);
+  useEffect(() => { if (showEditResultModal && editResultOkBtnRef.current) editResultOkBtnRef.current.focus(); }, [showEditResultModal]);
+  useEffect(() => { if (showRestoreResultModal && restoreResultOkBtnRef.current) restoreResultOkBtnRef.current.focus(); }, [showRestoreResultModal]);
+  useEffect(() => { if (showBulkResultModal && bulkResultOkBtnRef.current) bulkResultOkBtnRef.current.focus(); }, [showBulkResultModal]);
+  useEffect(() => { if (showActionErrorModal && actionErrorOkBtnRef.current) actionErrorOkBtnRef.current.focus(); }, [showActionErrorModal]);
+  useEffect(() => { if (showNoChangesModal && noChangesOkBtnRef.current) noChangesOkBtnRef.current.focus(); }, [showNoChangesModal]);
+
+  // Add refs for Yes buttons in confirmation modals
+  const individualConfirmYesBtnRef = useRef();
+  const editConfirmYesBtnRef = useRef();
+  const bulkConfirmYesBtnRef = useRef();
+
+  // Auto-focus Yes button when confirmation modals open
+  useEffect(() => { if (showIndividualConfirmModal && individualConfirmYesBtnRef.current) individualConfirmYesBtnRef.current.focus(); }, [showIndividualConfirmModal]);
+  useEffect(() => { if (showEditConfirmModal && editConfirmYesBtnRef.current) editConfirmYesBtnRef.current.focus(); }, [showEditConfirmModal]);
+  useEffect(() => { if (showBulkConfirmModal && bulkConfirmYesBtnRef.current) bulkConfirmYesBtnRef.current.focus(); }, [showBulkConfirmModal]);
 
   return (
     <div className="user-management-container">
@@ -2240,16 +2311,16 @@ const UserManagement = () => {
                     <input
                       type="text"
                       name="employeeId"
-                      ref={employeeIdRef}
+                      ref={el => { employeeIdRef.current = el; addFirstInputRef.current = el; }}
                       required
                       maxLength={10}
                       minLength={10}
                       pattern="[0-9]{10}"
                       onInput={e => {
-                        // Only allow numbers, no whitespace, no emojis
                         e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                       }}
                       onChange={() => setIndividualAddErrors(errors => ({ ...errors, employeeId: undefined }))}
+                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
                     />
                     {individualAddErrors.employeeId && (
                       <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.employeeId}</div>
@@ -2272,6 +2343,7 @@ const UserManagement = () => {
                           .replace(/^[@\-_. ,]+/, '');
                       }}
                       onChange={() => setIndividualAddErrors(errors => ({ ...errors, email: undefined }))}
+                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
                     />
                     {individualAddErrors.email && (
                       <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.email}</div>
@@ -2295,6 +2367,7 @@ const UserManagement = () => {
                           .replace(/^[@\-_. ,]+/, '');
                       }}
                       onChange={() => setIndividualAddErrors(errors => ({ ...errors, name: undefined }))}
+                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
                     />
                     {individualAddErrors.name && (
                       <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.name}</div>
@@ -2324,6 +2397,7 @@ const UserManagement = () => {
                 <div className="form-row" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                   <button
                     className="add-to-list-btn"
+                    id="add-to-list-btn"
                     onClick={handleAddToList}
                     disabled={false}
                   >
@@ -2617,17 +2691,10 @@ const UserManagement = () => {
               <h2>
               <FaTrash /> Confirm Deletion
               </h2>
-              <button className="close-btn" onClick={() => {
-                setShowDeleteModal(false);
-                setDeleteConfirmText('');
-              }}>
-                <FaTimes />
-              </button>
             </div>
             <div className="modal-content">
             <p>
-              You are about to delete {selectedUsers.length} user(s).
-              This action cannot be undone. Type <strong>DELETE</strong> to proceed.
+              You are about to <strong>DELETE</strong> {selectedUsers.length} user(s).
             </p>
             {selectedUsers.length > 0 && (
                 <div className="user-list">
@@ -2654,6 +2721,8 @@ const UserManagement = () => {
                 // Allow both cases for input
                 e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
               }}
+              ref={deleteConfirmInputRef}
+              onKeyDown={e => { if (e.key === 'Enter') document.getElementById('delete-permanently-btn')?.click(); }}
             />
             </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -2668,6 +2737,7 @@ const UserManagement = () => {
               </button>
               <button
                 className="delete-btn"
+                id="delete-permanently-btn"
                 // Require uppercase for confirmation
                 disabled={deleteConfirmText.trim() !== 'DELETE'}
                 onClick={() => {
@@ -2713,6 +2783,7 @@ const UserManagement = () => {
                     type="text"
                     name="employeeId"
                     value={currentUser.dUser_ID}
+                    ref={editFirstInputRef}
                     onChange={(e) => {
                       const newValue = e.target.value.replace(/[^0-9]/g, '').slice(0, 10).trim();
                       setCurrentUser({ ...currentUser, dUser_ID: newValue });
@@ -2733,6 +2804,7 @@ const UserManagement = () => {
                       cursor: !employeeIdEditable ? 'not-allowed' : undefined,
                       borderColor: editUserErrors.dUser_ID ? '#ff4444' : undefined
                     }}
+                    onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                   />
                   {editUserErrors.dUser_ID && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
@@ -2780,6 +2852,7 @@ const UserManagement = () => {
                     required
                     maxLength={50}
                     style={{ borderColor: editUserErrors.dEmail ? '#ff4444' : undefined }}
+                    onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                   />
                   {editUserErrors.dEmail && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
@@ -2807,6 +2880,7 @@ const UserManagement = () => {
                     required
                     maxLength={50}
                     style={{ borderColor: editUserErrors.dName ? '#ff4444' : undefined }}
+                    onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                   />
                   {editUserErrors.dName && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
@@ -2876,12 +2950,18 @@ const UserManagement = () => {
                             value={passwordData.newPassword}
                             onChange={handlePasswordChange}
                             placeholder="Enter new password"
+                            tabIndex={0}
+                            onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                           />
                           <button
                             className="toggle-password-btn"
+                            type="button"
+                            tabIndex={0}
+                            aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                             onClick={() => setShowNewPassword(!showNewPassword)}
                           >
-                            {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                            {showNewPassword ? <FaEye size={22} color="#888" /> : <FaEyeSlash size={22} color="#888" />}
                           </button>
                         </div>
                       </div>
@@ -2894,12 +2974,18 @@ const UserManagement = () => {
                             value={passwordData.confirmPassword}
                             onChange={handlePasswordChange}
                             placeholder="Confirm new password"
+                            tabIndex={0}
+                            onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                           />
                           <button
                             className="toggle-password-btn"
+                            type="button"
+                            tabIndex={0}
+                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           >
-                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                            {showConfirmPassword ? <FaEye size={22} color="#888" /> : <FaEyeSlash size={22} color="#888" />}
                           </button>
                         </div>
                       </div>
@@ -2934,6 +3020,7 @@ const UserManagement = () => {
                           // Allow both cases for input
                           e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
                         }}
+                        onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                       />
                       <button
                         className="save-btn"
@@ -2941,6 +3028,7 @@ const UserManagement = () => {
                         // Require uppercase for confirmation
                         disabled={resetConfirmText !== 'RESET'}
                         onClick={() => setResetConfirmed(true)}
+                        onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
                       >
                         Confirm Reset
                       </button>
@@ -2979,6 +3067,7 @@ const UserManagement = () => {
                   }
                 }}
                 className="save-btn"
+                id="save-changes-btn"
               >
                 Save Changes
               </button>
@@ -3006,6 +3095,8 @@ const UserManagement = () => {
                   handleBulkUpload();
                 }}
                 className="save-btn"
+                ref={bulkConfirmYesBtnRef}
+                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
               >
                 Yes, Upload
               </button>
@@ -3023,7 +3114,7 @@ const UserManagement = () => {
             </div>
             <p>{bulkResultMessage}</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowBulkResultModal(false)}>OK</button>
+              <button className="save-btn" ref={bulkResultOkBtnRef} onClick={() => setShowBulkResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>
@@ -3044,10 +3135,12 @@ const UserManagement = () => {
               <button className="cancel-btn" onClick={() => { setShowEditConfirmModal(false); setIndividualAddError(''); }}>No</button>
               <button
                 className="save-btn"
+                ref={editConfirmYesBtnRef}
                 onClick={async () => {
                   setShowEditConfirmModal(false);
                   await handleSave(pendingEditUser);
                 }}
+                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
               >
                 Yes
               </button>
@@ -3065,7 +3158,7 @@ const UserManagement = () => {
             </div>
             <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowEditResultModal(false)}>OK</button>
+              <button className="save-btn" ref={editResultOkBtnRef} onClick={() => setShowEditResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>
@@ -3086,6 +3179,7 @@ const UserManagement = () => {
               <button className="cancel-btn" onClick={() => { setShowIndividualConfirmModal(false); setIndividualAddError(''); }}>No</button>
               <button
                 className="save-btn"
+                ref={individualConfirmYesBtnRef}
                 onClick={async () => {
                   setLastAddCount(individualPreview.length);
                   setShowIndividualConfirmModal(false);
@@ -3148,7 +3242,7 @@ const UserManagement = () => {
                 : individualResultMessage
             }</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowIndividualResultModal(false)}>OK</button>
+              <button className="save-btn" ref={individualResultOkBtnRef} onClick={() => setShowIndividualResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>
@@ -3169,7 +3263,7 @@ const UserManagement = () => {
                 : deleteResultMessage
             }</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowDeleteResultModal(false)}>OK</button>
+              <button className="save-btn" ref={deleteResultOkBtnRef} onClick={() => setShowDeleteResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>
@@ -3183,17 +3277,11 @@ const UserManagement = () => {
               <h2 style={{ color: '#0a7', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FaKey style={{ color: '#0a7' }} /> Confirm Restoration
               </h2>
-              <button className="close-btn" onClick={() => {
-                setShowRestoreModal(false);
-                setRestoreConfirmText('');
-              }}>
-                <FaTimes />
-              </button>
             </div>
             <div className="modal-content">
               <p>
                 You are about to restore {selectedUsers.length} user(s).
-                This will change their status to FIRST-TIME. Type <strong>RESTORE</strong> to proceed.
+                This will change their status to FIRST-TIME.
               </p>
               {selectedUsers.length > 0 && (
                 <div className="user-list">
@@ -3220,6 +3308,8 @@ const UserManagement = () => {
                   // Allow both cases for input
                   e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
                 }}
+                ref={restoreConfirmInputRef}
+                onKeyDown={e => { if (e.key === 'Enter') document.getElementById('restore-btn')?.click(); }}
               />
             </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -3234,10 +3324,13 @@ const UserManagement = () => {
               </button>
               <button
                 className="restore-btn"
+                id="restore-btn"
                 // Require uppercase for confirmation
                 disabled={restoreConfirmText !== 'RESTORE'}
                 onClick={handleRestoreUsers}
                 style={{ backgroundColor: '#0a7', color: 'white' }}
+                ref={confirmFirstInputRef}
+                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
               >
                 <FaKey /> Restore Users
               </button>
@@ -3255,7 +3348,7 @@ const UserManagement = () => {
             </div>
             <p>{restoreResultMessage}</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowRestoreResultModal(false)}>OK</button>
+              <button className="save-btn" ref={restoreResultOkBtnRef} onClick={() => setShowRestoreResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>
@@ -3270,7 +3363,7 @@ const UserManagement = () => {
             </div>
             <p>No changes were made.</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowNoChangesModal(false)}>OK</button>
+              <button className="save-btn" ref={noChangesOkBtnRef} onClick={() => setShowNoChangesModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>
@@ -3284,7 +3377,7 @@ const UserManagement = () => {
             </div>
             <p style={{ color: '#b00', fontWeight: 500 }}>{actionErrorMessage}</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" onClick={() => setShowActionErrorModal(false)}>OK</button>
+              <button className="save-btn" ref={actionErrorOkBtnRef} onClick={() => setShowActionErrorModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>

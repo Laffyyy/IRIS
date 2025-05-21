@@ -168,3 +168,38 @@ exports.restoreUsers = async (userIds) => {
     userIds
   );
 };
+
+exports.getAdminByLoginId = async (loginId) => {
+  const [rows] = await pool.query('SELECT * FROM iris.tbl_admin WHERE dAdmin_ID=?', [loginId]);
+  return rows[0] || null;
+};
+
+exports.updateAdminUserDynamic = async (userId, updateData) => {
+  const fields = [];
+  const params = [];
+  if (updateData.employeeId !== undefined) {
+    fields.push('dUser_ID=?');
+    params.push(updateData.employeeId);
+  }
+  if (updateData.name !== undefined) {
+    fields.push('dName=?');
+    params.push(updateData.name);
+  }
+  if (updateData.email !== undefined) {
+    fields.push('dEmail=?');
+    params.push(updateData.email);
+  }
+  if (updateData.status !== undefined) {
+    fields.push('dStatus=?');
+    params.push(updateData.status);
+  }
+  if (updateData.hashedPassword !== undefined) {
+    fields.push('dPassword1_hash=?');
+    params.push(updateData.hashedPassword);
+  }
+  if (fields.length === 0) return { affectedRows: 0 };
+  const query = `UPDATE iris.tbl_admin SET ${fields.join(', ')} WHERE dAdmin_ID=?`;
+  params.push(userId);
+  const [result] = await pool.query(query, params);
+  return result;
+};
