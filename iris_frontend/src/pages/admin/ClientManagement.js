@@ -4,20 +4,92 @@ import { FaTrash, FaSearch, FaTimes, FaPencilAlt, FaBan, FaCheckCircle } from 'r
 import axios from 'axios';
 
 // Generalized CustomModal (already present, but add title prop and children support)
-const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmText = 'OK', cancelText = 'Cancel', children }) => {
+const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmText = 'OK', cancelText = 'Cancel', children, requireConfirmation = false }) => {
+  const [confirmationText, setConfirmationText] = useState('');
+  const [error, setError] = useState('');
+
+  // Reset confirmation text and error when modal is opened/closed
+  useEffect(() => {
+    if (!open) {
+      setConfirmationText('');
+      setError('');
+    }
+  }, [open]);
+
+  const handleConfirm = () => {
+    if (requireConfirmation && confirmationText !== 'CONFIRM') {
+      setError('Please type CONFIRM to proceed');
+      return;
+    }
+    onConfirm();
+  };
+
   if (!open) return null;
   return (
     <div className="modal-overlay">
-      <div className="modal custom-alert-modal" style={{ width: '400px' }}>
-        <div className="modal-header">
-          <h2 style={{ fontSize: 18, color: '#004D8D', fontWeight: 600 }}>{title || (type === 'confirm' ? 'Confirmation' : 'Notification')}</h2>
+      <div className="modal custom-alert-modal" style={{ width: '400px', borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}>
+        <div className="modal-header" style={{ padding: '20px 24px 0 24px' }}>
+          <h2 style={{ fontSize: 20, color: '#004D8D', fontWeight: 700, margin: 0 }}>{title || (type === 'confirm' ? 'Confirmation' : 'Notification')}</h2>
         </div>
-        <div className="modal-body" style={{ padding: '20px 0', fontSize: 16, color: '#222' }}>{message || children}</div>
-        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          {type === 'confirm' && (
-            <button onClick={onCancel} className="cancel-btn">{cancelText}</button>
+        <div className="modal-body" style={{ padding: '18px 24px 0 24px', fontSize: 16, color: '#222' }}>
+          {message || children}
+          {requireConfirmation && (
+            <div style={{ marginTop: '22px', marginBottom: 0 }}>
+              <label style={{ marginBottom: 6, color: '#444', fontSize: 14, fontWeight: 500, display: 'block', letterSpacing: 0.2 }}>Type <span style={{ fontWeight: 700 }}>CONFIRM</span> to proceed:</label>
+              <input
+                type="text"
+                value={confirmationText}
+                onChange={(e) => {
+                  setConfirmationText(e.target.value);
+                  setError('');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: error ? '1.5px solid #e53e3e' : '1.5px solid #bdbdbd',
+                  borderRadius: '6px',
+                  marginBottom: error ? '2px' : '10px',
+                  fontSize: 15,
+                  outline: 'none',
+                  background: '#fafbfc',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box',
+                }}
+                placeholder="Type CONFIRM"
+                onFocus={e => e.target.style.borderColor = '#3182ce'}
+                onBlur={e => e.target.style.borderColor = error ? '#e53e3e' : '#bdbdbd'}
+                autoComplete="off"
+              />
+              {error && <div style={{ color: '#e53e3e', fontSize: '13px', margin: '0 0 8px 2px', fontWeight: 400 }}>{error}</div>}
+            </div>
           )}
-          <button onClick={onConfirm} className="save-btn" style={{ background: '#004D8D', color: '#fff' }}>{confirmText}</button>
+        </div>
+        {/* Divider */}
+        <div style={{ borderTop: '1px solid #ececec', margin: '24px 0 0 0' }} />
+        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '18px 24px 18px 24px' }}>
+          {type === 'confirm' && (
+            <button onClick={onCancel} className="cancel-btn" style={{ minWidth: 110, fontWeight: 600, border: '1.5px solid #ddd', background: '#fff', color: '#222', borderRadius: 6, padding: '8px 0', fontSize: 15 }}>Cancel</button>
+          )}
+          <button 
+            onClick={handleConfirm} 
+            className="save-btn" 
+            style={{ 
+              background: '#004D8D', 
+              color: '#fff',
+              opacity: requireConfirmation && confirmationText !== 'CONFIRM' ? 0.5 : 1,
+              minWidth: 120,
+              fontWeight: 600,
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 0',
+              fontSize: 15,
+              boxShadow: requireConfirmation && confirmationText === 'CONFIRM' ? '0 2px 8px rgba(0,77,141,0.08)' : 'none',
+              cursor: requireConfirmation && confirmationText !== 'CONFIRM' ? 'not-allowed' : 'pointer'
+            }}
+            disabled={requireConfirmation && confirmationText !== 'CONFIRM'}
+          >
+            {confirmText}
+          </button>
         </div>
       </div>
     </div>
@@ -168,7 +240,7 @@ const ClientManagement = () => {
   };
 
   // Helper to show confirmation modal
-  const showConfirm = (message, onConfirm, onCancel, confirmText = 'Yes', cancelText = 'No') => {
+  const showConfirm = (message, onConfirm, onCancel, confirmText = 'Yes', cancelText = 'No', requireConfirmation = false) => {
     setModalType('confirm');
     setModalMessage(message);
     setModalConfirmText(confirmText);
@@ -182,6 +254,8 @@ const ClientManagement = () => {
       if (onCancel) onCancel();
     });
     setModalOpen(true);
+    // Pass requireConfirmation to CustomModal via modalType and confirmText
+    // (handled in the CustomModal render)
   };
 
   // Add filtered client options function
@@ -1242,7 +1316,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             fetchClientData();
             showToast('Client deactivated successfully!');
           }
-        }
+        },
+        () => {}, // onCancel
+        'Deactivate',
+        'Cancel',
+        true // requireConfirmation
       );
     } catch (error) {
       console.error('Error deactivating client:', error);
@@ -1273,7 +1351,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             fetchClientData();
             showToast('LOB deactivated successfully!');
           }
-        }
+        },
+        () => {}, // onCancel
+        'Deactivate',
+        'Cancel',
+        true // requireConfirmation
       );
     } catch (error) {
       console.error('Error deactivating LOB:', error);
@@ -1310,7 +1392,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             fetchClientData();
             showToast('Sub LOB deactivated successfully!');
           }
-        }
+        },
+        () => {}, // onCancel
+        'Deactivate',
+        'Cancel',
+        true // requireConfirmation
       );
     } catch (error) {
       console.error('Error deactivating Sub LOB:', error);
@@ -1346,7 +1432,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             fetchClientData('DEACTIVATED');
             showToast('Client reactivated successfully!');
           }
-        }
+        },
+        () => {}, // onCancel
+        'Reactivate',
+        'Cancel',
+        true // requireConfirmation
       );
     } catch (error) {
       console.error('Error reactivating client:', error);
@@ -1377,7 +1467,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             fetchClientData('DEACTIVATED');
             showToast('LOB reactivated successfully!');
           }
-        }
+        },
+        () => {}, // onCancel
+        'Reactivate',
+        'Cancel',
+        true // requireConfirmation
       );
     } catch (error) {
       console.error('Error reactivating LOB:', error);
@@ -1414,7 +1508,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             fetchClientData('DEACTIVATED');
             showToast('Sub LOB reactivated successfully!');
           }
-        }
+        },
+        () => {}, // onCancel
+        'Reactivate',
+        'Cancel',
+        true // requireConfirmation
       );
     } catch (error) {
       console.error('Error reactivating Sub LOB:', error);
@@ -2664,6 +2762,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
         onCancel={modalCancelCallback}
         confirmText={modalConfirmText}
         cancelText={modalCancelText}
+        requireConfirmation={modalType === 'confirm' && (modalConfirmText === 'Deactivate' || modalConfirmText === 'Reactivate')}
       />
       <Toast open={toastOpen} message={toastMessage} type={toastType} />
     </div>
