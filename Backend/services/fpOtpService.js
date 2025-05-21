@@ -21,7 +21,7 @@ const generateOtpCode = () => {
 
 exports.sendOtp = async (email) => {
   const [userRows] = await db.query(
-    'SELECT dUser_ID, dStatus FROM tbl_login WHERE dEmail = ?',
+    'SELECT dUser_ID, dStatus FROM tbl_login WHERE BINARY dEmail = ?',
     [email]
   );
 
@@ -84,7 +84,7 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
   // Find userId if only email provided
   if (!userId && email) {
     const [userRows] = await db.query(
-      'SELECT dUser_ID FROM tbl_login WHERE dEmail = ?',
+      'SELECT dUser_ID FROM tbl_login WHERE BINARY dEmail = ?',
       [email]
     );
     if (userRows.length === 0) {

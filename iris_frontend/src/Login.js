@@ -29,8 +29,9 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
             type="email"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value.slice(0, 50))}
             required
+            maxLength={50}
           />
           <div className="modal-buttons">
             <button type="button" onClick={onClose}>Cancel</button>

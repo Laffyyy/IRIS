@@ -74,7 +74,7 @@ const SecurityQuestions = () => {
     if (attempts >= MAX_ATTEMPTS) {
       setError('Too many failed attempts. You have been logged out.');
       setTimeout(() => {
-        navigate('/login');
+        navigate('/');
       }, 1500);
       return;
     }
