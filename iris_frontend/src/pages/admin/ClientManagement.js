@@ -673,25 +673,46 @@ const ClientManagement = () => {
   };
   
   // Helper to format add client confirmation details
-  const formatAddClientConfirmation = (clientName, lobCards) => (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ marginBottom: 10, color: '#222' }}><strong>CLIENT:</strong> {clientName}</div>
-      {lobCards.map((card, i) => (
-        <div key={i} style={{ marginBottom: 8, marginLeft: 0 }}>
-          <div style={{ fontWeight: 600, color: '#222', marginBottom: 2 }}>LOB: <span style={{ fontWeight: 500, color: '#222' }}>{card.lobName}</span></div>
-          {card.subLobNames && card.subLobNames.filter(name => name.trim()).length > 0 && (
-            <div style={{ marginLeft: 18 }}>
-              {card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
-                <div key={j} style={{ fontWeight: 400, color: '#333', marginBottom: 2 }}>
-                  Sub LOB: <span style={{ color: '#222' }}>{subLob}</span>
-                </div>
-              ))}
-            </div>
-          )}
+  const formatAddClientConfirmation = (clientName, lobCards) => {
+    const darkBlue = '#1a237e';
+    const validLobCards = lobCards.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
+    const ignoredLobCards = lobCards.filter(card => card.lobName.trim() && !card.subLobNames.some(name => name.trim()));
+
+    return (
+      <div style={{ marginTop: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '18px 20px', fontSize: 15 }}>
+        <div style={{ marginBottom: 14, color: darkBlue, fontWeight: 700, fontSize: 16, letterSpacing: 0.2 }}>
+          CLIENT: <span style={{ fontWeight: 400, color: darkBlue }}>{clientName}</span>
         </div>
-      ))}
-    </div>
-  );
+        {validLobCards.map((card, i) => (
+          <div key={i} style={{ marginBottom: 12, marginLeft: 0, paddingLeft: 8, borderLeft: `3px solid ${darkBlue}`, background: '#fff', borderRadius: 4, boxShadow: '0 1px 4px rgba(25, 118, 210, 0.04)', paddingTop: 8, paddingBottom: 8 }}>
+            <div style={{ fontWeight: 700, color: darkBlue, marginBottom: 4, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, background: darkBlue, borderRadius: '50%' }}></span>
+              LOB: <span style={{ fontWeight: 400, color: darkBlue, marginLeft: 4 }}>{card.lobName}</span>
+            </div>
+            {card.subLobNames && card.subLobNames.filter(name => name.trim()).length > 0 && (
+              <ul style={{ marginLeft: 24, marginTop: 4, marginBottom: 0, paddingLeft: 0, listStyle: 'disc', color: darkBlue }}>
+                {card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
+                  <li key={j} style={{ fontWeight: 700, color: darkBlue, fontSize: 14, marginBottom: 2, marginLeft: 0 }}>
+                    Sub LOB: <span style={{ fontWeight: 400, color: darkBlue }}>{subLob}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+        {ignoredLobCards.length > 0 && (
+          <div style={{ marginTop: 18, color: '#b10000', background: '#fff3f3', padding: '12px 16px', borderRadius: 6, border: '1px solid #ffd6d6', fontSize: 14 }}>
+            <strong>Note:</strong> The following LOB(s) will <u>not</u> be added because they have no Sub LOBs:
+            <ul style={{ margin: '8px 0 0 18px', color: '#b10000' }}>
+              {ignoredLobCards.map((card, i) => (
+                <li key={i}>{card.lobName}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
   
   // Add Client with confirmation
   const handleAddClient = async () => {
@@ -1868,7 +1889,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
                               maxLength={30}
                             />
-                            {subLobIndex > 0 && (
+                            {subLobIndex > 0 || (card.subLobNames.length > 1 && (lobCards.some((c, idx) => idx !== lobCardIndex && c.lobName.trim() && c.subLobNames.some(name => name.trim())))) && (
                               <button 
                                 className="remove-sub-lob-field-btn"
                                 onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
@@ -1897,7 +1918,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <button 
                       onClick={handleAddAnotherLobCard} 
                       className="add-lob-card-button"
-                      title="Add another LOB"
+                      disabled={!lobCards[0].lobName.trim() || !lobCards[0].subLobNames[0].trim()}
+                      title={!lobCards[0].lobName.trim() || !lobCards[0].subLobNames[0].trim() ? 
+                        "Please fill in the first LOB and Sub LOB before adding another" : 
+                        "Add another LOB"}
                     >
                       +
                     </button>
@@ -1910,8 +1934,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 className="submit-button"
                 disabled={
                   !clientName.trim() || 
-                  !lobCards.some(card => card.lobName.trim()) ||
-                  !lobCards.some(card => card.subLobNames.some(name => name.trim()))
+                  !lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ||
+                  lobCards.some(card => card.lobName.trim() && card.subLobNames.length === 1 && !card.subLobNames[0].trim())
                 }
               >
                 Submit Client
