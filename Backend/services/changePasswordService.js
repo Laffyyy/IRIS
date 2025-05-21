@@ -6,6 +6,86 @@ const login = require('../models/login');
 class ChangePasswordService {
     
     // Add this new method to fetch security questions from the database
+    async getUserStatus(userID) {
+      try {
+          // Check in tbl_login first
+          const [loginRows] = await db.query(
+              'SELECT dStatus FROM tbl_login WHERE dUser_ID = ?', 
+              [userID]
+          );
+          
+          if (loginRows.length > 0) {
+              return loginRows[0].dStatus;
+          }
+          
+          // If not found in tbl_login, check in tbl_admin
+          const [adminRows] = await db.query(
+              'SELECT dStatus FROM tbl_admin WHERE dUser_ID = ?', 
+              [userID]
+          );
+          
+          if (adminRows.length > 0) {
+              return adminRows[0].dStatus;
+          }
+          
+          throw new Error('User not found');
+      } catch (error) {
+          console.error('Error getting user status:', error);
+          throw error;
+      }
+    }
+
+    // Add this new method to verify credentials without full login
+    async verifyCredentials(userID, password) {
+      try {
+          // Check if user exists in tbl_login or tbl_admin
+          let user = null;
+          
+          // Check tbl_login first
+          const [loginRows] = await db.query(
+              'SELECT dPassword1_hash, dStatus FROM tbl_login WHERE dUser_ID = ?', 
+              [userID]
+          );
+          
+          if (loginRows.length > 0) {
+              user = loginRows[0];
+          } else {
+              // If not found in tbl_login, check in tbl_admin
+              const [adminRows] = await db.query(
+                  'SELECT dPassword1_hash, dStatus FROM tbl_admin WHERE dUser_ID = ?', 
+                  [userID]
+              );
+              
+              if (adminRows.length > 0) {
+                  user = adminRows[0];
+              }
+          }
+          
+          if (!user) {
+              throw new Error('User not found');
+          }
+          
+          // Verify password
+          if (!user.dPassword1_hash) {
+              throw new Error('Password hash is missing');
+          }
+          
+          const isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+          if (!isMatch) {
+              throw new Error('Invalid password');
+          }
+          
+          return { 
+              success: true, 
+              status: user.dStatus 
+          };
+          
+      } catch (error) {
+          console.error('Error verifying credentials:', error);
+          throw error;
+      }
+    }
+
     async getSecurityQuestions() {
         try {
             const [questions] = await db.query('SELECT * FROM tbl_securityquestions');

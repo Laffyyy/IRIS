@@ -54,6 +54,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [nextImageIndex, setNextImageIndex] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
+  const [isTransitioning, setIsTransitioning] = useState(false); // Add this line
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
 
@@ -76,18 +77,86 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Prevent form submission if alert modal is open
     if (alertModal.isOpen) {
       return;
     }
- 
-    const payload = {
-      userID: employeeId,
-      password: password
-    };
+
+    if (!employeeId || !password) {
+      setAlertModal({
+        isOpen: true,
+        message: 'Please enter both username and password.',
+        type: 'warning'
+      });
+      return;
+    }
 
     try {
+      // First check user status and verify credentials in one call
+      const verifyResponse = await fetch('http://localhost:3000/api/changepass/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          userID: employeeId, 
+          password: password 
+        })
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        // Authentication failed
+        setAlertModal({
+          isOpen: true,
+          message: verifyData.message || 'Invalid username or password.',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Authentication succeeded, now check status
+      if (verifyData.status === 'FIRST-TIME') {
+        // Store the credentials in localStorage for the change password page
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        localStorage.setItem('isFirstTimeLogin', 'true');
+        
+        // Generate OTP for first-time login user before redirecting
+        try {
+          const otpResponse = await fetch('http://localhost:3000/api/otp/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId: employeeId })
+          });
+          
+          if (!otpResponse.ok) {
+            throw new Error('Failed to generate OTP');
+          }
+          
+          // Now we can redirect to OTP page since an OTP has been sent
+          navigate('/otp');
+        } catch (otpError) {
+          console.error('Error generating OTP:', otpError);
+          setAlertModal({
+            isOpen: true,
+            message: 'Failed to send verification code. Please try again.',
+            type: 'error'
+          });
+        }
+        return;
+      }
+
+      // If we reach here, it's a normal login process
+      const payload = {
+        userID: employeeId,
+        password: password
+      };
+
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -103,6 +172,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
         localStorage.setItem('password', password);
         navigate('/otp'); 
       } else {
+        // Handle other login response errors as before
         if (data.message.includes('User not found')) {
           setAlertModal({
             isOpen: true,

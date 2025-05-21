@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './ChangePassword.css';
 import { useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { jwtDecode } from 'jwt-decode';
 
 const ChangePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -147,6 +148,7 @@ const ChangePassword = () => {
         throw new Error('Please select all security questions');
       }
   
+      // First request - update password and security questions
       const response = await fetch('http://localhost:3000/api/changepass/', {
         method: 'POST',
         headers: {
@@ -171,19 +173,70 @@ const ChangePassword = () => {
       
       if (!response.ok) {
         setError(data.error || 'Failed to update password');
-        alert(data.error || 'Failed to update password');
-        return;
+        throw new Error(data.error || 'Failed to update password');
       }
   
-      setSuccess(true);
-      setSuccessMessage('Password changed successfully! Redirecting to Dashboard...');
-      setShowSuccessToast(true);
-      setTimeout(() => {
-        setShowSuccessToast(false);
-        navigate('../dashboard');
-      }, 2000);
+      // Password changed successfully, now get a token using the new credentials
+      const loginResponse = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userID: userId,
+          password: passwords.newPassword,
+          bypassOtp: true, // Add this flag to indicate OTP should be bypassed
+          passwordChanged: true // Add this flag to indicate this is right after password change
+        })
+      });
+  
+      const loginData = await loginResponse.json();
+  
+      if (!loginResponse.ok) {
+        // This shouldn't happen normally since we just set the password
+        throw new Error('Authentication failed after password change');
+      }
+  
+      // Extract token from response
+      const token = loginData.data.token;
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        
+        // Show success message
+        setSuccess(true);
+        setSuccessMessage('Password changed successfully! Redirecting...');
+        setShowSuccessToast(true);
+        
+        // Decode token to get user roles
+        const decoded = jwtDecode(token);
+        const roles = decoded.roles 
+          ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+          : decoded.role
+            ? [decoded.role]
+            : [];
+        
+        // Redirect based on role after short delay
+        setTimeout(() => {
+          setShowSuccessToast(false);
+          
+          // Role-based redirection
+          if (roles.includes('admin')) {
+            navigate('../dashboard');
+          } else if (roles.includes('HR')) {
+            navigate('../hr');
+          } else if (roles.includes('REPORTS')) {
+            navigate('../reports');
+          } else if (roles.includes('CNB')) {
+            navigate('../compensation');
+          } else {
+            navigate('../dashboard'); // Default fallback
+          }
+        }, 2000);
+      } else {
+        throw new Error('No token received after authentication');
+      }
     } catch (err) {
-      alert(err.message);
       setError(err.message);
     } finally {
       setLoading(false);

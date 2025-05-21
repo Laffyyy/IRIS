@@ -221,22 +221,23 @@ const Otp = ({ onBack, onComplete }) => {
                 ? [decoded.role]
                 : [];
 
-            if (userStatus === 'FIRST-TIME') {
-              navigate('../change-password');
-            } else if (userStatus === 'ACTIVE') {
-              if (roles.includes('admin')) {
-                navigate('../dashboard');
-              } else if (roles.includes('HR')) {
-                navigate('../hr');
-              } else if (roles.includes('REPORTS')) {
-                navigate('../reports');
-              } else if (roles.includes('CNB')) {
-                navigate('../compensation');
-              } else {
-                navigate('/'); // fallback
+              if (userStatus === 'FIRST-TIME') {
+                localStorage.removeItem('isFirstTimeLogin'); // Clear the flag
+                navigate('../change-password');
+              } else if (userStatus === 'ACTIVE') {
+                if (roles.includes('admin')) {
+                  navigate('../dashboard');
+                } else if (roles.includes('HR')) {
+                  navigate('../hr');
+                } else if (roles.includes('REPORTS')) {
+                  navigate('../reports');
+                } else if (roles.includes('CNB')) {
+                  navigate('../compensation');
+                } else {
+                  navigate('/'); // fallback
+                }
               }
             }
-          }
         });
       } else {
         setAlertModal({

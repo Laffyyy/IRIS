@@ -4,7 +4,9 @@ const ChangePasswordController = require('../controllers/changepasswordcontrolle
 
 const changepasswordController = new ChangePasswordController();
 
-// Single endpoint with switch case to route based on operation
+// Fixed: Changed loginController to changepasswordController
+router.post('/fetchStatus', (req, res) => changepasswordController.checkUserStatus(req, res));
+router.post('/verify', (req, res) => changepasswordController.verifyCredentials(req, res));
 router.post('/', (req, res) => {
     const { operation } = req.body;
     
