@@ -8,9 +8,41 @@ import { jwtDecode } from 'jwt-decode';
 const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
-  const [expireTime, setExpireTime] = useState(180); // 3 minutes
-  const [resendTime, setResendTime] = useState(90);
-  const [canResend, setCanResend] = useState(false);
+  const [expireTime, setExpireTime] = useState(() => {
+    const savedExpireTime = localStorage.getItem('otpExpireTime');
+    const savedExpireTimestamp = localStorage.getItem('otpExpireTimestamp');
+    
+    if (savedExpireTime && savedExpireTimestamp) {
+      const timePassed = Math.floor((Date.now() - parseInt(savedExpireTimestamp)) / 1000);
+      const remainingTime = Math.max(0, parseInt(savedExpireTime) - timePassed);
+      return remainingTime;
+    }
+    return 180; // 3 minutes default
+  });
+
+  const [resendTime, setResendTime] = useState(() => {
+    const savedResendTime = localStorage.getItem('otpResendTime');
+    const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
+    
+    if (savedResendTime && savedResendTimestamp) {
+      const timePassed = Math.floor((Date.now() - parseInt(savedResendTimestamp)) / 1000);
+      const remainingTime = Math.max(0, parseInt(savedResendTime) - timePassed);
+      return remainingTime;
+    }
+    return 90; // 90 seconds default
+  });
+
+  const [canResend, setCanResend] = useState(() => {
+    const savedResendTime = localStorage.getItem('otpResendTime');
+    const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
+    
+    if (savedResendTime && savedResendTimestamp) {
+      const timePassed = Math.floor((Date.now() - parseInt(savedResendTimestamp)) / 1000);
+      return timePassed >= parseInt(savedResendTime);
+    }
+    return false;
+  });
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
@@ -28,14 +60,24 @@ const Otp = ({ onBack, onComplete }) => {
 
   useEffect(() => {
     if (expireTime > 0) {
-      const timer = setTimeout(() => setExpireTime(expireTime - 1), 1000);
+      const timer = setTimeout(() => {
+        const newExpireTime = expireTime - 1;
+        setExpireTime(newExpireTime);
+        localStorage.setItem('otpExpireTime', newExpireTime.toString());
+        localStorage.setItem('otpExpireTimestamp', Date.now().toString());
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [expireTime]);
 
   useEffect(() => {
     if (resendTime > 0 && !canResend) {
-      const timer = setTimeout(() => setResendTime(resendTime - 1), 1000);
+      const timer = setTimeout(() => {
+        const newResendTime = resendTime - 1;
+        setResendTime(newResendTime);
+        localStorage.setItem('otpResendTime', newResendTime.toString());
+        localStorage.setItem('otpResendTimestamp', Date.now().toString());
+      }, 1000);
       return () => clearTimeout(timer);
     } else {
       setCanResend(true);
@@ -59,8 +101,11 @@ const Otp = ({ onBack, onComplete }) => {
         throw new Error('Failed to resend OTP');
       }
 
-      setResendTime(90);
-      setExpireTime(180);
+      const newResendTime = 90;
+      const newExpireTime = 180;
+      
+      setResendTime(newResendTime);
+      setExpireTime(newExpireTime);
       setCanResend(false);
       setOtpValues(Array(6).fill(''));
       inputsRef.current.forEach(input => {

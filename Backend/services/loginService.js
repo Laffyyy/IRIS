@@ -211,7 +211,6 @@ class LoginService {
             throw error;
         }
     }
-
     async registerUser(userData) {
         try {
             // Generate custom userID

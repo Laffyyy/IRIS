@@ -86,6 +86,7 @@
   margin-bottom: 6px;
   font-weight: 500;
   font-size: 13px;
+  text-align: left;
 }
 
 .form-group input,
@@ -178,12 +179,17 @@
   accent-color: #004D8D;
 }
 
+.confirmation-checkbox label {
+  text-align: left;
+}
+
 .confirmation-input {
   margin: 15px 0;
 }
 
 .confirmation-input p {
   margin-bottom: 8px;
+  text-align: left;
 }
 
 .confirmation-input input {
