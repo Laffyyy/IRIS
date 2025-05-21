@@ -2086,8 +2086,11 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     </svg>
                   </span>
                   {isClientDropdownOpen && (
-                    <div className="dropdown-list">
-                      {filteredClientOptions().map(([name, id]) => (
+                    <div className="dropdown-list" style={{ maxHeight: 220, overflowY: 'auto' }}>
+                      {(clientSearchTerm
+                        ? filteredClientOptions()
+                        : Array.from(uniqueClientNames.entries())
+                      ).map(([name, id]) => (
                         <div
                           key={id}
                           className="dropdown-item"
