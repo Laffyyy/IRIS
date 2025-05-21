@@ -1149,7 +1149,6 @@ const ClientManagement = () => {
                   });
                 }
               });
-              transformedClients.sort((a, b) => a.id - b.id);
               setClients(transformedClients);
               setLobs(transformedLobs);
               setSubLobs(transformedSubLobs);
@@ -2036,14 +2035,108 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           const client = clients.find(c => c.id === lob.clientId);
           const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
           if (lobSubLobs.length === 0) {
-            rowData.push({ rowKey: `lob-${client ? client.name : '-'}-${lob.name}` });
-          } else {
-            lobSubLobs.forEach(subLob => {
-              rowData.push({ rowKey: `sublob-${client ? client.name : '-'}-${lob.name}-${subLob.name}` });
-            });
+            return [{
+              clientId: lob.clientRowId,
+              name: client ? client.name : '-',
+              lob: lob.name,
+              subLob: '',
+              createdAt: client ? client.createdAt : '-',
+              jsx: (
+                <tr key={`lob-view-${lob.id}`}>
+                  <td>{lob.clientRowId}</td>
+                  <td>{client ? client.name : '-'}</td>
+                  <td>{lob.name}</td>
+                  <td>-</td>
+                  <td>{client ? client.createdBy : '-'}</td>
+                  <td>{client ? client.createdAt : '-'}</td>
+                  <td>
+                    <div className="action-buttons">
+                      {itemStatusTab === 'DEACTIVATED' ? (
+                        <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
+                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                        </button>
+                      ) : (
+                        <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                          <FaBan size={12} /> Deactivate
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            }];
           }
-          return null;
+          const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
+          return sortedLobSubLobs.map(subLob => ({
+            clientId: subLob.clientRowId,
+            name: client ? client.name : '-',
+            lob: lob.name,
+            subLob: subLob.name,
+            createdAt: client ? client.createdAt : '-',
+            jsx: (
+              <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
+                <td>{subLob.clientRowId}</td>
+                <td>{client ? client.name : '-'}</td>
+                <td>{lob.name}</td>
+                <td>{subLob.name}</td>
+                <td>{client ? client.createdBy : '-'}</td>
+                <td>{client ? client.createdAt : '-'}</td>
+                <td>
+                  <div className="action-buttons">
+                    {itemStatusTab === 'DEACTIVATED' ? (
+                      <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                        <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                      </button>
+                    ) : (
+                      <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                        <FaBan size={12} /> Deactivate
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )
+          }));
         });
+      // Dynamic search for partial search
+      if (searchFilter && searchFilter.type === 'partial') {
+        const lower = searchFilter.value.toLowerCase();
+        rowData = rowData.filter(r =>
+          [r.name, r.lob, r.subLob].some(val =>
+            typeof val === 'string' && val.toLowerCase().includes(lower)
+          )
+        );
+      }
+      // Sort rowData if needed
+      if (tableSort.column && tableSort.direction) {
+        rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+      }
+      return rowData.map((r, rowIndex) => {
+        const rowKey = r.subLob 
+          ? `sublob-${r.name}-${r.lob}-${r.subLob}`
+          : `lob-${r.name}-${r.lob}`;
+        
+        return (
+          <tr
+            key={rowKey}
+            onClick={e => {
+              if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+            }}
+            style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+          >
+            <td>
+              <input
+                type="checkbox"
+                checked={selectedRows.has(rowKey)}
+                onChange={e => handleRowSelect(rowKey, rowIndex, e)}
+                style={{ cursor: 'pointer' }}
+                onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
+              />
+            </td>
+            {r.jsx.props.children}
+          </tr>
+        );
+      });
     } else if (activeTableTab === 'subLobs') {
       subLobs
         .filter(subLob => {
@@ -2917,12 +3010,12 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   </div>
                 </div>
                 {/* Search and filter controls (existing code) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 65 }}>
                   <div className="search-box" style={{ position: 'relative' }}>
                     <FaSearch className="search-icon" />
                     <input
                       type="text"
-                      placeholder="Search..."
+                      placeholder="Search by Client Name, LOB, or Sub LOB"
                       value={searchTerm}
                       onChange={(e) => {
                         const value = sanitizeInput(e.target.value, 50);
@@ -2971,7 +3064,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           setSearchDropdownVisible(false);
                         }
                       }}
-                      style={{ paddingRight: searchTerm ? '30px' : '10px' }}
+                      style={{ paddingRight: searchTerm ? '30px' : '10px', width: '320px' }}
                     />
                     {searchTerm && (
                       <button
@@ -3284,9 +3377,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         return rowData.map((r, rowIndex) => {
                           const rowKey = r.subLob 
                             ? `sublob-${r.name}-${r.lob}-${r.subLob}`
-                            : r.lob 
-                              ? `lob-${r.name}-${r.lob}`
-                              : `client-${r.name}`;
+                            : `lob-${r.name}-${r.lob}`;
                           
                           return (
                             <tr
