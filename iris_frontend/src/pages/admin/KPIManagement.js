@@ -765,7 +765,7 @@ const handleDeleteClick = (kpi) => {
 };
 
 const handleDeleteConfirm = async () => {
-  if (deleteConfirmation.trim() === kpiToDelete.dKPI_Name.trim()) {
+  if (deleteConfirmation.trim() === 'CONFIRM') {
     try {
       const response = await fetch(`${BASE_URL}/${kpiToDelete.dKPI_ID}/deactivate`, {
         method: 'PUT',
@@ -779,9 +779,9 @@ const handleDeleteConfirm = async () => {
       }
 
       // Update the KPI status locally
-      const updatedKpis = kpis.map(kpi => 
-        kpi.dKPI_ID === kpiToDelete.dKPI_ID 
-          ? { ...kpi, dStatus: 'DEACTIVATED' } 
+      const updatedKpis = kpis.map(kpi =>
+        kpi.dKPI_ID === kpiToDelete.dKPI_ID
+          ? { ...kpi, dStatus: 'DEACTIVATED' }
           : kpi
       );
       setKpis(updatedKpis);
@@ -795,9 +795,10 @@ const handleDeleteConfirm = async () => {
       showAlert('Failed to deactivate KPI. Please try again.');
     }
   } else {
-    showAlert('Please type the exact KPI name to confirm deactivating');
+    showAlert('Please type "CONFIRM" to confirm deactivating');
   }
 };
+
 
   const handleReactivateClick = (kpi) => {
     setKpiToReactivate(kpi);
@@ -1592,11 +1593,10 @@ const handleDeleteConfirm = async () => {
 
         {showConfirmModal && kpiToAdd && (
         <div className="modal-overlay">
-          <div className="modal confirm-modal">
-            <div className="modal-header">
-              <h2>Confirm KPI Addition</h2>
-
-            </div>
+        <div className="modal confirm-modal">
+          <div className="modal-header">
+            <h2 style={{ color: 'red' }}>Confirm KPI Addition</h2>
+          </div>
             
               <p>Please confirm the details of the KPI to be added:</p>
               <div className="kpi-details">
@@ -1643,17 +1643,17 @@ const handleDeleteConfirm = async () => {
                 </div>
 
                 <div className="confirmation-input">
-                  <p>To confirm deactivating, please type the KPI name:</p>
+                  <p>To confirm deactivating, please type "CONFIRM":</p>
                   <input
                     type="text"
                     value={deleteConfirmation}
                     onChange={(e) => setDeleteConfirmation(validateInput(e.target.value))}
                     onPaste={(e) => e.preventDefault()}
-                    placeholder="Type the KPI name to confirm"
-                    className={deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() ? 'error' : ''}
+                    placeholder="Type CONFIRM to confirm"
+                    className={deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' ? 'error' : ''}
                   />
-                  {deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() && (
-                    <span className="error-message">The name doesn't match</span>
+                  {deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' && (
+                    <span className="error-message">Please type "CONFIRM" to confirm</span>
                   )}
                 </div>
 
@@ -1672,7 +1672,7 @@ const handleDeleteConfirm = async () => {
                 <button 
                   onClick={handleDeleteConfirm}
                   className="delete-confirm-btn"
-                  disabled={deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim()}
+                  disabled={deleteConfirmation.trim() !== 'CONFIRM'}
                 >
                   Deactivate KPI
                 </button>

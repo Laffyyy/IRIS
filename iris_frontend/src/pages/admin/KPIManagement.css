@@ -762,6 +762,13 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .description-modal {
@@ -783,14 +790,17 @@
 }
 
 .modal {
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  width: 90%;
-  max-width: 600px;
+  background: #fff;
+  padding: 20px 18px 18px 18px;
+  border-radius: 0;
+  width: 900px;
+  height: auto;
+  max-width: 98vw;
   max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
+  box-shadow: none;
+  border: 1px solid #ccc;
+  overflow: hidden;
+  display: block;
 }
 
 .modal-actions .small {
@@ -1657,8 +1667,7 @@ input[type="checkbox"] {
 
 .success-modal {
   max-width: 400px;
-  padding: 24px;
-  text-align: center;
+  width: auto;
 }
 
 .success-modal .modal-header {
