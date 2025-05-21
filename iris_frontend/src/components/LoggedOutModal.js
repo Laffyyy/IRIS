@@ -8,7 +8,7 @@ const LoggedOutModal = () => {
 
   const handleLoginAgain = () => {
     localStorage.clear(); // optional: clear user session
-    navigate('/login');
+    navigate('/');
   };
 
   return (
