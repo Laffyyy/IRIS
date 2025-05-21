@@ -147,42 +147,69 @@
   white-space: nowrap;
 }
 
-/* Column Widths */
+/* Checkbox column (first) */
 .existing-kpis th:nth-child(1),
 .existing-kpis td:nth-child(1) {
-  width: 60px;  /* ID column */
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
 }
 
+/* ID column (second) */
 .existing-kpis th:nth-child(2),
 .existing-kpis td:nth-child(2) {
-  width: 15%;  /* KPI Name column */
+  width: 60px;
+  min-width: 50px;
+  max-width: 70px;
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
+/* KPI Name */
 .existing-kpis th:nth-child(3),
 .existing-kpis td:nth-child(3) {
-  width: 100px;  /* Category column */
+  width: 260px;
+  min-width: 200px;
+  max-width: 340px;
+  white-space: normal;
+  word-break: break-word;
 }
 
+/* Category */
 .existing-kpis th:nth-child(4),
 .existing-kpis td:nth-child(4) {
-  width: 120px;  /* Calculation Behavior column */
+  width: 200px;
+  min-width: 180px;
+  max-width: 260px;
+  white-space: normal;      /* Allow wrapping */
+  word-break: break-word;   /* Break long words if needed */
 }
 
+/* Calculation Behavior */
 .existing-kpis th:nth-child(5),
 .existing-kpis td:nth-child(5) {
-  width: 20%;  /* Description column */
+  width: 200px;
+  min-width: 160px;
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
 }
 
+/* Description */
 .existing-kpis th:nth-child(6),
 .existing-kpis td:nth-child(6) {
-  width: 100px;  /* Actions column */
-  text-align: center;
-}
-
-/* Add these new styles for the created by column */
-.existing-kpis td:nth-child(6) {
-  font-family: monospace;
-  color: #444;
+  width: 320px;
+  min-width: 200px;
+  max-width: 500px;
+  white-space: normal;         /* Allow wrapping */
+  word-break: break-word;      /* Break long words if needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .existing-kpis th:nth-child(7),
@@ -194,6 +221,12 @@
 .existing-kpis td:nth-child(8) {
   width: 120px;  /* Actions column */
   text-align: center;
+}
+
+/* Add these new styles for the created by column */
+.existing-kpis td:nth-child(6) {
+  font-family: monospace;
+  color: #444;
 }
 
 /* Add these new styles for the date format */
@@ -677,7 +710,7 @@
 }
 
 .delete-btn {
-  background: none;
+  background: pink;
   border: none;
   cursor: pointer;
   font-size: 14px;
@@ -1445,4 +1478,37 @@ input[type="checkbox"] {
   border-radius: 4px;
   font-size: 15px;
   margin-bottom: 0;
+}
+
+.table-wrapper table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.table-wrapper th,
+.table-wrapper td {
+  text-align: left;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-wrapper th:last-child,
+.table-wrapper td:last-child {
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.disable-btn, .delete-btn {
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
