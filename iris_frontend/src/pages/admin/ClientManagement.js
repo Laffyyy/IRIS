@@ -926,6 +926,14 @@ const ClientManagement = () => {
       showToast('Please enter at least one valid Sub LOB name', 'error');
       return;
     }
+
+    // Check for duplicate Sub LOB names
+    const uniqueSubLobNames = new Set(validSubLobs.map(name => name.trim().toLowerCase()));
+    if (uniqueSubLobNames.size !== validSubLobs.length) {
+      showToast('Error: Duplicate Sub LOB names are not allowed.', 'error');
+      return;
+    }
+
     showConfirm(
       'Are you sure you want to add these Sub LOB(s)?',
       async () => {
@@ -940,6 +948,20 @@ const ClientManagement = () => {
             showToast('Client for selected LOB not found', 'error');
             return;
           }
+
+          // Check if any of the Sub LOB names already exist for this LOB
+          const existingSubLobs = subLobs.filter(s => s.lobId === lob.id);
+          const duplicateSubLobs = validSubLobs.filter(newSubLob => 
+            existingSubLobs.some(existing => 
+              existing.name.toLowerCase() === newSubLob.trim().toLowerCase()
+            )
+          );
+
+          if (duplicateSubLobs.length > 0) {
+            showToast(`Error: The following Sub LOB(s) already exist for this LOB: ${duplicateSubLobs.join(', ')}`, 'error');
+            return;
+          }
+
           for (const subLobName of subLobNames) {
             if (subLobName.trim()) {
               try {
