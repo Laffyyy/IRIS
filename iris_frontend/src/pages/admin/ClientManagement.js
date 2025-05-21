@@ -3227,12 +3227,12 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
               {/* Add selection controls */}
               <div className="selection-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div className="selected-count" style={{ color: '#666' }}>
-                    {selectedRows.size} item(s) selected
-                  </div>
-                  {selectedRows.size > 0 && (
-                    itemStatusTab === 'DEACTIVATED' ? (
+                {selectedRows.size > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div className="selected-count" style={{ color: '#666' }}>
+                      {selectedRows.size} item(s) selected
+                    </div>
+                    {itemStatusTab === 'DEACTIVATED' ? (
                       <button
                         onClick={handleBulkReactivate}
                         className="bulk-reactivate-btn"
@@ -3268,9 +3268,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       >
                         <FaBan size={12} /> Deactivate Selected
                       </button>
-                    )
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Tabs and controls in one flex row */}

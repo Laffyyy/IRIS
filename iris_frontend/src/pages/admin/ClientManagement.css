@@ -1,6 +1,7 @@
 .client-management-container {
   padding: 20px;
   font-family: 'Inter', sans-serif;
+  max-height: 672px;
 }
 
 .white-card {
@@ -135,7 +136,7 @@
 
 .modern-table-container {
   width: 100%;
-  max-height: 662px;
+  max-height: 672px;
   min-height: 200px;
   overflow-y: auto;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
