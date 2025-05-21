@@ -11,13 +11,11 @@ const KPIManagement = () => {
   const behaviors = ['Lower the Better', 'Higher the Better'];
 
   const isDuplicateKPI = (name) => {
-    if (!name) return false;
-    
-    // Check if any existing KPI has the same name (case-insensitive)
-    return kpis.some(existingKpi => 
-      existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
-    );
-  };
+  if (!name) return false;
+  return kpis.some(existingKpi => 
+    existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
+  );
+};
   
   const [activeTab, setActiveTab] = useState('addKPI');
   const [editingKpi, setEditingKpi] = useState(null);
@@ -1602,9 +1600,7 @@ const KPIManagement = () => {
 
       <div className="recently-added-table">
         <h2>Recently Added</h2>
-        {recentlyAdded.length === 0 ? (
-          <p>No recently added KPIs.</p>
-        ) : (
+        <div className="recently-added-table-scroll">
           <table>
             <thead>
               <tr>
@@ -1636,7 +1632,7 @@ const KPIManagement = () => {
               ))}
             </tbody>
           </table>
-        )}
+        </div>
       </div>
 
       {editRecentKpi && (
