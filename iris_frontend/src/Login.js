@@ -50,15 +50,17 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [nextImageIndex, setNextImageIndex] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
   const [otp, setOtp] = useState('');
   const [userId, setUserId] = useState('');
   const [passwords, setPasswords] = useState({
-  newPassword: '',
-  confirmPassword: ''
-});
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const carouselImages = [
     '/assets/loginimage1.jpg',
@@ -129,9 +131,15 @@ const Login = ({ onContinue, onForgotPassword }) => {
   }
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1
-      );
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentImageIndex((prevIndex) => {
+          const next = prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1;
+          setNextImageIndex(next === carouselImages.length - 1 ? 0 : next + 1);
+          return next;
+        });
+        setIsTransitioning(false);
+      }, 100);
     }, 5000);
     return () => clearInterval(interval);
   }, [carouselImages.length]);
@@ -140,7 +148,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
     <div className="iris-wrapper">
       <div className="iris-login-box">
         <div className="iris-left">
-          <img src="/assets/logo.png" alt="IRIS Logo" className="iris-logo" />
+          <img src={`${process.env.PUBLIC_URL}/assets/logo.png`} alt="IRIS Logo" className="iris-logo" />
           <h2 className="iris-title">IRIS</h2>
           <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
 
@@ -148,7 +156,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
             <div className="iris-input-wrapper">
               <label className="iris-label">Username</label>
               <span className="iris-icon">
-                <img src="/assets/user-icon.png" alt="User Icon" />
+                <img src={`${process.env.PUBLIC_URL}/assets/user-icon.png`} alt="User Icon" />
               </span>
               <input
                 id="employee-id"
@@ -163,7 +171,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
             <div className="iris-input-wrapper">
               <label className="iris-label">Password</label>
               <span className="iris-icon password-icon">
-                <img src="/assets/lock-icon.png" alt="Lock Icon" />
+                <img src={`${process.env.PUBLIC_URL}/assets/lock-icon.png`} alt="Lock Icon" />
               </span>
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input
@@ -209,11 +217,17 @@ const Login = ({ onContinue, onForgotPassword }) => {
         <div className="iris-right">
           <div className="carousel-container">
             <div
-              className="carousel-slide"
+              className="carousel-slide current"
               style={{
                 backgroundImage: `url(${carouselImages[currentImageIndex]})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
+                opacity: isTransitioning ? 0 : 1,
+              }}
+            />
+            <div
+              className="carousel-slide next"
+              style={{
+                backgroundImage: `url(${carouselImages[nextImageIndex]})`,
+                opacity: isTransitioning ? 1 : 0,
               }}
             />
           </div>

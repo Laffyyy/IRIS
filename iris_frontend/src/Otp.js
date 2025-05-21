@@ -3,44 +3,30 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Otp.css';
 
-  const Otp = ({ onBack, onComplete }) => {
+const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(() => {
-    const savedExpireTime = localStorage.getItem('otpExpireTime');
-    const savedExpireTimestamp = localStorage.getItem('otpExpireTimestamp');
-    
+    const savedExpireTime = localStorage.getItem('expireTime');
+    const savedExpireTimestamp = localStorage.getItem('expireTimestamp');
     if (savedExpireTime && savedExpireTimestamp) {
       const timePassed = Math.floor((Date.now() - parseInt(savedExpireTimestamp)) / 1000);
       const remainingTime = Math.max(0, parseInt(savedExpireTime) - timePassed);
       return remainingTime;
     }
-    return 180; // 3 minutes default
+    return 180; // 3 minutes
   });
-
   const [resendTime, setResendTime] = useState(() => {
-    const savedResendTime = localStorage.getItem('otpResendTime');
-    const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
-    
+    const savedResendTime = localStorage.getItem('resendTime');
+    const savedResendTimestamp = localStorage.getItem('resendTimestamp');
     if (savedResendTime && savedResendTimestamp) {
       const timePassed = Math.floor((Date.now() - parseInt(savedResendTimestamp)) / 1000);
       const remainingTime = Math.max(0, parseInt(savedResendTime) - timePassed);
       return remainingTime;
     }
-    return 90; // 90 seconds default
+    return 90;
   });
-
-  const [canResend, setCanResend] = useState(() => {
-    const savedResendTime = localStorage.getItem('otpResendTime');
-    const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
-    
-    if (savedResendTime && savedResendTimestamp) {
-      const timePassed = Math.floor((Date.now() - parseInt(savedResendTimestamp)) / 1000);
-      return timePassed >= parseInt(savedResendTime);
-    }
-    return false;
-  });
-
+  const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
@@ -52,6 +38,15 @@ import './Otp.css';
       setUserId(storedUserId);
     }
   }, []);
+
+  // Add new useEffect for focusing first input
+  useEffect(() => {
+    // Focus on the first input when component mounts
+    if (inputsRef.current[0]) {
+      inputsRef.current[0].focus();
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
   const [isComplete, setIsComplete] = useState(false);
   const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
@@ -60,8 +55,8 @@ import './Otp.css';
       const timer = setTimeout(() => {
         const newExpireTime = expireTime - 1;
         setExpireTime(newExpireTime);
-        localStorage.setItem('otpExpireTime', newExpireTime.toString());
-        localStorage.setItem('otpExpireTimestamp', Date.now().toString());
+        localStorage.setItem('expireTime', newExpireTime.toString());
+        localStorage.setItem('expireTimestamp', Date.now().toString());
       }, 1000);
       return () => clearTimeout(timer);
     }
@@ -72,8 +67,8 @@ import './Otp.css';
       const timer = setTimeout(() => {
         const newResendTime = resendTime - 1;
         setResendTime(newResendTime);
-        localStorage.setItem('otpResendTime', newResendTime.toString());
-        localStorage.setItem('otpResendTimestamp', Date.now().toString());
+        localStorage.setItem('resendTime', newResendTime.toString());
+        localStorage.setItem('resendTimestamp', Date.now().toString());
       }, 1000);
       return () => clearTimeout(timer);
     } else {
@@ -86,7 +81,6 @@ import './Otp.css';
     
     try {
       setLoading(true);
-      // API call to resend OTP
       const response = await fetch('http://localhost:3000/api/otp/generate', {
         method: 'POST',
         headers: {
@@ -99,11 +93,12 @@ import './Otp.css';
         throw new Error('Failed to resend OTP');
       }
 
-      const newResendTime = 90;
-      const newExpireTime = 180;
-      
-      setResendTime(newResendTime);
-      setExpireTime(newExpireTime);
+      setResendTime(90);
+      setExpireTime(180);
+      localStorage.setItem('resendTime', '90');
+      localStorage.setItem('expireTime', '180');
+      localStorage.setItem('resendTimestamp', Date.now().toString());
+      localStorage.setItem('expireTimestamp', Date.now().toString());
       setCanResend(false);
       
       // Save new timestamps to localStorage
@@ -129,7 +124,6 @@ import './Otp.css';
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
  
-
     if (value.length > 1) return;
 
     e.target.value = value;
@@ -140,8 +134,11 @@ import './Otp.css';
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
       setIsComplete(true);
+    } else if (value && index === 5) {
+      // When the last input is filled, focus on the Continue button
+      setIsComplete(true);
+      document.getElementById('otp-submit-button').focus();
     }
-    
   };
 
   const handleKeyDown = (e, index) => {
@@ -244,11 +241,29 @@ import './Otp.css';
   };
   
  const handleBack = () => {
-    // Clear local storage or any other necessary cleanup
+    // Clear all timer-related data from localStorage
+    localStorage.removeItem('expireTime');
+    localStorage.removeItem('expireTimestamp');
+    localStorage.removeItem('resendTime');
+    localStorage.removeItem('resendTimestamp');
+    // Clear other login data
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
     navigate('/'); // Redirect to the login page
   }
+
+  // Add cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      // Only clear timer data if we're not refreshing
+      if (!window.performance.navigation.type === 1) {
+        localStorage.removeItem('expireTime');
+        localStorage.removeItem('expireTimestamp');
+        localStorage.removeItem('resendTime');
+        localStorage.removeItem('resendTimestamp');
+      }
+    };
+  }, []);
 
   return (
     <div className="otp-container">
@@ -309,7 +324,7 @@ import './Otp.css';
             disabled={!isComplete}
             type="button"
           >
-            Login
+            Continue
           </button>
         </div>
       </div>
