@@ -1462,19 +1462,20 @@ const SiteManagement = () => {
             <table>
               <thead>
                 <tr>
-                  <th className="site-id-col" onClick={() => handleSiteSort('dSite_ID')} style={{ cursor: 'pointer' }}>
+                  <th className="site-id-col" onClick={() => handleSiteSort('dSite_ID')} style={{ cursor: 'pointer', position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                     Site ID {siteSortConfig.key === 'dSite_ID' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
-                  <th className="site-name-col" onClick={() => handleSiteSort('dSiteName')} style={{ cursor: 'pointer' }}>
+                  <th className="site-name-col" onClick={() => handleSiteSort('dSiteName')} style={{ cursor: 'pointer', position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                     Site Name {siteSortConfig.key === 'dSiteName' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
-                  <th className="status-col" onClick={() => handleSiteSort('dStatus')} style={{ cursor: 'pointer' }}>
-                    Status {siteSortConfig.key === 'dStatus' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                  <th onClick={() => handleSiteSort('dCreatedBy')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                    Created By {siteSortConfig.key === 'dCreatedBy' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
-                  <th className="actions-col">
-                    Actions
+                  <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                    Created At {siteSortConfig.key === 'tCreatedAt' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
-                  <th className="select-col">
+                  <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
+                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                     <div className="select-all-container">
                       <input
                         type="checkbox"
@@ -1500,7 +1501,8 @@ const SiteManagement = () => {
                   >
                     <td>{site.dSite_ID}</td>
                     <td>{site.dSiteName}</td>
-                    <td>{site.dStatus}</td>
+                    <td>{site.dCreatedBy || '-'}</td>
+                    <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
                     <td>
                       <div className="action-buttons">
                         <button onClick={() => handleEditClick(site)} className="edit-btn">
@@ -1769,121 +1771,124 @@ const SiteManagement = () => {
         </div>
       </div>
 
-      <div className="search-container">
-      <div className="search-box">
-        <FaSearch className="search-icon" />
-        <input
-          type="text"
-          placeholder="Search by client name, LOB, Sub LOB, or site name..."
-          value={clientSiteSearchTerm}
-          onChange={(e) => setClientSiteSearchTerm(sanitizeInput(e.target.value))}
-          maxLength={50}
-        />
-      </div>
-    </div>
-    <div className="client-site-table-container">
-      <table className="existing-client-site-table">
-        <thead>
-          <tr>
-            <th>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={selectAllClientSites}
-                  onChange={handleSelectAllClientSites}
-                />
-                <span style={{ marginLeft: '5px', fontSize: '12px' }}>Select All</span>
-              </div>
-            </th>
-            <th onClick={() => handleClientSiteSort('dClientSite_ID')} className="sortable-header">
-              Client Site ID {clientSiteSortConfig.key === 'dClientSite_ID' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleClientSiteSort('dClientName')} className="sortable-header">
-              Client Name {clientSiteSortConfig.key === 'dClientName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleClientSiteSort('dLOB')} className="sortable-header">
-              LOB {clientSiteSortConfig.key === 'dLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleClientSiteSort('dSubLOB')} className="sortable-header">
-              Sub LOB {clientSiteSortConfig.key === 'dSubLOB' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleClientSiteSort('dSiteName')} className="sortable-header">
-              Site Name {clientSiteSortConfig.key === 'dSiteName' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleClientSiteSort('dCreatedBy')} className="sortable-header">
-              Created By {clientSiteSortConfig.key === 'dCreatedBy' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleClientSiteSort('tCreatedAt')} className="sortable-header">
-              Created At {clientSiteSortConfig.key === 'tCreatedAt' && (clientSiteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredSiteClients.length > 0 ? (
-            filteredSiteClients.map(clientSite => (
-              <tr key={clientSite.dClientSite_ID}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
-                    onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
-                  />
-                </td>
-                <td>{clientSite.dClientSite_ID}</td>
-                <td>{clientSite.dClientName}</td>
-                <td>{clientSite.dLOB || '-'}</td>
-                <td>{clientSite.dSubLOB || '-'}</td>
-                <td>{clientSite.dSiteName}</td>
-                <td>{clientSite.dCreatedBy || '-'}</td>
-                <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
-                <td>
-                  <div className="action-buttons">
-                    {clientSiteStatusTab === 'ACTIVE' ? (
-                      <button
-                        className="deactivate-btn"
-                        onClick={() => handleDeactivateClientSite(clientSite.dClientSite_ID)}
-                      >
-                        <FaMinusCircle size={12} /> Deactivate
-                      </button>
-                    ) : (
-                      <button
-                        className="reactivate-btn"
-                        onClick={() => handleReactivateClientSite(clientSite.dClientSite_ID)}
-                      >
-                        <FaPlusCircle size={12} /> Reactivate
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="9" style={{ textAlign: 'center' }}>
-                {clientSiteStatusTab === 'ACTIVE' ? 
-                  (activeClientSites.length > 0 ? 'No matching active client-site assignments found' : 'No active client-site assignments available') :
-                  (deactivatedClientSites.length > 0 ? 'No matching deactivated client-site assignments found' : 'No deactivated client-site assignments available')
-                }
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-      {selectedClientSiteIds.length > 0 && (
-      <div className="bulk-delete-container">
-        {clientSiteStatusTab === 'ACTIVE' ? (
-          <button onClick={handleBulkDeactivateClientSites} className="delete-btn bulk-delete-btn">
-            <FaMinusCircle size={12} /> Deactivate Selected ({selectedClientSiteIds.length})
-          </button>
-        ) : (
-          <button onClick={handleBulkReactivateClientSites} className="reactivate-btn bulk-reactivate-btn">
-            <FaPlusCircle size={12} /> Reactivate Selected ({selectedClientSiteIds.length})
-          </button>
+      <div className="search-and-bulk-container">
+        <div className="search-container">
+          <div className="search-box">
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search by client name, LOB, Sub LOB, or site name..."
+              value={clientSiteSearchTerm}
+              onChange={(e) => setClientSiteSearchTerm(sanitizeInput(e.target.value))}
+              maxLength={50}
+            />
+          </div>
+        </div>
+        {selectedClientSiteIds.length > 0 && (
+          <div className="bulk-delete-container">
+            {clientSiteStatusTab === 'ACTIVE' ? (
+              <button onClick={handleBulkDeactivateClientSites} className="delete-btn bulk-delete-btn">
+                <FaMinusCircle size={12} /> Deactivate Selected ({selectedClientSiteIds.length})
+              </button>
+            ) : (
+              <button onClick={handleBulkReactivateClientSites} className="reactivate-btn bulk-reactivate-btn">
+                <FaPlusCircle size={12} /> Reactivate Selected ({selectedClientSiteIds.length})
+              </button>
+            )}
+          </div>
         )}
       </div>
-    )}
+
+      <div className="table-wrapper">
+        {siteClients.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+            No client-site assignments found.
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th onClick={() => handleClientSiteSort('dClientSite_ID')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  Client Site ID {clientSiteSortConfig.key === 'dClientSite_ID' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dClientName')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  Client Name {clientSiteSortConfig.key === 'dClientName' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dLOB')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  LOB {clientSiteSortConfig.key === 'dLOB' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dSubLOB')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  Sub LOB {clientSiteSortConfig.key === 'dSubLOB' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dSiteName')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  Site Name {clientSiteSortConfig.key === 'dSiteName' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th onClick={() => handleClientSiteSort('dCreatedBy')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  Created By {clientSiteSortConfig.key === 'dCreatedBy' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th onClick={() => handleClientSiteSort('tCreatedAt')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  Created At {clientSiteSortConfig.key === 'tCreatedAt' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
+                </th>
+                <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
+                <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  <div className="select-all-container">
+                    <input
+                      type="checkbox"
+                      checked={selectAllClientSites}
+                      onChange={handleSelectAllClientSites}
+                    />
+                    <span className="selected-count">
+                      {selectedClientSiteIds.length > 0 ? `${selectedClientSiteIds.length}` : ''}
+                    </span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredSiteClients.map(clientSite => (
+                <tr 
+                  key={clientSite.dClientSite_ID}
+                  className={selectedClientSiteIds.includes(clientSite.dClientSite_ID) ? 'selected-row' : ''}
+                >
+                  <td>{clientSite.dClientSite_ID}</td>
+                  <td>{clientSite.dClientName}</td>
+                  <td>{clientSite.dLOB || '-'}</td>
+                  <td>{clientSite.dSubLOB || '-'}</td>
+                  <td>{clientSite.dSiteName}</td>
+                  <td>{clientSite.dCreatedBy || '-'}</td>
+                  <td>{clientSite.tCreatedAt ? new Date(clientSite.tCreatedAt).toLocaleString() : '-'}</td>
+                  <td>
+                    <div className="action-buttons">
+                      {clientSiteStatusTab === 'ACTIVE' ? (
+                        <button
+                          onClick={() => handleDeactivateClientSite(clientSite.dClientSite_ID)}
+                          className="delete-btn"
+                        >
+                          <FaMinusCircle size={12} /> Deactivate
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleReactivateClientSite(clientSite.dClientSite_ID)}
+                          className="reactivate-btn"
+                        >
+                          <FaPlusCircle size={12} /> Reactivate
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
+                      onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   </div>
 </div>

@@ -142,80 +142,118 @@
 
 /* Table Styles */
 .table-wrapper {
-  flex: 1;
+  margin-top: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   overflow: auto;
-  margin-top: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  max-height: 550px;
-  width: 100%;
-  box-sizing: border-box;
+  max-height: 500px;
+  position: relative;
 }
 
-table {
+.table-wrapper table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 13px;
-  flex: 1;
+  border-collapse: collapse;
   background-color: white;
-  box-sizing: border-box;
 }
 
-th, td {
-  padding: 10px 12px;
-  text-align: center;
-  vertical-align: middle;
-  border-bottom: 1px solid #e0e0e0;
-  height: 36px;
-  box-sizing: border-box;
-}
-
-th {
-  background-color: #f0f4f8; /* Lighter blue-gray background */
-  font-weight: 500;
-  color: #004D8D;
-  font-size: 13px;
-  height: 40px;
+.table-wrapper thead {
   position: sticky;
   top: 0;
+  z-index: 10;
+  background-color: #f8fafc;
+}
+
+.table-wrapper thead th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+  background-color: #f8fafc;
+}
+
+.table-wrapper tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.table-wrapper tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.table-wrapper tbody tr.selected-row {
+  background-color: #f1f5f9;
+}
+
+/* Separate table wrappers for each table */
+.site-management-card .table-wrapper:first-of-type {
+  margin-bottom: 24px;
+}
+
+.site-management-card .table-wrapper:last-of-type {
+  margin-top: 24px;
+}
+
+/* Ensure sticky headers work with horizontal scroll */
+.table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8fafc;
+  z-index: 1;
+}
+
+/* Add shadow to sticky headers */
+.table-wrapper thead th::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: #e2e8f0;
+}
+
+/* Ensure proper z-index stacking for sticky headers */
+.table-wrapper thead th {
   z-index: 2;
 }
 
-/* Column widths */
-.site-id-col { width: 15%; min-width: 100px; }
-.site-name-col { width: 40%; min-width: 200px; }
-.status-col { width: 15%; min-width: 100px; }
-.actions-col { width: 25%; min-width: 150px; }
-.select-col { width: 5%; min-width: 60px; }
-
-/* Actions column header */
-.actions-col {
-  text-align: center;
-  background-color: #f0f4f8;
-  font-weight: 500;
-  color: #004D8D;
+.table-wrapper tbody tr {
+  z-index: 1;
 }
 
-/* Select column header */
-.select-col {
+/* Ensure proper spacing for the select column */
+.table-wrapper .select-col {
+  width: 60px;
   text-align: center;
-  background-color: #f0f4f8;
-  font-weight: 500;
-  color: #004D8D;
-  position: sticky;
-  right: 0;
-  z-index: 3;
 }
 
-/* Center align the checkbox in the header */
+/* Ensure proper spacing for the actions column */
+.table-wrapper .actions-col {
+  width: 120px;
+  text-align: center;
+}
+
+/* Style for the select all container */
 .select-all-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 4px;
   width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.select-all-container input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 /* Center align the checkbox in data cells */
@@ -249,17 +287,9 @@ td.select-col input[type="checkbox"] {
   display: inline-block;
 }
 
-/* Center align action buttons */
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Selected count styles */
 .selected-count {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
   white-space: nowrap;
 }
@@ -971,8 +1001,8 @@ th.sortable-header {
 
 .search-container {
   position: relative;
-  flex: 0 0 300px; /* Use flex-basis instead of width */
-  max-width: 300px; /* Add max-width as a fallback */
+  flex: 0 0 400px; /* Increased from 300px */
+  max-width: 400px; /* Increased from 300px */
   display: flex;
   align-items: center;
   height: 38px;
@@ -1364,7 +1394,7 @@ th.sortable-header {
 
 .table-wrapper tbody td:last-child {
   text-align: center;
-  padding: 0 0 8px 0;
+  padding: 0 0 15px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1372,7 +1402,7 @@ th.sortable-header {
   border-bottom: 1px solid #e0e0e0;
   box-sizing: border-box;
   position: relative;
-  top: 11px;
+  top: 15px;
 }
 
 .table-wrapper tbody td:last-child input[type="checkbox"] {
@@ -1403,4 +1433,123 @@ th.sortable-header {
 
 .modal.edit-site-modal .form-row {
   margin-bottom: -20px;
+}
+
+/* Column widths */
+.site-id-col { width: 10%; min-width: 80px; }
+.site-name-col { width: 25%; min-width: 200px; }
+.created-by-col { width: 15%; min-width: 120px; }
+.created-at-col { width: 20%; min-width: 150px; }
+.actions-col { width: 20%; min-width: 150px; }
+.select-col { width: 5%; min-width: 60px; }
+
+/* Center align columns for Client-Site Assignments table */
+.table-wrapper th:nth-child(1),
+.table-wrapper td:nth-child(1),
+.table-wrapper th:nth-child(2),
+.table-wrapper td:nth-child(2),
+.table-wrapper th:nth-child(3),
+.table-wrapper td:nth-child(3),
+.table-wrapper th:nth-child(4),
+.table-wrapper td:nth-child(4),
+.table-wrapper th:nth-child(5),
+.table-wrapper td:nth-child(5),
+.table-wrapper th:nth-child(6),
+.table-wrapper td:nth-child(6),
+.table-wrapper th:nth-child(7),
+.table-wrapper td:nth-child(7) {
+  text-align: center;
+}
+
+/* Actions column header */
+.actions-col {
+  text-align: center;
+  background-color: #f0f4f8;
+  font-weight: 500;
+  color: #004D8D;
+}
+
+/* Select column header */
+.select-col {
+  text-align: center;
+  background-color: #f8fafc;
+  font-weight: 500;
+  color: #004D8D;
+  position: sticky;
+  right: 0;
+  z-index: 11;
+  padding: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Center checkbox in header */
+th.select-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+th.select-col input[type="checkbox"] {
+  margin: 0;
+  position: static;
+  transform: none;
+}
+
+/* Center align the checkbox in the header */
+.select-all-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.select-all-container input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Center align the checkbox in data cells */
+td.select-col {
+  text-align: center;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+td.select-col input[type="checkbox"] {
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Selected count styles */
+.selected-count {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Center align action buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
 }
