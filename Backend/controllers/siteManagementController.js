@@ -12,6 +12,7 @@ class SiteManagementController {
             // Validate input
             if (!siteName || !userID) {
                 return res.status(400).json({ 
+                    success: false,
                     message: 'Site name and user ID are required' 
                 });
             }
@@ -21,14 +22,15 @@ class SiteManagementController {
             
             // Return success response
             res.status(200).json({ 
-                message: 'Site added successfully', 
-                siteId: result.insertId 
+                success: true,
+                message: 'Site added successfully',
+                siteId: result.siteId
             });
         } catch (error) {
-            console.error('Error adding site:', error);
-            res.status(500).json({ 
-                message: 'Failed to add site', 
-                error: error.message 
+            console.error('Error in addSite controller:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to add site'
             });
         }
     }

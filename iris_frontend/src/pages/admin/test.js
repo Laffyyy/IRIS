@@ -380,3 +380,72 @@
                   {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
                 </span>
 </div>
+
+{/* Delete Confirmation Modal */}
+{showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal delete-confirmation-modal">
+            <div className="modal-header">
+              <h2>
+              <FaTrash /> Confirm Deletion
+              </h2>
+            </div>
+            <div className="modal-content">
+            <p>
+              You are about to <strong>DELETE</strong> {selectedUsers.length} user(s).
+            </p>
+            {selectedUsers.length > 0 && (
+                <div className="user-list">
+                  {users
+                    .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                    .map(user => (
+                      <div key={user.dUser_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">{user.dName}</div>
+                          <div className="user-email">{user.dEmail}</div>
+                        </div>
+                      </div>
+                    ))}
+              </div>
+            )}
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value.slice(0, 7))}
+              placeholder="Type DELETE to confirm"
+              className="delete-confirm-input"
+              maxLength={7}
+              onInput={e => {
+                // Allow both cases for input
+                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+              }}
+              ref={deleteConfirmInputRef}
+              onKeyDown={e => { if (e.key === 'Enter') document.getElementById('delete-permanently-btn')?.click(); }}
+            />
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="delete-btn"
+                id="delete-permanently-btn"
+                // Require uppercase for confirmation
+                disabled={deleteConfirmText.trim() !== 'DELETE'}
+                onClick={() => {
+                  setLastDeleteCount(selectedUsers.length);
+                  handleDeleteUsers();
+                }}
+              >
+                <FaTrash /> Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}

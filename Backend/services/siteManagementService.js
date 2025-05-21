@@ -3,29 +3,45 @@ const db = require('../config/db');
 class SiteManagementService {
     async addSite(siteName, userID) {
       try {
-          // Create current timestamp
-          const currentDate = new Date();
+          const timestamp = new Date();
           
-          // Insert the site into the database with ACTIVE status
+          // Generate site ID: first 3 letters of site name (uppercase) + 3 random digits
+          const prefix = siteName.substring(0, 3).toUpperCase();
+          const randomNum = Math.floor(Math.random() * 900) + 100; // 3-digit number between 100-999
+          const siteId = `${prefix}${randomNum}`;
+          
+          // Start transaction
+          await db.query('START TRANSACTION');
+          
+          // Insert new site
           const [result] = await db.query(
-              'INSERT INTO tbl_site (dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?)',
-              [
-                  siteName,
-                  'ACTIVE',
-                  userID,
-                  currentDate
-              ]
+              'INSERT INTO tbl_site (dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, "ACTIVE", ?, ?)',
+              [siteId, siteName, userID, timestamp]
           );
           
-          return result;
+          // Insert log entry
+          await db.query(
+              'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "CREATED", "SYSTEM", ?)',
+              [siteId, timestamp]
+          );
+          
+          // Commit transaction
+          await db.query('COMMIT');
+          
+          return { siteId };
       } catch (error) {
-          console.error('Error in AddSiteService.addSite:', error);
+          // Rollback transaction on error
+          await db.query('ROLLBACK');
+          console.error('Error in addSite service:', error);
           throw error;
       }
     }
 
     async editSite(siteId, siteName, updateClientSiteTable = false) {
         try {
+          // Start transaction
+          await db.query('START TRANSACTION');
+          
           // Update tbl_site
           const [result] = await db.query(
             'UPDATE tbl_site SET dSiteName = ? WHERE dSite_ID = ?',
@@ -39,9 +55,21 @@ class SiteManagementService {
               [siteName, siteId]
             );
           }
+
+          // Insert log entry
+          const timestamp = new Date();
+          await db.query(
+            'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+            [siteId, timestamp]
+          );
+          
+          // Commit transaction
+          await db.query('COMMIT');
           
           return result;
         } catch (error) {
+          // Rollback transaction on error
+          await db.query('ROLLBACK');
           console.error('Error in SiteManagementService.editSite:', error);
           throw error;
         }
@@ -63,6 +91,13 @@ class SiteManagementService {
                 await db.query(
                     'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID = ?',
                     ['DEACTIVATED', siteId]
+                );
+
+                // 3. Insert log entry
+                const timestamp = new Date();
+                await db.query(
+                    'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                    [siteId, timestamp]
                 );
                 
                 // Commit the transaction
@@ -183,7 +218,7 @@ class SiteManagementService {
                 
                 // Only insert if this specific instance doesn't already exist for this site
                 if (existingInstance.length === 0) {
-                    await db.query(
+                    const [insertResult] = await db.query(
                       'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry, dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                       [
                           instance.dClient_ID,
@@ -198,7 +233,13 @@ class SiteManagementService {
                           userId,
                           currentDate
                       ]
-                  );
+                    );
+
+                    // Insert log entry for each new client-site assignment
+                    await db.query(
+                        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "CREATED", "SYSTEM", ?)',
+                        [insertResult.insertId, currentDate]
+                    );
                 }
             }
             
@@ -397,6 +438,15 @@ class SiteManagementService {
                   'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID IN (?)',
                   ['DEACTIVATED', siteIds]
               );
+
+              // 3. Insert log entries for each site
+              const timestamp = new Date();
+              for (const siteId of siteIds) {
+                  await db.query(
+                      'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                      [siteId, timestamp]
+                  );
+              }
               
               // Commit the transaction
               await db.query('COMMIT');
@@ -553,13 +603,24 @@ class SiteManagementService {
   
   async deactivateClientSite(clientSiteId) {
     try {
+      await db.query('START TRANSACTION');
+      
       const [result] = await db.query(
         'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID = ?',
         ['DEACTIVATED', clientSiteId]
       );
+
+      // Insert log entry
+      const timestamp = new Date();
+      await db.query(
+        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+        [clientSiteId, timestamp]
+      );
       
+      await db.query('COMMIT');
       return result;
     } catch (error) {
+      await db.query('ROLLBACK');
       console.error('Error in SiteManagementService.deactivateClientSite:', error);
       throw error;
     }
@@ -567,13 +628,24 @@ class SiteManagementService {
   
   async reactivateClientSite(clientSiteId) {
     try {
+      await db.query('START TRANSACTION');
+      
       const [result] = await db.query(
         'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID = ?',
         ['ACTIVE', clientSiteId]
       );
+
+      // Insert log entry
+      const timestamp = new Date();
+      await db.query(
+        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+        [clientSiteId, timestamp]
+      );
       
+      await db.query('COMMIT');
       return result;
     } catch (error) {
+      await db.query('ROLLBACK');
       console.error('Error in SiteManagementService.reactivateClientSite:', error);
       throw error;
     }
@@ -596,6 +668,13 @@ class SiteManagementService {
                   'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID = ? AND dStatus = ?',
                   ['ACTIVE', siteId, 'DEACTIVATED']
               );
+
+              // 3. Insert log entry
+              const timestamp = new Date();
+              await db.query(
+                  'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                  [siteId, timestamp]
+              );
               
               // Commit the transaction
               await db.query('COMMIT');
@@ -614,7 +693,6 @@ class SiteManagementService {
   
   async bulkDeactivateClientSites(clientSiteIds) {
     try {
-      // Using a transaction to ensure all operations succeed or fail together
       await db.query('START TRANSACTION');
   
       try {
@@ -622,6 +700,15 @@ class SiteManagementService {
           'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID IN (?)',
           ['DEACTIVATED', clientSiteIds]
         );
+
+        // Insert log entries for each client-site
+        const timestamp = new Date();
+        for (const clientSiteId of clientSiteIds) {
+            await db.query(
+                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+                [clientSiteId, timestamp]
+            );
+        }
   
         await db.query('COMMIT');
         return { affectedRows: result.affectedRows };
@@ -652,6 +739,15 @@ class SiteManagementService {
                   'UPDATE tbl_clientsite SET dStatus = ? WHERE dSite_ID IN (?) AND dStatus = ?',
                   ['ACTIVE', siteIds, 'DEACTIVATED']
               );
+
+              // 3. Insert log entries for each site
+              const timestamp = new Date();
+              for (const siteId of siteIds) {
+                  await db.query(
+                      'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                      [siteId, timestamp]
+                  );
+              }
               
               // Commit the transaction
               await db.query('COMMIT');
@@ -670,7 +766,6 @@ class SiteManagementService {
   
   async bulkReactivateClientSites(clientSiteIds) {
     try {
-      // Using a transaction to ensure all operations succeed or fail together
       await db.query('START TRANSACTION');
   
       try {
@@ -678,6 +773,15 @@ class SiteManagementService {
           'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID IN (?)',
           ['ACTIVE', clientSiteIds]
         );
+
+        // Insert log entries for each client-site
+        const timestamp = new Date();
+        for (const clientSiteId of clientSiteIds) {
+            await db.query(
+                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+                [clientSiteId, timestamp]
+            );
+        }
   
         await db.query('COMMIT');
         return { affectedRows: result.affectedRows };

@@ -77,6 +77,8 @@ const SiteManagement = () => {
 
   const [showEditSiteConfirmModal, setShowEditSiteConfirmModal] = useState(false);
   const [siteBeingEdited, setSiteBeingEdited] = useState(null);
+  const [showEditSuccessModal, setShowEditSuccessModal] = useState(false);
+  const [showEditErrorModal, setShowEditErrorModal] = useState(false);
 
   const [clientSiteStatusTab, setClientSiteStatusTab] = useState('ACTIVE');
   const [activeClientSites, setActiveClientSites] = useState([]);
@@ -373,8 +375,8 @@ const SiteManagement = () => {
       // Close the confirmation modal immediately
       setShowAddSiteConfirmModal(false);
       
-      // Show the success message
-      setSuccessMessage(`Site "${newSiteName}" successfully added`);
+      // Show the success message with the new site ID
+      setSuccessMessage(`Site "${newSiteName}" (ID: ${response.siteId}) successfully added`);
       setShowSuccessModal(true);
       
       // Reset form and refresh data
@@ -389,8 +391,7 @@ const SiteManagement = () => {
       // Close the confirmation modal
       setShowAddSiteConfirmModal(false);
       
-      // Check if it's a duplicate site error (you might need to adjust this condition
-      // based on how your backend reports the error)
+      // Check if it's a duplicate site error
       if (error.message && error.message.toLowerCase().includes('duplicate')) {
         setDuplicateSiteName(newSiteName);
         setShowDuplicateSiteModal(true);
@@ -637,6 +638,15 @@ const SiteManagement = () => {
 
   const confirmSaveSite = async () => {
     try {
+      // Check if the new name already exists
+      const isDuplicate = await checkDuplicateSite(siteBeingEdited.name);
+      
+      if (isDuplicate && siteBeingEdited.name.toLowerCase() !== siteBeingEdited.originalName.toLowerCase()) {
+        setShowEditSiteConfirmModal(false);
+        setShowEditErrorModal(true);
+        return;
+      }
+
       await manageSite('edit', { 
         siteId: siteBeingEdited.id || siteBeingEdited.dSite_ID,
         siteName: siteBeingEdited.name,
@@ -644,25 +654,17 @@ const SiteManagement = () => {
       });
   
       // Close the edit modal and confirmation modal
-      setEditModalOpen(false);
       setShowEditSiteConfirmModal(false);
-      
-      // Show the success message
-      setSuccessMessage(`Site "${siteBeingEdited.name}" successfully updated`);
-      setShowSuccessModal(true);
+      setShowEditSuccessModal(true);
       
       // Reset form and refresh data
       setCurrentSite(null);
       fetchSites();
       fetchSiteClients();
-      
-      // Auto-hide the success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 3000);
     } catch (error) {
       console.error('Error saving site:', error);
       setShowEditSiteConfirmModal(false);
+      setShowEditErrorModal(true);
     }
   };
 
@@ -2151,7 +2153,12 @@ const SiteManagement = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="modal-overlay">
-          <div className={`modal ${deleteType.includes('reactivate') ? 'reactivate-confirmation-modal' : 'delete-confirmation-modal'}`} style={{ maxWidth: "350px" }}>
+          <div className={`modal ${deleteType.includes('reactivate') ? 'reactivate-confirmation-modal' : 'delete-confirmation-modal'}`} 
+            style={{ 
+              maxWidth: deleteType.includes('client-site') ? "400px" : "300px",
+              borderTop: "none"
+            }}
+          >
             <div className="modal-header">
               <h2>          
                 {deleteType.includes('reactivate') ? (
@@ -2175,10 +2182,23 @@ const SiteManagement = () => {
               </p>
             )}
             {deleteType === 'bulk-sites' && (
-              <p>
-                You are about to deactivate <strong>{itemToDelete?.count} selected sites</strong>.
-                <br />This will hide them from the sites list but preserve their data.
-              </p>
+              <>
+                <p>
+                  You are about to deactivate <strong>{itemToDelete?.count} selected sites</strong>.
+                  <br />This will hide them from the sites list but preserve their data.
+                </p>
+                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
+                  {sites
+                    .filter(site => selectedSiteIds.includes(site.dSite_ID))
+                    .map(site => (
+                      <div key={site.dSite_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">Site ID: {site.dSite_ID} | {site.dSiteName}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
             )}
             {deleteType === 'bulk-clients' && (
               <p>
@@ -2193,10 +2213,23 @@ const SiteManagement = () => {
               </p>
             )}
             {deleteType === 'bulk-reactivate-sites' && (
-              <p>
-                You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
-                <br />This will make them visible in the active sites list.
-              </p>
+              <>
+                <p>
+                  You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
+                  <br />This will make them visible in the active sites list.
+                </p>
+                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
+                  {sites
+                    .filter(site => selectedSiteIds.includes(site.dSite_ID))
+                    .map(site => (
+                      <div key={site.dSite_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">Site ID: {site.dSite_ID} | {site.dSiteName}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
             )}
 
             {deleteType === 'client-site' && (
@@ -2212,20 +2245,50 @@ const SiteManagement = () => {
               </p>
             )}
             {deleteType === 'bulk-deactivate-client-sites' && (
-              <p>
-                You are about to deactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
-                <br />This will hide them from the active client-site assignments list but preserve their data.
-              </p>
+              <>
+                <p>
+                  You are about to deactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                  <br />This will hide them from the active client-site assignments list but preserve their data.
+                </p>
+                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
+                  {siteClients
+                    .filter(clientSite => selectedClientSiteIds.includes(clientSite.dClientSite_ID))
+                    .map(clientSite => (
+                      <div key={clientSite.dClientSite_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">
+                            ID: {clientSite.dClientSite_ID} | {clientSite.dClientName} | {clientSite.dLOB || 'No LOB'} | {clientSite.dSubLOB || 'No Sub LOB'} | {clientSite.dSiteName}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
             )}
             {deleteType === 'bulk-reactivate-client-sites' && (
-              <p>
-                You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
-                <br />This will make them visible in the active client-site assignments list.
-              </p>
+              <>
+                <p>
+                  You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                  <br />This will make them visible in the active client-site assignments list.
+                </p>
+                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
+                  {siteClients
+                    .filter(clientSite => selectedClientSiteIds.includes(clientSite.dClientSite_ID))
+                    .map(clientSite => (
+                      <div key={clientSite.dClientSite_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">
+                            ID: {clientSite.dClientSite_ID} | {clientSite.dClientName} | {clientSite.dLOB || 'No LOB'} | {clientSite.dSubLOB || 'No Sub LOB'} | {clientSite.dSiteName}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
             )}
             
             <div className="confirmation-input" style={{ textAlign: "center" }}>
-              <p style={{ textAlign: "center" }}>Type <strong>CONFIRM</strong> to proceed:</p>
+              <p style={{ textAlign: "center", marginBottom: "15px" }}>Type <strong>CONFIRM</strong> to proceed:</p>
               <input
                 type="text"
                 value={deleteConfirmText}
@@ -2239,6 +2302,11 @@ const SiteManagement = () => {
                 placeholder="CONFIRM"
                 className="confirmation-input-field"
                 maxLength={7}
+                style={{ 
+                  marginBottom: "20px",
+                  textAlign: "center",
+                  width: "120px"
+                }}
               />
             </div>
             
@@ -2418,6 +2486,49 @@ const SiteManagement = () => {
             <button
               className="save-btn"
               onClick={() => setShowClientAlreadyAddedModal(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Edit Site Error Modal */}
+    {showEditErrorModal && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '400px' }}>
+          <div className="modal-header">
+            <h2>Edit Unsuccessful</h2>
+          </div>
+          <p>The site "{siteBeingEdited?.name}" already exists in the database.</p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className="save-btn"
+              onClick={() => setShowEditErrorModal(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Edit Site Success Modal */}
+    {showEditSuccessModal && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '400px' }}>
+          <div className="modal-header">
+            <h2>Edit Successful</h2>
+          </div>
+          <p>Site name has been changed from "{siteBeingEdited?.originalName}" to "{siteBeingEdited?.name}".</p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className="save-btn"
+              onClick={() => {
+                setShowEditSuccessModal(false);
+                setEditModalOpen(false);
+              }}
             >
               OK
             </button>
