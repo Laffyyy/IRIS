@@ -7,6 +7,7 @@ import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import ProtectedRoute from './utilities/ProtectedRoute';
 import './App.css';
+import SiteManagement from './pages/admin/SiteManagement';
 
 // Layout for admin section
 function AdminLayout() {
@@ -76,6 +77,7 @@ function App() {
           <Route path="users" element={<UserManagement />} />
           <Route path="apps" element={<AppManagement />} />
           <Route path="clients" element={<ClientManagement />} />
+          <Route path="sites" element={<SiteManagement />} />
           {/* Add more admin sub-pages here */}
         </Route>
         <Route

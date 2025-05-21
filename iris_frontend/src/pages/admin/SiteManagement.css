@@ -222,63 +222,10 @@
   }
 }
 
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
-}
-
-.edit-btn,
-.delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 5px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.edit-btn {
-  color: #4299e1;
-}
-
-.edit-btn:hover {
-  background-color: #ebf8ff;
-  transform: scale(1.05);
-}
-
-.delete-btn {
-  color: #e53e3e;
-}
-
-.delete-btn:hover {
-  background-color: #fff5f5;
-  transform: scale(1.05);
-}
-
 .button-group {
   display: flex;
   gap: 10px;
   margin-top: 10px;
-}
-
-.cancel-button {
-  background-color: #e2e8f0;
-  color: #4a5568;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.cancel-button:hover {
-  background-color: #cbd5e0;
 }
 
 td:last-child {
