@@ -3,6 +3,7 @@ const cors = require('cors');
 const loginRoutes = require('./routes/loginroutes');
 const helmet = require('helmet');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
+const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 
 const app = express();
 
@@ -20,5 +21,6 @@ app.use(cors({
 
 app.use('/api/login', loginRoutes);
 app.use('/api/otp', otpRoutes); // Add this line to include the OTP routes
+app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
 
 module.exports = app;

@@ -22,6 +22,12 @@ const AlertModal = ({ isOpen, message, onClose, type = 'info' }) => {
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   const getIcon = () => {
     switch (type) {
       case 'success':
@@ -42,7 +48,7 @@ const AlertModal = ({ isOpen, message, onClose, type = 'info' }) => {
         <div className="alert-modal-content">
           <p>{message}</p>
         </div>
-        <button className="alert-modal-button" onClick={onClose}>
+        <button className="alert-modal-button" onClick={handleClose}>
           OK
         </button>
       </div>

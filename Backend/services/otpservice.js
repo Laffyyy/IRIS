@@ -1,8 +1,7 @@
-const db = require('../config/db');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-require('dotenv').config();
-
+const db = require("../config/db");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+require("dotenv").config();
 
 class OtpService {
   constructor() {
@@ -18,6 +17,15 @@ class OtpService {
 
   async generateOtp(userID) {
     try {
+      // Generate a new OTP
+      // Generate a new alphanumeric OTP
+      const chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      let otp = "";
+      for (let i = 0; i < 6; i++) {
+        otp += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // OTP valid for 3 minutes
       // Check if user exists and is active in either table
       let user = null;
       let table = null;
@@ -51,9 +59,6 @@ class OtpService {
         throw new Error('Account is deactivated or locked');
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
       // Check if an OTP already exists
       const [existingOtpRows] = await db.query(
         'SELECT * FROM tbl_otp WHERE dUser_ID = ?',
@@ -79,12 +84,15 @@ class OtpService {
         );
       }
 
-      // Send OTP email
+      // Retrieve the user's email using the helper function
+      const userEmail = await this.getUserEmail(userID);
+
+      // Send the OTP to the user's email
       const mailOptions = {
-        from: process.env.EMAIL_USER || "test@example.com",
-        to: user.dEmail,
-        subject: 'Your OTP Code',
-        text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`
+        from: process.env.EMAIL_USER, // Sender address
+        to: userEmail, // Recipient address
+        subject: "Your OTP Code", // Subject line
+        text: `Your OTP code is: ${otp}. It will expire in ${expiresAt} minutes.`, // Plain text body
       };
 
       try {
@@ -146,18 +154,37 @@ class OtpService {
       );
 
       if (otpRows.length === 0) {
-        throw new Error('No OTP found. Please request a new OTP.');
+        // Generate a new OTP if none exists
+        const generatedOtp = await this.generateOtp(userId);
+        console.log(`Generated OTP for user ${userId}: ${generatedOtp}`);
+        return {
+          message:
+            "No OTP found. A new OTP has been sent to your registered email or phone.",
+        };
       }
 
       const otpRecord = otpRows[0];
       const currentTime = new Date();
 
-      if (new Date(otpRecord.tOTP_Expires) < currentTime) {
-        throw new Error('OTP has expired. Please request a new OTP.');
+      // Check if OTP has already been used
+      if (otpRecord.dOTP_Status === 1) {
+        // Generate a new OTP since the current one is already used
+        const generatedOtp = await this.generateOtp(userId);
+        console.log(`Generated new OTP for user ${userId}: ${generatedOtp}`);
+        return {
+          message: "This OTP has already been used. A new OTP has been sent to your registered email.",
+        };
       }
 
-      if (otpRecord.dOTP_Status === 1) {
-        throw new Error('OTP has already been used. Please request a new OTP.');
+      // Check if the OTP is expired
+      if (new Date(otpRecord.tOTP_Expires) < currentTime) {
+        // Generate a new OTP if expired
+        const generatedOtp = await this.generateOtp(userId);
+        console.log(`Generated new OTP for user ${userId}: ${generatedOtp}`);
+        return {
+          message:
+            "OTP expired. A new OTP has been sent to your registered email or phone.",
+        };
       }
 
       if (otp !== otpRecord.dOTP) {
