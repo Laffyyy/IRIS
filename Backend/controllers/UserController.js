@@ -25,8 +25,13 @@ exports.createUser = async (req, res) => {
   const status = 'FIRST-TIME';
   const createdBy = 'admin'; // Assuming the creator is 'admin'
 
-  if (!email || !name || !password || !role) {
+  if (!email || !name || !password || !role || !employeeId) {
     return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  // Validate Employee ID format
+  if (!/^[0-9]{10}$/.test(employeeId)) {
+    return res.status(400).json({ message: 'Employee ID must be exactly 10 digits' });
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -91,6 +96,13 @@ exports.addUsersBulk = async (req, res) => {
     const users = req.body.users;
     if (!Array.isArray(users) || users.length === 0) {
       return res.status(400).json({ message: 'No users to add' });
+    }
+
+    // Validate Employee ID format for all users
+    for (const user of users) {
+      if (!user.employeeId || !/^[0-9]{10}$/.test(user.employeeId)) {
+        return res.status(400).json({ message: `Invalid Employee ID format for user ${user.email}. Must be exactly 10 digits.` });
+      }
     }
 
     // 1. Check for duplicates in the upload file

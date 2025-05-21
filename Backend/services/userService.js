@@ -107,6 +107,14 @@ exports.updateUserDynamic = async (userId, updateData) => {
     fields.push('securityQuestions=?');
     params.push(JSON.stringify(updateData.securityQuestions));
   }
+
+  if (updateData.expirationDate === true) {
+    const expirationDate = new Date();
+    expirationDate.setMinutes(expirationDate.getMinutes() + 15);
+    fields.push('tExpirationDate=?');
+    params.push(expirationDate);
+  }
+
   if (fields.length === 0) return { affectedRows: 0 };
   const query = `UPDATE iris.tbl_login SET ${fields.join(', ')} WHERE dLogin_ID=?`;
   params.push(userId);

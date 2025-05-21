@@ -12,8 +12,9 @@ function setupWebSocket(server) {
 }
 
 function broadcastUserUpdate() {
+  console.log('Broadcasting USER_UPDATE to all clients');
   clients.forEach(ws => {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState === ws.OPEN) {
       ws.send(JSON.stringify({ type: 'USER_UPDATE' }));
     }
   });

@@ -17,6 +17,9 @@ const UserManagement = () => {
     confirmPassword: ''
   });
 
+  // Add navigation state at the top with other state declarations
+  const [activeTable, setActiveTable] = useState('users');
+
   const [securityQuestionsData, setSecurityQuestionsData] = useState([
     { question: '', answer: '' },
     { question: '', answer: '' },
@@ -47,6 +50,11 @@ const UserManagement = () => {
     name: '',
     role: 'HR'
   });
+
+  // Add for click-and-drag selection
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragLastIndex, setDragLastIndex] = useState(null);
+  const [dragToggled, setDragToggled] = useState(new Set());
 
   // Debounced new user fields
   const [debouncedNewUser, setDebouncedNewUser] = useState(newUser);
@@ -160,14 +168,17 @@ const UserManagement = () => {
 
   // --- Sorting Handlers ---
   const handleSort = (key) => {
-    setSortConfig(prev => {
-      if (prev.key === key) {
-        if (prev.direction === 'asc') return { key, direction: 'desc' };
-        if (prev.direction === 'desc') return { key: null, direction: null };
+    // Only sort if we're on the active table
+    if (activeTable === 'users' || activeTable === 'admin' || activeTable === 'tickets' || activeTable === 'deactivated') {
+      setSortConfig(prev => {
+        if (prev.key === key) {
+          if (prev.direction === 'asc') return { key, direction: 'desc' };
+          if (prev.direction === 'desc') return { key: null, direction: null };
+          return { key, direction: 'asc' };
+        }
         return { key, direction: 'asc' };
-      }
-      return { key, direction: 'asc' };
-    });
+      });
+    }
   };
   const handleIndividualSort = (key) => {
     setIndividualSortConfig(prev => {
@@ -191,17 +202,30 @@ const UserManagement = () => {
   };
 
   // --- Filtering and Sorting Logic ---
-  const filteredUsers = users.filter(user => {
+  // Filter users based on the active tab
+  const tabFilteredUsers = React.useMemo(() => {
+    if (activeTable === 'admin') {
+      return users.filter(user => user.dUser_Type === 'ADMIN' && (statusFilter === 'All' || user.dStatus === statusFilter));
+    } else if (activeTable === 'tickets') {
+      return users.filter(user => (user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED') && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
+    } else if (activeTable === 'deactivated') {
+      return users.filter(user => user.dStatus === 'DEACTIVATED' && (roleFilter === 'All' || user.dUser_Type === roleFilter));
+    } else if (activeTable === 'users') {
+      // Only show ACTIVE and FIRST-TIME users in users tab, and exclude ADMIN users
+      return users.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN' && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
+    }
+    return users;
+  }, [users, activeTable, roleFilter, statusFilter]);
+
+  // Apply search filter to tabFilteredUsers
+  const filteredUsers = tabFilteredUsers.filter(user => {
     const matchesSearch =
       (user.dUser_ID && user.dUser_ID.toString().toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
       (user.dName && user.dName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
       (user.dEmail && user.dEmail.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
-    const matchesRole =
-      roleFilter === 'All' || (user.dUser_Type && user.dUser_Type === roleFilter);
-    const matchesStatus =
-      statusFilter === 'All' || (user.dStatus && user.dStatus === statusFilter);
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesSearch;
   });
+
   const sortedUsers = React.useMemo(() => {
     if (!sortConfig.key || !sortConfig.direction) return filteredUsers;
     const sorted = [...filteredUsers].sort((a, b) => {
@@ -360,40 +384,92 @@ const UserManagement = () => {
         return;
       }
 
+      // Helper function to sanitize input
+      const sanitizeInput = (input) => {
+        if (typeof input !== 'string') return '';
+        // Remove emojis and special characters, trim spaces
+        return input.toString()
+          .replace(emojiRegex, '')
+          .trim();
+      };
+
+      // Helper function to validate allowed characters
+      const validateAllowedChars = (input, type) => {
+        if (!input) return true;
+        switch(type) {
+          case 'name':
+            return allowedNameRegex.test(input);
+          case 'email':
+            return allowedEmailRegex.test(input);
+          case 'employeeId':
+            return /^[0-9]{10}$/.test(input);
+          default:
+            return true;
+        }
+      };
+
       // 3. Row/cell validation
       const parsedUsers = [];
       for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i];
-        const [employeeId, name, email, role, ...extra] = row;
+        let [employeeId, name, email, role, ...extra] = row.map(cell => sanitizeInput(cell));
         const reasons = [];
+
+        // Check for extra content
         const hasExtraContent = extra.some(cell => cell && cell.toString().trim() !== '');
         if (hasExtraContent) {
           reasons.push('Extra columns detected. Only EMPLOYEE ID, NAME, EMAIL, and ROLE should have values.');
         }
+
+        // Required field checks
         if (!employeeId) reasons.push('Missing Employee ID');
-        if (!name) reasons.push('Missing Name');
-        if (!email) reasons.push('Missing Email');
-        if (!role) reasons.push('Missing Role');
-        // Employee ID validation
-        if (employeeId && !/^[0-9]{1,10}$/.test(employeeId)) reasons.push('Employee ID must be numbers only and up to 10 digits');
-        // Name validation
-        if (name && name.length > 50) reasons.push('Name must be 50 characters or less');
-        // Email validation
-        if (email && email.length > 50) reasons.push('Email must be 50 characters or less');
-        const roleStr = typeof role === 'string' ? role : String(role || '');
-        if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
-          reasons.push('Invalid role');
+        else if (!validateAllowedChars(employeeId, 'employeeId')) {
+          reasons.push('Employee ID must be exactly 10 digits and contain only numbers');
         }
+
+        if (!name) reasons.push('Missing Name');
+        else if (!validateAllowedChars(name, 'name')) {
+          reasons.push('Name contains invalid characters. Only letters, numbers, dots, hyphens, and underscores are allowed');
+        }
+
+        if (!email) reasons.push('Missing Email');
+        else if (!validateAllowedChars(email, 'email')) {
+          reasons.push('Email contains invalid characters. Only letters, numbers, @, dots, hyphens, and underscores are allowed');
+        }
+
+        if (!role) reasons.push('Missing Role');
+        const roleStr = typeof role === 'string' ? role.trim().toUpperCase() : String(role || '').trim().toUpperCase();
+        if (roleStr && !allowedRoles.includes(roleStr)) {
+          reasons.push('Invalid role. Must be one of: ' + allowedRoles.join(', '));
+        }
+
+        // Length validations
+        if (name && name.length > 50) reasons.push('Name must be 50 characters or less');
+        if (email && email.length > 50) reasons.push('Email must be 50 characters or less');
+
+        // Email format validation
         const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
         if (email && !emailRegex.test(email)) {
-          reasons.unshift('Invalid email format');
+          reasons.push('Invalid email format');
         }
+
+        // Check for emojis or special characters
+        if (employeeId && emojiRegex.test(employeeId)) {
+          reasons.push('Employee ID contains emojis or special characters');
+        }
+        if (name && emojiRegex.test(name)) {
+          reasons.push('Name contains emojis or special characters');
+        }
+        if (email && emojiRegex.test(email)) {
+          reasons.push('Email contains emojis or special characters');
+        }
+
         if (reasons.length > 0) {
           parsedUsers.push({
             employeeId: employeeId || '',
             name: name || '',
             email: email || '',
-            role: role || '',
+            role: roleStr || '',
             reasons,
             notEditable: reasons.some(r => r.includes('database'))
           });
@@ -402,7 +478,7 @@ const UserManagement = () => {
             employeeId,
             name,
             email,
-            role,
+            role: roleStr,
             valid: true,
           });
         }
@@ -453,23 +529,57 @@ const UserManagement = () => {
       const validUsers = [];
       for (const user of parsedUsers) {
         const reasons = [];
-        // Re-apply char limit/format validation
-        if (!user.employeeId || !/^[0-9]{1,10}$/.test(user.employeeId)) reasons.push('Employee ID must be numbers only and up to 10 digits');
-        if (!user.name || user.name.length > 50) reasons.push('Name must be 50 characters or less');
-        if (!user.email || user.email.length > 50) reasons.push('Email must be 50 characters or less');
-        if (!user.role) reasons.push('Role is required');
-        const roleStr = typeof user.role === 'string' ? user.role : String(user.role || '');
-        if (roleStr && !allowedRoles.includes(roleStr.trim().toUpperCase())) {
+        const sanitizedUser = {
+          employeeId: sanitizeInput(user.employeeId),
+          name: sanitizeInput(user.name),
+          email: sanitizeInput(user.email),
+          role: sanitizeInput(user.role).toUpperCase()
+        };
+
+        // Re-apply all validations with sanitized data
+        if (!sanitizedUser.employeeId || !validateAllowedChars(sanitizedUser.employeeId, 'employeeId')) {
+          reasons.push('Employee ID must be exactly 10 digits and contain only numbers');
+        }
+        if (!sanitizedUser.name || !validateAllowedChars(sanitizedUser.name, 'name')) {
+          reasons.push('Name contains invalid characters. Only letters, numbers, dots, hyphens, and underscores are allowed');
+        }
+        if (!sanitizedUser.email || !validateAllowedChars(sanitizedUser.email, 'email')) {
+          reasons.push('Email contains invalid characters. Only letters, numbers, @, dots, hyphens, and underscores are allowed');
+        }
+        if (!sanitizedUser.role || !allowedRoles.includes(sanitizedUser.role)) {
           reasons.push('Role must be exactly one of: ' + allowedRoles.join(', '));
         }
-        if (idCounts[user.employeeId] > 1) reasons.push('Duplicate Employee ID in file');
-        if (emailCounts[user.email] > 1) reasons.push('Duplicate Email in file');
-        if (dbDuplicates.some(u => u.dUser_ID === user.employeeId)) reasons.push('Duplicate Employee ID in database');
-        if (dbDuplicates.some(u => u.dEmail === user.email)) reasons.push('Duplicate Email in database');
+
+        // Length validations
+        if (sanitizedUser.name && sanitizedUser.name.length > 50) reasons.push('Name must be 50 characters or less');
+        if (sanitizedUser.email && sanitizedUser.email.length > 50) reasons.push('Email must be 50 characters or less');
+
+        // Email format validation
+        if (sanitizedUser.email && !emailRegex.test(sanitizedUser.email)) {
+          reasons.push('Invalid email format');
+        }
+
+        // Check for emojis or special characters
+        if (emojiRegex.test(sanitizedUser.employeeId)) {
+          reasons.push('Employee ID contains emojis or special characters');
+        }
+        if (emojiRegex.test(sanitizedUser.name)) {
+          reasons.push('Name contains emojis or special characters');
+        }
+        if (emojiRegex.test(sanitizedUser.email)) {
+          reasons.push('Email contains emojis or special characters');
+        }
+
+        // Duplicate checks
+        if (idCounts[sanitizedUser.employeeId] > 1) reasons.push('Duplicate Employee ID in file');
+        if (emailCounts[sanitizedUser.email] > 1) reasons.push('Duplicate Email in file');
+        if (dbDuplicates.some(u => u.dUser_ID === sanitizedUser.employeeId)) reasons.push('Duplicate Employee ID in database');
+        if (dbDuplicates.some(u => u.dEmail === sanitizedUser.email)) reasons.push('Duplicate Email in database');
+
         if (reasons.length > 0) {
-          invalidUsers.push({ ...user, reasons, notEditable: reasons.some(r => r.includes('database')) });
+          invalidUsers.push({ ...sanitizedUser, reasons, notEditable: reasons.some(r => r.includes('database')) });
         } else {
-          validUsers.push(user);
+          validUsers.push(sanitizedUser);
         }
       }
       setBulkUsers(validUsers);
@@ -501,7 +611,7 @@ const UserManagement = () => {
       .replace('T', '_')
       .replace(/\.\d+Z$/, '')
       .slice(0, 19);
-    const csvContent = "EMPLOYEE ID,NAME,EMAIL,ROLE\nE001,John Doe,john@example.com,HR/REPORTS/CNB/ADMIN";
+    const csvContent = "EMPLOYEE ID,NAME,EMAIL,ROLE\n1234567890,John.Doe,john.doe@example.com,HR\n9876543210,Jane_Smith,jane.smith@example.com,REPORTS";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -529,11 +639,10 @@ const UserManagement = () => {
     const errors = {};
     // 1. Required fields
     if (!employeeId) errors.employeeId = 'Employee ID is required.';
+    else if (!/^[0-9]{10}$/.test(employeeId)) errors.employeeId = 'Employee ID must be exactly 10 digits.';
     if (!email) errors.email = 'Email is required.';
     if (!name) errors.name = 'Name is required.';
     if (!role) errors.role = 'Role is required.';
-    // Employee ID must be numbers only and up to 10 digits
-    if (employeeId && !/^[0-9]{1,10}$/.test(employeeId)) errors.employeeId = 'Employee ID must be numbers only and up to 10 digits.';
     // Name must be 50 characters or less
     if (name && name.length > 50) errors.name = 'Name must be 50 characters or less.';
     // Email must be 50 characters or less
@@ -605,7 +714,15 @@ const UserManagement = () => {
             }))
           })
         });
-        if (!response.ok) throw new Error('Failed to add users');
+        if (!response.ok) {
+          setShowIndividualResultModal(true);
+          setIndividualResultSuccess(false);
+          setIndividualResultMessage('Add user error: ' + (response.json().then(data => data.message) || 'Failed to add users'));
+          // Also show unified error modal
+          setActionErrorMessage('Add user error: ' + (response.json().then(data => data.message) || 'Failed to add users'));
+          setShowActionErrorModal(true);
+          return;
+        }
         const result = await response.json();
         setAddModalOpen(false);
         setIndividualPreview([]);
@@ -645,6 +762,9 @@ const UserManagement = () => {
         setShowBulkResultModal(true);
         setBulkResultSuccess(false);
         setBulkResultMessage('Bulk upload error: ' + errorMsg);
+        // Also show unified error modal
+        setActionErrorMessage(errorMsg);
+        setShowActionErrorModal(true);
         return;
       }
 
@@ -681,6 +801,9 @@ const UserManagement = () => {
           setShowDeleteResultModal(true);
           setDeleteResultSuccess(false);
           setDeleteResultMessage(result && result.message ? result.message : 'Failed to deactivate users');
+          // Also show unified error modal
+          setActionErrorMessage(result && result.message ? result.message : 'Failed to deactivate users');
+          setShowActionErrorModal(true);
           return;
         }
 
@@ -807,8 +930,8 @@ const UserManagement = () => {
       // If no user fields changed, but security questions did
       if (Object.keys(changedFields).length === 1 && securityQuestionsChanged) {
         setEditModalOpen(false);
-        setEditResultSuccess(true);
         setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
+        setEditResultSuccess(true);    
         setShowEditResultModal(true);
         return;
       }
@@ -833,6 +956,9 @@ const UserManagement = () => {
         setEditResultSuccess(false);
         setEditResultMessage(result && result.message ? result.message : 'Failed to update user');
         setShowEditResultModal(true);
+        // Also show unified error modal
+        setActionErrorMessage(result && result.message ? result.message : 'Failed to update user');
+        setShowActionErrorModal(true);
         return;
       }
       setEditModalOpen(false);
@@ -953,11 +1079,12 @@ const UserManagement = () => {
   // Add validation state for edit modal
   const [editUserErrors, setEditUserErrors] = useState({});
 
-  // Validation function for edit modal
-  function validateEditUser(user) {
+  // Add validation function for edit modal
+  async function validateEditUser(user, originalUser) {
     const errors = {};
+    // Basic validation
     if (!user.dUser_ID) errors.dUser_ID = 'Employee ID is required.';
-    else if (!/^[0-9]{1,10}$/.test(user.dUser_ID)) errors.dUser_ID = 'Employee ID must be numbers only and up to 10 digits.';
+    else if (!/^[0-9]{10}$/.test(user.dUser_ID)) errors.dUser_ID = 'Employee ID must be exactly 10 digits.';
     if (!user.dName) errors.dName = 'Name is required.';
     else if (user.dName.length > 50) errors.dName = 'Name must be 50 characters or less.';
     if (!user.dEmail) errors.dEmail = 'Email is required.';
@@ -968,6 +1095,31 @@ const UserManagement = () => {
     }
     if (!user.dUser_Type) errors.dUser_Type = 'Role is required.';
     if (!user.dStatus) errors.dStatus = 'Status is required.';
+
+    // Check for duplicates independently
+    if (user.dUser_ID !== originalUser.dUser_ID || user.dEmail !== originalUser.dEmail) {
+      try {
+        const response = await fetch('http://localhost:5000/api/users/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            employeeIds: [user.dUser_ID], 
+            emails: [user.dEmail],
+            excludeLoginId: user.dLogin_ID
+          })
+        });
+        const duplicates = await response.json();
+        if (user.dUser_ID !== originalUser.dUser_ID && Array.isArray(duplicates) && duplicates.some(u => u.dUser_ID === user.dUser_ID)) {
+          errors.dUser_ID = 'Duplicate Employee ID in database.';
+        }
+        if (user.dEmail !== originalUser.dEmail && Array.isArray(duplicates) && duplicates.some(u => u.dEmail === user.dEmail)) {
+          errors.dEmail = 'Duplicate Email in database.';
+        }
+      } catch (error) {
+        console.error('Error checking duplicates:', error);
+        errors.general = 'Error checking for duplicates. Please try again.';
+      }
+    }
     return errors;
   }
 
@@ -975,7 +1127,7 @@ const UserManagement = () => {
   useEffect(() => {
     if (editModalOpen && currentUser) {
       const handler = setTimeout(() => {
-        const newErrors = validateEditUser(currentUser);
+        const newErrors = validateEditUser(currentUser, originalUser);
         setEditUserErrors(prevErrors => {
           // Only update if errors actually changed
           const prevKeys = Object.keys(prevErrors);
@@ -992,7 +1144,7 @@ const UserManagement = () => {
 
       return () => clearTimeout(handler);
     }
-  }, [editModalOpen, currentUser]);
+  }, [editModalOpen, currentUser, originalUser]);
 
   // Add a function to check if there are changes between currentUser and originalUser
   function isUserChanged(current, original) {
@@ -1024,33 +1176,39 @@ const UserManagement = () => {
 
   // Improved WebSocket for real-time updates with auto-reconnect
   useEffect(() => {
-    let ws;
-    let reconnectTimeout;
+    const wsRef = { current: null };
+    let reconnectAttempts = 0;
+    let reconnectTimeout = null;
 
     function connect() {
-      ws = new window.WebSocket('ws://localhost:5000');
-      ws.onmessage = (event) => {
+      wsRef.current = new WebSocket('ws://localhost:5000');
+      wsRef.current.onopen = () => {
+        reconnectAttempts = 0;
+      };
+      wsRef.current.onmessage = (event) => {
+        console.log('WebSocket message received:', event.data);
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'USER_UPDATE') {
-            console.log('USER_UPDATE received');
             fetchUsers();
           }
         } catch (e) {}
       };
-      ws.onclose = () => {
-        // Try to reconnect after 2 seconds
-        reconnectTimeout = setTimeout(connect, 2000);
+      wsRef.current.onclose = () => {
+        // Exponential backoff for reconnection
+        reconnectAttempts++;
+        const timeout = Math.min(30000, 1000 * 2 ** reconnectAttempts);
+        reconnectTimeout = setTimeout(connect, timeout);
       };
-      ws.onerror = () => {
-        ws.close();
+      wsRef.current.onerror = () => {
+        wsRef.current.close();
       };
     }
 
     connect();
 
     return () => {
-      if (ws) ws.close();
+      if (wsRef.current) wsRef.current.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
   }, []);
@@ -1061,8 +1219,6 @@ const UserManagement = () => {
   // Add loading state for async DB duplicate check
   const [editValidCheckingDb, setEditValidCheckingDb] = useState(false);
   const [editInvalidCheckingDb, setEditInvalidCheckingDb] = useState(false);
-  // Add navigation state
-  const [activeTable, setActiveTable] = useState('users');
 
   // Add filtered users based on active tab
   const getFilteredUsers = () => {
@@ -1077,7 +1233,7 @@ const UserManagement = () => {
       }
     } else if (activeTable === 'tickets') {
       filtered = filtered.filter(user => 
-        user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE'
+        user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED'
       );
       if (roleFilter !== 'All') {
         filtered = filtered.filter(user => user.dUser_Type === roleFilter);
@@ -1132,12 +1288,15 @@ const UserManagement = () => {
       setStatusFilter('All');
     }
     setSelectedUsers([]); // Deselect all users when switching tabs
+    setSortConfig({ key: null, direction: null }); // Reset sorting when switching tabs
   }, [activeTable]);
 
   // Improved emoji regex (covers most emoji ranges)
   const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g;
   const allowedCharsRegex = /^[A-Za-z0-9@._-]+$/;
   const allowedNameRegex = /^[A-Za-z0-9._-]+$/;
+  const allowedEmailRegex = /^[A-Za-z0-9@._-]+$/;
+  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
   // Add new state for restore modal
   const [showRestoreModal, setShowRestoreModal] = useState(false);
@@ -1183,6 +1342,24 @@ const UserManagement = () => {
     }
   };
 
+  // Add global mouseup listener to stop dragging if mouse leaves table
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setDragLastIndex(null);
+      setDragToggled(new Set());
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  // Add state for no changes modal
+  const [showNoChangesModal, setShowNoChangesModal] = useState(false);
+
+  // Add state for unified action error modal
+  const [showActionErrorModal, setShowActionErrorModal] = useState(false);
+  const [actionErrorMessage, setActionErrorMessage] = useState('');
+
   return (
     <div className="user-management-container">
       <div className="user-management-card">
@@ -1198,7 +1375,11 @@ const UserManagement = () => {
               type="text"
               placeholder="Search users..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                // Only allow alphanumeric characters, spaces, and basic punctuation
+                const filteredValue = e.target.value.replace(/[^a-zA-Z0-9\s\-._@]/g, '').slice(0, 50);
+                setSearchTerm(filteredValue);
+              }}
             />
           </div>
 
@@ -1271,6 +1452,7 @@ const UserManagement = () => {
                   <option value="All">All Status</option>
                   <option value="NEED-RESET">NEED-RESET</option>
                   <option value="RESET-DONE">RESET-DONE</option>
+                  <option value="LOCKED">LOCKED</option>
                 </select>
               </div>
             </>
@@ -1302,7 +1484,7 @@ const UserManagement = () => {
               onClick={() => setActiveTable('tickets')}
             >
               <FaTicketAlt className="nav-icon" />
-              <span>Tickets ({users.filter(user => user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE').length})</span>
+              <span>Tickets ({users.filter(user => user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED').length})</span>
             </div>
             <div 
               className={`nav-item ${activeTable === 'deactivated' ? 'active' : ''}`} 
@@ -1347,8 +1529,14 @@ const UserManagement = () => {
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedUsers(sortedUsers.map(user => String(user.dUser_ID)));
+                                  // When selecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 } else {
                                   setSelectedUsers([]);
+                                  // When deselecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 }
                               }}
                             />
@@ -1361,55 +1549,69 @@ const UserManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredUsers().map((user, index) => (
+                    {sortedUsers.map((user, index) => (
                       <tr
-                        key={user.dUser_ID}
+                        key={user.dLogin_ID || user.dUser_ID}
                         className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                        onClick={(e) => {
+                        onMouseDown={e => {
+                          // Only handle row selection if not clicking on a checkbox or button
                           if (
-                            e.target.tagName !== 'BUTTON' &&
-                            e.target.tagName !== 'svg' &&
-                            e.target.tagName !== 'path' &&
-                            e.target.type !== 'checkbox'
-                          ) {
-                            if (e.shiftKey && anchorSelectedIndex !== null) {
-                                const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                              if (clickedIsSelected) {
-                                const start = Math.min(lastSelectedIndex, index);
-                                const end = Math.max(lastSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
-                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                                setLastSelectedIndex(index);
-                              } else {
-                                const start = Math.min(anchorSelectedIndex, index);
-                                const end = Math.max(anchorSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => String(u.dUser_ID));
-                                setSelectedUsers(prev => {
-                                  const newSet = new Set(prev);
-                                  rangeUserIds.forEach(id => newSet.add(id));
-                                  return Array.from(newSet);
-                                });
-                                setLastSelectedIndex(index);
-                              }
+                            e.target.tagName === 'INPUT' && e.target.type === 'checkbox'
+                          ) return;
+                          if (
+                            e.target.tagName === 'BUTTON' ||
+                            e.target.tagName === 'svg' ||
+                            e.target.tagName === 'path'
+                          ) return;
+                          setIsDragging(true);
+                          setDragLastIndex(index);
+                          setDragToggled(new Set([index]));
+                          setSelectedUsers(prev => {
+                            if (prev.includes(user.dUser_ID)) {
+                              return prev.filter(id => id !== user.dUser_ID);
                             } else {
-                              setSelectedUsers(prev =>
-                                  selectedUsers.includes(user.dUser_ID)
-                                  ? prev.filter(id => id !== user.dUser_ID)
-                                  : [...prev, user.dUser_ID]
-                              );
-                                if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                                setLastSelectedIndex(index);
-                              }
-                                if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                                setLastSelectedIndex(null);
-                              }
-                                if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                                setLastSelectedIndex(index);
+                              return [...prev, user.dUser_ID];
+                            }
+                          });
+                        }}
+                        onMouseEnter={() => {
+                          if (isDragging && dragLastIndex !== null && dragLastIndex !== index) {
+                            // Get all indices between dragLastIndex and current index
+                            const start = Math.min(dragLastIndex, index);
+                            const end = Math.max(dragLastIndex, index);
+                            const indicesToToggle = [];
+                            for (let i = start; i <= end; i++) {
+                              if (!dragToggled.has(i)) {
+                                indicesToToggle.push(i);
                               }
                             }
+                            if (indicesToToggle.length > 0) {
+                              setSelectedUsers(prev => {
+                                let newSelected = [...prev];
+                                indicesToToggle.forEach(i => {
+                                  const rowUser = sortedUsers[i];
+                                  if (!rowUser) return;
+                                  if (newSelected.includes(rowUser.dUser_ID)) {
+                                    newSelected = newSelected.filter(id => id !== rowUser.dUser_ID);
+                                  } else {
+                                    newSelected.push(rowUser.dUser_ID);
+                                  }
+                                });
+                                return newSelected;
+                              });
+                              setDragToggled(prevSet => {
+                                const newSet = new Set(prevSet);
+                                indicesToToggle.forEach(i => newSet.add(i));
+                                return newSet;
+                              });
+                            }
+                            setDragLastIndex(index);
                           }
+                        }}
+                        onMouseUp={() => {
+                          setIsDragging(false);
+                          setDragLastIndex(null);
+                          setDragToggled(new Set());
                         }}
                       >
                         <td>{user.dUser_ID}</td>
@@ -1434,13 +1636,14 @@ const UserManagement = () => {
                             </button>
                             <input
                               type="checkbox"
-                                checked={selectedUsers.includes(user.dUser_ID)}
-                              onChange={(e) => {
-                                e.stopPropagation();
+                              checked={selectedUsers.includes(user.dUser_ID)}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                // Only handle checkbox toggle, prevent row click
                                 setSelectedUsers(prev =>
                                   e.target.checked
-                                    ? [...prev, String(user.dUser_ID)]
-                                    : prev.filter(id => id !== String(user.dUser_ID))
+                                    ? [...prev, user.dUser_ID]
+                                    : prev.filter(id => id !== user.dUser_ID)
                                 );
                                 if (!e.target.checked && selectedUsers.length === 1) {
                                   setAnchorSelectedIndex(null);
@@ -1492,8 +1695,14 @@ const UserManagement = () => {
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                  // When selecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 } else {
                                   setSelectedUsers([]);
+                                  // When deselecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 }
                               }}
                             />
@@ -1506,55 +1715,69 @@ const UserManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredUsers().map((user, index) => (
+                    {sortedUsers.map((user, index) => (
                       <tr
-                        key={user.dUser_ID}
+                        key={user.dLogin_ID || user.dUser_ID}
                         className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                        onClick={(e) => {
+                        onMouseDown={e => {
+                          // Only handle row selection if not clicking on a checkbox or button
                           if (
-                            e.target.tagName !== 'BUTTON' &&
-                            e.target.tagName !== 'svg' &&
-                            e.target.tagName !== 'path' &&
-                            e.target.type !== 'checkbox'
-                          ) {
-                            if (e.shiftKey && anchorSelectedIndex !== null) {
-                              const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                              if (clickedIsSelected) {
-                                const start = Math.min(lastSelectedIndex, index);
-                                const end = Math.max(lastSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                                setLastSelectedIndex(index);
-                              } else {
-                                const start = Math.min(anchorSelectedIndex, index);
-                                const end = Math.max(anchorSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                                setSelectedUsers(prev => {
-                                  const newSet = new Set(prev);
-                                  rangeUserIds.forEach(id => newSet.add(id));
-                                  return Array.from(newSet);
-                                });
-                                setLastSelectedIndex(index);
-                              }
+                            e.target.tagName === 'INPUT' && e.target.type === 'checkbox'
+                          ) return;
+                          if (
+                            e.target.tagName === 'BUTTON' ||
+                            e.target.tagName === 'svg' ||
+                            e.target.tagName === 'path'
+                          ) return;
+                          setIsDragging(true);
+                          setDragLastIndex(index);
+                          setDragToggled(new Set([index]));
+                          setSelectedUsers(prev => {
+                            if (prev.includes(user.dUser_ID)) {
+                              return prev.filter(id => id !== user.dUser_ID);
                             } else {
-                              setSelectedUsers(prev =>
-                                selectedUsers.includes(user.dUser_ID)
-                                  ? prev.filter(id => id !== user.dUser_ID)
-                                  : [...prev, user.dUser_ID]
-                              );
-                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                                setLastSelectedIndex(index);
-                              }
-                              if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                                setLastSelectedIndex(null);
-                              }
-                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                                setLastSelectedIndex(index);
+                              return [...prev, user.dUser_ID];
+                            }
+                          });
+                        }}
+                        onMouseEnter={() => {
+                          if (isDragging && dragLastIndex !== null && dragLastIndex !== index) {
+                            // Get all indices between dragLastIndex and current index
+                            const start = Math.min(dragLastIndex, index);
+                            const end = Math.max(dragLastIndex, index);
+                            const indicesToToggle = [];
+                            for (let i = start; i <= end; i++) {
+                              if (!dragToggled.has(i)) {
+                                indicesToToggle.push(i);
                               }
                             }
+                            if (indicesToToggle.length > 0) {
+                              setSelectedUsers(prev => {
+                                let newSelected = [...prev];
+                                indicesToToggle.forEach(i => {
+                                  const rowUser = sortedUsers[i];
+                                  if (!rowUser) return;
+                                  if (newSelected.includes(rowUser.dUser_ID)) {
+                                    newSelected = newSelected.filter(id => id !== rowUser.dUser_ID);
+                                  } else {
+                                    newSelected.push(rowUser.dUser_ID);
+                                  }
+                                });
+                                return newSelected;
+                              });
+                              setDragToggled(prevSet => {
+                                const newSet = new Set(prevSet);
+                                indicesToToggle.forEach(i => newSet.add(i));
+                                return newSet;
+                              });
+                            }
+                            setDragLastIndex(index);
                           }
+                        }}
+                        onMouseUp={() => {
+                          setIsDragging(false);
+                          setDragLastIndex(null);
+                          setDragToggled(new Set());
                         }}
                       >
                         <td>{user.dUser_ID}</td>
@@ -1580,8 +1803,9 @@ const UserManagement = () => {
                             <input
                               type="checkbox"
                               checked={selectedUsers.includes(user.dUser_ID)}
-                              onChange={(e) => {
-                                e.stopPropagation();
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                // Only handle checkbox toggle, prevent row click
                                 setSelectedUsers(prev =>
                                   e.target.checked
                                     ? [...prev, user.dUser_ID]
@@ -1637,8 +1861,14 @@ const UserManagement = () => {
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                  // When selecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 } else {
                                   setSelectedUsers([]);
+                                  // When deselecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 }
                               }}
                             />
@@ -1651,55 +1881,69 @@ const UserManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredUsers().map((user, index) => (
+                    {sortedUsers.map((user, index) => (
                       <tr
-                        key={user.dUser_ID}
+                        key={user.dLogin_ID || user.dUser_ID}
                         className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                        onClick={(e) => {
+                        onMouseDown={e => {
+                          // Only handle row selection if not clicking on a checkbox or button
                           if (
-                            e.target.tagName !== 'BUTTON' &&
-                            e.target.tagName !== 'svg' &&
-                            e.target.tagName !== 'path' &&
-                            e.target.type !== 'checkbox'
-                          ) {
-                            if (e.shiftKey && anchorSelectedIndex !== null) {
-                              const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                              if (clickedIsSelected) {
-                                const start = Math.min(lastSelectedIndex, index);
-                                const end = Math.max(lastSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                                setLastSelectedIndex(index);
-                              } else {
-                                const start = Math.min(anchorSelectedIndex, index);
-                                const end = Math.max(anchorSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                                setSelectedUsers(prev => {
-                                  const newSet = new Set(prev);
-                                  rangeUserIds.forEach(id => newSet.add(id));
-                                  return Array.from(newSet);
-                                });
-                                setLastSelectedIndex(index);
-                              }
+                            e.target.tagName === 'INPUT' && e.target.type === 'checkbox'
+                          ) return;
+                          if (
+                            e.target.tagName === 'BUTTON' ||
+                            e.target.tagName === 'svg' ||
+                            e.target.tagName === 'path'
+                          ) return;
+                          setIsDragging(true);
+                          setDragLastIndex(index);
+                          setDragToggled(new Set([index]));
+                          setSelectedUsers(prev => {
+                            if (prev.includes(user.dUser_ID)) {
+                              return prev.filter(id => id !== user.dUser_ID);
                             } else {
-                              setSelectedUsers(prev =>
-                                selectedUsers.includes(user.dUser_ID)
-                                  ? prev.filter(id => id !== user.dUser_ID)
-                                  : [...prev, user.dUser_ID]
-                              );
-                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                                setLastSelectedIndex(index);
-                              }
-                              if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                                setLastSelectedIndex(null);
-                              }
-                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                                setLastSelectedIndex(index);
+                              return [...prev, user.dUser_ID];
+                            }
+                          });
+                        }}
+                        onMouseEnter={() => {
+                          if (isDragging && dragLastIndex !== null && dragLastIndex !== index) {
+                            // Get all indices between dragLastIndex and current index
+                            const start = Math.min(dragLastIndex, index);
+                            const end = Math.max(dragLastIndex, index);
+                            const indicesToToggle = [];
+                            for (let i = start; i <= end; i++) {
+                              if (!dragToggled.has(i)) {
+                                indicesToToggle.push(i);
                               }
                             }
+                            if (indicesToToggle.length > 0) {
+                              setSelectedUsers(prev => {
+                                let newSelected = [...prev];
+                                indicesToToggle.forEach(i => {
+                                  const rowUser = sortedUsers[i];
+                                  if (!rowUser) return;
+                                  if (newSelected.includes(rowUser.dUser_ID)) {
+                                    newSelected = newSelected.filter(id => id !== rowUser.dUser_ID);
+                                  } else {
+                                    newSelected.push(rowUser.dUser_ID);
+                                  }
+                                });
+                                return newSelected;
+                              });
+                              setDragToggled(prevSet => {
+                                const newSet = new Set(prevSet);
+                                indicesToToggle.forEach(i => newSet.add(i));
+                                return newSet;
+                              });
+                            }
+                            setDragLastIndex(index);
                           }
+                        }}
+                        onMouseUp={() => {
+                          setIsDragging(false);
+                          setDragLastIndex(null);
+                          setDragToggled(new Set());
                         }}
                       >
                         <td>{user.dUser_ID}</td>
@@ -1725,8 +1969,9 @@ const UserManagement = () => {
                             <input
                               type="checkbox"
                               checked={selectedUsers.includes(user.dUser_ID)}
-                              onChange={(e) => {
-                                e.stopPropagation();
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                // Only handle checkbox toggle, prevent row click
                                 setSelectedUsers(prev =>
                                   e.target.checked
                                     ? [...prev, user.dUser_ID]
@@ -1782,8 +2027,14 @@ const UserManagement = () => {
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                  // When selecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 } else {
                                   setSelectedUsers([]);
+                                  // When deselecting all, clear anchor/last
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
                                 }
                               }}
                             />
@@ -1796,55 +2047,69 @@ const UserManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredUsers().map((user, index) => (
+                    {sortedUsers.map((user, index) => (
                       <tr
-                        key={user.dUser_ID}
+                        key={user.dLogin_ID || user.dUser_ID}
                         className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
-                        onClick={(e) => {
+                        onMouseDown={e => {
+                          // Only handle row selection if not clicking on a checkbox or button
                           if (
-                            e.target.tagName !== 'BUTTON' &&
-                            e.target.tagName !== 'svg' &&
-                            e.target.tagName !== 'path' &&
-                            e.target.type !== 'checkbox'
-                          ) {
-                            if (e.shiftKey && anchorSelectedIndex !== null) {
-                              const clickedIsSelected = selectedUsers.includes(user.dUser_ID);
-                              if (clickedIsSelected) {
-                                const start = Math.min(lastSelectedIndex, index);
-                                const end = Math.max(lastSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                                setSelectedUsers(prev => prev.filter(id => !rangeUserIds.includes(id)));
-                                setLastSelectedIndex(index);
-                              } else {
-                                const start = Math.min(anchorSelectedIndex, index);
-                                const end = Math.max(anchorSelectedIndex, index);
-                                const rangeUserIds = sortedUsers.slice(start, end + 1).map(u => u.dUser_ID);
-                                setSelectedUsers(prev => {
-                                  const newSet = new Set(prev);
-                                  rangeUserIds.forEach(id => newSet.add(id));
-                                  return Array.from(newSet);
-                                });
-                                setLastSelectedIndex(index);
-                              }
+                            e.target.tagName === 'INPUT' && e.target.type === 'checkbox'
+                          ) return;
+                          if (
+                            e.target.tagName === 'BUTTON' ||
+                            e.target.tagName === 'svg' ||
+                            e.target.tagName === 'path'
+                          ) return;
+                          setIsDragging(true);
+                          setDragLastIndex(index);
+                          setDragToggled(new Set([index]));
+                          setSelectedUsers(prev => {
+                            if (prev.includes(user.dUser_ID)) {
+                              return prev.filter(id => id !== user.dUser_ID);
                             } else {
-                              setSelectedUsers(prev =>
-                                selectedUsers.includes(user.dUser_ID)
-                                  ? prev.filter(id => id !== user.dUser_ID)
-                                  : [...prev, user.dUser_ID]
-                              );
-                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 0) {
-                                setAnchorSelectedIndex(index);
-                                setLastSelectedIndex(index);
-                              }
-                              if (selectedUsers.includes(user.dUser_ID) && selectedUsers.length === 1) {
-                                setAnchorSelectedIndex(null);
-                                setLastSelectedIndex(null);
-                              }
-                              if (!selectedUsers.includes(user.dUser_ID) && selectedUsers.length > 0) {
-                                setLastSelectedIndex(index);
+                              return [...prev, user.dUser_ID];
+                            }
+                          });
+                        }}
+                        onMouseEnter={() => {
+                          if (isDragging && dragLastIndex !== null && dragLastIndex !== index) {
+                            // Get all indices between dragLastIndex and current index
+                            const start = Math.min(dragLastIndex, index);
+                            const end = Math.max(dragLastIndex, index);
+                            const indicesToToggle = [];
+                            for (let i = start; i <= end; i++) {
+                              if (!dragToggled.has(i)) {
+                                indicesToToggle.push(i);
                               }
                             }
+                            if (indicesToToggle.length > 0) {
+                              setSelectedUsers(prev => {
+                                let newSelected = [...prev];
+                                indicesToToggle.forEach(i => {
+                                  const rowUser = sortedUsers[i];
+                                  if (!rowUser) return;
+                                  if (newSelected.includes(rowUser.dUser_ID)) {
+                                    newSelected = newSelected.filter(id => id !== rowUser.dUser_ID);
+                                  } else {
+                                    newSelected.push(rowUser.dUser_ID);
+                                  }
+                                });
+                                return newSelected;
+                              });
+                              setDragToggled(prevSet => {
+                                const newSet = new Set(prevSet);
+                                indicesToToggle.forEach(i => newSet.add(i));
+                                return newSet;
+                              });
+                            }
+                            setDragLastIndex(index);
                           }
+                        }}
+                        onMouseUp={() => {
+                          setIsDragging(false);
+                          setDragLastIndex(null);
+                          setDragToggled(new Set());
                         }}
                       >
                         <td>{user.dUser_ID}</td>
@@ -1868,8 +2133,9 @@ const UserManagement = () => {
                             <input
                               type="checkbox"
                               checked={selectedUsers.includes(user.dUser_ID)}
-                              onChange={(e) => {
-                                e.stopPropagation();
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                // Only handle checkbox toggle, prevent row click
                                 setSelectedUsers(prev =>
                                   e.target.checked
                                     ? [...prev, user.dUser_ID]
@@ -1939,6 +2205,7 @@ const UserManagement = () => {
                 setPreviewTab('valid');
                 setFile(null);
                 setFileError('');
+                setIndividualAddErrors({}); // <-- reset errors
                 if (employeeIdRef.current) employeeIdRef.current.value = '';
                 if (emailRef.current) emailRef.current.value = '';
                 if (nameRef.current) nameRef.current.value = '';
@@ -1976,7 +2243,8 @@ const UserManagement = () => {
                       ref={employeeIdRef}
                       required
                       maxLength={10}
-                      pattern="\\d{1,10}"
+                      minLength={10}
+                      pattern="[0-9]{10}"
                       onInput={e => {
                         // Only allow numbers, no whitespace, no emojis
                         e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
@@ -1997,8 +2265,11 @@ const UserManagement = () => {
                       required
                       maxLength={50}
                       onInput={e => {
-                        // Only allow A-Za-z0-9@._-, no whitespace, no emojis
-                        e.target.value = e.target.value.replace(/[^A-Za-z0-9@._-]/g, '');
+                        // Remove all whitespace, consecutive special chars, and special char as first char
+                        e.target.value = e.target.value
+                          .replace(/\s+/g, '')
+                          .replace(/([@\-_. ,])\1+/g, '$1')
+                          .replace(/^[@\-_. ,]+/, '');
                       }}
                       onChange={() => setIndividualAddErrors(errors => ({ ...errors, email: undefined }))}
                     />
@@ -2014,12 +2285,14 @@ const UserManagement = () => {
                     <input
                       type="text"
                       name="name"
-                    ref={nameRef}
+                      ref={nameRef}
                       required
                       maxLength={50}
                       onInput={e => {
-                        // Only allow A-Za-z0-9-_. no whitespace, no emojis
-                        e.target.value = e.target.value.replace(/[^A-Za-z0-9._-]/g, '');
+                        // Remove consecutive special chars and special char as first char
+                        e.target.value = e.target.value
+                          .replace(/([@\-_. ,])\1+/g, '$1')
+                          .replace(/^[@\-_. ,]+/, '');
                       }}
                       onChange={() => setIndividualAddErrors(errors => ({ ...errors, name: undefined }))}
                     />
@@ -2071,7 +2344,11 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Search..."
                         value={debouncedIndividualSearchTerm}
-                        onChange={e => setDebouncedIndividualSearchTerm(e.target.value)}
+                        onChange={e => {
+                          // Only allow alphanumeric characters, spaces, and basic punctuation
+                          const filteredValue = e.target.value.replace(/[^a-zA-Z0-9\s\-._@]/g, '').slice(0, 50);
+                          setDebouncedIndividualSearchTerm(filteredValue);
+                        }}
                         style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
                       />
                       <select value={individualRoleFilter} onChange={e => setIndividualRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
@@ -2181,7 +2458,11 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Search..."
                         value={debouncedBulkSearchTerm}
-                        onChange={e => setDebouncedBulkSearchTerm(e.target.value)}
+                        onChange={e => {
+                          // Only allow alphanumeric characters, spaces, and basic punctuation
+                          const filteredValue = e.target.value.replace(/[^a-zA-Z0-9\s\-._@]/g, '').slice(0, 50);
+                          setDebouncedBulkSearchTerm(filteredValue);
+                        }}
                         style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
                       />
                       <select value={bulkRoleFilter} onChange={e => setBulkRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
@@ -2304,6 +2585,7 @@ const UserManagement = () => {
                     setPreviewTab('valid');
                     setFile(null);
                     setFileError('');
+                    setIndividualAddErrors({}); // <-- reset errors
                     if (employeeIdRef.current) employeeIdRef.current.value = '';
                     if (emailRef.current) emailRef.current.value = '';
                     if (nameRef.current) nameRef.current.value = '';
@@ -2364,11 +2646,13 @@ const UserManagement = () => {
             <input
               type="text"
               value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              onChange={(e) => setDeleteConfirmText(e.target.value.slice(0, 7))}
               placeholder="Type DELETE to confirm"
-                className="delete-confirm-input"
+              className="delete-confirm-input"
+              maxLength={7}
               onInput={e => {
-                e.target.value = e.target.value.replace(/[^A-Z]/g, '');
+                // Allow both cases for input
+                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
               }}
             />
             </div>
@@ -2384,7 +2668,8 @@ const UserManagement = () => {
               </button>
               <button
                 className="delete-btn"
-                disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE'}
+                // Require uppercase for confirmation
+                disabled={deleteConfirmText.trim() !== 'DELETE'}
                 onClick={() => {
                   setLastDeleteCount(selectedUsers.length);
                   handleDeleteUsers();
@@ -2402,7 +2687,7 @@ const UserManagement = () => {
         <div className="modal-overlay">
           <div className="modal edit-user-modal" style={{ position: 'relative' }}>
             <button
-              onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }}
+              onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); setEmployeeIdEditable(false); }}
               className="close-btn"
               style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}
             >
@@ -2428,15 +2713,32 @@ const UserManagement = () => {
                     type="text"
                     name="employeeId"
                     value={currentUser.dUser_ID}
-                    onChange={(e) => setCurrentUser({ ...currentUser, dUser_ID: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
+                    onChange={(e) => {
+                      const newValue = e.target.value.replace(/[^0-9]/g, '').slice(0, 10).trim();
+                      setCurrentUser({ ...currentUser, dUser_ID: newValue });
+                      // Clear error when user types
+                      if (editUserErrors.dUser_ID) {
+                        setEditUserErrors(prev => ({ ...prev, dUser_ID: undefined }));
+                      }
+                    }}
                     readOnly={!employeeIdEditable}
-                    className={!employeeIdEditable ? 'disabled-input' : ''}
+                    className={`${!employeeIdEditable ? 'disabled-input' : ''} ${editUserErrors.dUser_ID ? 'error-input' : ''}`}
                     required
                     maxLength={10}
-                    pattern="\\d{1,10}"
-                    style={{ background: !employeeIdEditable ? '#f5f5f5' : undefined, color: !employeeIdEditable ? '#aaa' : undefined, cursor: !employeeIdEditable ? 'not-allowed' : undefined }}
+                    minLength={10}
+                    pattern="[0-9]{10}"
+                    style={{ 
+                      background: !employeeIdEditable ? '#f5f5f5' : undefined, 
+                      color: !employeeIdEditable ? '#aaa' : undefined, 
+                      cursor: !employeeIdEditable ? 'not-allowed' : undefined,
+                      borderColor: editUserErrors.dUser_ID ? '#ff4444' : undefined
+                    }}
                   />
-                  {editUserErrors.dUser_ID && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_ID}</div>}
+                  {editUserErrors.dUser_ID && (
+                    <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
+                      {editUserErrors.dUser_ID}
+                    </div>
+                  )}
                 </div>
                 <div className="employee-id-checkbox-row" style={{ marginBottom: 16 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
@@ -2456,11 +2758,34 @@ const UserManagement = () => {
                     type="email"
                     name="email"
                     value={currentUser.dEmail}
-                    onChange={(e) => setCurrentUser({...currentUser, dEmail: e.target.value.slice(0, 50)})}
+                    onInput={e => {
+                      // Remove all whitespace, consecutive special chars, and special char as first char
+                      e.target.value = e.target.value
+                        .replace(/\s+/g, '')
+                        .replace(/([@\-_. ,])\1+/g, '$1')
+                        .replace(/^[@\-_. ,]+/, '');
+                    }}
+                    onChange={(e) => {
+                      let value = e.target.value
+                        .replace(/[^A-Za-z0-9@\-_. ,]/g, '') // Only allowed chars
+                        .replace(/\s+/g, '') // Remove all whitespace
+                        .replace(/([@\-_. ,])\1+/g, '$1') // No consecutive special chars
+                        .replace(/^[@\-_. ,]+/, ''); // No special char as first char
+                      setCurrentUser({...currentUser, dEmail: value});
+                      if (editUserErrors.dEmail) {
+                        setEditUserErrors(prev => ({ ...prev, dEmail: undefined }));
+                      }
+                    }}
+                    className={editUserErrors.dEmail ? 'error-input' : ''}
                     required
                     maxLength={50}
+                    style={{ borderColor: editUserErrors.dEmail ? '#ff4444' : undefined }}
                   />
-                  {editUserErrors.dEmail && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dEmail}</div>}
+                  {editUserErrors.dEmail && (
+                    <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
+                      {editUserErrors.dEmail}
+                    </div>
+                  )}
                 </div>
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label>Name:</label>
@@ -2468,11 +2793,26 @@ const UserManagement = () => {
                     type="text"
                     name="name"
                     value={currentUser.dName}
-                    onChange={(e) => setCurrentUser({...currentUser, dName: e.target.value.slice(0, 50)})}
+                    onChange={(e) => {
+                      let value = e.target.value
+                        .replace(/[^A-Za-z0-9@\-_. ,]/g, '') // Only allowed chars
+                        .replace(/  +/g, ' ') // No double spaces
+                        .replace(/^ +/, ''); // No leading space
+                      setCurrentUser({...currentUser, dName: value});
+                      if (editUserErrors.dName) {
+                        setEditUserErrors(prev => ({ ...prev, dName: undefined }));
+                      }
+                    }}
+                    className={editUserErrors.dName ? 'error-input' : ''}
                     required
                     maxLength={50}
+                    style={{ borderColor: editUserErrors.dName ? '#ff4444' : undefined }}
                   />
-                  {editUserErrors.dName && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dName}</div>}
+                  {editUserErrors.dName && (
+                    <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
+                      {editUserErrors.dName}
+                    </div>
+                  )}
                 </div>
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label>Role:</label>
@@ -2499,13 +2839,13 @@ const UserManagement = () => {
                       <>
                         <option value="RESET-DONE">RESET-DONE</option>
                         <option value="ACTIVE">ACTIVE</option>
-                        <option value="DEACTIVATE">DEACTIVATE</option>
+                        <option value="LOCKED">LOCKED</option>
                       </>
                     ) : (
                       <>
                         {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
                         <option value="ACTIVE">ACTIVE</option>
-                        <option value="DEACTIVATE">DEACTIVATE</option>
+                        <option value="LOCKED">LOCKED</option>
                       </>
                     )}
                   </select>
@@ -2587,12 +2927,18 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Type RESET to confirm"
                         value={resetConfirmText}
-                        onChange={e => setResetConfirmText(e.target.value)}
+                        onChange={e => setResetConfirmText(e.target.value.slice(0, 7))}
+                        maxLength={7}
                         style={{ padding: 6, border: '1px solid #ccc', borderRadius: 4, marginRight: 8 }}
+                        onInput={e => {
+                          // Allow both cases for input
+                          e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                        }}
                       />
                       <button
                         className="save-btn"
                         style={{ padding: '6px 14px', fontSize: 13 }}
+                        // Require uppercase for confirmation
                         disabled={resetConfirmText !== 'RESET'}
                         onClick={() => setResetConfirmed(true)}
                       >
@@ -2609,17 +2955,30 @@ const UserManagement = () => {
               </div>
             </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); }}>Cancel</button>
+              <button className="cancel-btn" onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); setEmployeeIdEditable(false); }}>Cancel</button>
               <button
-                onClick={() => { setPendingEditUser(currentUser); setShowEditConfirmModal(true); }}
+                onClick={async () => {
+                  // 1. Check if any changes were made
+                  if (!isEditActionChanged()) {
+                    setShowNoChangesModal(true);
+                    return;
+                  }
+                  // Always trim before validation
+                  const trimmedUser = {
+                    ...currentUser,
+                    dEmail: currentUser.dEmail.replace(/ +$/, ''), // Remove trailing spaces
+                    dName: currentUser.dName.replace(/ +$/, ''),
+                    dUser_ID: currentUser.dUser_ID.trim()
+                  };
+                  const validationErrors = await validateEditUser(trimmedUser, originalUser);
+                  setEditUserErrors(validationErrors);
+                  // Only proceed if no validation errors
+                  if (Object.keys(validationErrors).length === 0) {
+                    setPendingEditUser(trimmedUser);
+                    setShowEditConfirmModal(true);
+                  }
+                }}
                 className="save-btn"
-                disabled={
-                  passwordMismatch ||
-                  Object.keys(editUserErrors).length > 0 ||
-                  (editUserErrors.dUser_ID && editUserErrors.dUser_ID.includes('Duplicate Employee ID in database')) ||
-                  (editUserErrors.dEmail && editUserErrors.dEmail.includes('Duplicate Email in database')) ||
-                  !isEditActionChanged()
-                }
               >
                 Save Changes
               </button>
@@ -2704,13 +3063,7 @@ const UserManagement = () => {
             <div className="modal-header">
               <h2>{editResultSuccess ? 'Edit Successful' : 'Edit Failed'}</h2>
             </div>
-            <p dangerouslySetInnerHTML={{ __html: (
-              editResultSuccess
-                ? (Array.isArray(pendingEditUser) && pendingEditUser.length > 1
-                    ? `Users (${pendingEditUser.length}) edited successfully!`
-                    : 'User edited successfully!')
-                : editResultMessage
-            ) }} />
+            <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="save-btn" onClick={() => setShowEditResultModal(false)}>OK</button>
             </div>
@@ -2756,6 +3109,9 @@ const UserManagement = () => {
                       setShowIndividualResultModal(true);
                       setIndividualResultSuccess(false);
                       setIndividualResultMessage('Add user error: ' + (result && result.message ? result.message : 'Failed to add users'));
+                      // Also show unified error modal
+                      setActionErrorMessage('Add user error: ' + (result && result.message ? result.message : 'Failed to add users'));
+                      setShowActionErrorModal(true);
                       return;
                     }
                     setShowIndividualResultModal(true);
@@ -2856,11 +3212,13 @@ const UserManagement = () => {
               <input
                 type="text"
                 value={restoreConfirmText}
-                onChange={(e) => setRestoreConfirmText(e.target.value)}
+                onChange={(e) => setRestoreConfirmText(e.target.value.slice(0, 7))}
                 placeholder="Type RESTORE to confirm"
                 className="delete-confirm-input"
+                maxLength={7}
                 onInput={e => {
-                  e.target.value = e.target.value.replace(/[^A-Z]/g, '');
+                  // Allow both cases for input
+                  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
                 }}
               />
             </div>
@@ -2876,6 +3234,7 @@ const UserManagement = () => {
               </button>
               <button
                 className="restore-btn"
+                // Require uppercase for confirmation
                 disabled={restoreConfirmText !== 'RESTORE'}
                 onClick={handleRestoreUsers}
                 style={{ backgroundColor: '#0a7', color: 'white' }}
@@ -2897,6 +3256,35 @@ const UserManagement = () => {
             <p>{restoreResultMessage}</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="save-btn" onClick={() => setShowRestoreResultModal(false)}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Changes Modal */}
+      {showNoChangesModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>No Changes</h2>
+            </div>
+            <p>No changes were made.</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" onClick={() => setShowNoChangesModal(false)}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showActionErrorModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>Action Failed</h2>
+            </div>
+            <p style={{ color: '#b00', fontWeight: 500 }}>{actionErrorMessage}</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" onClick={() => setShowActionErrorModal(false)}>OK</button>
             </div>
           </div>
         </div>
