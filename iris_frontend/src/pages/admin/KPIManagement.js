@@ -966,6 +966,37 @@ const KPIManagement = () => {
   const [recentlyAdded, setRecentlyAdded] = useState([]);
   const [editRecentKpi, setEditRecentKpi] = useState(null); // for editing modal
 
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        // Toggle direction
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const getSortedKPIs = () => {
+    const sorted = [...getFilteredKPIs()];
+    if (sortConfig.key) {
+      sorted.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+        // For string comparison, ignore case
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sorted;
+  };
+
   return (
     <div className="kpi-management-container">
       <div className="white-card">
@@ -1237,18 +1268,32 @@ const KPIManagement = () => {
                           onChange={handleSelectAll}
                         />
                       </th>
-                      <th>ID</th>
-                      <th>KPI Name</th>
-                      <th>Category</th>
-                      <th>Calculation Behavior</th>
-                      <th>Description</th>
-                      <th>Created By</th>
-                      <th>Created At</th>
+                      <th onClick={() => handleSort('dKPI_ID')} style={{ cursor: 'pointer' }}>
+                        ID {sortConfig.key === 'dKPI_ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('dKPI_Name')} style={{ cursor: 'pointer' }}>
+                        KPI Name {sortConfig.key === 'dKPI_Name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('dCategory')} style={{ cursor: 'pointer' }}>
+                        Category {sortConfig.key === 'dCategory' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('dCalculationBehavior')} style={{ cursor: 'pointer' }}>
+                        Calculation Behavior {sortConfig.key === 'dCalculationBehavior' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('dDescription')} style={{ cursor: 'pointer' }}>
+                        Description {sortConfig.key === 'dDescription' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('dCreatedBy')} style={{ cursor: 'pointer' }}>
+                        Created By {sortConfig.key === 'dCreatedBy' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
+                      <th onClick={() => handleSort('tCreatedAt')} style={{ cursor: 'pointer' }}>
+                        Created At {sortConfig.key === 'tCreatedAt' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                      </th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredKPIs().map((kpi, index) => (
+                    {getSortedKPIs().map((kpi, index) => (
                       <tr key={kpi.dKPI_ID}>
                         <td>
                           <input
