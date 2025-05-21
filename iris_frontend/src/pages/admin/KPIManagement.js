@@ -589,12 +589,9 @@ const KPIManagement = () => {
           throw new Error(errorData?.message || `Server error: ${response.status}`);
         }
 
-        // Fetch the updated KPI list from the backend
         const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        if (refreshResponse.ok) {
-          const updatedKpis = await refreshResponse.json();
-          setKpis(updatedKpis);
-        }
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
 
         // Success modal
         setSimpleSuccessMessage('KPI updated successfully!');
@@ -758,35 +755,18 @@ const KPIManagement = () => {
     if (deleteConfirmation.trim() === kpiToDelete.dKPI_Name.trim()) {
       try {
         const response = await fetch(`http://localhost:3000/api/kpis/${kpiToDelete.dKPI_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            dKPI_Name: kpiToDelete.dKPI_Name,
-            dCategory: kpiToDelete.dCategory,
-            dCalculationBehavior: kpiToDelete.dCalculationBehavior,
-            dDescription: kpiToDelete.dDescription || '',
-            dStatus: 'DEACTIVATED'
-          })
+          method: 'DELETE',
         });
   
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
   
-        // Fetch the updated KPI list from the backend
-        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        if (refreshResponse.ok) {
-          const updatedKpis = await refreshResponse.json();
-          setKpis(updatedKpis);
-        }
-
+        setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiToDelete.dKPI_ID));
         setShowDeleteModal(false);
         setKpiToDelete(null);
         setDeleteConfirmation('');
-        setSimpleSuccessMessage('KPI deactivated successfully!');
+        setSimpleSuccessMessage('KPI deleted successfully!');
         setShowSimpleSuccess(true);
       } catch (error) {
         console.error('Error disabling KPI:', error);
@@ -1281,11 +1261,13 @@ const KPIManagement = () => {
 
                     <div
                       className={`drop-zone ${dragActive ? 'active' : ''}`}
-
-
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
                     >
                       <div className="drop-zone-content">
-                          <p>Upload your CSV file here</p>
+                          <p>Drag and drop your CSV file here</p>
                           <p>File name format: kpi_upload_YYYYMMDD.csv</p>
                           <p>Example: kpi_upload_20250520.csv</p>
                           <p>Maximum file size: 5MB</p>
@@ -1422,7 +1404,7 @@ const KPIManagement = () => {
                       onClick={() => setShowBulkDisableModal(true)}
                     >
                       <FaTimes size={12} />
-                      Deactivate Selected KPIs
+                      Disable Selected KPIs
                       <span className="count">{selectedKPIs.length}</span>
                     </button>
                   </div>
@@ -1481,8 +1463,8 @@ const KPIManagement = () => {
                           <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
                           <td>
                             <div className="action-buttons">
-                              <button onClick={() => handleDeleteClick(kpi)} className="disable-btn">
-                                <FaTimes size={12} /> Deactivate
+                              <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
+                                <FaTimes size={12} /> Disable
                               </button>
                             </div>
                           </td>
@@ -1551,7 +1533,7 @@ const KPIManagement = () => {
                 </div>
 
                 <div className="confirmation-input">
-                  <p>To confirm deactivation, please type the KPI name:</p>
+                  <p>To confirm deactivating, please type the KPI name:</p>
                   <input
                     type="text"
                     value={deleteConfirmation}
