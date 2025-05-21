@@ -120,6 +120,7 @@
   flex-direction: column;
   height: calc(100vh - 250px);
   font-family: 'Inter', sans-serif;
+  overflow: hidden;
 }
 
 /* Make table header sticky */
@@ -128,13 +129,13 @@
   top: 0;
   background-color: #f8f8f8;
   z-index: 5;
+  border-bottom: 1px solid #ddd;
 }
 
-/* Table layout fixes */
-/* Table layout fixes */
 .existing-kpis table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate; /* Change from collapse */
+  border-spacing: 0;
   font-size: 13px;
   table-layout: fixed;
 }
@@ -196,26 +197,7 @@
   white-space: normal;
 }
 
-.existing-kpis td:nth-child(7):hover::after {
-  content: attr(data-description);
-  position: absolute;
-  left: 0;
-  top: 100%;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 12px;
-  width: 300px;
-  max-height: 200px;
-  overflow-y: auto;
-  word-wrap: break-word;
-  white-space: normal;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 1000;
-  font-size: 13px;
-  color: #333;
-  line-height: 1.5;
-}
+
 
 .existing-kpis th:nth-child(8),
 .existing-kpis td:nth-child(8) {
@@ -287,11 +269,7 @@
   text-overflow: ellipsis;
 }
 
-/* Scrollbar Styles */
-.existing-kpis::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+
 
 .existing-kpis::-webkit-scrollbar-track {
   background: #f1f1f1;
@@ -788,7 +766,6 @@
   transform: scale(1.05);
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -800,6 +777,24 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+
+.description-modal {
+  position: relative;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.description-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal {
@@ -876,8 +871,7 @@
 
 .table-wrapper {
   overflow-y: auto;
-  overflow-x: auto;
-  flex-grow: 1;
+  height: 100%;
 }
 
 .table-wrapper::-webkit-scrollbar {
@@ -1508,6 +1502,19 @@ input[type="checkbox"] {
   justify-content: flex-end;
   align-items: center;
   width: 100%;
+}
+
+.recently-added-table td:last-child {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.recently-added-table .edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  margin: 0 auto;
 }
 
 .modal-content .form-group {

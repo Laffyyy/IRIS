@@ -8,7 +8,7 @@ const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis t
 const KPIManagement = () => {
 
   const categories = ['Compliance', 'Customer Experience', 'Employee Performance', 'Finance', 'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'];
-  const behaviors = ['Lower the Better', 'Higher the Better'];
+  const behaviors = ['Lower the Better', 'Higher the Better', 'Hit or Miss'];
 
   const isDuplicateKPI = (name, bulkKpis = []) => {
     if (!name) return false;
@@ -172,7 +172,7 @@ const KPIManagement = () => {
           category: kpiToAdd.category,
           behavior: kpiToAdd.behavior,
           description: kpiToAdd.description,
-          dKPI_ID: updatedKpis[updatedKpis.length - 1].dKPI_ID,
+          dKPI_ID: updatedKpis[updatedKpis.length - 1]?.dKPI_ID || null, // Add null fallback
         }
       ]);
     } catch (error) {
@@ -181,7 +181,7 @@ const KPIManagement = () => {
     }
   };
 
-  // Handle file drop for bulk upload
+  {/*// Handle file drop for bulk upload
   const handleDrag = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -207,7 +207,7 @@ const KPIManagement = () => {
       }
       handleFile(file);
     }
-  }, []);
+  }, []); */}
 
   const handleFileChange = (e) => {
       if (e.target.files && e.target.files[0]) {
@@ -324,7 +324,7 @@ const KPIManagement = () => {
     const csvHeader = "KPI Name,Category,Behavior,Description,,,Valid Input Reference";
     const exampleData = [
       "Revenue Growth,Financial,Higher the Better,Measures growth in total revenue,,,Valid Categories: Compliance, Customer Experience, Employee Performance, Finance, Healthcare, Logistics, Operational Efficiency, Sales, Tech",
-      "Customer Satisfaction,Customer Experience,Lower the Better,Measures overall customer satisfaction,,,Valid Behaviors: Lower the Better, Higher the Better",
+      "Customer Satisfaction,Customer Experience,Lower the Better,Measures overall customer satisfaction,,,Valid Behaviors: Lower the Better, Higher the Better, Hit or Miss",
       "Employee Turnover,Employee Performance,Lower the Better,Tracks employee turnover rate"
     ];
 
@@ -679,66 +679,67 @@ const KPIManagement = () => {
     // Handle bulk upload submission
     const handleBulkUpload = async () => {
       try {
-          // Create array of promises for each valid KPI
-          const promises = bulkKpis.map(kpi => {
-              const kpiData = {
-                  dKPI_Name: kpi.name,
-                  dCategory: kpi.category,
-                  dCalculationBehavior: kpi.behavior,
-                  dDescription: kpi.description || '',
-                  dCreatedBy: '2505170018'
-              };
-
-              return fetch('http://localhost:3000/api/kpis', {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json'
-                  },
-                  body: JSON.stringify(kpiData)
-              });
-          });
-
-          const responses = await Promise.all(promises);
-          
-          const failedResponses = responses.filter(response => !response.ok);
-          if (failedResponses.length > 0) {
-              throw new Error(`Failed to add ${failedResponses.length} KPIs`);
-          }
-
-          // Fetch updated KPI list
-          const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-          if (!refreshResponse.ok) {
-              throw new Error('Failed to refresh KPI list');
-          }
-          const updatedKpis = await refreshResponse.json();
-          setKpis(updatedKpis);
-
-          // Set success message and count
-          setSimpleSuccessMessage(`${bulkKpis.length} KPI${bulkKpis.length > 1 ? 's' : ''} added successfully!`);
-          setSuccessCount(bulkKpis.length);
-          setShowSimpleSuccess(true);
-
-          // Reset all bulk upload related states
-          resetBulkUploadState();
-          setActiveTab('viewKPIs');
-
-          setRecentlyAdded(prev => [
-            ...prev,
-            ...bulkKpis.map(kpi => ({
-              name: kpi.name,
-              category: kpi.category,
-              behavior: kpi.behavior,
-              description: kpi.description,
-              dKPI_ID: updatedKpis[updatedKpis.length - bulkKpis.length + kpi.idx].dKPI_ID,
-            }))
-          ]);
-
+        // Create array of promises for each valid KPI
+        const uploadPromises = bulkKpis.map(kpi => {
+          const kpiData = {
+            dKPI_Name: kpi.name,
+            dCategory: kpi.category,
+            dCalculationBehavior: kpi.behavior,
+            dDescription: kpi.description || '',
+            dCreatedBy: '2505170018'
+          };
+    
+          return fetch('http://localhost:3000/api/kpis', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(kpiData)
+          }).then(response => response.json()); // Parse each response
+        });
+    
+        const uploadedKpis = await Promise.all(uploadPromises);
+        
+        // Check if any uploads failed
+        const failedUploads = uploadedKpis.filter(response => !response || response.error);
+        if (failedUploads.length > 0) {
+          throw new Error(`Failed to add ${failedUploads.length} KPIs`);
+        }
+    
+        // Fetch updated KPI list
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        if (!refreshResponse.ok) {
+          throw new Error('Failed to refresh KPI list');
+        }
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+    
+        // Update recently added with the new KPIs
+        const newlyAddedKpis = uploadedKpis.map(response => ({
+          name: response.dKPI_Name,
+          category: response.dCategory,
+          behavior: response.dCalculationBehavior,
+          description: response.dDescription,
+          dKPI_ID: response.dKPI_ID
+        }));
+    
+        setRecentlyAdded(prev => [...prev, ...newlyAddedKpis]);
+    
+        // Set success message and count
+        setSimpleSuccessMessage(`${bulkKpis.length} KPI${bulkKpis.length > 1 ? 's' : ''} added successfully!`);
+        setSuccessCount(bulkKpis.length);
+        setShowSimpleSuccess(true);
+    
+        // Reset all bulk upload related states
+        resetBulkUploadState();
+        setActiveTab('viewKPIs');
+    
       } catch (error) {
-          console.error('Bulk upload error:', error);
-          showAlert(`Failed to upload KPIs: ${error.message}`);
+        console.error('Bulk upload error:', error);
+        showAlert(`Failed to upload KPIs: ${error.message}`);
       }
-  };
+    };
 
   const resetBulkUploadState = () => {
     setBulkKpis([]);
@@ -1041,9 +1042,10 @@ const KPIManagement = () => {
   };
 
   const getSortedKPIs = () => {
-    const sorted = [...getFilteredKPIs()];
+    const sorted = [...getFilteredKPIs()].filter(kpi => kpi && kpi.dKPI_ID); // Add null check
     if (sortConfig.key) {
       sorted.sort((a, b) => {
+        if (!a || !b) return 0; // Handle undefined objects
         let aValue = a[sortConfig.key];
         let bValue = b[sortConfig.key];
         // For string comparison, ignore case
@@ -1176,8 +1178,7 @@ const KPIManagement = () => {
             <div className="kpi-details">
               <p><strong>Category:</strong> {selectedKpiDetails.dCategory}</p>
               <p><strong>Behavior:</strong> {selectedKpiDetails.dCalculationBehavior}</p>
-              <p><strong>Description:</strong></p>
-              <p>{selectedKpiDetails.dDescription}</p>
+              <p><strong>Description:</strong> {selectedKpiDetails.dDescription}</p>
             </div>
           </div>
         </div>
@@ -1303,10 +1304,6 @@ const KPIManagement = () => {
 
                     <div
                       className={`drop-zone ${dragActive ? 'active' : ''}`}
-                      onDragEnter={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDragOver={handleDrag}
-                      onDrop={handleDrop}
                     >
                       <div className="drop-zone-content">
                           <p>Upload your CSV file here</p>
@@ -1777,7 +1774,7 @@ const EditKpiModal = ({ kpi, kpis, recentlyAdded, onSave, onCancel, validateInpu
     'Compliance', 'Customer Experience', 'Employee Performance', 'Finance',
     'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'
   ];
-  const behaviors = ['Lower the Better', 'Higher the Better'];
+  const behaviors = ['Lower the Better', 'Higher the Better', 'Hit or Miss'];
 
   const [name, setName] = useState(kpi.name);
   const [category, setCategory] = useState(kpi.category);
