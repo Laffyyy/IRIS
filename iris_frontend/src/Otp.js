@@ -2,8 +2,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Otp.css';
+import AlertModal from './components/AlertModal';
 
-  const Otp = ({ onBack, onComplete }) => {
+const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
@@ -12,8 +13,9 @@ import './Otp.css';
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(''); // Store userId from local storage or props
-
-  
+  const [isComplete, setIsComplete] = useState(false);
+  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
@@ -22,8 +24,6 @@ import './Otp.css';
       setUserId(storedUserId);
     }
   }, []);
-  const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -46,13 +46,12 @@ import './Otp.css';
     
     try {
       setLoading(true);
-      // API call to resend OTP
       const response = await fetch('http://localhost:3000/api/otp/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userID: userId }),
       });
 
       if (!response.ok) {
@@ -68,8 +67,17 @@ import './Otp.css';
       });
       inputsRef.current[0]?.focus();
       setError('');
+      setAlertModal({
+        isOpen: true,
+        message: 'A new OTP has been sent to your email.',
+        type: 'success'
+      });
     } catch (err) {
-      setError('Failed to resend OTP. Please try again.');
+      setAlertModal({
+        isOpen: true,
+        message: 'Failed to resend OTP. Please try again.',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -127,62 +135,73 @@ import './Otp.css';
   };
 
   const handleSubmit = async () => {
-  const otp = otpValues.join(''); // Combine OTP values into a single string
+    const otp = otpValues.join('');
+    const userId = localStorage.getItem('userId');
+    const password = localStorage.getItem('password');
 
-  // Retrieve userId and password from localStorage
-  const userId = localStorage.getItem('userId');
-  const password = localStorage.getItem('password');
+    if (!userId || !password) {
+      setAlertModal({
+        isOpen: true,
+        message: 'User ID or password is missing. Please log in again.',
+        type: 'error'
+      });
+      return;
+    }
 
-  if (!userId || !password) {
-    alert('User ID or password is missing. Please log in again.');
-    return;
-  }
+    const payload = {
+      userID: userId,
+      password: password,
+      otp: otp
+    };
 
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
+    try {
+      const response = await fetch('http://localhost:3000/api/login/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const userStatus = data.user?.status;
+        const token = data.token;
+        
+        if (token) {
+          localStorage.setItem('token', token);
+        }
+
+        setAlertModal({
+          isOpen: true,
+          message: data.message || 'Login successful',
+          type: 'success'
+        });
+
+        if (userStatus === 'FIRST-TIME') {
+          navigate('../change-password');
+        } else if (userStatus === 'ACTIVE') {
+          navigate('../dashboard');
+        }
+      } else {
+        setAlertModal({
+          isOpen: true,
+          message: data.message || 'Failed to verify OTP. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error during OTP verification:', error);
+      setAlertModal({
+        isOpen: true,
+        message: 'An error occurred while verifying the OTP. Please try again.',
+        type: 'error'
+      });
+    }
   };
 
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // Handle successful OTP verification
-      const userStatus = data.data.user.status;
-      localStorage.setItem('token', data.data.token); // Save token to localStorage
-      alert(data.data.message);
-
-      if (userStatus === 'FIRST-TIME') {
-        navigate('../change-password'); // Redirect to change password page
-      } else if (userStatus === 'ACTIVE') {
-        alert('Login successful');
-        navigate('../dashboard'); // Redirect to dashboard or home page
-      }
-    } else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
-    }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
-};
- const handleBack = () => {
+  const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
@@ -252,6 +271,13 @@ import './Otp.css';
           </button>
         </div>
       </div>
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+      />
     </div>
   );
 };

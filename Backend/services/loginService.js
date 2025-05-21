@@ -1,109 +1,189 @@
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const login = require('../models/login');
 const OtpService = require('./otpService'); // Import the OtpService
+
 
 class LoginService {
     constructor() {
         this.otpService = new OtpService(); // Initialize OtpService
+        this.MAX_FAILED_ATTEMPTS = 3; // Increased from 3 to 
     }
 
     
     async loginUser(userID, password, otp = null) {
-    try {
-        let user = null;
-        let table = null;
+        console.log('LoginService.loginUser called:', { userID, hasPassword: !!password, hasOtp: !!otp });
+        try {
+            let user = null;
+            let table = null;
 
-        // Step 1: Check if the user exists in tbl_login
-        const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
-        if (loginRows.length > 0) {
-            user = loginRows[0];
-            table = 'tbl_login';
-        } else {
-            // Step 2: Check if the user exists in tbl_admin
-            const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
-            if (adminRows.length > 0) {
-                user = adminRows[0];
-                table = 'tbl_admin';
-            }
-        }
-
-        // If user is not found in either table
-        if (!user) {
-            throw new Error('User not found');
-        }
-
-        // Step 3: Verify the password
-        let isMatch = false;
-        if (table === 'tbl_login') {
-            if (!user.dPassword1_hash) {
-                throw new Error('Password hash is missing for tbl_login');
-            }
-            isMatch = await bcrypt.compare(password, user.dPassword1_hash);
-        } else if (table === 'tbl_admin') {
-            if (!user.dPassword1_hash) {
-                throw new Error('Password hash is missing for tbl_admin');
-            }
-            isMatch = await bcrypt.compare(password, user.dPassword1_hash);
-        }
-
-        if (!isMatch) {
-            throw new Error('Invalid password');
-        }
-
-        // Step 4: Check the user's status (if applicable)
-        if (user.dStatus && user.dStatus === 'DEACTIVATED') {
-            throw new Error('Account is deactivated');
-        }
-        if (user.dStatus && user.dStatus === 'EXPIRED') {
-            throw new Error('Account has expired');
-        }
-
-        // Step 5: Handle OTP verification
-        if (otp) {
-            // Verify the OTP using the OtpService
-            const otpService = new OtpService();
-            const otpVerificationResult = await otpService.verifyOtp(user.dUser_ID, otp);
-
-            if (otpVerificationResult.message === 'OTP expired. A new OTP has been sent to your registered email or phone.') {
-                return otpVerificationResult;
+            // Check if the user exists in tbl_login
+            console.log('Checking tbl_login for user:', userID);
+            const [loginRows] = await db.query('SELECT * FROM tbl_login WHERE dUser_ID = ?', [userID]);
+            if (loginRows.length > 0) {
+                console.log('User found in tbl_login');
+                user = loginRows[0];
+                table = 'tbl_login';
+            } else {
+                console.log('User not found in tbl_login, checking tbl_admin');
+                const [adminRows] = await db.query('SELECT * FROM tbl_admin WHERE dUser_ID = ?', [userID]);
+                if (adminRows.length > 0) {
+                    console.log('User found in tbl_admin');
+                    user = adminRows[0];
+                    table = 'tbl_admin';
+                }
             }
 
-            // Step 6: Generate a token after OTP verification
-            const token = jwt.sign(
-                { id: user.dUser_ID, role: user.dUser_Type || user.dStatus },
-                process.env.JWT_SECRET,
-                { expiresIn: '1h' }
+            if (!user) {
+                console.log('User not found in any table');
+                throw new Error('User not found');
+            }
+
+            // Check account status
+            console.log('Checking account status:', user.dStatus);
+            if (user.dStatus === 'DEACTIVATED' || user.dStatus === 'LOCKED') {
+                throw new Error('Account is deactivated. Please contact support to reactivate.');
+            }
+
+            // Verify password
+            let isMatch = false;
+            if (table === 'tbl_login' || table === 'tbl_admin') {
+                if (!user.dPassword1_hash) {
+                    console.error('Password hash missing for user:', userID);
+                    throw new Error('Password hash is missing');
+                }
+                
+                try {
+                    console.log('Comparing passwords for user:', userID);
+                    isMatch = await bcrypt.compare(password, user.dPassword1_hash);
+                    console.log('Password comparison result:', isMatch);
+                } catch (bcryptError) {
+                    console.error('Error comparing passwords:', bcryptError);
+                    throw new Error('Error verifying password');
+                }
+            }
+
+            if (!isMatch) {
+                console.log('Password mismatch, logging failed attempt');
+                // Log failed attempt
+                await db.query(
+                    'INSERT INTO tbl_logs_useraccess (dUser_ID, dActionType, tTimeStamp) VALUES (?, ?, NOW())',
+                    [userID, 'FAILED_LOGIN']
+                );
+
+                // Count failed attempts
+                const [failedAttempts] = await db.query(
+                    `SELECT COUNT(*) AS count 
+                     FROM tbl_logs_useraccess 
+                     WHERE dUser_ID = ? 
+                     AND dActionType = 'FAILED_LOGIN' 
+                     AND tTimeStamp > (
+                         SELECT COALESCE(MAX(tTimeStamp), '1970-01-01')
+                         FROM tbl_logs_useraccess
+                         WHERE dUser_ID = ? AND dActionType = 'LOGIN'
+                     )`,
+                    [userID, userID]
+                );
+
+                const attemptsLeft = this.MAX_FAILED_ATTEMPTS - failedAttempts[0].count;
+                console.log('Failed attempts:', { count: failedAttempts[0].count, attemptsLeft });
+                
+                if (attemptsLeft <= 0) {
+                    console.log('Account locked due to too many failed attempts');
+                    await db.query(`UPDATE ${table} SET dStatus = ? WHERE dUser_ID = ?`, ['LOCKED', userID]);
+                    throw new Error('Account is locked due to too many failed login attempts. Please contact support.');
+                }
+
+                throw new Error(`Invalid password. You have ${attemptsLeft} attempts left.`);
+            }
+
+            console.log('Password verified successfully');
+            // Log successful login
+            await db.query(
+                'INSERT INTO tbl_logs_useraccess (dUser_ID, dActionType, tTimeStamp) VALUES (?, ?, NOW())',
+                [userID, 'LOGIN']
             );
 
-            // Update the last login time
-            await db.query(`UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ?`, [userID]);
+            // Check account status
+            if (user.dStatus === 'EXPIRED') {
+                console.log('Account has expired');
+                throw new Error('Account has expired');
+            }
 
-            return { message: 'Login successful', token, user: { id: user.dUser_ID, email: user.dEmail, status: user.dStatus || user.dUser_Type } };
-        } else {
-            // Step 7: Generate a new OTP if none is provided
-            const otpService = new OtpService();
-            const generatedOtp = await otpService.generateOtp(user.dUser_ID);
-            console.log(`Generated OTP for user ${user.dUser_ID}: ${generatedOtp}`);
-            return { message: 'OTP sent to your registered email or phone' };
-        }
-    } catch (error) {
-        console.error('Error in loginUser:', error.message);
-        throw error;
-    }
-}
-    //wrong file
-    async changePassword(userID, newPassword) {
-        try {
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-            await db.query('UPDATE tbl_login SET dPassword_hash = ? WHERE dUser_ID = ?', [hashedPassword, userID]);
-            return { message: 'Password changed successfully' };
+            // Handle OTP
+            if (otp) {
+                console.log('Verifying OTP for user:', userID);
+                const otpVerificationResult = await this.otpService.verifyOtp(user.dUser_ID, otp);
+                console.log('OTP verification result:', otpVerificationResult);
+
+                if (otpVerificationResult.message.includes('expired') || otpVerificationResult.message.includes('No OTP found')) {
+                    return otpVerificationResult;
+                }
+
+                // Generate session token
+                console.log('Generating session token');
+                const sessionId = crypto.randomBytes(32).toString('hex');
+                const token = jwt.sign(
+                    { 
+                        id: user.dUser_ID, 
+                        role: user.dUser_Type,
+                        sessionId: sessionId
+                    },
+                    process.env.JWT_SECRET || 'your_jwt_secret_key_here',
+                    { expiresIn: '1h' }
+                );
+
+                // Update user session info
+                console.log('Updating user session info');
+                await db.query(
+                    `UPDATE ${table} SET 
+                    tLast_Login = NOW(),
+                    dSession_ID = ?,
+                    dDevice_Info = ?,
+                    tLastUpdated = NOW()
+                    WHERE dUser_ID = ?`,
+                    [sessionId, 'Web Browser', userID]
+                );
+
+                return { 
+                    message: 'Login successful', 
+                    token, 
+                    user: { 
+                        id: user.dUser_ID,
+                        name: user.dName,
+                        email: user.dEmail,
+                        type: user.dUser_Type,
+                        status: user.dStatus
+                    } 
+                };
+            } else {
+                console.log('Generating OTP for user:', userID);
+                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
+                return { message: 'OTP sent to your registered email' };
+            }
         } catch (error) {
+            console.error('Error in loginUser:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             throw error;
         }
     }
-    //wrong file
+
+    async changePassword(userID, newPassword) {
+        try {
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            await db.query('UPDATE tbl_login SET dPassword1_hash = ? WHERE dUser_ID = ?', [hashedPassword, userID]);
+            return { message: 'Password changed successfully' };
+        } catch (error) {
+            console.error('Error in changePassword:', error);
+            throw new Error('Failed to change password');
+        }
+    }
+
     async changesecurityQuestion(userID, newSecurityQuestions) {
         try {
             const normalizedSecurityAnswers = [
@@ -132,88 +212,70 @@ class LoginService {
 
     async registerUser(userData) {
         try {
-            // Generate a custom userID
+            // Generate custom userID
             const date = new Date();
-            // Format date as YYMMDD (6 characters)
             const formattedDate = `${date.getFullYear().toString().slice(2)}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
             
-            // Query the database to get the current max ID or count
             const [rows] = await db.query('SELECT COUNT(*) AS count FROM tbl_login');
-            const count = rows[0].count + 1; // Increment the count for the new user
-            
-            //Gio change, added the formattedDate to the customUserID
+            const count = rows[0].count + 1;
             const customUserID = `${formattedDate}${count.toString().padStart(4, '0')}`;
     
-            // Hash the password
+            // Validate password
+            if (!userData.Password || userData.Password.length < 8) {
+                throw new Error('Password must be at least 8 characters long');
+            }
+    
+            // Hash password
             const hashedPassword = await bcrypt.hash(userData.Password, 10);
     
             // Normalize security answers
             const normalizedSecurityAnswers = [
                 userData.Security_Answer,
                 userData.Security_Answer2,
-                userData.Security_Answer3
+                userData.Security_Question3
             ].map(answer => answer.toLowerCase());
             
-            // Set default created_by if not provided
-            const createdBy = userData.created_by || "123";
-
-
+            const createdBy = userData.created_by || "SYSTEM";
             const expirationDate = new Date();
             expirationDate.setMinutes(expirationDate.getMinutes() + 15);
 
-            // Create the new user object
-            const newUser = new login(
-                customUserID, // Use the custom userID
-                userData.Email,
-                hashedPassword,
-                userData.user_type,
-                userData.Security_Question,
-                userData.Security_Question2,
-                userData.Security_Question3,
-                normalizedSecurityAnswers[0],
-                normalizedSecurityAnswers[1],
-                normalizedSecurityAnswers[2],
-                null,
-                'FIRST-TIME', // Default status
-                null,
-                createdBy,
-                null,
-                null, // dPassword3_hash
-                null, // dPassword3_hash
-                expirationDate
-            );
-    
-            // Insert the new user into the database
+            // Insert new user
             const [result] = await db.query(
-                'INSERT INTO tbl_login (dUser_ID, dEmail, dPassword1_hash, dUser_Type, dSecurity_Question1, dSecurity_Question2, dSecurity_Question3, dAnswer_1, dAnswer_2, dAnswer_3, dStatus, dCreatedBy, tExpirationDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                `INSERT INTO tbl_login (
+                    dUser_ID, dName, dEmail, dPassword1_hash, dUser_Type,
+                    dSecurity_Question1, dSecurity_Question2, dSecurity_Question3,
+                    dAnswer_1, dAnswer_2, dAnswer_3,
+                    dStatus, dCreatedBy, tExpirationDate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
-                    newUser.userID, // Custom userID
-                    newUser.Email,
-                    newUser.Password,
-                    newUser.user_type,
-                    newUser.Security_Question,
-                    newUser.Security_Question2,
-                    newUser.Security_Question3,
-                    newUser.Security_Answer,
-                    newUser.Security_Answer2,
-                    newUser.Security_Answer3,
-                    newUser.status,
-                    newUser.created_by,
-                    newUser.tExpiration_date
+                    customUserID,
+                    userData.Name,
+                    userData.Email,
+                    hashedPassword,
+                    userData.user_type,
+                    userData.Security_Question,
+                    userData.Security_Question2,
+                    userData.Security_Question3,
+                    normalizedSecurityAnswers[0],
+                    normalizedSecurityAnswers[1],
+                    normalizedSecurityAnswers[2],
+                    'FIRST-TIME',
+                    createdBy,
+                    expirationDate
                 ]
             );
     
             return customUserID;
         } catch (error) {
+            console.error('Error in registerUser:', error);
             throw error;
         }
     }
 
     async checkPasswordExpiration(userID) {
         try {
-            console.log('Checking password expiration for user:', userID);
             const [rows] = await db.query(
-                'SELECT tExpirationDate FROM tbl_login WHERE dUser_ID = ?', 
+                'SELECT tExpirationDate, dStatus FROM tbl_login WHERE dUser_ID = ?', 
                 [userID]
             );
             
@@ -221,20 +283,22 @@ class LoginService {
                 throw new Error('User not found');
             }
             
-            // Make sure we're using the right property name
-            const expirationDate = rows[0].tExpirationDate;
-            console.log('Expiration date from DB:', expirationDate);
+            const { tExpirationDate, dStatus } = rows[0];
             
-            // If no expiration date is set, password doesn't expire
-            if (!expirationDate) {
-                console.log('No expiration date set, password does not expire');
+            if (!tExpirationDate) {
                 return false;
             }
             
             const currentDate = new Date();
-            const expDate = new Date(expirationDate);
+            const expDate = new Date(tExpirationDate);
             const isExpired = currentDate >= expDate;
-            console.log('Current date:', currentDate, 'Expiration date:', expDate, 'Is expired:', isExpired);
+            
+            if (isExpired && dStatus !== 'EXPIRED') {
+                await db.query(
+                    'UPDATE tbl_login SET dStatus = ? WHERE dUser_ID = ?',
+                    ['EXPIRED', userID]
+                );
+            }
             
             return isExpired;
         } catch (error) {
