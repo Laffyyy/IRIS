@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logService = require('../services/logService');
 
 exports.getAllKPIs = async (req, res) => {
     try {
@@ -53,6 +54,13 @@ exports.createKPI = async (req, res) => {
             [dKPI_Name, dCategory, dDescription || '', dCalculationBehavior, dCreatedBy]
         );
 
+        await logService.logAdminAction({
+            dActionLocation_ID: result.insertId,
+            dActionLocation: 'KPI Management',
+            dActionType: 'Add',
+            dActionBy: req.user.id
+        });
+
         res.status(201).json({
             message: "KPI created successfully",
             kpiId: result.insertId
@@ -76,6 +84,13 @@ exports.updateKPI = async (req, res) => {
             [dKPI_Name, dCategory, dDescription, dCalculationBehavior, req.params.id]
         );
 
+        await logService.logAdminAction({
+            dActionLocation_ID: req.params.id,
+            dActionLocation: 'KPI Management',
+            dActionType: 'Update',
+            dActionBy: req.user.id
+        });
+
         if (result.affectedRows > 0) {
             res.json({ message: "KPI updated successfully" });
         } else {
@@ -90,6 +105,13 @@ exports.deleteKPI = async (req, res) => {
     try {
         const [result] = await db.execute('DELETE FROM tbl_kpi WHERE dKPI_ID = ?', [req.params.id]);
         
+        await logService.logAdminAction({
+            dActionLocation_ID: req.params.id,
+            dActionLocation: 'KPI Management',
+            dActionType: 'Disable',
+            dActionBy: req.user.id
+        });
+
         if (result.affectedRows > 0) {
             res.json({ message: "KPI deleted successfully" });
         } else {
