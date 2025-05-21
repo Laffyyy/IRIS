@@ -2552,7 +2552,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
                               maxLength={30}
                             />
-                            {subLobIndex > 0 || (card.subLobNames.length > 1 && (lobCards.some((c, idx) => idx !== lobCardIndex && c.lobName.trim() && c.subLobNames.some(name => name.trim())))) && (
+                            {subLobIndex > 0 && (
                               <button 
                                 className="remove-sub-lob-field-btn"
                                 onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
@@ -2841,7 +2841,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               maxLength={30}
                               disabled={!validateClientSelection()}
                             />
-                            {subLobIndex > 0 || (card.subLobNames.length > 1 && (lobCardsForLob.some((c, idx) => idx !== lobCardIndex && c.lobName.trim() && c.subLobNames.some(name => name.trim())))) && (
+                            {subLobIndex > 0 && (
                               <button 
                                 className="remove-sub-lob-field-btn"
                                 onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
