@@ -2,25 +2,26 @@ const db = require('../config/db');
 
 class SiteManagementService {
     async addSite(siteName, userID) {
-        try {
-            // Create current timestamp
-            const currentDate = new Date();
-            
-            // Insert the site into the database
-            const [result] = await db.query(
-                'INSERT INTO tbl_site (dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?)',
-                [
-                    siteName,
-                    userID,
-                    currentDate
-                ]
-            );
-            
-            return result;
-        } catch (error) {
-            console.error('Error in AddSiteService.addSite:', error);
-            throw error;
-        }
+      try {
+          // Create current timestamp
+          const currentDate = new Date();
+          
+          // Insert the site into the database with ACTIVE status
+          const [result] = await db.query(
+              'INSERT INTO tbl_site (dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?)',
+              [
+                  siteName,
+                  'ACTIVE',
+                  userID,
+                  currentDate
+              ]
+          );
+          
+          return result;
+      } catch (error) {
+          console.error('Error in AddSiteService.addSite:', error);
+          throw error;
+      }
     }
 
     async editSite(siteId, siteName, updateClientSiteTable = false) {
@@ -46,46 +47,30 @@ class SiteManagementService {
         }
       }
 
-      async deleteSite(siteId) {
+      async deactivateSite(siteId) {
         try {
-          // Using a transaction to ensure all operations succeed or fail together
-          await db.query('START TRANSACTION');
-          
-          // First, delete from tbl_clientsite
-          await db.query(
-            'DELETE FROM tbl_clientsite WHERE dSite_ID = ?',
-            [siteId]
-          );
-          
-          // Then delete from tbl_site
-          const [result] = await db.query(
-            'DELETE FROM tbl_site WHERE dSite_ID = ?',
-            [siteId]
-          );
-          
-          await db.query('COMMIT');
-          
-          return result;
-        } catch (error) {
-          await db.query('ROLLBACK');
-          console.error('Error in SiteManagementService.deleteSite:', error);
-          throw error;
-        }
-      }
-
-    async getAllSites() {
-        try {
-            // Get all sites from the database
+            // Update the site status to DEACTIVATED instead of deleting
             const [result] = await db.query(
-                'SELECT * FROM tbl_site ORDER BY dSite_ID ASC'
+                'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID = ?',
+                ['DEACTIVATED', siteId]
             );
             
             return result;
         } catch (error) {
-            console.error('Error in SiteManagementService.getAllSites:', error);
+            console.error('Error in SiteManagementService.deactivateSite:', error);
             throw error;
         }
     }
+
+    async getAllSites() {
+      try {
+          const [sites] = await db.query('SELECT * FROM tbl_site WHERE dStatus = ? ORDER BY dSite_ID', ['ACTIVE']);
+          return sites;
+      } catch (error) {
+          console.error('Error in SiteManagementService.getAllSites:', error);
+          throw error;
+      }
+  }
 
     async getAllClients() {
         try {
@@ -369,30 +354,17 @@ class SiteManagementService {
         }
     }
 
-    async bulkDeleteSites(siteIds) {
+    async bulkDeactivateSites(siteIds) {
       try {
-        // Using a transaction to ensure all operations succeed or fail together
-        await db.query('START TRANSACTION');
-        
-        // First, delete from tbl_clientsite for all selected sites
-        await db.query(
-          'DELETE FROM tbl_clientsite WHERE dSite_ID IN (?)',
-          [siteIds]
-        );
-        
-        // Then delete from tbl_site
-        const [result] = await db.query(
-          'DELETE FROM tbl_site WHERE dSite_ID IN (?)',
-          [siteIds]
-        );
-        
-        await db.query('COMMIT');
-        
-        return result;
+          const [result] = await db.query(
+              'UPDATE tbl_site SET dStatus = ? WHERE dSite_ID IN (?)',
+              ['DEACTIVATED', siteIds]
+          );
+          
+          return result;
       } catch (error) {
-        await db.query('ROLLBACK');
-        console.error('Error in SiteManagementService.bulkDeleteSites:', error);
-        throw error;
+          console.error('Error in SiteManagementService.bulkDeactivateSites:', error);
+          throw error;
       }
     }
     
@@ -600,6 +572,16 @@ class SiteManagementService {
         return [];
       }
     }
+
+    async getAllSitesByStatus(status) {
+      try {
+          const [sites] = await db.query('SELECT * FROM tbl_site WHERE dStatus = ? ORDER BY dSite_ID', [status]);
+          return sites;
+      } catch (error) {
+          console.error(`Error in SiteManagementService.getAllSitesByStatus for status ${status}:`, error);
+          throw error;
+      }
+  }
 }
 
 module.exports = SiteManagementService;

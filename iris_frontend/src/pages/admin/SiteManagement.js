@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './SiteManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes, FaSearch } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaSearch, FaMinusCircle, FaPlusCircle } from 'react-icons/fa';
 import Select from 'react-select';
 
 const SiteManagement = () => {
@@ -66,6 +66,9 @@ const SiteManagement = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteType, setDeleteType] = useState(''); // 'site', 'client', 'bulk-sites', 'bulk-clients'
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [siteStatusTab, setSiteStatusTab] = useState('ACTIVE');
+  const [activeSites, setActiveSites] = useState([]);
+  const [deactivatedSites, setDeactivatedSites] = useState([]);
 
   // Add this new state for available edit clients
   const [availableEditClients, setAvailableEditClients] = useState([]);
@@ -219,13 +222,24 @@ const SiteManagement = () => {
    */
   const fetchSites = async () => {
     try {
-      const data = await manageSite('getAll', {});
-      
-      if (data?.sites) {
-        setSites(data.sites);
+      // Fetch active sites
+      const activeData = await manageSite('getAllByStatus', { status: 'ACTIVE' });
+      if (activeData?.sites) {
+        setActiveSites(activeData.sites);
       } else {
-        setSites([]);
+        setActiveSites([]);
       }
+  
+      // Fetch deactivated sites
+      const deactivatedData = await manageSite('getAllByStatus', { status: 'DEACTIVATED' });
+      if (deactivatedData?.sites) {
+        setDeactivatedSites(deactivatedData.sites);
+      } else {
+        setDeactivatedSites([]);
+      }
+  
+      // Set the appropriate sites array based on active tab
+      setSites(siteStatusTab === 'ACTIVE' ? activeData?.sites || [] : deactivatedData?.sites || []);
     } catch (error) {
       console.error('Error fetching sites:', error);
       setSites([]);
@@ -376,7 +390,7 @@ const SiteManagement = () => {
   /**
    * Deletes a site and its client associations
    */
-  const handleDeleteSite = async (siteId) => {
+  const handleDeactivateSite = async (siteId) => {
     const site = sites.find(s => s.dSite_ID === siteId);
     setDeleteType('site');
     setItemToDelete({ id: siteId, name: site?.dSiteName || 'Unknown site' });
@@ -573,7 +587,7 @@ const SiteManagement = () => {
   /**
    * Bulk deletes selected sites
    */
-  const handleBulkDeleteSites = async () => {
+  const handleBulkDeactivateSites = async () => {
     if (selectedSiteIds.length === 0) return;
     
     setDeleteType('bulk-sites');
@@ -640,11 +654,58 @@ const SiteManagement = () => {
     try {
       switch (deleteType) {
         case 'site':
-          await manageSite('delete', { siteId: itemToDelete.id });
+          await manageSite('deactivate', { siteId: itemToDelete.id });
           fetchSites();
           fetchSiteClients();
-          alert(`Site "${itemToDelete.name}" successfully deleted with all its client associations`);
+          setSuccessMessage(`Site "${itemToDelete.name}" successfully deactivated`);
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
           break;
+
+        case 'bulk-sites':
+          await manageSite('bulkDeactivateSites', { siteIds: selectedSiteIds });
+          
+          // Update state and reset selection
+          fetchSites();
+          fetchSiteClients();
+          setSelectedSiteIds([]);
+          setSelectAllSites(false);
+          
+          setSuccessMessage(`${itemToDelete.count} sites successfully deactivated`);
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
+        break;
+
+        case 'reactivate-site':
+        await manageSite('reactivate', { siteId: itemToDelete.id });
+        fetchSites();
+        fetchSiteClients();
+        setSuccessMessage(`Site "${itemToDelete.name}" successfully reactivated`);
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+        }, 3000);
+        break;
+
+      case 'bulk-reactivate-sites':
+        await manageSite('bulkReactivateSites', { siteIds: selectedSiteIds });
+        
+        // Update state and reset selection
+        fetchSites();
+        fetchSiteClients();
+        setSelectedSiteIds([]);
+        setSelectAllSites(false);
+        
+        setSuccessMessage(`${itemToDelete.count} sites successfully reactivated`);
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+        }, 3000);
+        break;
           
         case 'client':
           await manageSite('removeClientFromSite', { clientSiteId: itemToDelete.id });
@@ -673,18 +734,6 @@ const SiteManagement = () => {
           alert(`Client "${itemToDelete.name}" successfully removed from site`);
           break;
           
-        case 'bulk-sites':
-          await manageSite('bulkDeleteSites', { siteIds: selectedSiteIds });
-          
-          // Update state and reset selection
-          fetchSites();
-          fetchSiteClients();
-          setSelectedSiteIds([]);
-          setSelectAllSites(false);
-          
-          alert(`${itemToDelete.count} sites successfully deleted with all their client associations`);
-          break;
-          
         case 'bulk-clients':
           await manageSite('bulkDeleteClientSiteAssignments', { clientSiteIds: selectedClientSiteIds });
           
@@ -698,8 +747,8 @@ const SiteManagement = () => {
           break;
       }
     } catch (error) {
-      console.error('Error performing delete operation:', error);
-      alert('Error performing delete operation');
+      console.error('Error performing operation:', error);
+      alert('Error performing operation');
     } finally {
       // Reset modal state
       setShowDeleteModal(false);
@@ -1203,6 +1252,22 @@ const SiteManagement = () => {
     setSelectAllBulkClients(!selectAllBulkClients);
   };
 
+  // Add handleReactivateSite function
+  const handleReactivateSite = async (siteId) => {
+    const site = deactivatedSites.find(s => s.dSite_ID === siteId);
+    setDeleteType('reactivate-site');
+    setItemToDelete({ id: siteId, name: site?.dSiteName || 'Unknown site' });
+    setShowDeleteModal(true);
+  };
+
+  const handleBulkReactivateSites = async () => {
+    if (selectedSiteIds.length === 0) return;
+    
+    setDeleteType('bulk-reactivate-sites');
+    setItemToDelete({ count: selectedSiteIds.length });
+    setShowDeleteModal(true);
+  };
+
   // Add this new useEffect to load available clients when site changes in edit modal
   useEffect(() => {
     const loadAvailableEditClients = async () => {
@@ -1221,6 +1286,13 @@ const SiteManagement = () => {
 
     loadAvailableEditClients();
   }, [editSelectedSiteId, currentClientSite]);
+
+  useEffect(() => {
+    setSites(siteStatusTab === 'ACTIVE' ? activeSites : deactivatedSites);
+    // Reset selection when switching tabs
+    setSelectedSiteIds([]);
+    setSelectAllSites(false);
+  }, [siteStatusTab, activeSites, deactivatedSites]);
 
   return (
     <div className="site-management-container">
@@ -1275,6 +1347,20 @@ const SiteManagement = () => {
     {/* Right Card - Existing Sites */}
     <div className="site-management-card">
       <h3>Existing Sites</h3>
+        <div className="site-status-tabs">
+          <div 
+            className={`site-status-tab ${siteStatusTab === 'ACTIVE' ? 'active' : ''}`}
+            onClick={() => setSiteStatusTab('ACTIVE')}
+          >
+            Active
+          </div>
+          <div 
+            className={`site-status-tab ${siteStatusTab === 'DEACTIVATED' ? 'active' : ''}`}
+            onClick={() => setSiteStatusTab('DEACTIVATED')}
+          >
+            Deactivated
+          </div>
+        </div>
       <div className="search-container">
         <div className="search-box">
           <FaSearch className="search-icon" />
@@ -1312,54 +1398,66 @@ const SiteManagement = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredSites.length > 0 ? (
-            filteredSites.map(site => (
-              <tr key={site.dSite_ID}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedSiteIds.includes(site.dSite_ID)}
-                    onChange={() => handleSiteSelection(site.dSite_ID)}
-                  />
-                </td>
-                <td>{site.dSite_ID}</td>
-                <td>{site.dSiteName}</td>
-                <td>{site.dCreatedBy || '-'}</td>
-                <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
-                <td>
-                  <div className="action-buttons">
+        {filteredSites.length > 0 ? (
+          filteredSites.map(site => (
+            <tr key={site.dSite_ID}>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={selectedSiteIds.includes(site.dSite_ID)}
+                  onChange={() => handleSiteSelection(site.dSite_ID)}
+                />
+              </td>
+              <td>{site.dSite_ID}</td>
+              <td>{site.dSiteName}</td>
+              <td>{site.dCreatedBy || '-'}</td>
+              <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
+              <td>
+                <div className="action-buttons">
+                  {siteStatusTab === 'ACTIVE' ? (
                     <button
-                      className="edit-btn"
-                      onClick={() => handleEditClick(site)}
+                      className="deactivate-btn"
+                      onClick={() => handleDeactivateSite(site.dSite_ID)}
                     >
-                      <FaPencilAlt size={12} /> Edit
+                      <FaMinusCircle size={12} /> Deactivate
                     </button>
+                  ) : (
                     <button
-                      className="delete-btn"
-                      onClick={() => handleDeleteSite(site.dSite_ID)}
+                      className="reactivate-btn"
+                      onClick={() => handleReactivateSite(site.dSite_ID)}
                     >
-                      <FaTrash size={12} /> Delete
+                      <FaPlusCircle size={12} /> Reactivate
                     </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" style={{ textAlign: 'center' }}>
-                {sites.length > 0 ? 'No matching sites found' : 'No sites available'}
+                  )}
+                </div>
               </td>
             </tr>
-          )}
-        </tbody>
+          ))
+        ) : (
+          <tr>
+            <td colSpan="6" style={{ textAlign: 'center' }}>
+              {siteStatusTab === 'ACTIVE' ? 
+                (activeSites.length > 0 ? 'No matching active sites found' : 'No active sites available') :
+                (deactivatedSites.length > 0 ? 'No matching deactivated sites found' : 'No deactivated sites available')
+              }
+            </td>
+          </tr>
+        )}
+      </tbody>
       </table>
       {selectedSiteIds.length > 0 && (
-        <div className="bulk-delete-container">
-          <button onClick={handleBulkDeleteSites} className="delete-btn bulk-delete-btn">
-            <FaTrash size={12} /> Delete Selected ({selectedSiteIds.length})
+      <div className="bulk-delete-container">
+        {siteStatusTab === 'ACTIVE' ? (
+          <button onClick={handleBulkDeactivateSites} className="delete-btn bulk-delete-btn">
+            <FaMinusCircle size={12} /> Deactivate Selected ({selectedSiteIds.length})
           </button>
-        </div>
-      )}
+        ) : (
+          <button onClick={handleBulkReactivateSites} className="reactivate-btn bulk-reactivate-btn">
+            <FaPlusCircle size={12} /> Reactivate Selected ({selectedSiteIds.length})
+          </button>
+        )}
+      </div>
+    )}
     </div>
   </div>
 </div>
@@ -1975,25 +2073,21 @@ const SiteManagement = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="modal-overlay">
-          <div className="modal delete-confirmation-modal" style={{ maxWidth: "350px" }}>
+          <div className={`modal ${deleteType.includes('reactivate') ? 'reactivate-confirmation-modal' : 'delete-confirmation-modal'}`} style={{ maxWidth: "350px" }}>
             <div className="modal-header">
-              <h2><FaTrash /> Confirm Deletion</h2>
-              <button 
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText('');
-                }} 
-                className="close-btn"
-              >
-                <FaTimes />
-              </button>
+              <h2>          
+                {deleteType.includes('reactivate') ? (
+                <><FaPlusCircle className="reactivation-icon" /> Confirm Reactivation</>
+              ) : (
+                <><FaMinusCircle /> Confirm Deactivation</>
+              )}
+            </h2>
             </div>
             
             {deleteType === 'site' && (
               <p>
-                You are about to delete site "<strong>{itemToDelete?.name}</strong>".
-                <br />This will also remove all associated client relationships.
-                <br />This action cannot be undone.
+                You are about to deactivate site "<strong>{itemToDelete?.name}</strong>".
+                <br />This will hide it from the sites list but preserve its data.
               </p>
             )}
             {deleteType === 'client' && (
@@ -2004,9 +2098,8 @@ const SiteManagement = () => {
             )}
             {deleteType === 'bulk-sites' && (
               <p>
-                You are about to delete <strong>{itemToDelete?.count} selected sites</strong>.
-                <br />This will also remove all associated client relationships.
-                <br />This action cannot be undone.
+                You are about to deactivate <strong>{itemToDelete?.count} selected sites</strong>.
+                <br />This will hide them from the sites list but preserve their data.
               </p>
             )}
             {deleteType === 'bulk-clients' && (
@@ -2015,22 +2108,35 @@ const SiteManagement = () => {
                 <br />This action cannot be undone.
               </p>
             )}
+            {deleteType === 'reactivate-site' && (
+              <p>
+                You are about to reactivate site "<strong>{itemToDelete?.name}</strong>".
+                <br />This will make it visible in the active sites list.
+              </p>
+            )}
+            {deleteType === 'bulk-reactivate-sites' && (
+              <p>
+                You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
+                <br />This will make them visible in the active sites list.
+              </p>
+            )}
             
             <div className="confirmation-input" style={{ textAlign: "center" }}>
               <p style={{ textAlign: "center" }}>Type <strong>CONFIRM</strong> to proceed:</p>
               <input
                 type="text"
                 value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(sanitizeInput(e.target.value))}
-                placeholder="CONFIRM"
-                style={{ 
-                  width: "120px", 
-                  fontSize: "14px",
-                  padding: "8px 10px",
-                  textAlign: "center",
-                  margin: "0 auto",
-                  display: "block"
+                onChange={(e) => {
+                  // Convert to uppercase immediately and avoid sanitization that might 
+                  // strip uppercase characters
+                  const value = e.target.value.toUpperCase();
+                  // Optional: restrict to only letters for the confirmation text
+                  const sanitized = value.replace(/[^A-Z]/g, '');
+                  setDeleteConfirmText(sanitized);
                 }}
+                placeholder="CONFIRM"
+                className="confirmation-input-field"
+                maxLength={7}
               />
             </div>
             
@@ -2053,11 +2159,9 @@ const SiteManagement = () => {
               </button>
               <button 
                 onClick={handleConfirmedDelete} 
-                className="delete-btn"
-                disabled={deleteConfirmText !== 'CONFIRM'}
+                className={deleteType.includes('reactivate') ? "save-btn" : "delete-btn"}
+                disabled={deleteConfirmText.toUpperCase() !== 'CONFIRM'}
                 style={{ 
-                  backgroundColor: "#e53e3e",
-                  color: "white",
                   border: "none",
                   flex: "1",
                   maxWidth: "45%",
@@ -2069,7 +2173,11 @@ const SiteManagement = () => {
                   alignItems: "center"
                 }}
               >
-                <FaTrash style={{ marginRight: "5px" }} /> Delete
+                {deleteType.includes('reactivate') ? (
+                  <><FaPlusCircle style={{ marginRight: "5px" }} /> Reactivate</>
+                ) : (
+                  <><FaMinusCircle style={{ marginRight: "5px" }} /> Deactivate</>
+                )}
               </button>
             </div>
           </div>

@@ -101,7 +101,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
-  margin-top: -19px;
+  margin-top: 15px;
 }
 
 .add-button:hover {
@@ -835,4 +835,178 @@ td:last-child {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   border-radius: 4px;
   animation: slideInOut 3s forwards;
+}
+
+.deactivate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #ed8936; /* Orange color for deactivate */
+}
+
+.deactivate-btn:hover {
+  background-color: #fffaf0; /* Light orange background on hover */
+  transform: scale(1.05);
+}
+
+.site-status-tabs {
+  display: flex;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.site-status-tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.site-status-tab:hover {
+  background-color: #f7fafc;
+}
+
+.site-status-tab.active {
+  border-bottom: 2px solid #004D8D;
+  font-weight: 500;
+  color: #004D8D;
+}
+
+.reactivate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #38a169; /* Green color for reactivate */
+}
+
+.reactivate-btn:hover {
+  background-color: #f0fff4; /* Light green background on hover */
+  transform: scale(1.05);
+}
+
+.bulk-reactivate-btn {
+  color: white;
+  background-color: #38a169;
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #2f855a;
+  color: #fff;
+}
+
+/* Reactivation Modal Styles */
+.modal.reactivate-confirmation-modal {
+  border-top: 4px solid #38a169;
+  max-width: 350px;
+}
+
+.modal.reactivate-confirmation-modal .modal-header {
+  color: #38a169;
+}
+
+.modal.reactivate-confirmation-modal .modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #38a169;
+  font-weight: 500;
+}
+
+.modal.reactivate-confirmation-modal .modal-actions .save-btn {
+  background-color: #38a169;
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.modal.reactivate-confirmation-modal .modal-actions .save-btn:hover {
+  background-color: #2f855a;
+}
+
+.modal.reactivate-confirmation-modal .modal-actions .save-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Different icon color for reactivation */
+.reactivation-icon {
+  color: #38a169;
+}
+
+/* Modified delete confirmation modal styling */
+.modal.delete-confirmation-modal {
+  border-top: 4px solid #ed8936;
+}
+
+.modal.delete-confirmation-modal .modal-header h2 {
+  color: #ed8936;
+}
+
+.modal.delete-confirmation-modal .modal-actions .delete-btn {
+  background-color: #ed8936;
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.modal.delete-confirmation-modal .modal-actions .delete-btn:hover {
+  background-color: #dd6b20;
+}
+
+.modal.delete-confirmation-modal .modal-actions .delete-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Different icon color for deactivation */
+.modal.delete-confirmation-modal .modal-header .deactivation-icon {
+  color: #ed8936;
+}
+
+/* Add this to handle the confirmation text input specifically */
+.confirmation-input input {
+  text-transform: uppercase; /* This will display text as uppercase */
+  width: 120px; 
+  font-size: 14px;
+  padding: 8px 10px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.confirmation-input input:focus {
+  border-color: #80bdff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* For reactivation modal */
+.modal.reactivate-confirmation-modal .confirmation-input input:focus {
+  border-color: #38a169;
+  box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.25);
+}
+
+/* For deactivation modal */
+.modal.delete-confirmation-modal .confirmation-input input:focus {
+  border-color: #ed8936;
+  box-shadow: 0 0 0 2px rgba(237, 137, 54, 0.25);
 }

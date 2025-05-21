@@ -65,33 +65,33 @@ class SiteManagementController {
         }
     }
 
-    async deleteSite(req, res) {
-        try {
-            const { siteId } = req.body;
-            
-            // Validate input
-            if (!siteId) {
-                return res.status(400).json({ 
-                    message: 'Site ID is required' 
-                });
-            }
-            
-            // Call the service to delete the site
-            const result = await this.SiteManagementService.deleteSite(siteId);
-            
-            // Return success response
-            res.status(200).json({ 
-                message: 'Site deleted successfully',
-                affectedRows: result.affectedRows
-            });
-        } catch (error) {
-            console.error('Error deleting site:', error);
-            res.status(500).json({ 
-                message: 'Failed to delete site', 
-                error: error.message 
-            });
-        }
-    }
+    async deactivateSite(req, res) {
+      try {
+          const { siteId } = req.body;
+          
+          // Validate input
+          if (!siteId) {
+              return res.status(400).json({ 
+                  message: 'Site ID is required' 
+              });
+          }
+          
+          // Call the service to deactivate the site
+          const result = await this.SiteManagementService.deactivateSite(siteId);
+          
+          // Return success response
+          res.status(200).json({ 
+              message: 'Site deactivated successfully',
+              affectedRows: result.affectedRows
+          });
+      } catch (error) {
+          console.error('Error deactivating site:', error);
+          res.status(500).json({ 
+              message: 'Failed to deactivate site', 
+              error: error.message 
+          });
+      }
+  }
 
     async getAllSites(req, res) {
         try {
@@ -272,28 +272,28 @@ class SiteManagementController {
         }
     }
 
-    async bulkDeleteSites(req, res) {
+      async bulkDeactivateSites(req, res) {
         try {
-          const { siteIds } = req.body;
-          
-          if (!siteIds || !Array.isArray(siteIds) || siteIds.length === 0) {
-            return res.status(400).json({ 
-              message: 'Valid site IDs array is required' 
+            const { siteIds } = req.body;
+            
+            if (!siteIds || !Array.isArray(siteIds) || siteIds.length === 0) {
+                return res.status(400).json({ 
+                    message: 'Valid site IDs array is required' 
+                });
+            }
+            
+            const result = await this.SiteManagementService.bulkDeactivateSites(siteIds);
+            
+            res.status(200).json({ 
+                message: `${result.affectedRows} sites deactivated successfully`,
+                affectedRows: result.affectedRows
             });
-          }
-          
-          const result = await this.SiteManagementService.bulkDeleteSites(siteIds);
-          
-          res.status(200).json({ 
-            message: `${result.affectedRows} sites deleted successfully`,
-            affectedRows: result.affectedRows
-          });
         } catch (error) {
-          console.error('Error in bulk deleting sites:', error);
-          res.status(500).json({ 
-            message: 'Failed to delete sites', 
-            error: error.message 
-          });
+            console.error('Error in bulk deactivating sites:', error);
+            res.status(500).json({ 
+                message: 'Failed to deactivate sites', 
+                error: error.message 
+            });
         }
       }
       
@@ -380,6 +380,34 @@ class SiteManagementController {
             });
         }
     }
+
+    async getAllSitesByStatus(req, res) {
+      try {
+          const { status } = req.body;
+          
+          // Validate input
+          if (!status) {
+              return res.status(400).json({ 
+                  message: 'Status is required' 
+              });
+          }
+          
+          // Call the service to get sites by status
+          const result = await this.SiteManagementService.getAllSitesByStatus(status);
+          
+          // Return success response
+          res.status(200).json({ 
+              message: 'Sites retrieved successfully',
+              sites: result
+          });
+      } catch (error) {
+          console.error('Error retrieving sites by status:', error);
+          res.status(500).json({ 
+              message: 'Failed to retrieve sites', 
+              error: error.message 
+          });
+      }
+  }
 
 }
 
