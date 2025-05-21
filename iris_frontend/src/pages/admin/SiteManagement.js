@@ -1411,129 +1411,132 @@ const SiteManagement = () => {
     {/* Right Card - Existing Sites */}
     <div className="site-management-card">
       <h3>Existing Sites</h3>
-        <div className="site-status-tabs">
-          <div 
-            className={`site-status-tab ${siteStatusTab === 'ACTIVE' ? 'active' : ''}`}
-            onClick={() => setSiteStatusTab('ACTIVE')}
-          >
-            Active
-          </div>
-          <div 
-            className={`site-status-tab ${siteStatusTab === 'DEACTIVATED' ? 'active' : ''}`}
-            onClick={() => setSiteStatusTab('DEACTIVATED')}
-          >
-            Deactivated
-          </div>
+      <div className="site-status-tabs">
+        <div 
+          className={`site-status-tab ${siteStatusTab === 'ACTIVE' ? 'active' : ''}`}
+          onClick={() => setSiteStatusTab('ACTIVE')}
+        >
+          Active
         </div>
-      <div className="search-container">
-        <div className="search-box">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search sites by name..."
-            value={siteSearchTerm}
-            onChange={(e) => setSiteSearchTerm(sanitizeInput(e.target.value))}
-            maxLength={50}
-          />
+        <div 
+          className={`site-status-tab ${siteStatusTab === 'DEACTIVATED' ? 'active' : ''}`}
+          onClick={() => setSiteStatusTab('DEACTIVATED')}
+        >
+          Deactivated
         </div>
       </div>
-      <table className="existing-sites-table">
-        <thead>
-          <tr>
-            <th>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={selectAllSites}
-                  onChange={handleSelectAllSites}
-                />
-                <span style={{ marginLeft: '5px', fontSize: '12px' }}>Select All</span>
-              </div>
-            </th>
-            <th onClick={() => handleSiteSort('dSite_ID')} className="sortable-header">
-              Site ID {siteSortConfig.key === 'dSite_ID' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleSiteSort('dSiteName')} className="sortable-header">
-              Site Name {siteSortConfig.key === 'dSiteName' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleSiteSort('dCreatedBy')} className="sortable-header">
-              Created By {siteSortConfig.key === 'dCreatedBy' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header">
-              Created At {siteSortConfig.key === 'tCreatedAt' && (siteSortConfig.direction === 'ascending' ? '↑' : '↓')}
-            </th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-        {filteredSites.length > 0 ? (
-          filteredSites.map(site => (
-            <tr key={site.dSite_ID}>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={selectedSiteIds.includes(site.dSite_ID)}
-                  onChange={() => handleSiteSelection(site.dSite_ID)}
-                />
-              </td>
-              <td>{site.dSite_ID}</td>
-              <td>{site.dSiteName}</td>
-              <td>{site.dCreatedBy || '-'}</td>
-              <td>{site.tCreatedAt ? new Date(site.tCreatedAt).toLocaleString() : '-'}</td>
-              <td>
-              <div className="action-buttons">
-                  {siteStatusTab === 'ACTIVE' ? (
-                    <>
-                      <button
-                        className="edit-btn"
-                        onClick={() => handleEditClick(site)}
-                      >
-                        <FaEdit size={12} /> Edit
-                      </button>
-                      <button
-                        className="deactivate-btn"
-                        onClick={() => handleDeactivateSite(site.dSite_ID)}
-                      >
-                        <FaMinusCircle size={12} /> Deactivate
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="reactivate-btn"
-                      onClick={() => handleReactivateSite(site.dSite_ID)}
-                    >
-                      <FaPlusCircle size={12} /> Reactivate
-                    </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan="6" style={{ textAlign: 'center' }}>
-              {siteStatusTab === 'ACTIVE' ? 
-                (activeSites.length > 0 ? 'No matching active sites found' : 'No active sites available') :
-                (deactivatedSites.length > 0 ? 'No matching deactivated sites found' : 'No deactivated sites available')
-              }
-            </td>
-          </tr>
-        )}
-      </tbody>
-      </table>
-      {selectedSiteIds.length > 0 && (
-      <div className="bulk-delete-container">
-        {siteStatusTab === 'ACTIVE' ? (
-          <button onClick={handleBulkDeactivateSites} className="delete-btn bulk-delete-btn">
-            <FaMinusCircle size={12} /> Deactivate Selected ({selectedSiteIds.length})
-          </button>
-        ) : (
-          <button onClick={handleBulkReactivateSites} className="reactivate-btn bulk-reactivate-btn">
-            <FaPlusCircle size={12} /> Reactivate Selected ({selectedSiteIds.length})
-          </button>
+      <div className="search-and-bulk-container">
+        <div className="search-container">
+          <div className="search-box">
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search sites by name..."
+              value={siteSearchTerm}
+              onChange={(e) => setSiteSearchTerm(sanitizeInput(e.target.value))}
+              maxLength={50}
+            />
+          </div>
+        </div>
+        {selectedSiteIds.length > 0 && (
+          <div className="bulk-delete-container">
+            {siteStatusTab === 'ACTIVE' ? (
+              <button onClick={handleBulkDeactivateSites} className="delete-btn bulk-delete-btn">
+                <FaMinusCircle size={12} /> Deactivate Selected ({selectedSiteIds.length})
+              </button>
+            ) : (
+              <button onClick={handleBulkReactivateSites} className="reactivate-btn bulk-reactivate-btn">
+                <FaPlusCircle size={12} /> Reactivate Selected ({selectedSiteIds.length})
+              </button>
+            )}
+          </div>
         )}
       </div>
-    )}
+      {activeTab === 'addSite' && (
+        <div className="table-wrapper">
+          {sites.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+              No sites found.
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th className="site-id-col" onClick={() => handleSiteSort('dSite_ID')} style={{ cursor: 'pointer' }}>
+                    Site ID {siteSortConfig.key === 'dSite_ID' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                  </th>
+                  <th className="site-name-col" onClick={() => handleSiteSort('dSiteName')} style={{ cursor: 'pointer' }}>
+                    Site Name {siteSortConfig.key === 'dSiteName' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                  </th>
+                  <th className="status-col" onClick={() => handleSiteSort('dStatus')} style={{ cursor: 'pointer' }}>
+                    Status {siteSortConfig.key === 'dStatus' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                  </th>
+                  <th className="actions-col">
+                    Actions
+                  </th>
+                  <th className="select-col">
+                    <div className="select-all-container">
+                      <input
+                        type="checkbox"
+                        checked={selectAllSites}
+                        onChange={handleSelectAllSites}
+                      />
+                      <span className="selected-count">
+                        {selectedSiteIds.length > 0 ? `${selectedSiteIds.length}` : ''}
+                      </span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sites
+                  .filter(site => 
+                    site.dSiteName.toLowerCase().includes(siteSearchTerm.toLowerCase())
+                  )
+                  .map((site) => (
+                  <tr
+                    key={site.dSite_ID}
+                    className={selectedSiteIds.includes(site.dSite_ID) ? 'selected-row' : ''}
+                  >
+                    <td>{site.dSite_ID}</td>
+                    <td>{site.dSiteName}</td>
+                    <td>{site.dStatus}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button onClick={() => handleEditClick(site)} className="edit-btn">
+                          <FaEdit size={12} /> Edit
+                        </button>
+                        {site.dStatus === 'ACTIVE' ? (
+                          <button
+                            onClick={() => handleDeactivateSite(site.dSite_ID)}
+                            className="delete-btn"
+                          >
+                            <FaMinusCircle size={12} /> Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleReactivateSite(site.dSite_ID)}
+                            className="reactivate-btn"
+                          >
+                            <FaEdit size={12} /> Reactivate
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedSiteIds.includes(site.dSite_ID)}
+                        onChange={() => handleSiteSelection(site.dSite_ID)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   </div>
 </div>

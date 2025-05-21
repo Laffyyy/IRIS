@@ -3,6 +3,10 @@
   padding: 20px;
   font-family: 'Inter', sans-serif;
   position: relative;
+  height: calc(100vh - 40px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .white-card {
@@ -10,6 +14,10 @@
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .site-management-header {
@@ -54,10 +62,14 @@
 
 .tab-content {
   display: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tab-content.active {
   display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-row {
@@ -129,6 +141,236 @@
 }
 
 /* Table Styles */
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  margin-top: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 550px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  flex: 1;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+th, td {
+  padding: 10px 12px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid #e0e0e0;
+  height: 36px;
+  box-sizing: border-box;
+}
+
+th {
+  background-color: #f0f4f8; /* Lighter blue-gray background */
+  font-weight: 500;
+  color: #004D8D;
+  font-size: 13px;
+  height: 40px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Column widths */
+.site-id-col { width: 15%; min-width: 100px; }
+.site-name-col { width: 40%; min-width: 200px; }
+.status-col { width: 15%; min-width: 100px; }
+.actions-col { width: 25%; min-width: 150px; }
+.select-col { width: 5%; min-width: 60px; }
+
+/* Actions column header */
+.actions-col {
+  text-align: center;
+  background-color: #f0f4f8;
+  font-weight: 500;
+  color: #004D8D;
+}
+
+/* Select column header */
+.select-col {
+  text-align: center;
+  background-color: #f0f4f8;
+  font-weight: 500;
+  color: #004D8D;
+  position: sticky;
+  right: 0;
+  z-index: 3;
+}
+
+/* Center align the checkbox in the header */
+.select-all-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Center align the checkbox in data cells */
+td.select-col {
+  text-align: center;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+td.select-col input[type="checkbox"] {
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Override any conflicting styles */
+.existing-sites td.select-col input[type="checkbox"],
+.existing-sites th.select-col input[type="checkbox"] {
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+  margin: 0;
+  display: inline-block;
+}
+
+/* Center align action buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Selected count styles */
+.selected-count {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Checkbox styles */
+input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Header checkbox specific styles */
+th:last-child input[type="checkbox"] {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 0;
+}
+
+/* Data row checkbox specific styles */
+td:last-child input[type="checkbox"] {
+  margin-left: auto;
+  display: block;
+}
+
+.edit-btn, .delete-btn {
+  padding: 5px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-btn {
+  background-color: #e6f2ff;
+  color: #004D8D;
+}
+
+.edit-btn:hover {
+  background-color: #cce5ff;
+}
+
+/* Reactivate button styles */
+.reactivate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #38a169; /* Green text color */
+}
+
+.reactivate-btn:hover {
+  background-color: #f0fff4; /* Light green background on hover */
+  transform: scale(1.05);
+}
+
+/* Remove the conflicting styles */
+.edit-btn.reactivate-btn,
+.edit-btn.reactivate-btn:hover {
+  background: none;
+  color: #38a169;
+}
+
+.bulk-reactivate-btn {
+  color: #38a169;
+  background: none;
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #f0fff4;
+}
+
+.delete-btn {
+  background-color: #ffe6e6;
+  color: #dc2626;
+}
+
+.delete-btn:hover {
+  background-color: #ffcccc;
+}
+
+.selected-row {
+  background-color: #f0f7ff;
+}
+
+/* Actions header */
+.actions-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.select-all-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .existing-sites table {
   width: 100%;
   border-collapse: collapse;
@@ -232,45 +474,6 @@
     border-bottom: none;
     border-left: 2px solid #004D8D;
   }
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
-}
-
-.edit-btn,
-.delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 5px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.edit-btn {
-  color: #4299e1;
-}
-
-.edit-btn:hover {
-  background-color: #ebf8ff;
-  transform: scale(1.05);
-}
-
-.delete-btn {
-  color: #e53e3e;
-}
-
-.delete-btn:hover {
-  background-color: #fff5f5;
-  transform: scale(1.05);
 }
 
 .button-group {
@@ -430,19 +633,51 @@ td:last-child {
 }
 
 .bulk-delete-container {
-  margin-top: 10px;
+  margin-bottom: 8px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
+  width: 100%;
+}
+
+.bulk-delete-btn,
+.bulk-reactivate-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .bulk-delete-btn {
+  background-color: #dc2626 !important; /* Solid red background */
   color: white !important;
-  background-color: #e53e3e !important;
-  border-color: #e53e3e !important;
+  padding: 2px 6px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 28px;
+}
+
+.bulk-reactivate-btn {
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
 
 .bulk-delete-btn:hover {
-  background-color: #c53030 !important;
+  background-color: #b91c1c !important; /* Darker red on hover */
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #c8e6c9;
 }
 
 /* Ensure the icon inside the button is properly aligned */
@@ -676,6 +911,9 @@ th.sortable-header {
   display: flex;
   gap: 24px;
   margin-top: 20px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* Cards for site management sections */
@@ -685,13 +923,13 @@ th.sortable-header {
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 10px;
+  min-height: 0;
+  max-height: calc(100vh - 180px); /* Add max-height to prevent overflow */
 }
-
-/* Add more space between the last form-row and buttons */
-.site-management-card .form-row:last-of-type {
-  margin-bottom: 30px; /* Increase from 20px to 30px */
-}
-
 
 /* Left card for add site section */
 .site-management-card:first-child {
@@ -706,6 +944,10 @@ th.sortable-header {
 /* Right card for existing sites table */
 .site-management-card:last-child {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 650px; /* Set fixed max-height */
 }
 
 .site-management-card h3 {
@@ -717,11 +959,108 @@ th.sortable-header {
   padding-bottom: 10px;
 }
 
-.search-container, .search-box {
+.search-and-bulk-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+  min-height: 38px;
+  width: 100%;
+}
+
+.search-container {
   position: relative;
-  flex: 0 1 auto; /* Change from flex: 1 to prevent full expansion */
-  width: 350px; /* Set a fixed width */
-  max-width: 100%;
+  flex: 0 0 300px; /* Use flex-basis instead of width */
+  max-width: 300px; /* Add max-width as a fallback */
+  display: flex;
+  align-items: center;
+  height: 38px;
+  max-height: 38px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.search-box input {
+  width: 100%;
+  height: 100%;
+  padding: 8px 8px 8px 32px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 14px;
+  z-index: 1;
+}
+
+.bulk-delete-container {
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 160px; /* Use flex-basis instead of width */
+  max-width: 160px;
+  visibility: hidden;
+}
+
+.bulk-delete-container:not(:empty) {
+  visibility: visible; /* Show when has content */
+}
+
+.bulk-delete-btn,
+.bulk-reactivate-btn {
+  padding: 2px 6px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 28px;
+}
+
+.bulk-delete-btn {
+  background-color: #dc2626 !important; /* Solid red background */
+  color: white !important;
+  padding: 2px 6px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 28px;
+}
+
+.bulk-reactivate-btn {
+  background-color: #38a169;
+  color: white;
+}
+
+.bulk-delete-btn:hover {
+  background-color: #b91c1c !important; /* Darker red on hover */
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #2f855a;
 }
 
 /* Two-column layout for Add Client to Site tab */
@@ -761,11 +1100,12 @@ th.sortable-header {
 
 /* Add a container for the client-site assignments table */
 .client-site-table-container {
-  max-height: 500px;
+  flex: 1;
   overflow-y: auto;
   border: 1px solid #eee;
   border-radius: 8px;
-  margin-top: 10px;
+  margin-top: 0;
+  min-height: 0;
 }
 
 /* Make the table header sticky when scrolling */
@@ -849,6 +1189,8 @@ th.sortable-header {
   display: flex;
   margin-bottom: 15px;
   border-bottom: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .site-status-tab {
@@ -857,6 +1199,7 @@ th.sortable-header {
   font-size: 14px;
   border-bottom: 2px solid transparent;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .site-status-tab:hover {
@@ -880,12 +1223,22 @@ th.sortable-header {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #38a169; /* Green color for reactivate */
+  color: #38a169; /* Green text color */
 }
 
 .reactivate-btn:hover {
   background-color: #f0fff4; /* Light green background on hover */
   transform: scale(1.05);
+}
+
+/* Update the edit-btn class when it's used for reactivation */
+.edit-btn.reactivate-btn {
+  background-color: #38a169;
+  color: white;
+}
+
+.edit-btn.reactivate-btn:hover {
+  background-color: #2f855a;
 }
 
 .bulk-reactivate-btn {
@@ -1000,6 +1353,54 @@ th.sortable-header {
 }
 
 /* For proper spacing around modal content text */
+.modal-content {
+  padding: 20px;
+  margin-bottom: 0;
+}
+
 .modal-content p {
-  margin: 10px 0;
+  margin: 5px 0;
+}
+
+.table-wrapper tbody td:last-child {
+  text-align: center;
+  padding: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border-bottom: 1px solid #e0e0e0;
+  box-sizing: border-box;
+  position: relative;
+  top: 11px;
+}
+
+.table-wrapper tbody td:last-child input[type="checkbox"] {
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Ensure consistent border alignment */
+.table-wrapper table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-wrapper td {
+  border-bottom: 1px solid #e0e0e0;
+  box-sizing: border-box;
+}
+
+.modal.edit-site-modal {
+  width: 300px;
+  max-width: 90vw;
+}
+
+.modal.edit-site-modal .form-row {
+  margin-bottom: -20px;
 }
