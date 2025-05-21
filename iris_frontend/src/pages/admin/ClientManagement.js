@@ -3133,12 +3133,12 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   </div>
                 </div>
                 {/* Search and filter controls (existing code) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 65 }}>
-                  <div className="search-box" style={{ position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 25 }}>
+                  <div className="search-box" style={{ position: 'relative', width: 320 }}>
                     <FaSearch className="search-icon" />
                     <input
                       type="text"
-                      placeholder="Search by Client Name, LOB, or Sub LOB"
+                      placeholder="Search by Client, LOB, or Sub LOB"
                       value={searchTerm}
                       onChange={(e) => {
                         const value = sanitizeInput(e.target.value, 50);
@@ -3187,8 +3187,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           setSearchDropdownVisible(false);
                         }
                       }}
-                      style={{ paddingRight: searchTerm ? '30px' : '10px', width: '320px' }}
+                      style={{ paddingRight: searchTerm ? '36px' : '10px', width: '100%' }}
                     />
+                    {/* Clear button */}
                     {searchTerm && (
                       <button
                         type="button"
@@ -3201,24 +3202,25 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         }}
                         style={{
                           position: 'absolute',
-                          right: '10px',
+                          right: '8px',
                           top: '50%',
                           transform: 'translateY(-50%)',
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          padding: '0',
+                          padding: 0,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#666'
+                          color: '#666',
+                          zIndex: 2
                         }}
                       >
-                        <FaTimes size={14} />
+                        <FaTimes size={16} />
                       </button>
                     )}
                     {searchDropdownVisible && searchDropdown.length > 0 && (
-                      <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
+                      <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, width: '100%', background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', padding: 0 }}>
                         {searchDropdown.map((item, idx) => (
                           <div
                             key={item.type + '-' + item.value + '-' + idx}
@@ -3505,11 +3507,21 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
+                        if (rowData.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
+                                No Available Records
+                              </td>
+                            </tr>
+                          );
+                        }
                         return rowData.map((r, rowIndex) => {
                           const rowKey = r.subLob 
                             ? `sublob-${r.name}-${r.lob}-${r.subLob}`
-                            : `lob-${r.name}-${r.lob}`;
-                          
+                            : r.lob 
+                              ? `lob-${r.name}-${r.lob}`
+                              : `client-${r.name}`;
                           return (
                             <tr
                               key={rowKey}
@@ -3623,11 +3635,19 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
+                        if (rowData.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
+                                No Available Records
+                              </td>
+                            </tr>
+                          );
+                        }
                         return rowData.map((r, rowIndex) => {
                           const rowKey = r.subLob 
                             ? `sublob-${r.name}-${r.lob}-${r.subLob}`
                             : `lob-${r.name}-${r.lob}`;
-                          
                           return (
                             <tr
                               key={rowKey}
@@ -3713,9 +3733,17 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
+                        if (rowData.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
+                                No Available Records
+                              </td>
+                            </tr>
+                          );
+                        }
                         return rowData.map((r, rowIndex) => {
                           const rowKey = `sublob-${r.name}-${r.lob}-${r.subLob}`;
-                          
                           return (
                             <tr
                               key={rowKey}
