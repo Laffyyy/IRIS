@@ -135,6 +135,7 @@ class LoginService {
                     process.env.JWT_SECRET,
                     { expiresIn: '1h' }
                 );
+                
 
                 // Update user session info
                 console.log('Updating user session info');

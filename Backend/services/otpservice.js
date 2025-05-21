@@ -166,6 +166,16 @@ class OtpService {
       const otpRecord = otpRows[0];
       const currentTime = new Date();
 
+      // Check if OTP has already been used
+      if (otpRecord.dOTP_Status === 1) {
+        // Generate a new OTP since the current one is already used
+        const generatedOtp = await this.generateOtp(userId);
+        console.log(`Generated new OTP for user ${userId}: ${generatedOtp}`);
+        return {
+          message: "This OTP has already been used. A new OTP has been sent to your registered email.",
+        };
+      }
+
       // Check if the OTP is expired
       if (new Date(otpRecord.tOTP_Expires) < currentTime) {
         // Generate a new OTP if expired

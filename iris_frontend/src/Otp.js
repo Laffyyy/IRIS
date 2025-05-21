@@ -167,8 +167,8 @@ const Otp = ({ onBack, onComplete }) => {
       const data = await response.json();
 
       if (response.ok) {
-        const userStatus = data.user?.status;
-        const token = data.token;
+        const userStatus = data.data.user?.status;
+        const token = data.data.token;
         
         if (token) {
           localStorage.setItem('token', token);
@@ -177,54 +177,51 @@ const Otp = ({ onBack, onComplete }) => {
         setAlertModal({
           isOpen: true,
           message: data.message || 'Login successful',
-          type: 'success'
+          type: 'success',
+          onClose: () => {
+            // Decode token to get user roles
+            const decoded = jwtDecode(token);
+            const roles = decoded.roles
+              ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+              : decoded.role
+                ? [decoded.role]
+                : [];
+
+            if (userStatus === 'FIRST-TIME') {
+              navigate('../change-password');
+            } else if (userStatus === 'ACTIVE') {
+              if (roles.includes('admin')) {
+                navigate('../dashboard');
+              } else if (roles.includes('HR')) {
+                navigate('../hr');
+              } else if (roles.includes('REPORTS')) {
+                navigate('../reports');
+              } else if (roles.includes('CNB')) {
+                navigate('../compensation');
+              } else {
+                navigate('/'); // fallback
+              }
+            }
+          }
         });
-
-  // Decode token to get user roles
-  const decoded = jwtDecode(data.data.token);
-  const roles = decoded.roles
-    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
-    : decoded.role
-      ? [decoded.role]
-      : [];
-
-  if (userStatus === 'FIRST-TIME') {
-    navigate('../change-password');
-  } else if (userStatus === 'ACTIVE') {
-    alert('Login successful');
-    if (roles.includes('admin')) {
-      navigate('../dashboard');
-    } else if (roles.includes('HR')) {
-      navigate('../hr');
-    } else if (roles.includes('REPORTS')) {
-      navigate('../reports');
-    } else if (roles.includes('CNB')) {
-      navigate('../cb');
-    } else {
-      navigate('/'); // fallback
+      } else {
+        setAlertModal({
+          isOpen: true,
+          message: data.message || 'Failed to verify OTP. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error during OTP verification:', error);
+      setAlertModal({
+        isOpen: true,
+        message: 'An error occurred while verifying the OTP. Please try again.',
+        type: 'error'
+      });
     }
-  }
-} else {
-  setAlertModal({
-    isOpen: true,
-    message: data.message || 'Failed to verify OTP. Please try again.',
-    type: 'error'
-  });
-}
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    setAlertModal({
-      isOpen: true,
-      message: 'An error occurred while verifying the OTP. Please try again.',
-      type: 'error'
-    });
-  }
+  };
 
-  
-  
-
-};
- const handleBack = () => {
+  const handleBack = () => {
     // Clear local storage or any other necessary cleanup
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
@@ -299,7 +296,12 @@ const Otp = ({ onBack, onComplete }) => {
         isOpen={alertModal.isOpen}
         message={alertModal.message}
         type={alertModal.type}
-        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        onClose={() => {
+          if (alertModal.onClose) {
+            alertModal.onClose();
+          }
+          setAlertModal({ ...alertModal, isOpen: false });
+        }}
       />
     </div>
   );
