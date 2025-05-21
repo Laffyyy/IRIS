@@ -16,26 +16,9 @@ import siteManagementIcon from '../assets/icons/sites.png';
 import clientManagementIcon from '../assets/icons/clients.png';
 import kpiManagementIcon from '../assets/icons/kpis.png';
 import logsIcon from '../assets/icons/logs.png';
+import { getUserRoles } from '../utilities/auth'; 
 
-const navItems = [
-  { name: 'Dashboard', path: '/dashboard', icon: dashboardIcon },
-  { 
-    name: 'Admin', 
-    icon: adminIcon,
-    subItems: [
-      { name: 'User Management', path: '/admin/users', icon: userManagementIcon },
-      { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
-      { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
-      { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
-      { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon },
-      { name: 'Admin Logs', path: '/admin/logs', icon: logsIcon }
-    ]
-  },
-  { name: 'HR', path: '/hr', icon: hrIcon },
-  { name: 'Reports', path: '/reports', icon: reportsIcon },
-  { name: 'C&B', path: '/cb', icon: cbIcon },
-  { name: 'FAQs', path: '/faqs', icon: faqsIcon }
-];
+
 
 const Sidebar = () => {
   const [isHovered, setIsHovered] = useState(false);
@@ -43,6 +26,41 @@ const Sidebar = () => {
   const [expandedItems, setExpandedItems] = useState([]);
 
   const shouldShowExpanded = isLocked || isHovered;
+  const userRoles = getUserRoles();
+
+  if (!userRoles || userRoles.length === 0) {
+    return null;
+  }
+
+
+  const navItems = [
+  ...(userRoles.includes('admin') ? [
+    { name: 'Dashboard', path: '/admin/dashboard', icon: dashboardIcon },
+    { 
+      name: 'Admin', 
+      icon: adminIcon,
+      subItems: [
+        { name: 'User Management', path: '/admin/users', icon: userManagementIcon },
+        { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
+        { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
+        { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
+        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
+      ]
+    }
+  ] : []),
+  ...((userRoles.includes('HR') || userRoles.includes('admin')) ? [
+    { name: 'HR', path: '/hr', icon: hrIcon }
+  ] : []),
+  ...((userRoles.includes('REPORTS') || userRoles.includes('admin')) ? [
+    { name: 'Reports', path: '/reports', icon: reportsIcon }
+  ] : []),
+  ...((userRoles.includes('CNB')|| userRoles.includes('admin')) ? [
+    { name: 'C&B', path: '/compensation', icon: cbIcon }
+  ] : []),
+  { name: 'FAQs', path: '/faqs', icon: faqsIcon }
+];
+
+
 
   const toggleSubMenu = (itemName) => {
     if (expandedItems.includes(itemName)) {
