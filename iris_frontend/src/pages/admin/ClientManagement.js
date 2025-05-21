@@ -31,6 +31,8 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
         <div className="modal-header" style={{ padding: '20px 24px 0 24px' }}>
           <h2 style={{ fontSize: 20, color: '#004D8D', fontWeight: 700, margin: 0 }}>{title || (type === 'confirm' ? 'Confirmation' : 'Notification')}</h2>
         </div>
+        {/* Divider below the title */}
+        <div style={{ borderTop: '1px solid #ececec', margin: '18px 0 0 0' }} />
         <div className="modal-body" style={{ padding: '18px 24px 0 24px', fontSize: 16, color: '#222' }}>
           {message || children}
           {requireConfirmation && (
@@ -64,7 +66,7 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
             </div>
           )}
         </div>
-        {/* Divider */}
+        {/* Single divider above the buttons */}
         <div style={{ borderTop: '1px solid #ececec', margin: '24px 0 0 0' }} />
         <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '18px 24px 18px 24px' }}>
           {type === 'confirm' && (
@@ -663,11 +665,35 @@ const ClientManagement = () => {
     return /^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(str);
   };
   
+  // Helper to format add client confirmation details
+  const formatAddClientConfirmation = (clientName, lobCards) => (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 10, color: '#222' }}><strong>CLIENT:</strong> {clientName}</div>
+      {lobCards.map((card, i) => (
+        <div key={i} style={{ marginBottom: 8, marginLeft: 0 }}>
+          <div style={{ fontWeight: 600, color: '#222', marginBottom: 2 }}>LOB: <span style={{ fontWeight: 500, color: '#222' }}>{card.lobName}</span></div>
+          {card.subLobNames && card.subLobNames.filter(name => name.trim()).length > 0 && (
+            <div style={{ marginLeft: 18 }}>
+              {card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
+                <div key={j} style={{ fontWeight: 400, color: '#333', marginBottom: 2 }}>
+                  Sub LOB: <span style={{ color: '#222' }}>{subLob}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+  
   // Add Client with confirmation
   const handleAddClient = async () => {
     if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
       showConfirm(
-        `Are you sure you want to add client "${clientName.trim()}"?`,
+        <span>
+          Are you sure you want to add the following:
+          {formatAddClientConfirmation(clientName.trim(), lobCards.filter(card => card.lobName.trim()))}
+        </span>,
         async () => {
           try {
             // Validate all input fields
