@@ -10,12 +10,18 @@ const KPIManagement = () => {
   const categories = ['Compliance', 'Customer Experience', 'Employee Performance', 'Finance', 'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'];
   const behaviors = ['Lower the Better', 'Higher the Better'];
 
-  const isDuplicateKPI = (name) => {
-  if (!name) return false;
-  return kpis.some(existingKpi => 
-    existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
-  );
-};
+  const isDuplicateKPI = (name, bulkKpis = []) => {
+    if (!name) return false;
+    // Check against existing KPIs
+    const isDuplicateInExisting = kpis.some(existingKpi => 
+      existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+    // Check against current bulk upload
+    const isDuplicateInBulk = bulkKpis.filter(
+      bulkKpi => bulkKpi?.name?.toLowerCase().trim() === name.toLowerCase().trim()
+    ).length > 1; // More than one means duplicate in bulk
+    return isDuplicateInExisting || isDuplicateInBulk;
+  };
   
   const [activeTab, setActiveTab] = useState('addKPI');
   const [editingKpi, setEditingKpi] = useState(null);
@@ -66,6 +72,9 @@ const KPIManagement = () => {
   const [successCount, setSuccessCount] = useState(0);
   const [showDisableSuccessModal, setShowDisableSuccessModal] = useState(false);
   
+  const [showSimpleSuccess, setShowSimpleSuccess] = useState(false);
+  const [simpleSuccessMessage, setSimpleSuccessMessage] = useState('');
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [kpiToDelete, setKpiToDelete] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -145,10 +154,8 @@ const KPIManagement = () => {
 
       resetForm();
       setShowConfirmModal(false);
-      setSuccessMessage(`Successfully added KPI: ${kpiToAdd.name}`);
-      setShowSuccessModal(true);
-
-
+      setSimpleSuccessMessage('1 KPI is added');
+      setShowSimpleSuccess(true);
 
       setRecentlyAdded(prev => [
         ...prev,
@@ -157,6 +164,7 @@ const KPIManagement = () => {
           category: kpiToAdd.category,
           behavior: kpiToAdd.behavior,
           description: kpiToAdd.description,
+          dKPI_ID: updatedKpis[updatedKpis.length - 1].dKPI_ID,
         }
       ]);
     } catch (error) {
@@ -235,7 +243,7 @@ const KPIManagement = () => {
           if (!kpi.name) {
             isValid = false;
             reason = 'Missing KPI name';
-          } else if (isDuplicateKPI(kpi.name)) {
+          } else if (isDuplicateKPI(kpi.name, bulkKpis)) {
             isValid = false;
             reason = 'KPI name already exists';
           } else if (seenNames.has(kpi.name.toLowerCase())) {
@@ -427,7 +435,7 @@ const KPIManagement = () => {
             return response.json();
         });
 
-        await Promise.all(promises);
+        const responses = await Promise.all(promises);
         
         // Refresh KPI list
         const refreshResponse = await fetch(BASE_URL);
@@ -439,7 +447,11 @@ const KPIManagement = () => {
 
         resetForm();
         setActiveTab('viewKPIs');
-        showAlert('KPIs added successfully!');
+        setSimpleSuccessMessage(
+          individualPreview.length === 1
+            ? '1 KPI is added'
+            : `${individualPreview.length} KPIs added successfully!`
+        );
     } catch (error) {
         console.error('Error details:', error);
         showAlert(`Failed to add KPIs: ${error.message}`);
@@ -485,7 +497,7 @@ const KPIManagement = () => {
         if (!kpi.name) {
         isValid = false;
         reason = 'Missing KPI name';
-      } else if (isDuplicateKPI(kpi.name)) {
+      } else if (isDuplicateKPI(kpi.name, bulkKpis)) {
         isValid = false;
         reason = 'KPI name already exists';
       } else if (seenNames.has(kpi.name.toLowerCase())) {
@@ -558,9 +570,8 @@ const KPIManagement = () => {
         setKpis(updatedKpis);
 
         // Success modal
-        setSuccessMessage('KPI updated successfully!');
+        setSimpleSuccessMessage('KPI updated successfully!');
         setSuccessCount(0);
-        setShowSuccessModal(true);
       } catch (error) {
         console.error('Error updating KPI:', error);
         showAlert(`Failed to update KPI: ${error.message}`);
@@ -672,9 +683,9 @@ const KPIManagement = () => {
           setKpis(updatedKpis);
 
           // Set success message and count
-          setSuccessMessage('KPIs have been added successfully');
+          setSimpleSuccessMessage(`${bulkKpis.length} KPI${bulkKpis.length > 1 ? 's' : ''} added successfully!`);
           setSuccessCount(bulkKpis.length);
-          setShowSuccessModal(true);
+          setShowSimpleSuccess(true);
 
           // Reset all bulk upload related states
           resetBulkUploadState();
@@ -687,7 +698,7 @@ const KPIManagement = () => {
               category: kpi.category,
               behavior: kpi.behavior,
               description: kpi.description,
-              // add any other fields you want to show
+              dKPI_ID: updatedKpis[updatedKpis.length - bulkKpis.length + kpi.idx].dKPI_ID,
             }))
           ]);
 
@@ -731,7 +742,8 @@ const KPIManagement = () => {
         setShowDeleteModal(false);
         setKpiToDelete(null);
         setDeleteConfirmation('');
-        setShowDisableSuccessModal(true);
+        setSimpleSuccessMessage('KPI deleted successfully!');
+        setShowSimpleSuccess(true);
       } catch (error) {
         console.error('Error disabling KPI:', error);
         showAlert('Failed to disable KPI. Please try again.');
@@ -927,9 +939,9 @@ const KPIManagement = () => {
         setKpis(kpis.filter(kpi => !selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)));
         
         // Show success modal
-        setSuccessMessage(`${selectedKPIs.length} KPIs have been disabled successfully`);
+        setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} deleted successfully!`);
         setSuccessCount(selectedKPIs.length);
-        setShowDisableSuccessModal(true);
+        setShowSimpleSuccess(true);
         
         // Reset states
         setSelectedKPIs([]);
@@ -1025,22 +1037,35 @@ const KPIManagement = () => {
         const updatedKpis = await refreshResponse.json();
         setKpis(updatedKpis);
 
+        // Find the updated KPI from the refreshed list
+        const backendKpi = updatedKpis.find(k => k.dKPI_ID === updatedKpi.dKPI_ID);
+
         // Update recentlyAdded state as well
         setRecentlyAdded(prev =>
-          prev.map((k, i) => i === updatedKpi.idx ? updatedKpi : k)
+          prev.map((k, i) =>
+            i === updatedKpi.idx
+              ? {
+                  ...k,
+                  ...backendKpi, // Use backend's latest data
+                  name: backendKpi.dKPI_Name,
+                  category: backendKpi.dCategory,
+                  behavior: backendKpi.dCalculationBehavior,
+                  description: backendKpi.dDescription
+                }
+              : k
+          )
         );
 
-        setSuccessMessage('KPI updated successfully!');
+        setSimpleSuccessMessage('1 KPI is updated');
+        setShowSimpleSuccess(true);
         setSuccessCount(0);
-        setShowSuccessModal(true);
       } else {
         // Only in recentlyAdded, update local state
         setRecentlyAdded(prev =>
           prev.map((k, i) => i === updatedKpi.idx ? updatedKpi : k)
         );
-        setSuccessMessage('KPI updated successfully!');
+        setSimpleSuccessMessage('KPI updated successfully!');
         setSuccessCount(0);
-        setShowSuccessModal(true);
       }
       setEditRecentKpi(null);
     } catch (error) {
@@ -1048,681 +1073,626 @@ const KPIManagement = () => {
     }
   };
 
+  useEffect(() => {
+    let timer;
+    if (showSimpleSuccess) {
+      timer = setTimeout(() => {
+        setShowSimpleSuccess(false);
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [showSimpleSuccess]);
+
   return (
-    <div className="kpi-management-container">
-      <div className="white-card">
-        <div className="kpi-management-header">
-          <h1>KPI Management</h1>
-          <p className="subtitle">Manage your Key Performance Indicators</p>
+    <>
+      {showSimpleSuccess && (
+        <div className="simple-success-banner">
+          <span className="checkmark">&#10003;</span>
+          {simpleSuccessMessage}
         </div>
-
-        <div className="tab-container">
-          <div 
-            className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
-            onClick={() => setActiveTab('addKPI')}
-          >
-            {editingKpi ? 'Edit KPI' : 'Add New KPI'}
+      )}
+      <div className="kpi-management-container">
+        <div className="white-card">
+          <div className="kpi-management-header">
+            <h1>KPI Management</h1>
+            <p className="subtitle">Manage your Key Performance Indicators</p>
           </div>
-          <div 
-            className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
-            onClick={() => {
-              // Only reset if there's no data being edited
-              if (!kpiName && !category && !behavior && individualPreview.length === 0) {
-                resetForm();
-              }
-              setActiveTab('viewKPIs');
-            }}
-          >
-            Existing KPIs
+
+          <div className="tab-container">
+            <div 
+              className={`tab ${activeTab === 'addKPI' ? 'active' : ''}`}
+              onClick={() => setActiveTab('addKPI')}
+            >
+              {editingKpi ? 'Edit KPI' : 'Add New KPI'}
+            </div>
+            <div 
+              className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
+              onClick={() => {
+                // Only reset if there's no data being edited
+                if (!kpiName && !category && !behavior && individualPreview.length === 0) {
+                  resetForm();
+                }
+                setActiveTab('viewKPIs');
+              }}
+            >
+              Existing KPIs
+            </div>
           </div>
-        </div>
 
-        <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
-          <div className="form-section">
-            <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
-            <div className="kpi-upload-sections">
-              <div className="kpi-upload-card">
-                <div className="individual-upload-form">
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>KPI Name</label>
-                      <input
-                        type="text"
-                        value={kpiName}
-                        onChange={handleKpiNameChange}
-                        placeholder="Enter KPI name"
-                        maxLength={MAX_NAME_LENGTH}
-                        className={isDuplicateName ? 'duplicate-error' : ''}
-                      />
-                      {isDuplicateName && (
-                        <span className="error-message">This KPI name already exists</span>
-                      )}
-                    </div>
-                    <div className="form-group">
-                      <label>Category</label>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        disabled={isDuplicateName}
-                      >
-                       <option value="">Select category</option>
-                      {categories.map(cat => (
-                        <option key={`category-${cat}`} value={cat}>{cat}</option>
-                      ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>RecommendedCalculation Behavior</label>
-                      <select
-                        value={behavior}
-                        onChange={(e) => setBehavior(e.target.value)}
-                        disabled={isDuplicateName}
-                      >
-                        <option value="">Select behavior</option>
-                        {behaviors.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
+          <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
+            <div className="form-section">
+              <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
+              <div className="kpi-upload-sections">
+                <div className="kpi-upload-card">
+                  <div className="individual-upload-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>KPI Name</label>
+                        <input
+                          type="text"
+                          value={kpiName}
+                          onChange={handleKpiNameChange}
+                          placeholder="Enter KPI name"
+                          maxLength={MAX_NAME_LENGTH}
+                          className={isDuplicateName ? 'duplicate-error' : ''}
+                        />
+                        {isDuplicateName && (
+                          <span className="error-message">This KPI name already exists</span>
+                        )}
+                      </div>
+                      <div className="form-group">
+                        <label>Category</label>
+                        <select
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          disabled={isDuplicateName}
+                        >
+                         <option value="">Select category</option>
+                        {categories.map(cat => (
+                          <option key={`category-${cat}`} value={cat}>{cat}</option>
                         ))}
-                      </select>
+                        </select>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="form-group">
-                    <label>Description</label>
-                    <textarea
-                      value={description}
-                      onChange={handleDescriptionChange}
-                      placeholder="Describe what this KPI measures and why it's important"
-                      rows="3"
-                      disabled={isDuplicateName}
-                    />
-                  </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>RecommendedCalculation Behavior</label>
+                        <select
+                          value={behavior}
+                          onChange={(e) => setBehavior(e.target.value)}
+                          disabled={isDuplicateName}
+                        >
+                          <option value="">Select behavior</option>
+                          {behaviors.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                  <button 
-                    onClick={handleFormSubmit}
-                    className="add-to-list-btn"
-                    disabled={!kpiName.trim() || !category || !behavior}
-                  >
-                    {editingKpi ? 'Save Changes' : '+ Add New KPI'}
-                  </button>
-                </div>
-              </div>
-              <div className="kpi-upload-card">
-                <div className="bulk-upload-form">
-                  <div className="bulk-upload-actions">
-                    <h3><FaUpload /> Upload KPIs</h3>
-                    <button onClick={generateTemplate} className="generate-template-btn">
-                      <FaFileDownload /> Generate Template
+                    <div className="form-group">
+                      <label>Description</label>
+                      <textarea
+                        value={description}
+                        onChange={handleDescriptionChange}
+                        placeholder="Describe what this KPI measures and why it's important"
+                        rows="3"
+                        disabled={isDuplicateName}
+                      />
+                    </div>
+
+                    <button 
+                      onClick={handleFormSubmit}
+                      className="add-to-list-btn"
+                      disabled={!kpiName.trim() || !category || !behavior}
+                    >
+                      {editingKpi ? 'Save Changes' : '+ Add New KPI'}
                     </button>
                   </div>
-
-                  <div
-                    className={`drop-zone ${dragActive ? 'active' : ''}`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
-                    <div className="drop-zone-content">
-                        <p>Drag and drop your CSV file here</p>
-                        <p>File name format: kpi_upload_YYYYMMDD.csv</p>
-                        <p>Example: kpi_upload_20250520.csv</p>
-                        <p>Maximum file size: 5MB</p>
-                        <input
-                            type="file"
-                            id="file-upload"
-                            accept=".csv"
-                            onChange={handleFileChange}
-                            style={{ display: 'none' }}
-                        />
-                        <label htmlFor="file-upload" className="browse-files-btn">
-                            Browse Files
-                        </label>
-                    </div>
-                  </div>
-
-                  {file && (
-                    <div className="file-preview">
-                      <span>📄 {file.name}</span>
-                      <button onClick={removeFile} className="remove-file-btn">
-                        <FaTimesCircle />
+                </div>
+                <div className="kpi-upload-card">
+                  <div className="bulk-upload-form">
+                    <div className="bulk-upload-actions">
+                      <h3><FaUpload /> Upload KPIs</h3>
+                      <button onClick={generateTemplate} className="generate-template-btn">
+                        <FaFileDownload /> Generate Template
                       </button>
                     </div>
-                  )}
 
-                  {(bulkKpis.length > 0 || invalidKpis.length > 0) && (
-                    <div className="upload-preview">
-                      <div className="preview-tabs">
-                        <button
-                          className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
-                          onClick={() => setPreviewTab('valid')}
-                          disabled={bulkKpis.length === 0}
-                        >
-                          Valid ({bulkKpis.length})
-                        </button>
-                        <button
-                          className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
-                          onClick={() => setPreviewTab('invalid')}
-                          disabled={invalidKpis.length === 0}
-                        >
-                          Invalid ({invalidKpis.length})
-                        </button>
-                      </div>
-
-                      <div className="preview-content">
-                        {previewTab === 'valid' && bulkKpis.length > 0 && (
-                          <div className="valid-kpis-table">
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>KPI Name</th>
-                                  <th>Category</th>
-                                  <th>Behavior</th>
-                                  <th>Description</th>
-                                  <th>Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {bulkKpis.map((kpi, index) => (
-                                  <tr key={`valid-${index}`}>
-                                    <td>{kpi.name}</td>
-                                    <td>{kpi.category}</td>
-                                    <td>{kpi.behavior}</td>
-                                    <td>{kpi.description}</td>
-                                    <td>
-                                      <button onClick={() => {
-                                        const updatedKpis = [...bulkKpis];
-                                        updatedKpis.splice(index, 1);
-                                        setBulkKpis(updatedKpis);
-                                      }} className="delete-btn">
-                                        <FaTrash size={12} /> Delete
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-
-                        {previewTab === 'invalid' && invalidKpis.length > 0 && (
-                          <div className="invalid-kpis-table">
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>Reason</th>
-                                  <th>KPI Name</th>
-                                  <th>Category</th>
-                                  <th>Behavior</th>
-                                  <th>Description</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {invalidKpis.map((kpi, index) => (
-                                  <tr key={`invalid-${index}`}>
-                                    <td className="reason-cell">{kpi.reason}</td>
-                                    <td>{kpi.name}</td>
-                                    <td>{kpi.category}</td>
-                                    <td>{kpi.behavior}</td>
-                                    <td>{kpi.description}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                    <div
+                      className={`drop-zone ${dragActive ? 'active' : ''}`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                    >
+                      <div className="drop-zone-content">
+                          <p>Drag and drop your CSV file here</p>
+                          <p>File name format: kpi_upload_YYYYMMDD.csv</p>
+                          <p>Example: kpi_upload_20250520.csv</p>
+                          <p>Maximum file size: 5MB</p>
+                          <input
+                              type="file"
+                              id="file-upload"
+                              accept=".csv"
+                              onChange={handleFileChange}
+                              style={{ display: 'none' }}
+                          />
+                          <label htmlFor="file-upload" className="browse-files-btn">
+                              Browse Files
+                          </label>
                       </div>
                     </div>
-                  )}
 
-                  <div className="modal-actions">
-                    <button
-                      onClick={handleBulkUpload}
-                      className="save-btn"
-                      disabled={!file || bulkKpis.length === 0}
-                    >
-                      Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
-                    </button>
+                    {file && (
+                      <div className="file-preview">
+                        <span>📄 {file.name}</span>
+                        <button onClick={removeFile} className="remove-file-btn">
+                          <FaTimesCircle />
+                        </button>
+                      </div>
+                    )}
+
+                    {(bulkKpis.length > 0 || invalidKpis.length > 0) && (
+                      <div className="upload-preview">
+                        <div className="preview-tabs">
+                          <button
+                            className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
+                            onClick={() => setPreviewTab('valid')}
+                            disabled={bulkKpis.length === 0}
+                          >
+                            Valid ({bulkKpis.length})
+                          </button>
+                          <button
+                            className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
+                            onClick={() => setPreviewTab('invalid')}
+                            disabled={invalidKpis.length === 0}
+                          >
+                            Invalid ({invalidKpis.length})
+                          </button>
+                        </div>
+
+                        <div className="preview-content">
+                          {previewTab === 'valid' && bulkKpis.length > 0 && (
+                            <div className="valid-kpis-table">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>KPI Name</th>
+                                    <th>Category</th>
+                                    <th>Behavior</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {bulkKpis.map((kpi, index) => (
+                                    <tr key={`valid-${index}`}>
+                                      <td>{kpi.name}</td>
+                                      <td>{kpi.category}</td>
+                                      <td>{kpi.behavior}</td>
+                                      <td>{kpi.description}</td>
+                                      <td>
+                                        <button onClick={() => {
+                                          const updatedKpis = [...bulkKpis];
+                                          updatedKpis.splice(index, 1);
+                                          setBulkKpis(updatedKpis);
+                                        }} className="delete-btn">
+                                          <FaTrash size={12} /> Delete
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {previewTab === 'invalid' && invalidKpis.length > 0 && (
+                            <div className="invalid-kpis-table">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Reason</th>
+                                    <th>KPI Name</th>
+                                    <th>Category</th>
+                                    <th>Behavior</th>
+                                    <th>Description</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {invalidKpis.map((kpi, index) => (
+                                    <tr key={`invalid-${index}`}>
+                                      <td className="reason-cell">{kpi.reason}</td>
+                                      <td>{kpi.name}</td>
+                                      <td>{kpi.category}</td>
+                                      <td>{kpi.behavior}</td>
+                                      <td>{kpi.description}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="modal-actions">
+                      <button
+                        onClick={handleBulkUpload}
+                        className="save-btn"
+                        disabled={!file || bulkKpis.length === 0}
+                      >
+                        Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className={`tab-content ${activeTab === 'viewKPIs' ? 'active' : ''}`}>
-          <div className="existing-kpis">
-            {renderFilterControls()}
-            <div className="table-container">
-              {selectedKPIs.length > 0 && (
-                <div className="bulk-actions">
-                  <button 
-                    className="bulk-disable-btn"
-                    onClick={() => setShowBulkDisableModal(true)}
-                  >
-                    <FaTimes size={12} />
-                    Disable Selected KPIs
-                    <span className="count">{selectedKPIs.length}</span>
-                  </button>
-                </div>
-              )}
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>
-                        <input
-                          type="checkbox"
-                          checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
-                          onChange={handleSelectAll}
-                        />
-                      </th>
-                      <th onClick={() => handleSort('dKPI_ID')} style={{ cursor: 'pointer' }}>
-                        ID {sortConfig.key === 'dKPI_ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th onClick={() => handleSort('dKPI_Name')} style={{ cursor: 'pointer' }}>
-                        KPI Name {sortConfig.key === 'dKPI_Name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th onClick={() => handleSort('dCategory')} style={{ cursor: 'pointer' }}>
-                        Category {sortConfig.key === 'dCategory' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th onClick={() => handleSort('dCalculationBehavior')} style={{ cursor: 'pointer' }}>
-                        Calculation Behavior {sortConfig.key === 'dCalculationBehavior' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th onClick={() => handleSort('dDescription')} style={{ cursor: 'pointer' }}>
-                        Description {sortConfig.key === 'dDescription' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th onClick={() => handleSort('dCreatedBy')} style={{ cursor: 'pointer' }}>
-                        Created By {sortConfig.key === 'dCreatedBy' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th onClick={() => handleSort('tCreatedAt')} style={{ cursor: 'pointer' }}>
-                        Created At {sortConfig.key === 'tCreatedAt' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                      </th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getSortedKPIs().map((kpi, index) => (
-                      <tr key={kpi.dKPI_ID}>
-                        <td>
+          <div className={`tab-content ${activeTab === 'viewKPIs' ? 'active' : ''}`}>
+            <div className="existing-kpis">
+              {renderFilterControls()}
+              <div className="table-container">
+                {selectedKPIs.length > 0 && (
+                  <div className="bulk-actions">
+                    <button 
+                      className="bulk-disable-btn"
+                      onClick={() => setShowBulkDisableModal(true)}
+                    >
+                      <FaTimes size={12} />
+                      Disable Selected KPIs
+                      <span className="count">{selectedKPIs.length}</span>
+                    </button>
+                  </div>
+                )}
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>
                           <input
                             type="checkbox"
-                            checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
-                            onChange={() => handleSelectKPI(kpi)}
+                            checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
+                            onChange={handleSelectAll}
                           />
-                        </td>
-                        <td>{kpi.dKPI_ID}</td>
-                        <td>{kpi.dKPI_Name}</td>
-                        <td>{kpi.dCategory}</td>
-                        <td>{kpi.dCalculationBehavior}</td>
-                        <td>{kpi.dDescription}</td>
-                        <td>{kpi.dCreatedBy || '-'}</td>
-                        <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
-                        <td>
-                          <div className="action-buttons">
-                            <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
-                              <FaTimes size={12} /> Disable
-                            </button>
-                          </div>
-                        </td>
+                        </th>
+                        <th onClick={() => handleSort('dKPI_ID')} style={{ cursor: 'pointer' }}>
+                          ID {sortConfig.key === 'dKPI_ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th onClick={() => handleSort('dKPI_Name')} style={{ cursor: 'pointer' }}>
+                          KPI Name {sortConfig.key === 'dKPI_Name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th onClick={() => handleSort('dCategory')} style={{ cursor: 'pointer' }}>
+                          Category {sortConfig.key === 'dCategory' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th onClick={() => handleSort('dCalculationBehavior')} style={{ cursor: 'pointer' }}>
+                          Calculation Behavior {sortConfig.key === 'dCalculationBehavior' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th onClick={() => handleSort('dDescription')} style={{ cursor: 'pointer' }}>
+                          Description {sortConfig.key === 'dDescription' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th onClick={() => handleSort('dCreatedBy')} style={{ cursor: 'pointer' }}>
+                          Created By {sortConfig.key === 'dCreatedBy' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th onClick={() => handleSort('tCreatedAt')} style={{ cursor: 'pointer' }}>
+                          Created At {sortConfig.key === 'tCreatedAt' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {getSortedKPIs().map((kpi, index) => (
+                        <tr key={kpi.dKPI_ID}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
+                              onChange={() => handleSelectKPI(kpi)}
+                            />
+                          </td>
+                          <td>{kpi.dKPI_ID}</td>
+                          <td>{kpi.dKPI_Name}</td>
+                          <td>{kpi.dCategory}</td>
+                          <td>{kpi.dCalculationBehavior}</td>
+                          <td>{kpi.dDescription}</td>
+                          <td>{kpi.dCreatedBy || '-'}</td>
+                          <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
+                                <FaTimes size={12} /> Disable
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {showConfirmModal && kpiToAdd && (
-      <div className="modal-overlay">
-        <div className="modal confirm-modal">
-          <div className="modal-header">
-            <h2>Confirm KPI Addition</h2>
-            <button onClick={() => setShowConfirmModal(false)} className="close-btn">
-              <FaTimes />
-            </button>
-          </div>
-          
-          <div className="modal-content">
-            <p>Please confirm the details of the KPI to be added:</p>
-            <div className="kpi-details">
-              <p>Name:<strong>{kpiToAdd.name}</strong></p>
-              <p>Category:<strong>{kpiToAdd.category}</strong></p>
-              <p>Behavior:<strong>{kpiToAdd.behavior}</strong></p>
-              <p>Description:<strong>{kpiToAdd.description || '-'}</strong></p>
-            </div>
-          </div>
-
-          <div className="modal-actions">
-            <button onClick={() => setShowConfirmModal(false)} className="cancel-btn">
-              Cancel
-            </button>
-            <button onClick={handleConfirmAdd} className="save-btn">
-              Confirm Add
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-          {showSuccessModal && (
+        {showConfirmModal && kpiToAdd && (
         <div className="modal-overlay">
-          <div className="modal success-modal">
-            <div className="success-content">
-              <FaCheckCircle className="success-icon" />
-              <h2>Success!</h2>
-              <p>{successMessage}</p>
-              {successCount > 0 && (
-                <p className="success-count">{successCount} KPI{successCount !== 1 ? 's' : ''} added</p>
-              )}
-              <button 
-                onClick={() => setShowSuccessModal(false)} 
-                className="ok-btn"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Disable Success Modal */}
-      {showDisableSuccessModal && (
-        <div className="modal-overlay">
-          <div className="modal success-modal">
-            <div className="success-content">
-              <FaCheckCircle className="success-icon" />
-              <h2>Success!</h2>
-              <p>KPI has been disabled successfully</p>
-              <button 
-                onClick={() => setShowDisableSuccessModal(false)} 
-                className="ok-btn"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && kpiToDelete && (
-        <div className="modal-overlay">
-          <div className="modal delete-confirmation-modal">
+          <div className="modal confirm-modal">
             <div className="modal-header">
-              <h2>Confirm KPI Disable</h2>
-              <button onClick={() => {
-                setShowDeleteModal(false);
-                setKpiToDelete(null);
-                setDeleteConfirmation('');
-              }} className="close-btn">
-                <FaTimes />
-              </button>
+              <h2>Confirm KPI Addition</h2>
+
             </div>
             
             <div className="modal-content">
-              <div className="warning-message">
-                <FaTimesCircle className="warning-icon" />
-                <p>Please confirm the details of the KPI you want to disable:</p>
-              </div>
-              
+              <p>Please confirm the details of the KPI to be added:</p>
               <div className="kpi-details">
-                <p><strong>KPI Name:</strong> {kpiToDelete.dKPI_Name}</p>
-                <p><strong>Category:</strong> {kpiToDelete.dCategory}</p>
-                <p><strong>Behavior:</strong> {kpiToDelete.dCalculationBehavior}</p>
-                <p><strong>Description:</strong> {kpiToDelete.dDescription || '-'}</p>
-              </div>
-
-              <div className="confirmation-input">
-                <p>To confirm disabling, please type the KPI name:</p>
-                <input
-                  type="text"
-                  value={deleteConfirmation}
-                  onChange={(e) => setDeleteConfirmation(validateInput(e.target.value))}
-                  onPaste={(e) => e.preventDefault()}
-                  placeholder="Type the KPI name to confirm"
-                  className={deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() ? 'error' : ''}
-                />
-                {deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() && (
-                  <span className="error-message">The name doesn't match</span>
-                )}
+                <p>Name:<strong>{kpiToAdd.name}</strong></p>
+                <p>Category:<strong>{kpiToAdd.category}</strong></p>
+                <p>Behavior:<strong>{kpiToAdd.behavior}</strong></p>
+                <p>Description:<strong>{kpiToAdd.description || '-'}</strong></p>
               </div>
             </div>
 
             <div className="modal-actions">
-              <button 
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setKpiToDelete(null);
-                  setDeleteConfirmation('');
-                }} 
-                className="cancel-btn"
-              >
+              <button onClick={() => setShowConfirmModal(false)} className="cancel-btn">
                 Cancel
               </button>
-              <button 
-                onClick={handleDeleteConfirm}
-                className="delete-confirm-btn"
-                disabled={deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim()}
-              >
-                Disable KPI
+              <button onClick={handleConfirmAdd} className="save-btn">
+                Confirm Add
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bulk Disable Modal */}
-      {showBulkDisableModal && (
-        <div className="modal-overlay">
-          <div className="modal delete-confirmation-modal">
-            <div className="modal-header">
-              <h2>Confirm Bulk Disable</h2>
-              <button onClick={() => {
-                setShowBulkDisableModal(false);
-                setBulkDisableConfirmation('');
-              }} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
+
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && kpiToDelete && (
+          <div className="modal-overlay">
+            <div className="modal delete-confirmation-modal">
+              <div className="modal-header">
+                <h2>Confirm KPI Disable</h2>
             
-            <div className="modal-content">
-              <div className="warning-message">
-                <FaTimesCircle className="warning-icon" />
-                <p>Please confirm the details of the KPIs you want to disable:</p>
               </div>
               
-              <div className="kpi-details">
-                <p><strong>Number of KPIs to disable:</strong> {selectedKPIs.length}</p>
-                <div className="selected-kpis-list">
-                  {selectedKPIs.map(kpi => (
-                    <p key={kpi.dKPI_ID}><strong>{kpi.dKPI_Name}</strong></p>
-                  ))}
+              <div className="modal-content">
+                <div className="warning-message">
+                  <FaTimesCircle className="warning-icon" />
+                  <p>Please confirm the details of the KPI you want to disable:</p>
+                </div>
+                
+                <div className="kpi-details">
+                  <p><strong>KPI Name:</strong> {kpiToDelete.dKPI_Name}</p>
+                  <p><strong>Category:</strong> {kpiToDelete.dCategory}</p>
+                  <p><strong>Behavior:</strong> {kpiToDelete.dCalculationBehavior}</p>
+                  <p><strong>Description:</strong> {kpiToDelete.dDescription || '-'}</p>
+                </div>
+
+                <div className="confirmation-input">
+                  <p>To confirm disabling, please type the KPI name:</p>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(validateInput(e.target.value))}
+                    onPaste={(e) => e.preventDefault()}
+                    placeholder="Type the KPI name to confirm"
+                    className={deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() ? 'error' : ''}
+                  />
+                  {deleteConfirmation && deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim() && (
+                    <span className="error-message">The name doesn't match</span>
+                  )}
                 </div>
               </div>
 
-              <div className="confirmation-input">
-                <p>To confirm disabling {selectedKPIs.length} KPIs, please type "DISABLE":</p>
-                <input
-                  type="text"
-                  value={bulkDisableConfirmation}
-                  onChange={(e) => setBulkDisableConfirmation(validateInput(e.target.value))}
-                  onPaste={(e) => e.preventDefault()}
-                  placeholder="Type DISABLE to confirm"
-                  className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' ? 'error' : ''}
-                />
-                {bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' && (
-                  <span className="error-message">Please type "DISABLE" to confirm</span>
-                )}
+              <div className="modal-actions">
+                <button 
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setKpiToDelete(null);
+                    setDeleteConfirmation('');
+                  }} 
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDeleteConfirm}
+                  className="delete-confirm-btn"
+                  disabled={deleteConfirmation.trim() !== kpiToDelete.dKPI_Name.trim()}
+                >
+                  Disable KPI
+                </button>
               </div>
             </div>
-
-            <div className="modal-actions">
-              <button 
-                onClick={() => {
-                  setShowBulkDisableModal(false);
-                  setBulkDisableConfirmation('');
-                }} 
-                className="cancel-btn"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleBulkDisable}
-                className="delete-confirm-btn"
-                disabled={bulkDisableConfirmation.trim() !== 'DISABLE'}
-              >
-                Disable {selectedKPIs.length} KPIs
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Add Validation Modal */}
-      {showValidationModal && (
-        <div className="modal-overlay">
-          <div className="modal validation-modal">
-            <div className="modal-header">
-              <h2>Validation Error</h2>
-              <button onClick={() => setShowValidationModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="warning-message">
-                <FaTimesCircle className="warning-icon" />
-                <p>{validationMessage}</p>
+        {/* Bulk Disable Modal */}
+        {showBulkDisableModal && (
+          <div className="modal-overlay">
+            <div className="modal delete-confirmation-modal">
+              <div className="modal-header">
+                <h2>Confirm Bulk Disable</h2>
               </div>
-            </div>
-            <div className="modal-actions">
-              <button 
-                onClick={() => setShowValidationModal(false)} 
-                className="ok-btn"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Alert Modal */}
-      {showAlertModal && (
-        <div className="modal-overlay">
-          <div className="modal alert-modal">
-            <div className="modal-header">
-              <h2>{alertType === 'error' ? 'Error' : 'Success'}</h2>
-              <button onClick={() => setShowAlertModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className={`alert-message ${alertType}`}>
-                {alertType === 'error' ? (
-                  <FaTimesCircle className="alert-icon" />
-                ) : (
-                  <FaCheckCircle className="alert-icon" />
-                )}
-                {Array.isArray(alertMessage) ? (
-                  <ul style={{ textAlign: 'left', margin: '0 auto' }}>
-                    {alertMessage.map((msg, idx) => (
-                      <li key={idx}>{msg}</li>
+              
+              <div className="modal-content">
+                <div className="warning-message">
+                  <FaTimesCircle className="warning-icon" />
+                  <p>Please confirm the details of the KPIs you want to disable:</p>
+                </div>
+                
+                <div className="kpi-details">
+                  <p><strong>Number of KPIs to disable:</strong> {selectedKPIs.length}</p>
+                  <div className="selected-kpis-list">
+                    {selectedKPIs.map(kpi => (
+                      <p key={kpi.dKPI_ID}><strong>{kpi.dKPI_Name}</strong></p>
                     ))}
-                  </ul>
-                ) : (
-                  <p>{alertMessage}</p>
-                )}
+                  </div>
+                </div>
+
+                <div className="confirmation-input">
+                  <p>To confirm disabling {selectedKPIs.length} KPIs, please type "DISABLE":</p>
+                  <input
+                    type="text"
+                    value={bulkDisableConfirmation}
+                    onChange={(e) => setBulkDisableConfirmation(validateInput(e.target.value))}
+                    onPaste={(e) => e.preventDefault()}
+                    placeholder="Type DISABLE to confirm"
+                    className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' ? 'error' : ''}
+                  />
+                  {bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DISABLE' && (
+                    <span className="error-message">Please type "DISABLE" to confirm</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  onClick={() => {
+                    setShowBulkDisableModal(false);
+                    setBulkDisableConfirmation('');
+                  }} 
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleBulkDisable}
+                  className="delete-confirm-btn"
+                  disabled={bulkDisableConfirmation.trim() !== 'DISABLE'}
+                >
+                  Disable {selectedKPIs.length} KPIs
+                </button>
               </div>
             </div>
-            <div className="modal-actions">
-              <button 
-                onClick={() => setShowAlertModal(false)} 
-                className="ok-btn"
-              >
-                OK
-              </button>
+          </div>
+        )}
+
+        {/* Add Validation Modal */}
+        {showValidationModal && (
+          <div className="modal-overlay">
+            <div className="modal validation-modal">
+              <div className="modal-header">
+                <h2>Validation Error</h2>
+              </div>
+              <div className="modal-content">
+                <div className="warning-message">
+                  <FaTimesCircle className="warning-icon" />
+                  <p>{validationMessage}</p>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button 
+                  onClick={() => setShowValidationModal(false)} 
+                  className="ok-btn"
+                >
+                  OK
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="recently-added-table">
-        <h2>Recently Added</h2>
-        <div className="recently-added-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>KPI Name</th>
-                <th>Category</th>
-                <th>Behavior</th>
-                <th>Description</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentlyAdded.map((kpi, idx) => (
-                <tr key={idx}>
-                  <td>{kpi.name}</td>
-                  <td>{kpi.category}</td>
-                  <td>{kpi.behavior}</td>
-                  <td>{kpi.description}</td>
-                  <td>
-                    <button
-                      className="edit-btn"
-                      onClick={() => setEditRecentKpi({ ...kpi, idx })}
-                      title="Edit"
-                    >
-                      <FaPencilAlt style={{ marginRight: '6px' }} />
-                      Edit
-                    </button>
-                  </td>
+       
+
+        <div className="recently-added-table">
+          <h2>Recently Added</h2>
+          <div className="recently-added-table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>KPI Name</th>
+                  <th>Category</th>
+                  <th>Behavior</th>
+                  <th>Description</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentlyAdded.map((kpi, idx) => (
+                  <tr key={idx}>
+                    <td>{kpi.name}</td>
+                    <td>{kpi.category}</td>
+                    <td>{kpi.behavior}</td>
+                    <td>{kpi.description}</td>
+                    <td>
+                      <button
+                        className="edit-btn"
+                        onClick={() => setEditRecentKpi({ ...kpi, idx })}
+                        title="Edit"
+                      >
+                        <FaPencilAlt style={{ marginRight: '6px' }} />
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {editRecentKpi && (
-        <EditKpiModal
-          kpi={editRecentKpi}
-          onSave={handleSaveRecentKpi}
-          onCancel={() => setEditRecentKpi(null)}
-        />
-      )}
-    </div>
+        {editRecentKpi && (
+          <EditKpiModal
+            kpi={editRecentKpi}
+            kpis={kpis}
+            recentlyAdded={recentlyAdded}
+            onSave={handleSaveRecentKpi}
+            onCancel={() => setEditRecentKpi(null)}
+            validateInput={validateInput}
+          />
+        )}
+      </div>
+    </>
   );
 };
 
-const EditKpiModal = ({ kpi, onSave, onCancel }) => {
+const EditKpiModal = ({ kpi, kpis, recentlyAdded, onSave, onCancel, validateInput }) => {
   const categories = [
     'Compliance', 'Customer Experience', 'Employee Performance', 'Finance',
     'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'
   ];
   const behaviors = ['Lower the Better', 'Higher the Better'];
 
-  const validateInput = (value) => {
-    return value.replace(/[^a-zA-Z0-9\s-]/g, '');
-  };
-
   const [name, setName] = useState(kpi.name);
   const [category, setCategory] = useState(kpi.category);
   const [behavior, setBehavior] = useState(kpi.behavior);
   const [description, setDescription] = useState(kpi.description);
+  const [error, setError] = useState('');
+
+  // Dynamic duplicate check
+  useEffect(() => {
+    const isDuplicate =
+      kpis.some(item =>
+        item.dKPI_Name.toLowerCase().trim() === name.toLowerCase().trim() &&
+        item.dKPI_ID !== kpi.dKPI_ID
+      ) ||
+      recentlyAdded.some((item, idx) =>
+        item.name.toLowerCase().trim() === name.toLowerCase().trim() &&
+        idx !== kpi.idx
+      );
+
+    if (isDuplicate) {
+      setError('A KPI with this name already exists.');
+    } else {
+      setError('');
+    }
+  }, [name, kpis, recentlyAdded, kpi.dKPI_ID, kpi.idx]);
 
   const handleSave = () => {
+    if (error) return; // Prevent save if error exists
     onSave({
       ...kpi,
       name,
       category,
       behavior,
       description,
-      idx: kpi.idx // Pass the index for updating recentlyAdded
+      idx: kpi.idx
     });
   };
 
@@ -1731,7 +1701,7 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
       <div className="modal edit-kpi-modal">
         <div className="modal-header">
           <h2>Edit KPI</h2>
-          <button onClick={onCancel} className="close-btn">×</button>
+
         </div>
         <div className="modal-content">
           <div className="form-group">
@@ -1741,6 +1711,7 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
               onChange={e => setName(validateInput(e.target.value))}
               maxLength={30}
             />
+            {error && <span className="error-message">{error}</span>}
           </div>
           <div className="form-group">
             <label>Category</label>
