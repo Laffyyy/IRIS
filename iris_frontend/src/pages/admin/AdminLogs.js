@@ -16,6 +16,7 @@ const AdminLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('adminLogs'); // New state for active tab
 
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState('All');
@@ -27,81 +28,79 @@ const AdminLogs = () => {
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
 
+  const [allLocations, setAllLocations] = useState(['All']);
+  const [allActionTypes, setAllActionTypes] = useState(['All']);
+
+  // Reset filters when switching tabs
+  const handleTabChange = (tab) => {
+    if (tab !== activeTab) {
+      // Only reset and fetch if actually changing tabs
+      setLoading(true); // Show loading state immediately
+      setActiveTab(tab);
+      setSearchTerm('');
+      setLocationFilter('All');
+      setActionTypeFilter('All');
+      setDateRange([null, null]);
+      
+      // Clear the current logs before fetching new ones
+      setLogs([]);
+    }
+  };
+
   // Fetch logs data from API
-  const fetchLogs = async () => {
+  const fetchLogs = async (tabToUse) => {
     setLoading(true);
     setError(null);
+    setLogs([]); // Clear previous logs to prevent flashes of old data
   
     try {
-      // Comment out mock data and uncomment API code
-      /*
-      const mockLogs = [
-        { 
-          dLog_ID: 1, 
-          tActionAt: new Date().toISOString(), 
-          dActionBy: 'Test User', 
-          dActionType: 'Login', 
-          dActionLocation: 'Authentication', 
-          dActionLocation_ID: '1'
-        },
-        { 
-          dLog_ID: 2, 
-          tActionAt: new Date(Date.now() - 86400000).toISOString(), 
-          dActionBy: 'Admin', 
-          dActionType: 'Update', 
-          dActionLocation: 'User Management', 
-          dActionLocation_ID: '5'
-        }
-      ];
+      // Use the passed tab or fall back to activeTab state
+      const currentTab = tabToUse || activeTab;
       
-      // Set mock logs directly without API call
-      setLogs(mockLogs);
-      */
-  
-      // UNCOMMENT THIS SECTION
-      // We're bypassing token validation for now
-      // const token = localStorage.getItem('token');
-      // if (!token) {
-      //   throw new Error('Authentication token not found');
-      // }
-  
       // Prepare filters
       const filters = {
         searchTerm: searchTerm || null,
-        location: locationFilter,
-        actionType: actionTypeFilter
+        location: locationFilter !== 'All' ? locationFilter : null,
+        actionType: actionTypeFilter !== 'All' ? actionTypeFilter : null
       };
   
       // Add date range if selected
-      if (startDate) {
-        filters.startDate = startDate.toISOString();
-      }
+      if (startDate) filters.startDate = startDate.toISOString();
       if (endDate) {
-        // Set end date to end of day
         const endOfDay = new Date(endDate);
         endOfDay.setHours(23, 59, 59, 999);
         filters.endDate = endOfDay.toISOString();
       }
   
-      // Make API call without authentication for now
+      const operation = currentTab === 'adminLogs' ? 'viewadminlogs' : 'viewuseraccesslogs';
+      
+      console.log(`Fetching ${currentTab} with filters:`, filters);
+      
       const response = await axios.post('http://localhost:3000/api/logs', {
-        operation: 'viewadminlogs',
+        operation,
         filters
       }, {
-        // No authentication header for testing
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
   
-      console.log("API response:", response.data);
-  
       if (response.data.success) {
-        setLogs(response.data.logs);
+        // Update all state in one batch to prevent multiple renders
+        const newLogs = response.data.logs;
+        
+        if (!searchTerm && locationFilter === 'All' && actionTypeFilter === 'All' && !startDate && !endDate) {
+          if (currentTab === 'adminLogs') {
+            const locations = ['All', ...new Set(newLogs.map(log => log.dActionLocation).filter(Boolean))];
+            setAllLocations(locations);
+          }
+          
+          const actionTypes = ['All', ...new Set(newLogs.map(log => log.dActionType).filter(Boolean))];
+          setAllActionTypes(actionTypes);
+        }
+        
+        setLogs(newLogs);
       } else {
         throw new Error(response.data.message || 'Failed to fetch logs');
       }
-      
     } catch (err) {
       console.error('Error fetching logs:', err);
       setError('Failed to load logs: ' + (err.message || 'Unknown error'));
@@ -110,24 +109,35 @@ const AdminLogs = () => {
     }
   };
 
-  // Initial fetch on component mount
   useEffect(() => {
-    fetchLogs();
-  }, []); // Empty dependency array for initial load only
-
-  // Refetch when filters change
+    // Skip initial render if we don't have filters applied
+    const hasFilters = searchTerm || locationFilter !== 'All' || actionTypeFilter !== 'All' || startDate || endDate;
+    
+    // This check prevents double fetch on mount, only fetching when:
+    // 1. There are filters applied
+    // 2. This isn't the initial render (activeTab has been set)
+    
+    if (hasFilters || activeTab) {
+      // Using a debounce to prevent too many requests
+      const timer = setTimeout(() => {
+        console.log('Fetching due to changed dependency:', 
+          { filters: hasFilters, tab: activeTab });
+        fetchLogs(activeTab);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [searchTerm, locationFilter, actionTypeFilter, dateRange, activeTab]);
+  
+  // Keep the dropdown close effect
   useEffect(() => {
-    // Using a debounce to prevent too many requests
-    const timer = setTimeout(() => {
-      fetchLogs();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm, locationFilter, actionTypeFilter, dateRange]);
-
-  // Get unique locations and action types for filter dropdowns
-  const uniqueLocations = ['All', ...new Set(logs.map(log => log.dActionLocation).filter(Boolean))];
-  const uniqueActionTypes = ['All', ...new Set(logs.map(log => log.dActionType).filter(Boolean))];
-
+    const closeDropdowns = () => {
+      setShowMonthDropdown(false);
+      setShowYearDropdown(false);
+    };
+    document.addEventListener('click', closeDropdowns);
+    return () => document.removeEventListener('click', closeDropdowns);
+  }, []);
+  
   // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -203,99 +213,204 @@ const AdminLogs = () => {
           <h1>Admin Logs</h1>
           <p className="subtitle">View and manage system activity logs</p>
         </div>
-
-        {/* Search and Filter Controls */}
-        <div className="controls">
-          <div className="search-container">
-            <FaSearch className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search logs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        
+        {/* Tabs for switching between log types */}
+        <div className="tab-container">
+          <div 
+            className={`tab ${activeTab === 'adminLogs' ? 'active' : ''}`}
+            onClick={() => handleTabChange('adminLogs')}
+          >
+            Admin Logs
           </div>
-
-          <div className="filter-container">
-            <label>Location:</label>
-            <select
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-            >
-              {uniqueLocations.map(location => (
-                <option key={location} value={location}>{location}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-container">
-            <label>Action Type:</label>
-            <select
-              value={actionTypeFilter}
-              onChange={(e) => setActionTypeFilter(e.target.value)}
-            >
-              {uniqueActionTypes.map(actionType => (
-                <option key={actionType} value={actionType}>{actionType}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="date-picker-wrapper">
-            <div className="date-input-container">
-              <FaCalendarAlt className="date-icon" />
-              <DatePicker
-                selectsRange={true}
-                startDate={startDate}
-                endDate={endDate}
-                onChange={(update) => setDateRange(update)}
-                placeholderText="Select date range"
-                dateFormat="MMM d, yyyy"
-                className="date-picker-input"
-                isClearable={true}
-                maxDate={new Date()}
-                renderCustomHeader={renderCustomHeader}
-              />
-            </div>
+          <div 
+            className={`tab ${activeTab === 'userAccessLogs' ? 'active' : ''}`}
+            onClick={() => handleTabChange('userAccessLogs')}
+          >
+            User Access Logs
           </div>
         </div>
-
-        {/* Loading and Error States */}
-        {loading && <div className="loading-message">Loading logs...</div>}
-        {error && <div className="error-message">{error}</div>}
-
-        {/* Logs Table */}
-        {!loading && !error && (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Timestamp</th>
-                  <th>Action By</th>
-                  <th>Action Type</th>
-                  <th>Location</th>
-                  <th>Location ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map(log => (
-                  <tr key={log.dLog_ID}> {/* Changed from dLog_ID to dLog_ID */}
-                    <td>{log.dLog_ID}</td> {/* Changed from dLog_ID to dLog_ID */}
-                    <td>{formatDate(log.tActionAt)}</td>
-                    <td>{log.dActionBy}</td>
-                    <td>{log.dActionType}</td>
-                    <td>{log.dActionLocation}</td>
-                    <td>{log.dActionLocation_ID}</td>
-                  </tr>
-                ))}
-                {logs.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan="6" className="no-records">No logs found</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+  
+        {/* Loading State Handling - moved to top level */}
+        {loading ? (
+          <div className="loading-message">Loading logs...</div>
+        ) : error ? (
+          <div className="error-message">{error}</div>
+        ) : (
+          /* Only render content when not loading and no errors */
+          <>
+            {/* Admin Logs Content */}
+            <div className={`tab-content ${activeTab === 'adminLogs' ? 'active' : ''}`}>
+              {/* Search and Filter Controls */}
+              <div className="controls">
+                <div className="search-container">
+                  <FaSearch className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search admin logs..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+  
+                {/* Location filter - only shown for Admin Logs */}
+                <div className="filter-container">
+                  <label>Location:</label>
+                  <select
+                    value={locationFilter}
+                    onChange={(e) => setLocationFilter(e.target.value)}
+                  >
+                    {allLocations.map(location => (
+                      <option key={location} value={location}>{location}</option>
+                    ))}
+                  </select>
+                </div>
+  
+                <div className="filter-container">
+                  <label>Action Type:</label>
+                  <select
+                    value={actionTypeFilter}
+                    onChange={(e) => setActionTypeFilter(e.target.value)}
+                  >
+                    {allActionTypes.map(actionType => (
+                      <option key={actionType} value={actionType}>{actionType}</option>
+                    ))}
+                  </select>
+                </div>
+  
+                <div className="date-picker-wrapper">
+                  <div className="date-input-container">
+                    <FaCalendarAlt className="date-icon" />
+                    <DatePicker
+                      selectsRange={true}
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={(update) => setDateRange(update)}
+                      placeholderText="Select date range"
+                      dateFormat="MMM d, yyyy"
+                      className="date-picker-input"
+                      isClearable={true}
+                      maxDate={new Date()}
+                      renderCustomHeader={renderCustomHeader}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Admin Logs Table */}
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Location ID</th>
+                      <th>Location</th>
+                      <th>Action Type</th>
+                      <th>Action By</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.length > 0 ? (
+                      logs.map(log => (
+                        <tr key={log.dLog_ID}>
+                          <td>{log.dLog_ID}</td>
+                          <td>{log.dActionLocation_ID}</td>
+                          <td>{log.dActionLocation}</td>
+                          <td>{log.dActionType}</td>
+                          <td>{log.dActionBy}</td>
+                          <td>{formatDate(log.tActionAt)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="no-records">
+                          No logs found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+  
+            {/* User Access Logs Content */}
+            <div className={`tab-content ${activeTab === 'userAccessLogs' ? 'active' : ''}`}>
+              {/* Search and Filter Controls */}
+              <div className="controls">
+                <div className="search-container">
+                  <FaSearch className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search user access logs..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+  
+                <div className="filter-container">
+                  <label>Action Type:</label>
+                  <select
+                    value={actionTypeFilter}
+                    onChange={(e) => setActionTypeFilter(e.target.value)}
+                  >
+                    {allActionTypes.map(actionType => (
+                      <option key={actionType} value={actionType}>{actionType}</option>
+                    ))}
+                  </select>
+                </div>
+  
+                <div className="date-picker-wrapper">
+                  <div className="date-input-container">
+                    <FaCalendarAlt className="date-icon" />
+                    <DatePicker
+                      selectsRange={true}
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={(update) => setDateRange(update)}
+                      placeholderText="Select date range"
+                      dateFormat="MMM d, yyyy"
+                      className="date-picker-input"
+                      isClearable={true}
+                      maxDate={new Date()}
+                      renderCustomHeader={renderCustomHeader}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* User Access Logs Table */}
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Log ID</th>
+                      <th>User ID</th>
+                      <th>Action Type</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.length > 0 ? (
+                      logs.map(log => (
+                        <tr key={log.dLog_ID}>
+                          <td>{log.dLog_ID}</td>
+                          <td>{log.dUser_ID}</td>
+                          <td>{log.dActionType}</td>
+                          <td>{formatDate(log.tTimeStamp)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="no-records">
+                          No logs found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

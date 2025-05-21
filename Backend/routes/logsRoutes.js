@@ -12,6 +12,8 @@ router.post('/', (req, res) => {
     switch(operation) {
         case 'viewadminlogs':
             return logsController.getAdminLogs(req, res);
+        case 'viewuseraccesslogs':
+            return logsController.getUserAccessLogs(req, res);
         default:
             return res.status(400).json({ 
                 success: false, 
