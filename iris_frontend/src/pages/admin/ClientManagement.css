@@ -145,6 +145,10 @@
   position: relative;
 }
 
+.modern-table, .modern-table thead, .modern-table tbody {
+  user-select: none;
+}
+
 .modern-table {
   width: 100%;
   border-collapse: separate;
