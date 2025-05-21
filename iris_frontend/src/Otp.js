@@ -1,31 +1,29 @@
 // Otp.js
 import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate, useLocation } from 'react-router-dom';
 import './Otp.css';
 import { jwtDecode } from 'jwt-decode';
+import axios from 'axios';
 
-  const Otp = ({ onBack, onComplete }) => {
-  const navigate = useNavigate(); // Initialize useNavigate
+const Otp = ({ onBack, onComplete }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(180); // 3 minutes
   const [resendTime, setResendTime] = useState(90);
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(''); // Store userId from local storage or props
-  
-
-  
-
-  useEffect(() => {
-    // Retrieve userId from localStorage (assuming it was saved during login)
-    const storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
-  }, []);
+  const [userEmail, setUserEmail] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const [otpValues, setOtpValues] = useState(Array(6).fill(''));
+
+  useEffect(() => {
+    // Get userEmail from navigation state
+    if (location.state && location.state.userEmail) {
+      setUserEmail(location.state.userEmail);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -45,21 +43,13 @@ import { jwtDecode } from 'jwt-decode';
 
   const handleResendCode = async () => {
     if (!canResend) return;
-    
+
     try {
       setLoading(true);
       // API call to resend OTP
-      const response = await fetch('http://localhost:3000/api/otp/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
+      await axios.post('http://localhost:3000/api/otp/generate', {
+        userEmail,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to resend OTP');
-      }
 
       setResendTime(90);
       setExpireTime(180);
@@ -80,7 +70,6 @@ import { jwtDecode } from 'jwt-decode';
   const handleInputChange = (e, index) => {
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
- 
 
     if (value.length > 1) return;
 
@@ -91,9 +80,8 @@ import { jwtDecode } from 'jwt-decode';
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
-      setIsComplete(true);
     }
-    
+    setIsComplete(newOtpValues.every(val => val));
   };
 
   const handleKeyDown = (e, index) => {
@@ -114,9 +102,9 @@ import { jwtDecode } from 'jwt-decode';
       filtered.split('').forEach((char, i) => {
         inputsRef.current[i].value = char;
         newOtpValues[i] = char;
-        setIsComplete(true);
       });
       setOtpValues(newOtpValues);
+      setIsComplete(true);
       inputsRef.current[5].focus();
     }
     e.preventDefault();
@@ -129,85 +117,38 @@ import { jwtDecode } from 'jwt-decode';
   };
 
   const handleSubmit = async () => {
-  const otp = otpValues.join(''); // Combine OTP values into a single string
+    const otp = otpValues.join('');
+    if (!userEmail) {
+      alert('User email is missing. Please log in again.');
+      return;
+    }
 
-  // Retrieve userId and password from localStorage
-  const userId = localStorage.getItem('userId');
-  const password = localStorage.getItem('password');
+    const payload = {
+      email: userEmail, // <-- use 'email' as the key
+      otp
+    };
 
-  if (!userId || !password) {
-    alert('User ID or password is missing. Please log in again.');
-    return;
-  }
+    try {
+      const response = await axios.post('http://localhost:3000/api/fp/verify-otp', payload);
+      const data = response.data;
 
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
+      if (response.status === 200) {
+        alert(data.message || 'OTP verified!');
+        navigate('/security-questions', { state: { userEmail } });
+      } else {
+        alert(data.message || 'Failed to verify OTP. Please try again.');
+      }
+    } catch (error) {
+      alert(
+        error.response?.data?.message ||
+        'An error occurred while verifying the OTP. Please try again.'
+      );
+    }
   };
 
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-  // Handle successful OTP verification
-  const userStatus = data.data.user.status;
-  localStorage.setItem('token', data.data.token); // Save token to localStorage
-  alert(data.data.message);
-
-  // Decode token to get user roles
-  const decoded = jwtDecode(data.data.token);
-  const roles = decoded.roles
-    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
-    : decoded.role
-      ? [decoded.role]
-      : [];
-
-  if (userStatus === 'FIRST-TIME') {
-    navigate('../change-password');
-  } else if (userStatus === 'ACTIVE') {
-    alert('Login successful');
-    if (roles.includes('admin')) {
-      navigate('../dashboard');
-    } else if (roles.includes('HR')) {
-      navigate('../hr');
-    } else if (roles.includes('REPORTS')) {
-      navigate('../reports');
-    } else if (roles.includes('CNB')) {
-      navigate('../cb');
-    } else {
-      navigate('/'); // fallback
-    }
-  }
-} else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
-    }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
-};
- const handleBack = () => {
-    // Clear local storage or any other necessary cleanup
-    localStorage.removeItem('userId');
-    localStorage.removeItem('password');
+  const handleBack = () => {
     navigate('/'); // Redirect to the login page
-  }
+  };
 
   return (
     <div className="otp-container">
@@ -257,9 +198,9 @@ import { jwtDecode } from 'jwt-decode';
         </div>
 
         <div className="otp-button-group">
-          <button 
-          className="otp-back" 
-          onClick={handleBack}
+          <button
+            className="otp-back"
+            onClick={handleBack}
           >Back</button>
           <button
             id="otp-submit-button"
@@ -268,7 +209,7 @@ import { jwtDecode } from 'jwt-decode';
             disabled={!isComplete}
             type="button"
           >
-            Login
+            Verify OTP
           </button>
         </div>
       </div>

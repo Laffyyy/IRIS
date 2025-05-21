@@ -2,15 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(email);
-    navigate('/otp');
+    try {
+      const res = await axios.post('http://localhost:3000/api/fp/send-otp', { email });
+      alert(res.data.message); // OTP sent successfully
+      navigate('/otp', { state: { userEmail: email } }); // Pass email via state
+    } catch (err) {
+      alert(err.response.data.message);
+    }
   };
 
   return (
