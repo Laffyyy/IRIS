@@ -221,6 +221,9 @@ const ClientManagement = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
 
+  // Add state for table sorting
+  const [tableSort, setTableSort] = useState({ column: null, direction: null }); // direction: 'asc' | 'desc' | null
+
   const showToast = (message, type = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -1582,6 +1585,30 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
   };
 
+  // Helper to cycle sort direction
+  const getNextSortDirection = (current) => {
+    if (current === null) return 'asc';
+    if (current === 'asc') return 'desc';
+    return null;
+  };
+
+  // Helper to sort rows
+  const sortRows = (rows, column, direction) => {
+    if (!column || !direction) return rows;
+    return [...rows].sort((a, b) => {
+      let aValue = a[column];
+      let bValue = b[column];
+      // For string comparison, ignore case
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   return (
     <div className="client-management-container">
       <div className="client-management-flex">
@@ -2507,25 +2534,52 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 <table className="modern-table">
                   <thead>
                     <tr>
-                      <th>Client ID</th>
-                      <th>Client Name</th>
-                      <th>LOB</th>
-                      <th>Sub LOB</th>
-                      <th>Created At</th>
+                      {['clientId', 'name', 'lob', 'subLob', 'createdAt'].map((col, idx) => {
+                        const colMap = {
+                          clientId: 'Client ID',
+                          name: 'Client Name',
+                          lob: 'LOB',
+                          subLob: 'Sub LOB',
+                          createdAt: 'Created At',
+                        };
+                        // Show sort indicator
+                        let indicator = '';
+                        if (tableSort.column === col) {
+                          indicator = tableSort.direction === 'asc' ? ' ▲' : tableSort.direction === 'desc' ? ' ▼' : '';
+                        }
+                        return (
+                          <th
+                            key={col}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            onClick={() => {
+                              setTableSort(prev => {
+                                const nextDir = prev.column === col ? getNextSortDirection(prev.direction) : 'asc';
+                                return { column: nextDir ? col : null, direction: nextDir };
+                              });
+                            }}
+                          >
+                            {colMap[col]}{indicator}
+                          </th>
+                        );
+                      })}
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {activeTableTab === 'clients' ? (
-                      // Flatten all rows into a single array, then sort by Client ID (descending)
                       (() => {
-                        let rows = [];
+                        // Build row data objects
+                        let rowData = [];
                         filteredClients.forEach(client => {
                           const clientLobs = lobs.filter(lob => lob.clientId === client.id);
                           if (clientLobs.length === 0) {
-                            rows.push({
+                            rowData.push({
                               clientId: client.id,
-                              row: (
+                              name: client.name,
+                              lob: '',
+                              subLob: '',
+                              createdAt: client.createdAt || '-',
+                              jsx: (
                                 <tr key={`client-${client.id}-no-lob`}>
                                   <td>{client.id}</td>
                                   <td>{client.name}</td>
@@ -2535,7 +2589,6 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   <td>{client.createdAt || '-'}</td>
                                   <td>
                                     <div className="action-buttons">
-                                      
                                       {itemStatusTab === 'DEACTIVATED' ? (
                                         <button onClick={() => handleReactivateClient('client', client.id)} className="reactivate-btn">
                                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2564,9 +2617,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             filteredLobs.forEach(lob => {
                               const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
                               if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
-                                rows.push({
+                                rowData.push({
                                   clientId: lob.clientRowId,
-                                  row: (
+                                  name: client.name,
+                                  lob: lob.name,
+                                  subLob: '',
+                                  createdAt: client.createdAt || '-',
+                                  jsx: (
                                     <tr key={`client-${client.id}-lob-${lob.id}`}>
                                       <td>{lob.clientRowId}</td>
                                       <td>{client.name}</td>
@@ -2576,7 +2633,6 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                       <td>{client.createdAt || '-'}</td>
                                       <td>
                                         <div className="action-buttons">
-                                          
                                           {itemStatusTab === 'DEACTIVATED' ? (
                                             <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
                                               <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2593,9 +2649,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                 });
                               } else {
                                 lobSubLobs.forEach(subLob => {
-                                  rows.push({
+                                  rowData.push({
                                     clientId: subLob.clientRowId,
-                                    row: (
+                                    name: client.name,
+                                    lob: lob.name,
+                                    subLob: subLob.name,
+                                    createdAt: client.createdAt || '-',
+                                    jsx: (
                                       <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
                                         <td>{subLob.clientRowId}</td>
                                         <td>{client.name}</td>
@@ -2604,7 +2664,6 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                         <td>{client.createdAt || '-'}</td>
                                         <td>
                                           <div className="action-buttons">
-                                            
                                             {itemStatusTab === 'DEACTIVATED' ? (
                                               <button
                                                 onClick={() => {
@@ -2674,138 +2733,179 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             });
                           }
                         });
-                        // If partial search, filter the rows themselves for the search term
+                        // Dynamic search for partial search
                         if (searchFilter && searchFilter.type === 'partial') {
                           const lower = searchFilter.value.toLowerCase();
-                          rows = rows.filter(({ row }) => {
-                            // row.props.children is an array of <td> elements
-                            const tds = row.props.children;
-                            // Only check the columns for client, lob, sublob name
-                            // Client name: tds[1], LOB: tds[2], Sub LOB: tds[3]
-                            return [tds[1], tds[2], tds[3]].some(td => {
-                              if (!td || !td.props || typeof td.props.children !== 'string') return false;
-                              return td.props.children.toLowerCase().includes(lower);
-                            });
-                          });
+                          rowData = rowData.filter(r =>
+                            [r.name, r.lob, r.subLob].some(val =>
+                              typeof val === 'string' && val.toLowerCase().includes(lower)
+                            )
+                          );
                         }
-                        // Sort all rows by clientId descending
-                        return rows.sort((a, b) => b.clientId - a.clientId).map(r => r.row);
+                        // Sort rowData if needed
+                        if (tableSort.column && tableSort.direction) {
+                          rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+                        }
+                        return rowData.map(r => r.jsx);
                       })()
                     ) : activeTableTab === 'lobs' ? (
-                      // LOB view - show each LOB-SubLOB combination in separate rows
-                      lobs
-                        .filter(lob => {
-                          const client = clients.find(c => c.id === lob.clientId);
-                          return client && 
-                                client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                                (!filterClient || lob.clientId === filterClient);
-                        })
-                        .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
-                        .flatMap(lob => {
-                          const client = clients.find(c => c.id === lob.clientId);
-                          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                          
-                          // If no SubLOBs, show just the LOB
-                          if (lobSubLobs.length === 0) {
-                            return [(
-                              <tr key={`lob-view-${lob.id}`}>
-                                <td>{lob.clientRowId}</td> {/* Use just the LOB's clientRowId */}
-                                <td>{client ? client.name : '-'}</td>
-                                <td>{lob.name}</td>
-                                <td>-</td>
-                                <td>{client ? client.createdBy : '-'}</td>
-                                <td>{client ? client.createdAt : '-'}</td>
-                                <td>
-                                  <div className="action-buttons">
-                                    
-                                    {itemStatusTab === 'DEACTIVATED' ? (
-                                      <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
-                                        <FaCheckCircle size={14} color="#38a169" /> Reactivate
-                                      </button>
-                                    ) : (
-                                      <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
-                                        <FaBan size={12} /> Deactivate
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            )];
-                          }
-                          
-                          // Otherwise create one row for each SubLOB
-                          // Sort lobSubLobs by clientRowId descending
-                          const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
-                          return sortedLobSubLobs.map(subLob => (
-                            <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
-                              <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
-                              <td>{client ? client.name : '-'}</td>
-                              <td>{lob.name}</td>
-                              <td>{subLob.name}</td>
-                              <td>{client ? client.createdBy : '-'}</td>
-                              <td>{client ? client.createdAt : '-'}</td>
-                              <td>
-                                <div className="action-buttons">
-                                 
-                                  {itemStatusTab === 'DEACTIVATED' ? (
-                                    <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
-                                      <FaCheckCircle size={14} color="#38a169" /> Reactivate
-                                    </button>
-                                  ) : (
-                                    <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
-                                      <FaBan size={12} /> Deactivate
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ));
-                        })
+                      (() => {
+                        // Build row data objects for LOBs
+                        let rowData = lobs
+                          .filter(lob => {
+                            const client = clients.find(c => c.id === lob.clientId);
+                            return client && 
+                                  client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                                  (!filterClient || lob.clientId === filterClient);
+                          })
+                          .sort((a, b) => b.clientRowId - a.clientRowId)
+                          .flatMap(lob => {
+                            const client = clients.find(c => c.id === lob.clientId);
+                            const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+                            if (lobSubLobs.length === 0) {
+                              return [{
+                                clientId: lob.clientRowId,
+                                name: client ? client.name : '-',
+                                lob: lob.name,
+                                subLob: '',
+                                createdAt: client ? client.createdAt : '-',
+                                jsx: (
+                                  <tr key={`lob-view-${lob.id}`}>
+                                    <td>{lob.clientRowId}</td>
+                                    <td>{client ? client.name : '-'}</td>
+                                    <td>{lob.name}</td>
+                                    <td>-</td>
+                                    <td>{client ? client.createdBy : '-'}</td>
+                                    <td>{client ? client.createdAt : '-'}</td>
+                                    <td>
+                                      <div className="action-buttons">
+                                        {itemStatusTab === 'DEACTIVATED' ? (
+                                          <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
+                                            <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                          </button>
+                                        ) : (
+                                          <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                            <FaBan size={12} /> Deactivate
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              }];
+                            }
+                            const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
+                            return sortedLobSubLobs.map(subLob => ({
+                              clientId: subLob.clientRowId,
+                              name: client ? client.name : '-',
+                              lob: lob.name,
+                              subLob: subLob.name,
+                              createdAt: client ? client.createdAt : '-',
+                              jsx: (
+                                <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
+                                  <td>{subLob.clientRowId}</td>
+                                  <td>{client ? client.name : '-'}</td>
+                                  <td>{lob.name}</td>
+                                  <td>{subLob.name}</td>
+                                  <td>{client ? client.createdBy : '-'}</td>
+                                  <td>{client ? client.createdAt : '-'}</td>
+                                  <td>
+                                    <div className="action-buttons">
+                                      {itemStatusTab === 'DEACTIVATED' ? (
+                                        <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                        </button>
+                                      ) : (
+                                        <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                          <FaBan size={12} /> Deactivate
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            }));
+                          });
+                        // Dynamic search for partial search
+                        if (searchFilter && searchFilter.type === 'partial') {
+                          const lower = searchFilter.value.toLowerCase();
+                          rowData = rowData.filter(r =>
+                            [r.name, r.lob, r.subLob].some(val =>
+                              typeof val === 'string' && val.toLowerCase().includes(lower)
+                            )
+                          );
+                        }
+                        // Sort rowData if needed
+                        if (tableSort.column && tableSort.direction) {
+                          rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+                        }
+                        return rowData.map(r => r.jsx);
+                      })()
                     ) : (
-                      // SubLOB view - already shows individual rows for each SubLOB
-                      subLobs
-                        .filter(subLob => {
-                          const lob = lobs.find(l => l.id === subLob.lobId);
-                          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
-                          
-                          return (
-                            client && 
-                            (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
-                             safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
-                             safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
-                            (!filterClient || (lob && lob.clientId === filterClient))
+                      (() => {
+                        // Build row data objects for SubLOBs
+                        let rowData = subLobs
+                          .filter(subLob => {
+                            const lob = lobs.find(l => l.id === subLob.lobId);
+                            const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                            return (
+                              client && 
+                              (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
+                               safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
+                               safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
+                              (!filterClient || (lob && lob.clientId === filterClient))
+                            );
+                          })
+                          .sort((a, b) => b.clientRowId - a.clientRowId)
+                          .map(subLob => {
+                            const lob = lobs.find(l => l.id === subLob.lobId);
+                            const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                            return {
+                              clientId: subLob.clientRowId,
+                              name: client ? client.name : '-',
+                              lob: lob ? lob.name : '-',
+                              subLob: subLob.name,
+                              createdAt: client ? client.createdAt : '-',
+                              jsx: (
+                                <tr key={`sublob-${subLob.id}`}>
+                                  <td>{subLob.clientRowId}</td>
+                                  <td>{client ? client.name : '-'}</td>
+                                  <td>{lob ? lob.name : '-'}</td>
+                                  <td>{subLob.name}</td>
+                                  <td>{client ? client.createdBy : '-'}</td>
+                                  <td>{client ? client.createdAt : '-'}</td>
+                                  <td>
+                                    <div className="action-buttons">
+                                      {itemStatusTab === 'DEACTIVATED' ? (
+                                        <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                        </button>
+                                      ) : (
+                                        <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                          <FaBan size={12} /> Deactivate
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            };
+                          });
+                        // Dynamic search for partial search
+                        if (searchFilter && searchFilter.type === 'partial') {
+                          const lower = searchFilter.value.toLowerCase();
+                          rowData = rowData.filter(r =>
+                            [r.name, r.lob, r.subLob].some(val =>
+                              typeof val === 'string' && val.toLowerCase().includes(lower)
+                            )
                           );
-                        })
-                        .sort((a, b) => b.clientRowId - a.clientRowId) // Sort by clientRowId descending
-                        .map(subLob => {
-                          const lob = lobs.find(l => l.id === subLob.lobId);
-                          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
-                          
-                          return (
-                            <tr key={`sublob-${subLob.id}`}>
-                              <td>{subLob.clientRowId}</td> {/* Use just the SubLOB's clientRowId */}
-                              <td>{client ? client.name : '-'}</td>
-                              <td>{lob ? lob.name : '-'}</td>
-                              <td>{subLob.name}</td>
-                              <td>{client ? client.createdBy : '-'}</td>
-                              <td>{client ? client.createdAt : '-'}</td>
-                              <td>
-                                <div className="action-buttons">
-                                  
-                                  {itemStatusTab === 'DEACTIVATED' ? (
-                                    <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
-                                      <FaCheckCircle size={14} color="#38a169" /> Reactivate
-                                    </button>
-                                  ) : (
-                                    <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
-                                      <FaBan size={12} /> Deactivate
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
+                        }
+                        // Sort rowData if needed
+                        if (tableSort.column && tableSort.direction) {
+                          rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+                        }
+                        return rowData.map(r => r.jsx);
+                      })()
                     )}
                   </tbody>
                 </table>
