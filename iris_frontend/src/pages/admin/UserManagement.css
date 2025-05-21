@@ -157,19 +157,23 @@
   max-height: calc(100vh - 280px);
 }
 
-table {
+.table-container table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
+  table-layout: fixed;
 }
 
-th, td {
-  padding: 10px 12px;
+.table-container th,
+.table-container td {
+  padding: 12px 15px;
   text-align: left;
-  vertical-align: middle;
   border-bottom: 1px solid #e0e0e0;
-  height: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 48px;
   box-sizing: border-box;
 }
 
@@ -768,10 +772,51 @@ button:disabled,
 
 /* Additional CSS to complement existing styles in UserManagement.css */
 
-/* Make Edit User modal wider */
+/* Make Edit User modal wider with fixed height and scrollbar */
 .modal.edit-user-modal {
   max-width: 900px !important;
   width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal.edit-user-modal .modal-header {
+  flex-shrink: 0;
+}
+
+.modal.edit-user-modal .modal-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 16px 20px;
+  background: white;
+  border-top: 1px solid #eee;
+  border-radius: 0 0 8px 8px;
+}
+
+.modal.edit-user-modal .password-security-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.modal.edit-user-modal .password-security-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal.edit-user-modal .password-security-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modal.edit-user-modal .password-security-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.modal.edit-user-modal .password-security-container::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 th, tr {
@@ -785,16 +830,22 @@ th, tr {
 .password-security-container {
   display: flex;
   gap: 20px;
-  margin-bottom: 20px;
+  margin: 20px;
+  flex-wrap: wrap;
+  overflow-y: auto;
+  max-height: calc(90vh - 200px);
 }
 
 .password-change-section,
 .security-questions-section {
   flex: 1;
-  padding: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #f8fafc;
+  min-width: 300px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  height: fit-content;
+  transition: all 0.3s ease;
 }
 
 .section-header {
@@ -846,15 +897,23 @@ th, tr {
 
 /* Security questions styling */
 .security-question-group {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 15px;
   margin-bottom: 15px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e0e0e0;
 }
 
 .security-question-group:last-child {
   margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
+}
+
+.security-question-group .form-group {
+  margin-bottom: 10px;
+}
+
+.security-question-group .form-group:last-child {
+  margin-bottom: 0;
 }
 
 /* Toggle visibility button styles */

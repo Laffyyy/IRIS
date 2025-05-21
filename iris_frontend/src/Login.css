@@ -1,0 +1,386 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100%;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #f8fafc;
+}
+
+.iris-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #333;
+  text-align: left;
+}
+
+.iris-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.iris-login-box {
+  display: flex;
+  width: 720px;
+  height: 470px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.iris-login-box.expanded {
+  height: 520px;
+}
+
+.iris-left {
+  width: 55%;
+  padding: 40px;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.iris-logo {
+  width: 80px;
+  margin-bottom: 20px;
+  user-select: none; 
+  pointer-events: none;
+}
+
+.iris-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.iris-subtitle {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.iris-form {
+  width: 100%;
+}
+
+.iris-input-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.iris-input-wrapper input {
+  width: 100%;
+  padding: 8px 10px 8px 34px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.iris-input-wrapper input::placeholder {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.iris-icon {
+  position: absolute;
+  top: 32px;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  z-index: 2;
+}
+
+.password-icon {
+  top: 33px;
+}
+
+.iris-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Error message */
+.iris-error {
+  color: red;
+  font-size: 12px;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* Warning message styling */
+.iris-warning-message {
+  margin-top: 10px;
+  background-color: #ffe5e5;
+  color: #b30000;
+  border: 1px solid #b30000;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.iris-warning-message h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.iris-warning-message p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.iris-forgot-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+
+.iris-forgot {
+  font-size: 11px;
+  color: #007bff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.iris-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #0047b3;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  font-size: 14px;
+}
+
+.iris-button:hover {
+  background-color: #003399;
+}
+
+.iris-right {
+  width: 45%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Carousel Styles */
+.carousel-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.carousel-slide {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transition: background-image 0.5s ease;
+  filter: brightness(60%);
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.3s ease;
+}
+
+.carousel-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.prev-btn {
+  left: 10px;
+}
+
+.next-btn {
+  right: 10px;
+}
+
+.carousel-indicators {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.indicator.active {
+  background: white;
+}
+
+/* Eye icon */
+.eye-icon-btn {
+  position: absolute;
+  right: 10px;
+  top: 34px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  z-index: 2;
+}
+
+/* Prevent browser autofill icons */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute;
+  right: 0;
+  width: 0;
+  height: 0;
+}
+
+#password {
+  padding-right: 35px;
+  padding-left: 34px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .iris-login-box {
+    flex-direction: column;
+    width: 95%;
+    height: auto;
+  }
+
+  .iris-left, .iris-right {
+    width: 100%;
+    padding: 30px;
+  }
+
+  .iris-right {
+    height: 300px;
+    order: -1;
+  }
+
+  .iris-login-box.expanded {
+    height: auto;
+  }
+
+  .carousel-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .carousel-indicators {
+    bottom: 15px;
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 2rem;
+  width: 320px;
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  text-align: left;
+}
+
+.modal-content h3 {
+  margin-bottom: 0.5rem;
+}
+
+.modal-text {
+  font-size: 0.95rem;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.modal-form input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.modal-buttons button {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.modal-buttons button[type="button"] {
+  background-color: #ccc;
+  color: #333;
+}
+
+.modal-buttons button[type="submit"] {
+  background-color: #007bff;
+  color: white;
+}
