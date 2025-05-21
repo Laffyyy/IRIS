@@ -219,8 +219,12 @@
 
 .existing-kpis th:nth-child(8),
 .existing-kpis td:nth-child(8) {
-  width: 120px;  /* Actions column */
-  text-align: center;
+  width: 240px;
+  min-width: 200px;
+  max-width: 340px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 /* Add these new styles for the created by column */
