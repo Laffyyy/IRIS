@@ -124,6 +124,8 @@ const ClientManagement = () => {
   const clientSearchInputRef = useRef(null);
   // Add ref for client search input in Add Sub LOB tab
   const subLobClientSearchInputRef = useRef(null);
+  // Add ref for date input
+  const dateInputRef = useRef(null);
 
   // Add useEffect to focus input when Add Client tab is opened
   useEffect(() => {
@@ -234,6 +236,9 @@ const ClientManagement = () => {
 
   // Add state to track last selected row index
   const [lastSelectedRowIndex, setLastSelectedRowIndex] = useState(null);
+
+  // Add state for date input cursor
+  const [dateInputCursor, setDateInputCursor] = useState('default');
 
   const showToast = (message, type = 'success') => {
     setToastMessage(message);
@@ -2137,6 +2142,124 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           </tr>
         );
       });
+    } else if (activeTableTab === 'lobs') {
+      (() => {
+        // Build row data objects for LOBs
+        let rowData = lobs
+          .filter(lob => {
+            const client = clients.find(c => c.id === lob.clientId);
+            return client && 
+                  client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                  (!filterClient || lob.clientId === filterClient);
+          })
+          .sort((a, b) => b.clientRowId - a.clientRowId)
+          .flatMap(lob => {
+            const client = clients.find(c => c.id === lob.clientId);
+            const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+            if (lobSubLobs.length === 0) {
+              return [{
+                clientId: lob.clientRowId,
+                name: client ? client.name : '-',
+                lob: lob.name,
+                subLob: '',
+                createdAt: client ? client.createdAt : '-',
+                jsx: (
+                  <tr key={`lob-view-${lob.id}`}>
+                    <td>{lob.clientRowId}</td>
+                    <td>{client ? client.name : '-'}</td>
+                    <td>{lob.name}</td>
+                    <td>-</td>
+                    <td>{client ? client.createdBy : '-'}</td>
+                    <td>{client ? client.createdAt : '-'}</td>
+                    <td>
+                      <div className="action-buttons">
+                        {itemStatusTab === 'DEACTIVATED' ? (
+                          <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
+                            <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                          </button>
+                        ) : (
+                          <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                            <FaBan size={12} /> Deactivate
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              }];
+            }
+            const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
+            return sortedLobSubLobs.map(subLob => ({
+              clientId: subLob.clientRowId,
+              name: client ? client.name : '-',
+              lob: lob.name,
+              subLob: subLob.name,
+              createdAt: client ? client.createdAt : '-',
+              jsx: (
+                <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
+                  <td>{subLob.clientRowId}</td>
+                  <td>{client ? client.name : '-'}</td>
+                  <td>{lob.name}</td>
+                  <td>{subLob.name}</td>
+                  <td>{client ? client.createdBy : '-'}</td>
+                  <td>{client ? client.createdAt : '-'}</td>
+                  <td>
+                    <div className="action-buttons">
+                      {itemStatusTab === 'DEACTIVATED' ? (
+                        <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                        </button>
+                      ) : (
+                        <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                          <FaBan size={12} /> Deactivate
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            }));
+          });
+        // Dynamic search for partial search
+        if (searchFilter && searchFilter.type === 'partial') {
+          const lower = searchFilter.value.toLowerCase();
+          rowData = rowData.filter(r =>
+            [r.name, r.lob, r.subLob].some(val =>
+              typeof val === 'string' && val.toLowerCase().includes(lower)
+            )
+          );
+        }
+        // Sort rowData if needed
+        if (tableSort.column && tableSort.direction) {
+          rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+        }
+        return rowData.map((r, rowIndex) => {
+          const rowKey = r.subLob 
+            ? `sublob-${r.name}-${r.lob}-${r.subLob}`
+            : `lob-${r.name}-${r.lob}`;
+          
+          return (
+            <tr
+              key={rowKey}
+              onClick={e => {
+                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
+              }}
+              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+            >
+              <td>
+                <input
+                  type="checkbox"
+                  checked={selectedRows.has(rowKey)}
+                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
+                  style={{ cursor: 'pointer' }}
+                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
+                />
+              </td>
+              {r.jsx.props.children}
+            </tr>
+          );
+        });
+      })()
     } else if (activeTableTab === 'subLobs') {
       subLobs
         .filter(subLob => {
@@ -3116,10 +3239,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
                     <label style={{ marginRight: 8 }}>Filter by Date:</label>
                     <input
+                      ref={dateInputRef}
                       type="date"
                       value={filterDate}
                       onChange={e => setFilterDate(e.target.value)}
-                      style={{ minWidth: 150, height: 32 }}
+                      style={{ minWidth: 150, height: 32, cursor: dateInputCursor }}
+                      onClick={() => {
+                        if (dateInputRef.current && dateInputRef.current.showPicker) {
+                          dateInputRef.current.showPicker();
+                        }
+                      }}
+                      onMouseEnter={() => setDateInputCursor('pointer')}
+                      onMouseLeave={() => setDateInputCursor('default')}
                     />
                     {filterDate && (
                       <button
