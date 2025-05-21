@@ -13,60 +13,86 @@ import Otp from './Otp';
 import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
-import InactivityHandler from './components/InactivityHandler'; 
-
-import './App.css';
+import ProtectedRoute from './utilities/ProtectedRoute';
+import Unauthorize from './utilities/Unautorize';
+import AdminPage from './adminpagecollection';
+import InactivityHandler from './components/InactivityHandler';
 
 function App() {
   return (
     <Router>
       <div className="App">
         <Routes>
-          {/* Redirect root URL to admin users */}
-
-          {/*  Add this route for the Login page */}
+          {/* Login routes */}
           <Route path="/" element={<Login />} />
           <Route path="/otp" element={<Otp />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/security-questions" element={<SecurityQuestions />} />
           <Route path="/update-password" element={<UpdatePassword />} />
 
+          {/* Protected routes */}
           <Route
-            path="/admin/users"
+            path="/admin/*"
             element={
               <InactivityHandler>
-                <Sidebar />
-                <UserManagement />
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  </main>
+                </div>
               </InactivityHandler>
             }
           />
           <Route
-            path="/admin/apps"
+            path="/hr"
             element={
               <InactivityHandler>
-                <Sidebar />
-                <AppManagement />
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
+                      <div>HR Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
               </InactivityHandler>
             }
           />
           <Route
-            path="/admin/clients"
+            path="/reports"
             element={
               <InactivityHandler>
-                <Sidebar />
-                <ClientManagement />
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+                      <div>Reports Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
               </InactivityHandler>
             }
           />
           <Route
-            path="/dashboard"
+            path="/compensation"
             element={
               <InactivityHandler>
-                <Sidebar />
-                <Dashboard />
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+                      <div>C&B Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
               </InactivityHandler>
             }
           />
+          <Route path="/faqs" element={<div>FAQs Page</div>} />
+          <Route path="/unauthorized" element={<Unauthorize />} />
         </Routes>
       </div>
     </Router>
