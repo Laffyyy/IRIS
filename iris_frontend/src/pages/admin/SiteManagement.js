@@ -44,14 +44,6 @@ const SiteManagement = () => {
   const [selectAllClientSites, setSelectAllClientSites] = useState(false);
   const [siteSearchTerm, setSiteSearchTerm] = useState('');
   const [clientSiteSearchTerm, setClientSiteSearchTerm] = useState('');
-  
-  // Add new state variables for bulk add modal
-  const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
-  const [bulkAddSelectedSite, setBulkAddSelectedSite] = useState(null);
-  const [bulkAddSelectedClients, setBulkAddSelectedClients] = useState([]);
-  const [selectAllBulkClients, setSelectAllBulkClients] = useState(false);
-  const [availableBulkClients, setAvailableBulkClients] = useState([]);
-  const [isLoadingBulkClients, setIsLoadingBulkClients] = useState(false);
 
   const [siteSortConfig, setSiteSortConfig] = useState({ key: null, direction: 'ascending' });
   const [clientSiteSortConfig, setClientSiteSortConfig] = useState({ key: null, direction: 'ascending' });
@@ -80,6 +72,9 @@ const SiteManagement = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [showClientAlreadyAddedModal, setShowClientAlreadyAddedModal] = useState(false);
+  const [alreadyAddedClientName, setAlreadyAddedClientName] = useState('');
+
   const [showEditSiteConfirmModal, setShowEditSiteConfirmModal] = useState(false);
   const [siteBeingEdited, setSiteBeingEdited] = useState(null);
 
@@ -87,20 +82,14 @@ const SiteManagement = () => {
   const [activeClientSites, setActiveClientSites] = useState([]);
   const [deactivatedClientSites, setDeactivatedClientSites] = useState([]);
 
+  const [showDuplicateSiteModal, setShowDuplicateSiteModal] = useState(false);
+  const [duplicateSiteName, setDuplicateSiteName] = useState('');
+
   const [showAddClientSiteConfirmModal, setShowAddClientSiteConfirmModal] = useState(false);
   const [clientSiteConfirmDetails, setClientSiteConfirmDetails] = useState({
     clientName: '',
     lobName: '',
     subLobName: ''
-  });
-  
-  const [showBulkAddClientSiteConfirmModal, setShowBulkAddClientSiteConfirmModal] = useState(false);
-  const [bulkClientSiteDetails, setBulkClientSiteDetails] = useState({
-    siteId: null,
-    siteName: '',
-    clientCount: 0,
-    totalLobCount: 0,
-    totalSubLobCount: 0
   });
 
   
@@ -154,37 +143,6 @@ const SiteManagement = () => {
 
     loadAvailableClients();
   }, [selectedSite]);
-
-  /**
-   * Updates available clients when site changes
-   */
-  useEffect(() => {
-    const loadAvailableClients = async () => {
-      if (bulkAddSelectedSite) {
-        setIsLoadingBulkClients(true);
-        try {
-          const response = await manageSite('getAvailableClients', { 
-            siteId: parseInt(bulkAddSelectedSite)
-          });
-          
-          if (response && response.clients) {
-            setAvailableBulkClients(response.clients);
-          } else {
-            setAvailableBulkClients([]);
-          }
-        } catch (error) {
-          console.error('Error loading available clients:', error);
-          setAvailableBulkClients([]);
-        } finally {
-          setIsLoadingBulkClients(false);
-        }
-      } else {
-        setAvailableBulkClients([]);
-      }
-    };
-
-    loadAvailableClients();
-  }, [bulkAddSelectedSite]);
 
   /**
    * Handles all API requests to the site management endpoints
@@ -365,17 +323,52 @@ const SiteManagement = () => {
   };
 
   /**
+   * Checks if a site with the given name already exists
+   */
+  const checkDuplicateSite = async (siteName) => {
+    try {
+      if (!siteName.trim()) return false;
+      
+      // Check active sites
+      const isDuplicateActive = activeSites.some(
+        site => site.dSiteName.toLowerCase() === siteName.toLowerCase()
+      );
+      
+      // Check deactivated sites
+      const isDuplicateDeactivated = deactivatedSites.some(
+        site => site.dSiteName.toLowerCase() === siteName.toLowerCase()
+      );
+      
+      return isDuplicateActive || isDuplicateDeactivated;
+    } catch (error) {
+      console.error('Error checking for duplicate site:', error);
+      return false;
+    }
+  };
+
+  /**
    * Adds a new site to the database
    */
-  const handleAddSite = () => {
+  const handleAddSite = async () => {
     if (!newSiteName.trim()) return;
-    setShowAddSiteConfirmModal(true);
+    
+    // First check if the site already exists
+    const isDuplicate = await checkDuplicateSite(newSiteName);
+    
+    if (isDuplicate) {
+      // Show duplicate site modal
+      setDuplicateSiteName(newSiteName);
+      setShowDuplicateSiteModal(true);
+    } else {
+      // Proceed with normal add site flow
+      setShowAddSiteConfirmModal(true);
+    }
   };
 
   // Add the actual site creation logic in a new function
   const confirmAddSite = async () => {
     try {
-      await manageSite('add', { siteName: newSiteName });
+      const response = await manageSite('add', { siteName: newSiteName });
       
       // Close the confirmation modal immediately
       setShowAddSiteConfirmModal(false);
@@ -393,8 +386,95 @@ const SiteManagement = () => {
         setShowSuccessModal(false);
       }, 3000);
     } catch (error) {
-      // Error already handled by manageSite
+      // Close the confirmation modal
       setShowAddSiteConfirmModal(false);
+      
+      // Check if it's a duplicate site error (you might need to adjust this condition
+      // based on how your backend reports the error)
+      if (error.message && error.message.toLowerCase().includes('duplicate')) {
+        setDuplicateSiteName(newSiteName);
+        setShowDuplicateSiteModal(true);
+      } else {
+        // Handle other errors with the existing error mechanism
+        setErrorMessage(`Failed to add site: ${error.message}`);
+        setShowErrorModal(true);
+        setTimeout(() => {
+          setShowErrorModal(false);
+        }, 3000);
+      }
+    }
+  };
+
+  const isClientFullyAssignedToSite = async (clientName, siteId) => {
+    try {
+      // Filter assignments for this client and site
+      const clientAssignments = existingAssignments.filter(
+        assignment => assignment.dClientName === clientName && 
+                      assignment.dSite_ID === parseInt(siteId)
+      );
+      
+      // If no LOB is selected, check if ALL client LOBs and Sub LOBs are assigned
+      if (!clientSiteConfirmDetails.lobName) {
+        // Get all available LOBs and Sub LOBs for the client
+        const clientId = clients.find(c => c.name === clientName)?.id;
+        if (!clientId) return false;
+        
+        const response = await manageSite('getClientLobs', { clientId });
+        const allClientLobs = response.lobs || [];
+        
+        if (allClientLobs.length === 0) return false;
+        
+        // Check each LOB and its Sub LOBs to see if they're all assigned
+        for (const lob of allClientLobs) {
+          for (const subLob of lob.subLobs) {
+            // Check if this combination is assigned
+            const isAssigned = clientAssignments.some(
+              assignment => assignment.dLOB === lob.name && 
+                            assignment.dSubLOB === subLob.name
+            );
+            
+            if (!isAssigned) {
+              // Found an unassigned LOB/Sub LOB combination
+              return false;
+            }
+          }
+        }
+        
+        // All LOBs and Sub LOBs are assigned
+        return true;
+      }
+      
+      // If LOB is selected but no Sub LOB, check if ALL Sub LOBs for this LOB are already assigned
+      if (clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName) {
+        // Find LOB from client's available LOBs
+        const selectedLob = clientLobs.find(lob => lob.name === clientSiteConfirmDetails.lobName);
+        if (!selectedLob) return false;
+        
+        // Get all assigned Sub LOBs for this LOB
+        const assignedSubLobs = clientAssignments
+          .filter(assignment => assignment.dLOB === clientSiteConfirmDetails.lobName)
+          .map(assignment => assignment.dSubLOB);
+        
+        // If there are no available Sub LOBs to add (all are already assigned), then it's fully assigned
+        const availableSubLobs = selectedLob.subLobs.filter(subLob => 
+          !assignedSubLobs.includes(subLob.name)
+        );
+        
+        return availableSubLobs.length === 0;
+      }
+      
+      // If both LOB and Sub LOB are selected, check if that specific combination exists
+      if (clientSiteConfirmDetails.lobName && clientSiteConfirmDetails.subLobName) {
+        return clientAssignments.some(
+          assignment => assignment.dLOB === clientSiteConfirmDetails.lobName && 
+                        assignment.dSubLOB === clientSiteConfirmDetails.subLobName
+        );
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking if client is fully assigned:', error);
+      return false;
     }
   };
 
@@ -424,49 +504,76 @@ const SiteManagement = () => {
    */
   const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
-      const clientName = clients.find(c => c.id == selectedClientId)?.name;
-      const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
-      const lobName = selectedLob ? selectedLob.name : null;
-      const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
-      const subLobName = selectedSubLob ? selectedSubLob.name : null;
-  
-      // Set confirmation details
-      setClientSiteConfirmDetails({
-        clientName,
-        lobName,
-        subLobName
-      });
-      
-      // Show confirmation modal
-      setShowAddClientSiteConfirmModal(true);
+      try {
+        const clientName = clients.find(c => c.id == selectedClientId)?.name;
+        const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
+        const lobName = selectedLob ? selectedLob.name : null;
+        const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
+        const subLobName = selectedSubLob ? selectedSubLob.name : null;
+    
+        // Set confirmation details
+        setClientSiteConfirmDetails({
+          clientName,
+          lobName,
+          subLobName
+        });
+        
+        // Check if this client/LOB/Sub LOB is already assigned
+        const isAlreadyAssigned = await isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
+        
+        if (isAlreadyAssigned) {
+          // Show "already added" modal instead of confirmation
+          setAlreadyAddedClientName(clientName);
+          setShowClientAlreadyAddedModal(true);
+        } else {
+          // Show confirmation modal if not already assigned
+          setShowAddClientSiteConfirmModal(true);
+        }
+      } catch (error) {
+        console.error('Error checking client assignment:', error);
+        // Fallback to showing confirmation modal
+        setShowAddClientSiteConfirmModal(true);
+      }
     }
   };
 
   const confirmAddClient = async () => {
     try {
-      // First API call to add the client to site
+      // Check if client is already assigned to this site
+      const clientName = clientSiteConfirmDetails.clientName;
+      const isAlreadyAssigned = isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
+      
+      if (isAlreadyAssigned) {
+        // Close confirmation modal
+        setShowAddClientSiteConfirmModal(false);
+        
+        // Show the "Client Already Added" modal
+        setAlreadyAddedClientName(clientName);
+        setShowClientAlreadyAddedModal(true);
+        return; // Exit early
+      }
+      
+      // If not already assigned, proceed with API call
       await manageSite('addClientToSite', {
         clientId: parseInt(selectedClientId),
         siteId: parseInt(selectedSite.dSite_ID),
         lobName: clientSiteConfirmDetails.lobName,
         subLobName: clientSiteConfirmDetails.subLobName
       });
-  
-      // Close the confirmation modal immediately
-      setShowAddClientSiteConfirmModal(false);
       
-      // Show the success message
+      // Continue with the rest of the function...
+      setShowAddClientSiteConfirmModal(false);
       setSuccessMessage(`Client "${clientSiteConfirmDetails.clientName}" successfully added to site "${selectedSite.dSiteName}"`);
       setShowSuccessModal(true);
-  
+      
       // Reset form
       setSelectedClientId('');
       setSelectedLobId('');
       setSelectedSubLobId('');
       setClientLobs([]);
       setClientSubLobs([]);
-  
-      // Refresh data in the background - don't block UI
+      
+      // Refresh data in the background
       fetchSiteClients();
       fetchSites();
       fetchExistingAssignments(selectedSite.dSite_ID);
@@ -477,9 +584,21 @@ const SiteManagement = () => {
       }, 3000);
     } catch (error) {
       console.error('Error adding client to site:', error);
-      setShowAddClientSiteConfirmModal(false);
+    setShowAddClientSiteConfirmModal(false);
+    
+    if (error.message && error.message.toLowerCase().includes('already assigned') || 
+        error.message && error.message.toLowerCase().includes('already added')) {
+      setAlreadyAddedClientName(clientSiteConfirmDetails.clientName);
+      setShowClientAlreadyAddedModal(true);
+    } else {
+      setErrorMessage(`Failed to add client: ${error.message}`);
+      setShowErrorModal(true);
+      setTimeout(() => {
+        setShowErrorModal(false);
+      }, 3000);
     }
-  };
+  }
+};
 
   /**
    * Removes a client from a site
@@ -639,7 +758,8 @@ const SiteManagement = () => {
     if (selectAllSites) {
       setSelectedSiteIds([]);
     } else {
-      setSelectedSiteIds(sites.map(site => site.dSite_ID));
+      // Only select IDs of the filtered sites currently visible in the table
+      setSelectedSiteIds(filteredSites.map(site => site.dSite_ID));
     }
     setSelectAllSites(!selectAllSites);
   };
@@ -664,7 +784,8 @@ const SiteManagement = () => {
     if (selectAllClientSites) {
       setSelectedClientSiteIds([]);
     } else {
-      setSelectedClientSiteIds(siteClients.map(clientSite => clientSite.dClientSite_ID));
+      // Only select IDs of the filtered client-sites currently visible in the table
+      setSelectedClientSiteIds(filteredSiteClients.map(clientSite => clientSite.dClientSite_ID));
     }
     setSelectAllClientSites(!selectAllClientSites);
   };
@@ -677,17 +798,6 @@ const SiteManagement = () => {
     
     setDeleteType('bulk-sites');
     setItemToDelete({ count: selectedSiteIds.length });
-    setShowDeleteModal(true);
-  };
-
-  /**
-   * Bulk deletes selected client-site assignments
-   */
-  const handleBulkDeleteClientSites = async () => {
-    if (selectedClientSiteIds.length === 0) return;
-    
-    setDeleteType('bulk-clients');
-    setItemToDelete({ count: selectedClientSiteIds.length });
     setShowDeleteModal(true);
   };
   
@@ -911,10 +1021,11 @@ const SiteManagement = () => {
   const filteredSiteClients = sortData(
     siteClients.filter(clientSite => {
       return (
-        clientSite.dClientName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase()) ||
+        // Add null checks for all properties before calling toLowerCase()
+        (clientSite.dClientName && clientSite.dClientName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
         (clientSite.dLOB && clientSite.dLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
         (clientSite.dSubLOB && clientSite.dSubLOB.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())) ||
-        clientSite.dSiteName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase())
+        (clientSite.dSiteName && clientSite.dSiteName.toLowerCase().includes(clientSiteSearchTerm.toLowerCase()))
       );
     }),
     clientSiteSortConfig
@@ -1199,147 +1310,9 @@ const SiteManagement = () => {
     let trimmedValue = value.trimStart();
     
     // Then apply other sanitization rules
-    return trimmedValue.replace(/[^\w\s]/g, '')  // Remove special characters
+    return trimmedValue.replace(/[^\w\s-]/g, '')  // Remove special characters but allow dashes
                        .replace(/[\r\n\t\f\v]/g, '') // Remove all whitespace except normal spaces
                        .replace(/\s+/g, ' '); // Replace multiple spaces with single space
-  };
-
-  /**
-   * Handles bulk adding clients to a site
-   */
-  const handleBulkAddClients = async () => {
-    if (!bulkAddSelectedSite || bulkAddSelectedClients.length === 0) return;
-  
-    const siteName = sites.find(s => s.dSite_ID === parseInt(bulkAddSelectedSite))?.dSiteName;
-    const selectedClients = clients.filter(c => bulkAddSelectedClients.includes(c.id.toString()));
-    
-    // Calculate totals for LOBs and Sub LOBs
-    const totalLobCount = availableBulkClients
-      .filter(client => bulkAddSelectedClients.includes(client.id.toString()))
-      .reduce((sum, client) => sum + client.lobCount, 0);
-      
-    const totalSubLobCount = availableBulkClients
-      .filter(client => bulkAddSelectedClients.includes(client.id.toString()))
-      .reduce((sum, client) => sum + client.subLobCount, 0);
-    
-    // Set details for confirmation modal
-    setBulkClientSiteDetails({
-      siteId: bulkAddSelectedSite,
-      siteName: siteName,
-      clientCount: selectedClients.length,
-      totalLobCount: totalLobCount,
-      totalSubLobCount: totalSubLobCount
-    });
-    
-    // Show confirmation modal
-    setShowBulkAddClientSiteConfirmModal(true);
-  };
-
-  // Add this function to handle the confirmation (after handleBulkAddClients)
-  const confirmBulkAddClients = async () => {
-    try {
-      // First, get all LOBs and Sub LOBs for each selected client
-      const clientAssignments = [];
-      const selectedClients = clients.filter(c => bulkAddSelectedClients.includes(c.id.toString()));
-      
-      // Get the site name for the success message
-      const siteName = sites.find(s => s.dSite_ID === parseInt(bulkClientSiteDetails.siteId))?.dSiteName;
-      const clientCount = bulkClientSiteDetails.clientCount;
-      
-      for (const client of selectedClients) {
-        try {
-          // Get all LOBs and Sub LOBs for this client
-          const response = await manageSite('getClientLobs', { clientId: client.id });
-          const allLobs = response.lobs || [];
-          
-          // For each LOB
-          for (const lob of allLobs) {
-            if (lob.subLobs && lob.subLobs.length > 0) {
-              // If there are Sub LOBs, create an assignment for each Sub LOB
-              for (const subLob of lob.subLobs) {
-                clientAssignments.push({
-                  clientId: parseInt(client.id),
-                  clientName: client.name,
-                  lobName: lob.name,
-                  subLobName: subLob.name
-                });
-              }
-            } else {
-              // If no Sub LOBs, create a single assignment for the LOB
-              clientAssignments.push({
-                clientId: parseInt(client.id),
-                clientName: client.name,
-                lobName: lob.name,
-                subLobName: null
-              });
-            }
-          }
-        } catch (error) {
-          console.error(`Error getting LOBs for client ${client.id}:`, error);
-        }
-      }
-  
-      // Now add all assignments to the site
-      await manageSite('bulkAddClientsToSite', {
-        siteId: parseInt(bulkClientSiteDetails.siteId),
-        assignments: clientAssignments
-      });
-  
-      // Close the modal
-      setShowBulkAddClientSiteConfirmModal(false);
-      
-      // Show success message using the local variables we've captured
-      setSuccessMessage(`${clientCount} clients successfully added to site "${siteName}"`);
-      setShowSuccessModal(true);
-      
-      // Reset state
-      setBulkAddModalOpen(false);
-      setBulkAddSelectedSite(null);
-      setBulkAddSelectedClients([]);
-      setSelectAllBulkClients(false);
-  
-      // Refresh data
-      fetchSiteClients();
-      fetchSites();
-      if (selectedSite) {
-        fetchExistingAssignments(selectedSite.dSite_ID);
-      }
-      
-      // Auto-hide success message
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 3000);
-    } catch (error) {
-      console.error('Error bulk adding clients:', error);
-      setShowBulkAddClientSiteConfirmModal(false);
-      alert('Error adding clients to site. Please try again.');
-    }
-  };
-
-  /**
-   * Handles bulk client selection
-   */
-  const handleBulkClientSelection = (clientId) => {
-    setBulkAddSelectedClients(prev => {
-      if (prev.includes(clientId)) {
-        return prev.filter(id => id !== clientId);
-      } else {
-        return [...prev, clientId];
-      }
-    });
-  };
-
-  /**
-   * Handles select all bulk clients
-   */
-  const handleSelectAllBulkClients = async () => {
-    if (selectAllBulkClients) {
-      setBulkAddSelectedClients([]);
-    } else {
-      const availableClients = await getAvailableClients(bulkAddSelectedSite);
-      setBulkAddSelectedClients(availableClients.map(client => client.id.toString()));
-    }
-    setSelectAllBulkClients(!selectAllBulkClients);
   };
 
   // Add handleReactivateSite function
@@ -1421,6 +1394,7 @@ const SiteManagement = () => {
             type="text"
             value={newSiteName}
             onChange={(e) => setNewSiteName(sanitizeInput(e.target.value))}
+            maxLength={30}
           />
         </div>
       </div>
@@ -1459,6 +1433,7 @@ const SiteManagement = () => {
             placeholder="Search sites by name..."
             value={siteSearchTerm}
             onChange={(e) => setSiteSearchTerm(sanitizeInput(e.target.value))}
+            maxLength={50}
           />
         </div>
       </div>
@@ -1615,7 +1590,10 @@ const SiteManagement = () => {
                 console.error('Error updating site data:', error);
               }
             }}
-            onInputChange={(inputValue) => sanitizeInput(inputValue)}
+            onInputChange={(inputValue) => {
+              const sanitized = sanitizeInput(inputValue);
+              return sanitized.slice(0, 30);
+            }}
             options={sites.map(site => ({
               value: site.dSite_ID,
               label: site.dSiteName
@@ -1645,7 +1623,10 @@ const SiteManagement = () => {
                 setSelectedSubLobId('');
               }
             }}
-            onInputChange={(inputValue) => sanitizeInput(inputValue)}
+            onInputChange={(inputValue) => {
+              const sanitized = sanitizeInput(inputValue);
+              return sanitized.slice(0, 50);
+            }}
             options={availableClients.map(client => ({
               value: client.id,
               label: client.name
@@ -1655,6 +1636,36 @@ const SiteManagement = () => {
             isDisabled={!selectedSite}
             className="react-select-container"
             classNamePrefix="react-select"
+            styles={{
+              control: (base) => ({
+                ...base,
+                minHeight: '38px',
+                height: '38px',
+                maxWidth: '100%'
+              }),
+              valueContainer: (base) => ({
+                ...base,
+                height: '38px',
+                padding: '0 8px',
+                maxWidth: 'calc(100% - 30px)',
+              }),
+              input: (base) => ({
+                ...base,
+                margin: '0px',
+                padding: '0px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: '100%'
+              }),
+              singleValue: (base) => ({
+                ...base,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: '100%'
+              })
+            }}
           />
         </div>
       </div>
@@ -1680,11 +1691,15 @@ const SiteManagement = () => {
               }
               setSelectedSubLobId('');
             }}
-            onInputChange={(inputValue) => sanitizeInput(inputValue)}
+            onInputChange={(inputValue) => {
+              const sanitized = sanitizeInput(inputValue);
+              return sanitized.slice(0, 30); // Limit to 50 characters
+            }}
             options={clientLobs.map(lob => ({
               value: lob.id,
               label: lob.name
             }))}
+            maxLength={30}
             isClearable
             placeholder="Select a LOB"
             noOptionsMessage={() => "No Available LOBs - Add More in Client Mgt."}
@@ -1702,11 +1717,15 @@ const SiteManagement = () => {
             onChange={(selectedOption) => {
               setSelectedSubLobId(selectedOption ? selectedOption.value : '');
             }}
-            onInputChange={(inputValue) => sanitizeInput(inputValue)}
+            onInputChange={(inputValue) => {
+              const sanitized = sanitizeInput(inputValue);
+              return sanitized.slice(0, 30); // Limit to 50 characters
+            }}
             options={clientSubLobs.map(subLob => ({
               value: subLob.id,
               label: subLob.name
             }))}
+            maxLength={30}
             isClearable
             placeholder="Select a Sub LOB"
             noOptionsMessage={() => "No Available Sub LOBs - Add More in Client Mgt."}
@@ -1724,12 +1743,6 @@ const SiteManagement = () => {
           disabled={!selectedSite || !selectedClientId}
         >
           + Add Client to Site
-        </button>
-        <button 
-          onClick={() => setBulkAddModalOpen(true)} 
-          className="add-button equal-width-button"
-        >
-          + Bulk Add Clients to Site
         </button>
       </div>
     </div>
@@ -1761,6 +1774,7 @@ const SiteManagement = () => {
           placeholder="Search by client name, LOB, Sub LOB, or site name..."
           value={clientSiteSearchTerm}
           onChange={(e) => setClientSiteSearchTerm(sanitizeInput(e.target.value))}
+          maxLength={50}
         />
       </div>
     </div>
@@ -1878,12 +1892,6 @@ const SiteManagement = () => {
           <div className="modal edit-site-modal">
             <div className="modal-header">
               <h2>Edit Site</h2>
-              <button onClick={() => {
-                setEditModalOpen(false);
-                setCurrentSite(null);
-              }} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
 
             <div className="form-row">
@@ -1894,6 +1902,7 @@ const SiteManagement = () => {
                   value={currentSite.name}
                   onChange={(e) => setCurrentSite({...currentSite, name: sanitizeInput(e.target.value)})}
                   required
+                  maxLength={30}
                 />
               </div>
             </div>
@@ -2098,112 +2107,6 @@ const SiteManagement = () => {
         </div>
       )}
 
-      {/* Bulk Add Clients Modal */}
-      {bulkAddModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal bulk-add-modal">
-            <div className="modal-header">
-              <h2>Bulk Add Clients to Site</h2>
-              <button 
-                onClick={() => {
-                  setBulkAddModalOpen(false);
-                  setBulkAddSelectedSite(null);
-                  setBulkAddSelectedClients([]);
-                  setSelectAllBulkClients(false);
-                }} 
-                className="close-btn"
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Select Site <span className="required-field">*</span></label>
-                <Select
-                  value={bulkAddSelectedSite ? { value: bulkAddSelectedSite, label: sites.find(s => s.dSite_ID === parseInt(bulkAddSelectedSite))?.dSiteName } : null}
-                  onChange={(selectedOption) => {
-                    const newSiteId = selectedOption ? selectedOption.value.toString() : '';
-                    setBulkAddSelectedSite(newSiteId);
-                    setBulkAddSelectedClients([]);
-                    setSelectAllBulkClients(false);
-                  }}
-                  options={sites.map(site => ({
-                    value: site.dSite_ID,
-                    label: site.dSiteName
-                  }))}
-                  isClearable
-                  placeholder="Select a site"
-                  className={`react-select-container ${!bulkAddSelectedSite ? "validation-error" : ""}`}
-                  classNamePrefix="react-select"
-                />
-                {!bulkAddSelectedSite && <div className="error-message">Site is required</div>}
-              </div>
-            </div>
-
-            <div className="bulk-clients-list">
-              <div className="bulk-clients-header">
-                <span>Select Clients</span>
-                <input
-                  type="checkbox"
-                  checked={selectAllBulkClients}
-                  onChange={handleSelectAllBulkClients}
-                  disabled={!bulkAddSelectedSite || isLoadingBulkClients}
-                />
-              </div>
-              <div className="bulk-clients-container">
-                {isLoadingBulkClients ? (
-                  <div className="loading-message">Loading available clients...</div>
-                ) : availableBulkClients.length > 0 ? (
-                  availableBulkClients.map(client => (
-                    <div key={client.id} className="bulk-client-item">
-                      <span>
-                        {client.name}
-                        <span className="client-counts">
-                          ({client.lobCount} LOB{client.lobCount !== 1 ? 's' : ''}, {client.subLobCount} Sub LOB{client.subLobCount !== 1 ? 's' : ''})
-                        </span>
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={bulkAddSelectedClients.includes(client.id.toString())}
-                        onChange={() => handleBulkClientSelection(client.id.toString())}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div className="no-clients-message">
-                    {bulkAddSelectedSite 
-                      ? "No available clients to add to this site" 
-                      : "Please select a site to view available clients"}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button 
-                onClick={() => {
-                  setBulkAddModalOpen(false);
-                  setBulkAddSelectedSite(null);
-                  setBulkAddSelectedClients([]);
-                  setSelectAllBulkClients(false);
-                }} 
-                className="cancel-btn"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleBulkAddClients} 
-                className="save-btn"
-                disabled={!bulkAddSelectedSite || bulkAddSelectedClients.length === 0}
-              >
-                Add Clients to Site
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Site Confirmation Modal */}
       {showEditSiteConfirmModal && siteBeingEdited && (
         <div className="modal-overlay">
@@ -2381,9 +2284,6 @@ const SiteManagement = () => {
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>Confirm Add Site</h2>
-              <button onClick={() => setShowAddSiteConfirmModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
             <p>Are you sure you want to add site "{newSiteName}"?</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -2404,11 +2304,7 @@ const SiteManagement = () => {
           <div className="modal" style={{ width: '450px' }}>
             <div className="modal-header">
               <h2>Confirm Add Client to Site</h2>
-              <button onClick={() => setShowAddClientSiteConfirmModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
-            <div className="modal-content">
               <p>Are you sure you want to add:</p>
               <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
                 <li><strong>Client:</strong> {clientSiteConfirmDetails.clientName}</li>
@@ -2425,7 +2321,11 @@ const SiteManagement = () => {
                   <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
                 </p>
               )}
-            </div>
+              {clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName && (
+                <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                  <strong>Note:</strong> All available Sub LOBs will be added to the site.
+                </p>
+              )}
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="cancel-btn" onClick={() => setShowAddClientSiteConfirmModal(false)}>No</button>
               <button
@@ -2479,35 +2379,40 @@ const SiteManagement = () => {
       </div>
     )}
 
-    {/* Bulk Add Clients Confirmation Modal */}
-    {showBulkAddClientSiteConfirmModal && (
+    {/* Duplicate Site Error Modal */}
+      {showDuplicateSiteModal && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '400px' }}>
+          <div className="modal-header">
+            <h2>Site Already Exists</h2>
+          </div>
+            <p>The site "{duplicateSiteName}" has already been added to the database.</p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className="save-btn"
+              onClick={() => setShowDuplicateSiteModal(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Client Already Added Modal */}
+    {showClientAlreadyAddedModal && (
       <div className="modal-overlay">
         <div className="modal" style={{ width: '450px' }}>
           <div className="modal-header">
-            <h2>Confirm Bulk Add Clients</h2>
-            <button onClick={() => setShowBulkAddClientSiteConfirmModal(false)} className="close-btn">
-              <FaTimes />
-            </button>
+            <h2>Client Already Added</h2>
           </div>
-          <div className="modal-content">
-            <p>Are you sure you want to add:</p>
-            <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
-              <li><strong>{bulkClientSiteDetails.clientCount}</strong> clients</li>
-              <li><strong>{bulkClientSiteDetails.totalLobCount}</strong> LOBs</li>
-              <li><strong>{bulkClientSiteDetails.totalSubLobCount}</strong> Sub LOBs</li>
-              <li><strong>To site:</strong> {bulkClientSiteDetails.siteName}</li>
-            </ul>
-            <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-              <strong>Note:</strong> This will add all available LOBs and Sub LOBs for the selected clients.
-            </p>
-          </div>
+          <p>Client "{alreadyAddedClientName}" and all its contents have already been added to the site "{selectedSite?.dSiteName}".</p>
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="cancel-btn" onClick={() => setShowBulkAddClientSiteConfirmModal(false)}>No</button>
             <button
               className="save-btn"
-              onClick={confirmBulkAddClients}
+              onClick={() => setShowClientAlreadyAddedModal(false)}
             >
-              Yes
+              OK
             </button>
           </div>
         </div>

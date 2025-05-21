@@ -436,17 +436,18 @@ td:last-child {
 }
 
 .bulk-delete-btn {
-  background-color: #fff;
-  border: 1px solid #e53e3e;
-  color: #e53e3e;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  transition: all 0.2s ease;
+  color: white !important;
+  background-color: #e53e3e !important;
+  border-color: #e53e3e !important;
 }
 
 .bulk-delete-btn:hover {
-  background-color: #e53e3e;
+  background-color: #c53030 !important;
+}
+
+/* Ensure the icon inside the button is properly aligned */
+.bulk-delete-btn svg {
+  margin-right: 5px;
 }
 
 /* Add styling for checkboxes */
@@ -719,7 +720,7 @@ th.sortable-header {
 .search-container, .search-box {
   position: relative;
   flex: 0 1 auto; /* Change from flex: 1 to prevent full expansion */
-  width: 300px; /* Set a fixed width */
+  width: 350px; /* Set a fixed width */
   max-width: 100%;
 }
 
@@ -836,7 +837,7 @@ th.sortable-header {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #ed8936; /* Orange color for deactivate */
+  color: red; /* Orange color for deactivate */
 }
 
 .deactivate-btn:hover {
@@ -938,15 +939,15 @@ th.sortable-header {
 
 /* Modified delete confirmation modal styling */
 .modal.delete-confirmation-modal {
-  border-top: 4px solid #ed8936;
+  border-top: 4px solid red;
 }
 
 .modal.delete-confirmation-modal .modal-header h2 {
-  color: #ed8936;
+  color: red;
 }
 
 .modal.delete-confirmation-modal .modal-actions .delete-btn {
-  background-color: #ed8936;
+  background-color: red;
   color: white;
   border: none;
   transition: all 0.2s ease;
@@ -954,7 +955,7 @@ th.sortable-header {
 }
 
 .modal.delete-confirmation-modal .modal-actions .delete-btn:hover {
-  background-color: #dd6b20;
+  background-color: red;
 }
 
 .modal.delete-confirmation-modal .modal-actions .delete-btn:disabled {
@@ -964,7 +965,7 @@ th.sortable-header {
 
 /* Different icon color for deactivation */
 .modal.delete-confirmation-modal .modal-header .deactivation-icon {
-  color: #ed8936;
+  color: red;
 }
 
 /* Add this to handle the confirmation text input specifically */
@@ -994,6 +995,11 @@ th.sortable-header {
 
 /* For deactivation modal */
 .modal.delete-confirmation-modal .confirmation-input input:focus {
-  border-color: #ed8936;
+  border-color: red;
   box-shadow: 0 0 0 2px rgba(237, 137, 54, 0.25);
+}
+
+/* For proper spacing around modal content text */
+.modal-content p {
+  margin: 10px 0;
 }
