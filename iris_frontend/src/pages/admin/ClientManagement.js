@@ -8,7 +8,6 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
   const [confirmationText, setConfirmationText] = useState('');
   const [error, setError] = useState('');
 
-  // Reset confirmation text and error when modal is opened/closed
   useEffect(() => {
     if (!open) {
       setConfirmationText('');
@@ -17,27 +16,89 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
   }, [open]);
 
   const handleConfirm = () => {
-    if (requireConfirmation && confirmationText !== 'CONFIRM') {
-      setError('Please type CONFIRM to proceed');
+    const requiredWord = 'CONFIRM';
+    if (requireConfirmation && confirmationText !== requiredWord) {
+      setError(`Please type CONFIRM to proceed`);
       return;
     }
     onConfirm();
   };
 
   if (!open) return null;
+
+  const isDeactivate = confirmText === 'Deactivate';
+  const isReactivate = confirmText === 'Reactivate';
+  const headerColor = isDeactivate ? '#e53e3e' : isReactivate ? '#3182ce' : '#004D8D';
+  const icon = isDeactivate ? <FaBan size={22} color={headerColor} style={{ marginRight: 8, marginBottom: -3 }} /> : isReactivate ? <FaCheckCircle size={22} color={headerColor} style={{ marginRight: 8, marginBottom: -3 }} /> : null;
+  const headerText = isDeactivate ? 'Confirm Deactivation' : isReactivate ? 'Confirm Reactivation' : (title || (type === 'confirm' ? 'Confirmation' : 'Notification'));
+  const requiredWord = 'CONFIRM';
+  const inputPlaceholder = 'CONFIRM';
+  const actionButtonText = isDeactivate ? 'Deactivate' : isReactivate ? 'Reactivate' : confirmText;
+
+  // Helper to render summary details in modal
+  function renderSummaryBox(message, selectedCount) {
+    // Bulk action: message contains 'selected item' or 'selected items'
+    if (typeof message === 'string' && /selected item/i.test(message)) {
+      return (
+        <div style={{ lineHeight: 1.7 }}>
+          <b>Selected Items:</b> {selectedCount}
+        </div>
+      );
+    }
+    // If message is a string with Client, LOB, Sub LOB, format it
+    if (typeof message === 'string' && message.includes('Client:')) {
+      const clientMatch = message.match(/Client:\s*"([^"]*)"/);
+      const lobMatch = message.match(/LOB:\s*"([^"]*)"/);
+      const subLobMatch = message.match(/Sub LOB:\s*"([^"]*)"/);
+      return (
+        <div style={{ lineHeight: 1.7 }}>
+          <div><b>Client:</b> {clientMatch ? clientMatch[1] : ''}</div>
+          <div><b>LOB:</b> {lobMatch ? lobMatch[1] : ''}</div>
+          {subLobMatch && <div><b>Sub LOB:</b> {subLobMatch[1]}</div>}
+        </div>
+      );
+    }
+    return message;
+  }
+
+  // In CustomModal, add a prop or logic to get selectedCount for bulk actions
+  // For now, infer from message
+  const selectedCount = (typeof message === 'string' && message.match(/(\d+) selected item/)) ? Number(message.match(/(\d+) selected item/)[1]) : 1;
+
   return (
     <div className="modal-overlay">
-      <div className="modal custom-alert-modal" style={{ width: '400px', borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}>
-        <div className="modal-header" style={{ padding: '20px 24px 0 24px' }}>
-          <h2 style={{ fontSize: 20, color: '#004D8D', fontWeight: 700, margin: 0 }}>{title || (type === 'confirm' ? 'Confirmation' : 'Notification')}</h2>
+      <div className="modal custom-alert-modal" style={{ width: '410px', borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: 0 }}>
+        {/* Header row: icon/title left, close right */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 24px 0 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {icon}
+            <h2 style={{ fontSize: 20, color: headerColor, fontWeight: 700, margin: 0 }}>{headerText}</h2>
+          </div>
+          <button onClick={onCancel} style={{ background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer', marginLeft: 8 }}><FaTimes /></button>
         </div>
         {/* Divider below the title */}
         <div style={{ borderTop: '1px solid #ececec', margin: '18px 0 0 0' }} />
-        <div className="modal-body" style={{ padding: '18px 24px 0 24px', fontSize: 16, color: '#222' }}>
-          {message || children}
+        <div className="modal-body" style={{ padding: '18px 24px 0 24px', fontSize: 15, color: '#222', textAlign: 'left' }}>
+          {/* Main message */}
+          <div style={{ marginBottom: 14, color: '#222', fontSize: 15 }}>
+            {/* Bulk action message */}
+            {((isDeactivate || isReactivate) && typeof message === 'string' && /selected item/i.test(message)) ? (
+              <span>You are about to {isDeactivate ? 'deactivate' : 'reactivate'} selected items. Type <b>CONFIRM</b> to proceed.</span>
+            ) : isDeactivate ? (
+              <span>You are about to deactivate 1 item. This action cannot be undone. Type <b>CONFIRM</b> to proceed.</span>
+            ) : isReactivate ? (
+              <span>You are about to reactivate 1 item. Type <b>CONFIRM</b> to proceed.</span>
+            ) : (message || children)}
+          </div>
+          {/* Summary box */}
+          {((isDeactivate || isReactivate) && message) && (
+            <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16, whiteSpace: 'pre-line' }}>
+              {renderSummaryBox(message, selectedCount)}
+            </div>
+          )}
+          {/* Confirmation input */}
           {requireConfirmation && (
-            <div style={{ marginTop: '22px', marginBottom: 0 }}>
-              <label style={{ marginBottom: 6, color: '#444', fontSize: 14, fontWeight: 500, display: 'block', letterSpacing: 0.2 }}>Type <span style={{ fontWeight: 700 }}>CONFIRM</span> to proceed:</label>
+            <div style={{ marginTop: 0, marginBottom: 4 }}>
               <input
                 type="text"
                 value={confirmationText}
@@ -50,14 +111,14 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
                   padding: '10px 12px',
                   border: error ? '1.5px solid #e53e3e' : '1.5px solid #bdbdbd',
                   borderRadius: '6px',
-                  marginBottom: error ? '2px' : '10px',
+                  marginBottom: error ? '2px' : '4px',
                   fontSize: 15,
                   outline: 'none',
-                  background: '#fafbfc',
+                  background: '#fff',
                   transition: 'border-color 0.2s',
                   boxSizing: 'border-box',
                 }}
-                placeholder="CONFIRM"
+                placeholder={inputPlaceholder}
                 onFocus={e => e.target.style.borderColor = '#3182ce'}
                 onBlur={e => e.target.style.borderColor = error ? '#e53e3e' : '#bdbdbd'}
                 autoComplete="off"
@@ -68,29 +129,28 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
         </div>
         {/* Single divider above the buttons */}
         <div style={{ borderTop: '1px solid #ececec', margin: '24px 0 0 0' }} />
-        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '18px 24px 18px 24px' }}>
-          {type === 'confirm' && (
-            <button onClick={onCancel} className="cancel-btn" style={{ minWidth: 110, fontWeight: 600, border: '1.5px solid #ddd', background: '#fff', color: '#222', borderRadius: 6, padding: '8px 0', fontSize: 15 }}>Cancel</button>
-          )}
+        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '18px 24px 18px 24px' }}>
+          <button onClick={onCancel} className="cancel-btn" style={{ flex: 1, fontWeight: 600, border: '1.5px solid #ddd', background: '#fff', color: '#222', borderRadius: 6, padding: '12px 0', fontSize: 15, minWidth: 0 }}>Cancel</button>
           <button 
             onClick={handleConfirm} 
             className="save-btn" 
             style={{ 
-              background: '#004D8D', 
+              background: headerColor, 
               color: '#fff',
-              opacity: requireConfirmation && confirmationText !== 'CONFIRM' ? 0.5 : 1,
-              minWidth: 120,
+              opacity: requireConfirmation && confirmationText !== requiredWord ? 0.5 : 1,
+              flex: 1,
               fontWeight: 600,
               border: 'none',
               borderRadius: 6,
-              padding: '8px 0',
+              padding: '12px 0',
               fontSize: 15,
-              boxShadow: requireConfirmation && confirmationText === 'CONFIRM' ? '0 2px 8px rgba(0,77,141,0.08)' : 'none',
-              cursor: requireConfirmation && confirmationText !== 'CONFIRM' ? 'not-allowed' : 'pointer'
+              minWidth: 0,
+              boxShadow: requireConfirmation && confirmationText === requiredWord ? '0 2px 8px rgba(0,77,141,0.08)' : 'none',
+              cursor: requireConfirmation && confirmationText !== requiredWord ? 'not-allowed' : 'pointer'
             }}
-            disabled={requireConfirmation && confirmationText !== 'CONFIRM'}
+            disabled={requireConfirmation && confirmationText !== requiredWord}
           >
-            {confirmText}
+            {actionButtonText}
           </button>
         </div>
       </div>
@@ -1603,7 +1663,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           });
           if (response.data) {
             fetchClientData();
-            showToast('Sub LOB deactivated successfully!');
+            showToast('Client, LOB, and Sub LOB deactivated successfully!');
           }
         },
         () => {}, // onCancel
@@ -1733,6 +1793,50 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
   };
 
+  const handleReactivateRow = async (type, id) => {
+    try {
+      const subLob = subLobs.find(s => s.id === id);
+      if (!subLob) {
+        showNotification('Sub LOB not found');
+        return;
+      }
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) {
+        showNotification('LOB not found');
+        return;
+      }
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        showNotification('Client not found');
+        return;
+      }
+      showConfirm(
+        `Are you sure you want to deactivate the following: 
+        Client: "${client.name}"
+        LOB: "${lob.name}"
+        Sub LOB: "${subLob.name}"`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/sublob/reactivate', {
+            clientName: client.name,
+            lobName: lob.name,
+            subLOBName: subLob.name
+          });
+          if (response.data) {
+            fetchClientData('DEACTIVATED');
+            showToast('Client, LOB, and Sub LOB reactivated successfully!');
+          }
+        },
+        () => {}, // onCancel
+        'Reactivate',
+        'Cancel',
+        true // requireConfirmation
+      );
+    } catch (error) {
+      console.error('Error reactivating Sub LOB:', error);
+      showToast('Failed to reactivate Sub LOB: ' + error.message);
+    }
+  };
+
   // Helper to cycle sort direction
   const getNextSortDirection = (current) => {
     if (current === null) return 'asc';
@@ -1775,10 +1879,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           }
         }
       } else {
-        if (newSelected.has(rowKey)) {
-          newSelected.delete(rowKey);
-        } else {
-          newSelected.add(rowKey);
+      if (newSelected.has(rowKey)) {
+        newSelected.delete(rowKey);
+      } else {
+        newSelected.add(rowKey);
         }
       }
       return newSelected;
@@ -2326,6 +2430,12 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
     return rowData.map(r => r.rowKey);
   };
+
+  // Clear selectedRows and selectAll when switching between Active/Deactivated tabs
+  useEffect(() => {
+    setSelectedRows(new Set());
+    setSelectAll(false);
+  }, [itemStatusTab]);
 
   return (
     <div className="client-management-container">
@@ -3330,12 +3440,12 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <tr>
                       <th style={{ width: '120px', textAlign: 'left', paddingLeft: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input
-                            type="checkbox"
-                            checked={selectAll}
-                            onChange={handleSelectAll}
-                            style={{ cursor: 'pointer' }}
-                          />
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          style={{ cursor: 'pointer' }}
+                        />
                           <span style={{ fontSize: '13px', color: '#2d3748' }}>Select All</span>
                         </div>
                       </th>
@@ -3471,37 +3581,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                           <div className="action-buttons">
                                             {itemStatusTab === 'DEACTIVATED' ? (
                                               <button
-                                                onClick={() => {
-                                                  if (activeTab === 'addClient') {
-                                                    if (activeTableTab === 'clients') {
-                                                      handleReactivateClient('client', client.id);
-                                                    } else if (activeTableTab === 'lobs') {
-                                                      handleReactivateLOB('lob', lob.id);
-                                                    } else if (activeTableTab === 'subLobs') {
-                                                      handleReactivateSubLOB('subLob', subLob.id);
-                                                    }
-                                                  } else if (activeTab === 'addLOB') {
-                                                    handleReactivateLOB('lob', lob.id);
-                                                  } else if (activeTab === 'addSubLOB') {
-                                                    handleReactivateSubLOB('subLob', subLob.id);
-                                                  } else {
-                                                    if (activeTableTab === 'clients') {
-                                                      handleReactivateClient('client', client.id);
-                                                    } else if (activeTableTab === 'lobs') {
-                                                      handleReactivateLOB('lob', lob.id);
-                                                    } else if (activeTableTab === 'subLobs') {
-                                                      handleReactivateSubLOB('subLob', subLob.id);
-                                                    }
-                                                  }
-                                                }}
+                                                onClick={() => handleReactivateRow('subLob', subLob.id)} 
                                                 className="reactivate-btn"
                                               >
                                                 <FaCheckCircle size={14} color="#3182ce" /> Reactivate
                                               </button>
                                             ) : (
                                               <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
-                                          <FaBan size={12} /> Deactivate
-                                        </button>
+                                              <FaBan size={12} /> Deactivate
+                                            </button>
                                             )}
                                           </div>
                                         </td>
