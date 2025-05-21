@@ -1504,12 +1504,9 @@ const KPIManagement = () => {
                           <td>{kpi.dCategory}</td>
                           <td>{kpi.dCalculationBehavior}</td>
                           <td>{kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}</td>
-
                           <td data-description={kpi.dDescription}>
-                        {kpi.dDescription}
-                      </td>
-                          <td>
-                        </td>
+                            {kpi.dDescription}
+                          </td>
                           <td>{kpi.dCreatedBy || '-'}</td>
                           <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
                           <td>
