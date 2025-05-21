@@ -228,6 +228,10 @@ const ClientManagement = () => {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
+  // Add state for active and deactivated counts
+  const [activeCount, setActiveCount] = useState(0);
+  const [deactivatedCount, setDeactivatedCount] = useState(0);
+
   const showToast = (message, type = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -573,6 +577,12 @@ const ClientManagement = () => {
           { id: 1, name: 'Site A' },
           { id: 2, name: 'Site B' }
         ]);
+        // After setClients(transformedClients):
+        if (status === 'ACTIVE') {
+          setActiveCount(transformedClients.length);
+        } else if (status === 'DEACTIVATED') {
+          setDeactivatedCount(transformedClients.length);
+        }
       }
     } catch (err) {
       console.error('Error fetching client data:', err);
@@ -585,6 +595,12 @@ const ClientManagement = () => {
   useEffect(() => {
     fetchClientData(itemStatusTab);
   }, [itemStatusTab]);
+
+  // On mount, fetch both counts
+  useEffect(() => {
+    fetchClientData('ACTIVE');
+    fetchClientData('DEACTIVATED');
+  }, []);
 
   const renderLobOptions = () => {
     const options = [];
@@ -1866,6 +1882,97 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     return sanitized;
   };
 
+  // ... existing code ...
+  // Add a function to count rows for the current status and filters
+  const countTableRows = (statusTab) => {
+    let count = 0;
+    if (activeTableTab === 'clients') {
+      let filtered = clients;
+      if (statusTab === 'ACTIVE' && itemStatusTab !== 'ACTIVE') return 0;
+      if (statusTab === 'DEACTIVATED' && itemStatusTab !== 'DEACTIVATED') return 0;
+      if (filterDate) {
+        const filterDateString = new Date(filterDate).toLocaleDateString();
+        filtered = filtered.filter(client => client.createdAt === filterDateString);
+      }
+      if (searchFilter && searchFilter.type === 'client') {
+        filtered = filtered.filter(client => safeToLowerCase(client.name) === safeToLowerCase(searchFilter.value));
+      }
+      filtered = filtered.sort((a, b) => b.id - a.id);
+      filtered.forEach(client => {
+        const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+        if (clientLobs.length === 0) {
+          count++;
+        } else {
+          let filteredLobs = clientLobs;
+          let filteredSubLobs = subLobs;
+          if (searchFilter && searchFilter.type === 'lob') {
+            filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
+          }
+          if (searchFilter && searchFilter.type === 'sublob') {
+            filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
+            const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
+            filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
+          }
+          filteredLobs.forEach(lob => {
+            const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
+            if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
+              count++;
+            } else {
+              lobSubLobs.forEach(() => {
+                count++;
+              });
+            }
+          });
+        }
+      });
+    } else if (activeTableTab === 'lobs') {
+      let rowData = lobs
+        .filter(lob => {
+          const client = clients.find(c => c.id === lob.clientId);
+          return client && 
+                client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                (!filterClient || lob.clientId === filterClient);
+        })
+        .sort((a, b) => b.clientRowId - a.clientRowId)
+        .flatMap(lob => {
+          const client = clients.find(c => c.id === lob.clientId);
+          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+          if (lobSubLobs.length === 0) {
+            return [{}];
+          }
+          return lobSubLobs;
+        });
+      count = rowData.length;
+    } else if (activeTableTab === 'subLobs') {
+      let rowData = subLobs
+        .filter(subLob => {
+          const lob = lobs.find(l => l.id === subLob.lobId);
+          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+          return (
+            client && 
+            (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
+             safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
+             safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
+            (!filterClient || (lob && lob.clientId === filterClient))
+          );
+        })
+        .sort((a, b) => b.clientRowId - a.clientRowId);
+      count = rowData.length;
+    }
+    return count;
+  };
+
+  // Update the counts whenever the table data changes
+  useEffect(() => {
+    if (itemStatusTab === 'ACTIVE') {
+      setActiveCount(countTableRows('ACTIVE'));
+    } else if (itemStatusTab === 'DEACTIVATED') {
+      setDeactivatedCount(countTableRows('DEACTIVATED'));
+    }
+    // eslint-disable-next-line
+  }, [clients, lobs, subLobs, activeTableTab, searchTerm, searchFilter, filterDate, filterClient, itemStatusTab]);
+  // ... existing code ...
+
   return (
     <div className="client-management-container">
       <div className="client-management-flex">
@@ -2705,14 +2812,14 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     style={{ cursor: 'pointer', fontWeight: itemStatusTab === 'ACTIVE' ? 'bold' : 'normal', color: itemStatusTab === 'ACTIVE' ? '#004D8D' : '#666', borderBottom: itemStatusTab === 'ACTIVE' ? '2px solid #004D8D' : '2px solid transparent', padding: '8px 16px' }}
                     onClick={() => setItemStatusTab('ACTIVE')}
                   >
-                    Active
+                    Active ({activeCount})
                   </div>
                   <div
                     className={`item-status-tab${itemStatusTab === 'DEACTIVATED' ? ' active' : ''}`}
                     style={{ cursor: 'pointer', fontWeight: itemStatusTab === 'DEACTIVATED' ? 'bold' : 'normal', color: itemStatusTab === 'DEACTIVATED' ? '#004D8D' : '#666', borderBottom: itemStatusTab === 'DEACTIVATED' ? '2px solid #004D8D' : '2px solid transparent', padding: '8px 16px' }}
                     onClick={() => setItemStatusTab('DEACTIVATED')}
                   >
-                    Deactivated
+                    Deactivated ({deactivatedCount})
                   </div>
                 </div>
                 {/* Search and filter controls (existing code) */}
