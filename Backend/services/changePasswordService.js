@@ -69,6 +69,10 @@ class ChangePasswordService {
         const hashedAnswer2 = await bcrypt.hash(securityQuestions.answer2.toLowerCase(), 10);
         const hashedAnswer3 = await bcrypt.hash(securityQuestions.answer3.toLowerCase(), 10);
         
+        // Set password expiration date to 15 minutes from now
+        const expirationDate = new Date();
+        expirationDate.setMinutes(expirationDate.getMinutes() + 15);
+        
         // Update user with new password hash, security question IDs, and hashed answers
         // Using the correct column names: dSecurity_Question1, dSecurity_Question2, dSecurity_Question3
         await db.query(
@@ -84,7 +88,8 @@ class ChangePasswordService {
                dAnswer_3 = ?,
                dStatus = 'ACTIVE',
                tLast_Login = NOW(),
-               tLastUpdated = NOW()
+               tLastUpdated = NOW(),
+               tExpirationDate = ?
            WHERE dUser_ID = ?`,
           [
             hashedNewPassword,
@@ -94,6 +99,7 @@ class ChangePasswordService {
             hashedAnswer1,
             hashedAnswer2,
             hashedAnswer3,
+            expirationDate,
             userID
           ]
         );
@@ -103,7 +109,7 @@ class ChangePasswordService {
         console.error('Error in updateFirstTimeUser:', error);
         throw error;
       }
-  }
+    }
     
     async changePassword(userID, newPassword) {
         try {
