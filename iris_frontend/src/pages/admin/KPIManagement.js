@@ -147,13 +147,10 @@ const KPIManagement = () => {
 
       resetForm();
       setShowConfirmModal(false);
+      setSuccessMessage(`Successfully added KPI: ${kpiToAdd.name}`);
       setShowSuccessModal(true);
-      setActiveTab('viewKPIs');
 
-      // Auto hide success modal after 2 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 2000);
+
 
       setRecentlyAdded(prev => [
         ...prev,
@@ -162,7 +159,6 @@ const KPIManagement = () => {
           category: kpiToAdd.category,
           behavior: kpiToAdd.behavior,
           description: kpiToAdd.description,
-          // add any other fields you want to show
         }
       ]);
     } catch (error) {
@@ -533,23 +529,25 @@ const KPIManagement = () => {
       }
     };
 
-  const handleUpdateKpi = async () => {
-    if (kpiName?.trim() && category && behavior) {
+  const handleUpdateKpi = async (updatedKpi) => {
+    const { dKPI_ID, dKPI_Name, dCategory, dDescription, dCalculationBehavior } = updatedKpi;
+
+    if (dKPI_Name?.trim() && dCategory && dCalculationBehavior) {
       try {
         const updateData = {
-          dKPI_Name: kpiName,
-          dCategory: capitalizeFirstLetter(category),
-          dDescription: description,
-          dCalculationBehavior: capitalizeFirstLetter(behavior)
+          dKPI_Name,
+          dCategory: capitalizeFirstLetter(dCategory),
+          dDescription,
+          dCalculationBehavior: capitalizeFirstLetter(dCalculationBehavior),
         };
 
-        const response = await fetch(`http://localhost:3000/api/kpis/${editingKpi.dKPI_ID}`, {
+        const response = await fetch(`http://localhost:3000/api/kpis/${dKPI_ID}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            Accept: 'application/json',
           },
-          body: JSON.stringify(updateData)
+          body: JSON.stringify(updateData),
         });
 
         if (!response.ok) {
@@ -557,21 +555,14 @@ const KPIManagement = () => {
           throw new Error(errorData?.message || `Server error: ${response.status}`);
         }
 
-        // Fetch updated KPI list
         const refreshResponse = await fetch('http://localhost:3000/api/kpis');
         const updatedKpis = await refreshResponse.json();
         setKpis(updatedKpis);
 
-        // Reset all states
-        resetForm();
-        setActiveTab('viewKPIs');
-        setUploadMethod('individual');
-        setBulkKpis([]);
-        setInvalidKpis([]);
-        setFile(null);
-        
-        showAlert('KPI updated successfully!');
-
+        // Success modal
+        setSuccessMessage('KPI updated successfully!');
+        setSuccessCount(0);
+        setShowSuccessModal(true);
       } catch (error) {
         console.error('Error updating KPI:', error);
         showAlert(`Failed to update KPI: ${error.message}`);
@@ -1587,7 +1578,14 @@ const KPIManagement = () => {
                   <td>{kpi.behavior}</td>
                   <td>{kpi.description}</td>
                   <td>
-                    <button onClick={() => setEditRecentKpi({ ...kpi, idx })}>Edit</button>
+                    <button
+                      className="edit-btn"
+                      onClick={() => setEditRecentKpi({ ...kpi, idx })}
+                      title="Edit"
+                    >
+                      <FaPencilAlt style={{ marginRight: '6px' }} />
+                      Edit
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -1597,22 +1595,73 @@ const KPIManagement = () => {
       </div>
 
       {editRecentKpi && (
-        <EditKpiModal
-          kpi={editRecentKpi}
-          onSave={updatedKpi => {
-            // update in recentlyAdded
-            setRecentlyAdded(prev => prev.map((k, i) => i === editRecentKpi.idx ? updatedKpi : k));
+      <EditKpiModal
+        kpi={editRecentKpi}
+        onSave={async (updatedKpi) => {
+          try {
+            // Check if this KPI exists in the main kpis list
+            const existingKpi = kpis.find(k => k.dKPI_Name === updatedKpi.name);
+            
+            if (existingKpi) {
+              // If it exists, update in backend
+              const updateData = {
+                dKPI_Name: updatedKpi.name,
+                dCategory: updatedKpi.category,
+                dCalculationBehavior: updatedKpi.behavior,
+                dDescription: updatedKpi.description || ''
+              };
+
+              const response = await fetch(`${BASE_URL}/${existingKpi.dKPI_ID}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to update KPI: ${response.status}`);
+              }
+
+              // Refresh the main kpis list
+              const refreshResponse = await fetch(BASE_URL);
+              if (!refreshResponse.ok) {
+                throw new Error('Failed to refresh KPI list');
+              }
+              const updatedKpis = await refreshResponse.json();
+              setKpis(updatedKpis);
+            }
+
+            // Update recentlyAdded state
+            setRecentlyAdded(prev =>
+              prev.map((k, i) => i === editRecentKpi.idx ? updatedKpi : k)
+            );
+
+            // Show success modal
+            setSuccessMessage('KPI updated successfully!');
+            setSuccessCount(0);
+            setShowSuccessModal(true);
             setEditRecentKpi(null);
-            // optionally update in backend as well
-          }}
-          onCancel={() => setEditRecentKpi(null)}
-        />
-      )}
+          } catch (error) {
+            console.error('Error updating KPI:', error);
+            showAlert(`Failed to update KPI: ${error.message}`);
+          }
+        }}
+        onCancel={() => setEditRecentKpi(null)}
+      />
+    )}
     </div>
   );
 };
 
 const EditKpiModal = ({ kpi, onSave, onCancel }) => {
+  const categories = [
+    'Compliance', 'Customer Experience', 'Employee Performance', 'Finance',
+    'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'
+  ];
+  const behaviors = ['Lower the Better', 'Higher the Better'];
+
   const [name, setName] = useState(kpi.name);
   const [category, setCategory] = useState(kpi.category);
   const [behavior, setBehavior] = useState(kpi.behavior);
@@ -1625,6 +1674,7 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
       category,
       behavior,
       description,
+      dKPI_ID: kpi.dKPI_ID // Preserve the ID if it exists
     });
   };
 
@@ -1636,26 +1686,51 @@ const EditKpiModal = ({ kpi, onSave, onCancel }) => {
           <button onClick={onCancel} className="close-btn">×</button>
         </div>
         <div className="modal-content">
-          <div>
+          <div className="form-group">
             <label>KPI Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} />
+            <input 
+              value={name} 
+              onChange={e => setName(e.target.value)}
+              maxLength={30}
+            />
           </div>
-          <div>
+          <div className="form-group">
             <label>Category</label>
-            <input value={category} onChange={e => setCategory(e.target.value)} />
+            <select value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="">Select category</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
-          <div>
-            <label>Behavior</label>
-            <input value={behavior} onChange={e => setBehavior(e.target.value)} />
+          <div className="form-group">
+            <label>Calculation Behavior</label>
+            <select value={behavior} onChange={e => setBehavior(e.target.value)}>
+              <option value="">Select behavior</option>
+              {behaviors.map(beh => (
+                <option key={beh} value={beh}>{beh}</option>
+              ))}
+            </select>
           </div>
-          <div>
+          <div className="form-group">
             <label>Description</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} />
+            <textarea 
+              value={description} 
+              onChange={e => setDescription(e.target.value)}
+              rows="3"
+              maxLength={150}
+            />
           </div>
         </div>
         <div className="modal-actions">
           <button onClick={onCancel} className="cancel-btn">Cancel</button>
-          <button onClick={handleSave} className="save-btn">Save</button>
+          <button 
+            onClick={handleSave} 
+            className="save-btn"
+            disabled={!name.trim() || !category || !behavior}
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>
