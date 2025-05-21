@@ -67,6 +67,8 @@ const ClientManagement = () => {
   // Add state for date filter
   const [filterDate, setFilterDate] = useState('');
 
+  const [itemStatusTab, setItemStatusTab] = useState('ACTIVE'); // 'ACTIVE' or 'DEACTIVATED'
+
   // Add filtered client options function
   const filteredClientOptions = () => {
     if (!clientSearchTerm) {
@@ -276,10 +278,10 @@ const ClientManagement = () => {
 }, [filterClientForSubLob, lobs]);
 
   // Add fetchClientData function here, before useEffect
-  const fetchClientData = async () => {
+  const fetchClientData = async (status = itemStatusTab) => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/clients/getAll');
+      const response = await axios.get(`http://localhost:3000/api/clients/getAll?status=${status}`);
       
       if (response.data && response.data.data) {
         console.log('Client data from API:', response.data.data);
@@ -383,8 +385,8 @@ const ClientManagement = () => {
   };
 
   useEffect(() => {
-    fetchClientData();
-  }, []);
+    fetchClientData(itemStatusTab);
+  }, [itemStatusTab]);
 
   const renderLobOptions = () => {
     const options = [];
@@ -2392,128 +2394,148 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <div className="white-card table-card">
             <div className="existing-items">
               <h2>Existing Items</h2>
-              
-              <div className="table-controls">
-                <div className="search-box" style={{ position: 'relative' }}>
-                  <FaSearch className="search-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSearchTerm(value);
-                      // Rebuild dropdown suggestions as user types
-                      if (value.trim().length === 0) {
-                        setSearchFilter(null);
-                        setSearchDropdown([]);
-                        setSearchDropdownVisible(false);
-                        return;
-                      }
-                      // Gather all matches
-                      const lower = value.toLowerCase();
-                      const clientMatches = clients
-                        .filter(c => c.name && c.name.toLowerCase().includes(lower))
-                        .map(c => ({ type: 'client', value: c.name }));
-                      const lobMatches = lobs
-                        .filter(l => l.name && l.name.toLowerCase().includes(lower))
-                        .map(l => ({ type: 'lob', value: l.name }));
-                      const subLobMatches = subLobs
-                        .filter(s => s.name && s.name.toLowerCase().includes(lower))
-                        .map(s => ({ type: 'sublob', value: s.name }));
-                      // Remove duplicates by type+value
-                      const seen = new Set();
-                      const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches].filter(item => {
-                        const key = item.type + ':' + item.value.toLowerCase();
-                        if (seen.has(key)) return false;
-                        seen.add(key);
-                        return true;
-                      });
-                      setSearchDropdown(allMatches);
-                      setSearchDropdownVisible(allMatches.length > 0);
-                      // Set filter immediately for dynamic search
-                      setSearchFilter({ type: 'partial', value });
-                    }}
-                    onFocus={() => {
-                      if (searchDropdown.length > 0) setSearchDropdownVisible(true);
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setSearchDropdownVisible(false), 150); // Delay to allow click
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && searchTerm.trim().length > 0 && !searchFilter) {
-                        setSearchFilter({ type: 'partial', value: searchTerm });
-                        setSearchDropdownVisible(false);
-                      }
-                    }}
-                    style={{ paddingRight: searchTerm ? '30px' : '10px' }}
-                  />
-                  {searchTerm && (
-                    <button
-                      type="button"
-                      className="clear-select-btn"
-                      onClick={() => {
-                        setSearchTerm('');
-                        setSearchFilter(null);
-                        setSearchDropdown([]);
-                        setSearchDropdownVisible(false);
-                      }}
-                      style={{
-                        position: 'absolute',
-                        right: '10px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#666'
-                      }}
-                    >
-                      <FaTimes size={14} />
-                    </button>
-                  )}
-                  {searchDropdownVisible && searchDropdown.length > 0 && (
-                    <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
-                      {searchDropdown.map((item, idx) => (
-                        <div
-                          key={item.type + '-' + item.value + '-' + idx}
-                          className="search-dropdown-item"
-                          style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-                          onMouseDown={() => {
-                            setSearchTerm(item.value);
-                            setSearchFilter({ type: item.type, value: item.value });
-                            setSearchDropdownVisible(false);
-                          }}
-                        >
-                          {item.value} {item.type === 'client' ? '(Client)' : item.type === 'lob' ? '(LOB)' : '(Sub LOB)'}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+
+              {/* Tabs and controls in one flex row */}
+              <div className="item-status-and-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                {/* Tab switcher for Active/Deactivated */}
+                <div className="item-status-tabs" style={{ display: 'flex', gap: 16 }}>
+                  <div
+                    className={`item-status-tab${itemStatusTab === 'ACTIVE' ? ' active' : ''}`}
+                    style={{ cursor: 'pointer', fontWeight: itemStatusTab === 'ACTIVE' ? 'bold' : 'normal', color: itemStatusTab === 'ACTIVE' ? '#004D8D' : '#666', borderBottom: itemStatusTab === 'ACTIVE' ? '2px solid #004D8D' : '2px solid transparent', padding: '8px 16px' }}
+                    onClick={() => setItemStatusTab('ACTIVE')}
+                  >
+                    Active
+                  </div>
+                  <div
+                    className={`item-status-tab${itemStatusTab === 'DEACTIVATED' ? ' active' : ''}`}
+                    style={{ cursor: 'pointer', fontWeight: itemStatusTab === 'DEACTIVATED' ? 'bold' : 'normal', color: itemStatusTab === 'DEACTIVATED' ? '#004D8D' : '#666', borderBottom: itemStatusTab === 'DEACTIVATED' ? '2px solid #004D8D' : '2px solid transparent', padding: '8px 16px' }}
+                    onClick={() => setItemStatusTab('DEACTIVATED')}
+                  >
+                    Deactivated
+                  </div>
                 </div>
-                
-                <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
-                  <label style={{ marginRight: 8 }}>Filter by Date:</label>
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={e => setFilterDate(e.target.value)}
-                    style={{ minWidth: 150, height: 32 }}
-                  />
-                  {filterDate && (
-                    <button
-                      type="button"
-                      onClick={() => setFilterDate('')}
-                      style={{ marginLeft: 4, height: 24, width: 24, minWidth: 24, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', border: '1px solid #ccc', borderRadius: '50%', cursor: 'pointer', padding: 0 }}
-                      title="Clear date filter"
-                    >
-                      <FaTimes size={14} color="red" />
-                    </button>
-                  )}
+                {/* Search and filter controls (existing code) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div className="search-box" style={{ position: 'relative' }}>
+                    <FaSearch className="search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSearchTerm(value);
+                        // Rebuild dropdown suggestions as user types
+                        if (value.trim().length === 0) {
+                          setSearchFilter(null);
+                          setSearchDropdown([]);
+                          setSearchDropdownVisible(false);
+                          return;
+                        }
+                        // Gather all matches
+                        const lower = value.toLowerCase();
+                        const clientMatches = clients
+                          .filter(c => c.name && c.name.toLowerCase().includes(lower))
+                          .map(c => ({ type: 'client', value: c.name }));
+                        const lobMatches = lobs
+                          .filter(l => l.name && l.name.toLowerCase().includes(lower))
+                          .map(l => ({ type: 'lob', value: l.name }));
+                        const subLobMatches = subLobs
+                          .filter(s => s.name && s.name.toLowerCase().includes(lower))
+                          .map(s => ({ type: 'sublob', value: s.name }));
+                        // Remove duplicates by type+value
+                        const seen = new Set();
+                        const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches].filter(item => {
+                          const key = item.type + ':' + item.value.toLowerCase();
+                          if (seen.has(key)) return false;
+                          seen.add(key);
+                          return true;
+                        });
+                        setSearchDropdown(allMatches);
+                        setSearchDropdownVisible(allMatches.length > 0);
+                        // Set filter immediately for dynamic search
+                        setSearchFilter({ type: 'partial', value });
+                      }}
+                      onFocus={() => {
+                        if (searchDropdown.length > 0) setSearchDropdownVisible(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setSearchDropdownVisible(false), 150); // Delay to allow click
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchTerm.trim().length > 0 && !searchFilter) {
+                          setSearchFilter({ type: 'partial', value: searchTerm });
+                          setSearchDropdownVisible(false);
+                        }
+                      }}
+                      style={{ paddingRight: searchTerm ? '30px' : '10px' }}
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        className="clear-select-btn"
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSearchFilter(null);
+                          setSearchDropdown([]);
+                          setSearchDropdownVisible(false);
+                        }}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#666'
+                        }}
+                      >
+                        <FaTimes size={14} />
+                      </button>
+                    )}
+                    {searchDropdownVisible && searchDropdown.length > 0 && (
+                      <div className="search-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ccc', zIndex: 10, maxHeight: 200, overflowY: 'auto' }}>
+                        {searchDropdown.map((item, idx) => (
+                          <div
+                            key={item.type + '-' + item.value + '-' + idx}
+                            className="search-dropdown-item"
+                            style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                            onMouseDown={() => {
+                              setSearchTerm(item.value);
+                              setSearchFilter({ type: item.type, value: item.value });
+                              setSearchDropdownVisible(false);
+                            }}
+                          >
+                            {item.value} {item.type === 'client' ? '(Client)' : item.type === 'lob' ? '(LOB)' : '(Sub LOB)'}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
+                    <label style={{ marginRight: 8 }}>Filter by Date:</label>
+                    <input
+                      type="date"
+                      value={filterDate}
+                      onChange={e => setFilterDate(e.target.value)}
+                      style={{ minWidth: 150, height: 32 }}
+                    />
+                    {filterDate && (
+                      <button
+                        type="button"
+                        onClick={() => setFilterDate('')}
+                        style={{ marginLeft: 4, height: 24, width: 24, minWidth: 24, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#eee', border: '1px solid #ccc', borderRadius: '50%', cursor: 'pointer', padding: 0 }}
+                        title="Clear date filter"
+                      >
+                        <FaTimes size={14} color="red" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 

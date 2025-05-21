@@ -61,7 +61,7 @@ class ClientManagementService {
         }
     }
     
-    async getClients() {
+    async getClients(status = 'ACTIVE') {
         try {
             const [rows] = await db.query(`
                 SELECT 
@@ -79,9 +79,9 @@ class ClientManagementService {
                     cl.dClientName = cs.dClientName AND 
                     cl.dLOB = cs.dLOB AND 
                     cl.dSubLOB = cs.dSubLOB
-                WHERE cl.dStatus = 'ACTIVE'
+                WHERE cl.dStatus = ?
                 ORDER BY cl.dClient_ID DESC
-            `);
+            `, [status]);
             
             // Get site information with LOB associations
             const [lobSiteRows] = await db.query(

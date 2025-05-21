@@ -58,7 +58,8 @@ class ClientManagementController {
     
     async getClients(req, res) {
         try {
-            const clients = await this.clientManagementService.getClients();
+            const status = req.query.status || 'ACTIVE';
+            const clients = await this.clientManagementService.getClients(status);
             
             res.status(200).json({ 
                 message: 'Clients retrieved successfully', 
