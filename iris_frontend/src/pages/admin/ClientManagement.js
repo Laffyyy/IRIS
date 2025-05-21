@@ -1989,6 +1989,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       onClick={handleAddAnotherLobCardForLob} 
                       className="add-lob-card-button"
                       disabled={!validateClientSelection()}
+                      title="Add another LOB"
                     >
                       +
                     </button>
@@ -2350,6 +2351,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       onClick={handleAddAnotherSubLobField} 
                       className="add-lob-card-button"
                       disabled={!selectedLobForSubLob}
+                      title="Add another Sub LOB"
                     >
                       +
                     </button>
