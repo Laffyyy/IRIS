@@ -232,6 +232,9 @@ const ClientManagement = () => {
   const [activeCount, setActiveCount] = useState(0);
   const [deactivatedCount, setDeactivatedCount] = useState(0);
 
+  // Add state to track last selected row index
+  const [lastSelectedRowIndex, setLastSelectedRowIndex] = useState(null);
+
   const showToast = (message, type = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -1707,16 +1710,32 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
   };
 
   // Add function to handle row selection
-  const handleRowSelect = (rowKey) => {
+  const handleRowSelect = (rowKey, rowIndex, event) => {
     setSelectedRows(prev => {
-      const newSelected = new Set(prev);
-      if (newSelected.has(rowKey)) {
-        newSelected.delete(rowKey);
+      let newSelected = new Set(prev);
+      if (event && event.shiftKey && lastSelectedRowIndex !== null) {
+        // Shift-click: select range
+        const rowKeys = getCurrentRowKeys();
+        const start = Math.min(lastSelectedRowIndex, rowIndex);
+        const end = Math.max(lastSelectedRowIndex, rowIndex);
+        const shouldSelect = !rowKeys.slice(start, end + 1).every(k => newSelected.has(k));
+        for (let i = start; i <= end; i++) {
+          if (shouldSelect) {
+            newSelected.add(rowKeys[i]);
+          } else {
+            newSelected.delete(rowKeys[i]);
+          }
+        }
       } else {
-        newSelected.add(rowKey);
+        if (newSelected.has(rowKey)) {
+          newSelected.delete(rowKey);
+        } else {
+          newSelected.add(rowKey);
+        }
       }
       return newSelected;
     });
+    setLastSelectedRowIndex(rowIndex);
   };
 
   // Add function to handle select all
@@ -1972,6 +1991,81 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     // eslint-disable-next-line
   }, [clients, lobs, subLobs, activeTableTab, searchTerm, searchFilter, filterDate, filterClient, itemStatusTab]);
   // ... existing code ...
+
+  // Helper to get all row keys for current table view
+  const getCurrentRowKeys = () => {
+    let rowData = [];
+    if (activeTableTab === 'clients') {
+      filteredClients.forEach(client => {
+        const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+        if (clientLobs.length === 0) {
+          rowData.push({ rowKey: `client-${client.name}` });
+        } else {
+          let filteredLobs = clientLobs;
+          let filteredSubLobs = subLobs;
+          if (searchFilter && searchFilter.type === 'lob') {
+            filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
+          }
+          if (searchFilter && searchFilter.type === 'sublob') {
+            filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
+            const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
+            filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
+          }
+          filteredLobs.forEach(lob => {
+            const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
+            if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
+              rowData.push({ rowKey: `lob-${client.name}-${lob.name}` });
+            } else {
+              lobSubLobs.forEach(subLob => {
+                rowData.push({ rowKey: `sublob-${client.name}-${lob.name}-${subLob.name}` });
+              });
+            }
+          });
+        }
+      });
+    } else if (activeTableTab === 'lobs') {
+      lobs
+        .filter(lob => {
+          const client = clients.find(c => c.id === lob.clientId);
+          return client && 
+                client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                (!filterClient || lob.clientId === filterClient);
+        })
+        .sort((a, b) => b.clientRowId - a.clientRowId)
+        .flatMap(lob => {
+          const client = clients.find(c => c.id === lob.clientId);
+          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+          if (lobSubLobs.length === 0) {
+            rowData.push({ rowKey: `lob-${client ? client.name : '-'}-${lob.name}` });
+          } else {
+            lobSubLobs.forEach(subLob => {
+              rowData.push({ rowKey: `sublob-${client ? client.name : '-'}-${lob.name}-${subLob.name}` });
+            });
+          }
+          return null;
+        });
+    } else if (activeTableTab === 'subLobs') {
+      subLobs
+        .filter(subLob => {
+          const lob = lobs.find(l => l.id === subLob.lobId);
+          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+          return (
+            client && 
+            (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
+             safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
+             safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
+            (!filterClient || (lob && lob.clientId === filterClient))
+          );
+        })
+        .sort((a, b) => b.clientRowId - a.clientRowId)
+        .forEach(subLob => {
+          const lob = lobs.find(l => l.id === subLob.lobId);
+          const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+          rowData.push({ rowKey: `sublob-${client ? client.name : '-'}-${lob ? lob.name : '-'}-${subLob.name}` });
+        });
+    }
+    return rowData.map(r => r.rowKey);
+  };
 
   return (
     <div className="client-management-container">
@@ -3187,7 +3281,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
-                        return rowData.map(r => {
+                        return rowData.map((r, rowIndex) => {
                           const rowKey = r.subLob 
                             ? `sublob-${r.name}-${r.lob}-${r.subLob}`
                             : r.lob 
@@ -3198,8 +3292,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <tr
                               key={rowKey}
                               onClick={e => {
-                                // Prevent toggling when clicking the checkbox itself
-                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey);
+                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
                               }}
                               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
                             >
@@ -3207,7 +3300,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.has(rowKey)}
-                                  onChange={() => handleRowSelect(rowKey)}
+                                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
                                   style={{ cursor: 'pointer' }}
                                   onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
                                 />
@@ -3308,7 +3401,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
-                        return rowData.map(r => {
+                        return rowData.map((r, rowIndex) => {
                           const rowKey = r.subLob 
                             ? `sublob-${r.name}-${r.lob}-${r.subLob}`
                             : `lob-${r.name}-${r.lob}`;
@@ -3317,8 +3410,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <tr
                               key={rowKey}
                               onClick={e => {
-                                // Prevent toggling when clicking the checkbox itself
-                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey);
+                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
                               }}
                               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
                             >
@@ -3326,7 +3418,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.has(rowKey)}
-                                  onChange={() => handleRowSelect(rowKey)}
+                                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
                                   style={{ cursor: 'pointer' }}
                                   onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
                                 />
@@ -3399,15 +3491,14 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
-                        return rowData.map(r => {
+                        return rowData.map((r, rowIndex) => {
                           const rowKey = `sublob-${r.name}-${r.lob}-${r.subLob}`;
                           
                           return (
                             <tr
                               key={rowKey}
                               onClick={e => {
-                                // Prevent toggling when clicking the checkbox itself
-                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey);
+                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey, rowIndex, e);
                               }}
                               style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
                             >
@@ -3415,7 +3506,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.has(rowKey)}
-                                  onChange={() => handleRowSelect(rowKey)}
+                                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
                                   style={{ cursor: 'pointer' }}
                                   onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
                                 />
