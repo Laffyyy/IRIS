@@ -17,4 +17,10 @@ router.put('/:id', kpiController.updateKPI);
 // DELETE KPI
 router.delete('/:id', kpiController.deleteKPI);
 
+// PUT deactivate KPI
+router.put('/:id/deactivate', kpiController.deactivateKPI);
+
+// PUT reactivate KPI
+router.put('/:id/reactivate', kpiController.reactivateKPI);
+
 module.exports = router;

@@ -172,3 +172,61 @@ exports.deleteKPI = async (req, res) => {
         res.status(500).json({ message: "Error deleting KPI", error: error.message });
     }
 };
+
+exports.deactivateKPI = async (req, res) => {
+    try {
+        console.log('Deactivating KPI with ID:', req.params.id);
+        
+        // First check if KPI exists
+        const [kpi] = await db.execute('SELECT * FROM tbl_kpi WHERE dKPI_ID = ?', [req.params.id]);
+        
+        if (kpi.length === 0) {
+            console.log('KPI not found with ID:', req.params.id);
+            return res.status(404).json({ message: "KPI not found" });
+        }
+
+        // Proceed with deactivation
+        const [result] = await db.execute(
+            'UPDATE tbl_kpi SET dStatus = "DEACTIVATED" WHERE dKPI_ID = ?',
+            [req.params.id]
+        );
+
+        console.log('Update result:', result);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Failed to deactivate KPI" });
+        }
+
+        res.json({ 
+            message: "KPI deactivated successfully",
+            kpiId: req.params.id
+        });
+    } catch (error) {
+        console.error('Error in deactivateKPI:', error);
+        res.status(500).json({ 
+            message: "Error deactivating KPI", 
+            error: error.message,
+            details: error.stack
+        });
+    }
+};
+
+exports.reactivateKPI = async (req, res) => {
+    try {
+        const [result] = await db.execute(
+            'UPDATE tbl_kpi SET dStatus = "ACTIVE" WHERE dKPI_ID = ?',
+            [req.params.id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "KPI not found" });
+        }
+
+        res.json({ message: "KPI reactivated successfully" });
+    } catch (error) {
+        res.status(500).json({ 
+            message: "Error reactivating KPI", 
+            error: error.message 
+        });
+    }
+};

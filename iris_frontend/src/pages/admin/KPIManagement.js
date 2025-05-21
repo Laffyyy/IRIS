@@ -1,7 +1,7 @@
 // KPIManagement.js
 import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle, FaCheck, FaBan } from 'react-icons/fa';
 
 const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis to /api/kpis
 
@@ -96,6 +96,9 @@ const KPIManagement = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedKpiDetails, setSelectedKpiDetails] = useState(null);
 
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
+  const [kpiToReactivate, setKpiToReactivate] = useState(null);
+
   const handleViewDetails = (kpi) => {
     setSelectedKpiDetails(kpi);
     setShowDetailsModal(true);
@@ -162,7 +165,9 @@ const KPIManagement = () => {
 
       resetForm();
       setShowConfirmModal(false);
-      setSimpleSuccessMessage('1 KPI is added');
+      setSimpleSuccessMessage(`${kpiToAdd.name} has been added successfully`);
+      setShowSimpleSuccess(true);
+
       setShowSimpleSuccess(true);
 
       setRecentlyAdded(prev => [
@@ -754,35 +759,78 @@ const KPIManagement = () => {
     }
 };
     
-  const handleDeleteClick = (kpi) => {
-    setKpiToDelete(kpi);
-    setShowDeleteModal(true);
-    setDeleteConfirmation('');
-  };
+const handleDeleteClick = (kpi) => {
+  setKpiToDelete(kpi);
+  setShowDeleteModal(true);
+};
 
-  const handleDeleteConfirm = async () => {
-    if (deleteConfirmation.trim() === kpiToDelete.dKPI_Name.trim()) {
-      try {
-        const response = await fetch(`http://localhost:3000/api/kpis/${kpiToDelete.dKPI_ID}`, {
-          method: 'DELETE',
-        });
-  
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+const handleDeleteConfirm = async () => {
+  if (deleteConfirmation.trim() === kpiToDelete.dKPI_Name.trim()) {
+    try {
+      const response = await fetch(`${BASE_URL}/${kpiToDelete.dKPI_ID}/deactivate`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
         }
-  
-        setKpis(kpis.filter(kpi => kpi.dKPI_ID !== kpiToDelete.dKPI_ID));
-        setShowDeleteModal(false);
-        setKpiToDelete(null);
-        setDeleteConfirmation('');
-        setSimpleSuccessMessage('KPI deleted successfully!');
-        setShowSimpleSuccess(true);
-      } catch (error) {
-        console.error('Error disabling KPI:', error);
-        showAlert('Failed to disable KPI. Please try again.');
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    } else {
-      showAlert('Please type the exact KPI name to confirm disabling');
+
+      // Update the KPI status locally
+      const updatedKpis = kpis.map(kpi => 
+        kpi.dKPI_ID === kpiToDelete.dKPI_ID 
+          ? { ...kpi, dStatus: 'DEACTIVATED' } 
+          : kpi
+      );
+      setKpis(updatedKpis);
+      setShowDeleteModal(false);
+      setKpiToDelete(null);
+      setDeleteConfirmation('');
+      setSimpleSuccessMessage('KPI has been deactivated successfully');
+      setShowSimpleSuccess(true);
+    } catch (error) {
+      console.error('Error deactivating KPI:', error);
+      showAlert('Failed to deactivate KPI. Please try again.');
+    }
+  } else {
+    showAlert('Please type the exact KPI name to confirm deactivating');
+  }
+};
+
+  const handleReactivateClick = (kpi) => {
+    setKpiToReactivate(kpi);
+    setShowReactivateModal(true);
+  };
+  
+  const handleReactivateConfirm = async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/${kpiToReactivate.dKPI_ID}/reactivate`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to reactivate KPI');
+      }
+  
+      // Update the KPI status locally
+      const updatedKpis = kpis.map(kpi => 
+        kpi.dKPI_ID === kpiToReactivate.dKPI_ID 
+          ? { ...kpi, dStatus: 'ACTIVE' } 
+          : kpi
+      );
+      setKpis(updatedKpis);
+      setShowReactivateModal(false);
+      setKpiToReactivate(null);
+      setSimpleSuccessMessage('KPI has been reactivated successfully');
+      setShowSimpleSuccess(true);
+    } catch (error) {
+      console.error('Error reactivating KPI:', error);
+      showAlert('Failed to reactivate KPI');
     }
   };
 
@@ -1125,15 +1173,7 @@ const KPIManagement = () => {
     }
   };
 
-  useEffect(() => {
-    let timer;
-    if (showSimpleSuccess) {
-      timer = setTimeout(() => {
-        setShowSimpleSuccess(false);
-      }, 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [showSimpleSuccess]);
+
 
   // Add this with other state declarations
   const [statusFilter, setStatusFilter] = useState('All');
@@ -1187,12 +1227,27 @@ const KPIManagement = () => {
 
   return (
     <>
-      {showSimpleSuccess && (
-        <div className="simple-success-banner">
-          <span className="checkmark">&#10003;</span>
-          {simpleSuccessMessage}
-        </div>
-      )}
+          {showSimpleSuccess && (
+          <div className="modal-overlay">
+            <div className="modal success-modal">
+              <div className="modal-header">
+                <h3>KPI Added</h3>
+              </div>
+
+              <p className="success-message">{simpleSuccessMessage}</p>
+
+              <div className="modal-actions">
+                <button 
+                  onClick={() => setShowSimpleSuccess(false)}
+                  className="save-btn"
+                  style={{ backgroundColor: '#0052CC', width: '100%' }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       <div className="kpi-management-container">
         <div className="white-card">
           <div className="kpi-management-header">
@@ -1507,15 +1562,23 @@ const KPIManagement = () => {
                           <td>{kpi.dCreatedBy || '-'}</td>
                           <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
                           <td>
-                            <div className="action-buttons">
-                              <button 
-                                onClick={() => handleDeleteClick(kpi)} 
-                                className="delete-btn"
-                                disabled={kpi.dStatus === 'DEACTIVATED'}
+                          <div className="action-buttons">
+                              {kpi.dStatus === 'DEACTIVATED' ? (
+                                <button 
+                                className="reactivate-btn"
+                                onClick={() => handleReactivateClick(kpi)}
                               >
-                                <FaTimes size={12} /> Deactivate
-                              </button>
-                            </div>
+                                  <FaCheck size={12} /> Reactivate
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleDeleteClick(kpi)} 
+                                  className="delete-btn"
+                                >
+                                  <FaBan size={12} /> Deactivate
+                                  </button>
+                              )}
+                          </div>
                           </td>
                         </tr>
                       ))}
@@ -1535,7 +1598,6 @@ const KPIManagement = () => {
 
             </div>
             
-            <div className="modal-content">
               <p>Please confirm the details of the KPI to be added:</p>
               <div className="kpi-details">
                 <p>Name:<strong>{kpiToAdd.name}</strong></p>
@@ -1543,7 +1605,6 @@ const KPIManagement = () => {
                 <p>Behavior:<strong>{kpiToAdd.behavior}</strong></p>
                 <p>Description:<strong>{kpiToAdd.description || '-'}</strong></p>
               </div>
-            </div>
 
             <div className="modal-actions">
               <button onClick={() => setShowConfirmModal(false)} className="cancel-btn">
@@ -1568,7 +1629,7 @@ const KPIManagement = () => {
             
               </div>
               
-              <div className="modal-content">
+
                 <div className="warning-message">
                   <FaTimesCircle className="warning-icon" />
                   <p>Please confirm the details of the KPI you want to deactivate:</p>
@@ -1595,7 +1656,7 @@ const KPIManagement = () => {
                     <span className="error-message">The name doesn't match</span>
                   )}
                 </div>
-              </div>
+
 
               <div className="modal-actions">
                 <button 
@@ -1700,6 +1761,36 @@ const KPIManagement = () => {
                   className="ok-btn"
                 >
                   OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+  {showReactivateModal && kpiToReactivate && (
+          <div className="modal-overlay">
+            <div className="modal confirm-modal">
+              <div className="modal-header">
+                <h2>Confirm Reactivation</h2>
+              </div>
+                <p>Are you sure you want to reactivate this KPI?</p>
+              <div className="modal-actions">
+                <button 
+                  onClick={() => {
+                    setShowReactivateModal(false);
+                    setKpiToReactivate(null);
+                  }} 
+                  className="cancel-btn small"
+                  style={{ minWidth: '80px', padding: '8px 16px' }}
+                >
+                  No
+                </button>
+                <button 
+                  onClick={handleReactivateConfirm}
+                  className="save-btn small"
+                  style={{ minWidth: '80px', padding: '8px 16px' }}
+                >
+                  Yes
                 </button>
               </div>
             </div>
