@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { FaSearch, FaFilter, FaCalendarAlt, FaChevronDown } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaSearch, FaCalendarAlt, FaChevronDown } from 'react-icons/fa';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import './AdminLogs.css';
+import axios from 'axios';
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -12,40 +13,13 @@ const months = [
 const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
 
 const AdminLogs = () => {
-  // Mock data for logs
-  const [logs] = useState([
-    {
-      id: 1,
-      timestamp: '2024-03-21 10:30:45',
-      user: 'John Doe',
-      action: 'User Created',
-      module: 'User Management',
-      details: 'Created new user: jane.smith@example.com',
-      status: 'Success'
-    },
-    {
-      id: 2,
-      timestamp: '2024-03-21 10:25:12',
-      user: 'Jane Smith',
-      action: 'KPI Updated',
-      module: 'KPI Management',
-      details: 'Updated KPI: Sales Target',
-      status: 'Success'
-    },
-    {
-      id: 3,
-      timestamp: '2024-03-21 10:15:33',
-      user: 'Admin User',
-      action: 'Site Deleted',
-      module: 'Site Management',
-      details: 'Deleted site: Site A',
-      status: 'Success'
-    }
-  ]);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [moduleFilter, setModuleFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [locationFilter, setLocationFilter] = useState('All');
+  const [actionTypeFilter, setActionTypeFilter] = useState('All');
   const [dateRange, setDateRange] = useState([null, null]);
   const [startDate, endDate] = dateRange;
 
@@ -53,27 +27,112 @@ const AdminLogs = () => {
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
 
-  // Filter logs based on search term, filters, and date range
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = 
-      log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesModule = moduleFilter === 'All' || log.module === moduleFilter;
-    const matchesStatus = statusFilter === 'All' || log.status === statusFilter;
+  // Fetch logs data from API
+  const fetchLogs = async () => {
+    setLoading(true);
+    setError(null);
+  
+    try {
+      // Comment out mock data and uncomment API code
+      /*
+      const mockLogs = [
+        { 
+          dLog_ID: 1, 
+          tActionAt: new Date().toISOString(), 
+          dActionBy: 'Test User', 
+          dActionType: 'Login', 
+          dActionLocation: 'Authentication', 
+          dActionLocation_ID: '1'
+        },
+        { 
+          dLog_ID: 2, 
+          tActionAt: new Date(Date.now() - 86400000).toISOString(), 
+          dActionBy: 'Admin', 
+          dActionType: 'Update', 
+          dActionLocation: 'User Management', 
+          dActionLocation_ID: '5'
+        }
+      ];
+      
+      // Set mock logs directly without API call
+      setLogs(mockLogs);
+      */
+  
+      // UNCOMMENT THIS SECTION
+      // We're bypassing token validation for now
+      // const token = localStorage.getItem('token');
+      // if (!token) {
+      //   throw new Error('Authentication token not found');
+      // }
+  
+      // Prepare filters
+      const filters = {
+        searchTerm: searchTerm || null,
+        location: locationFilter,
+        actionType: actionTypeFilter
+      };
+  
+      // Add date range if selected
+      if (startDate) {
+        filters.startDate = startDate.toISOString();
+      }
+      if (endDate) {
+        // Set end date to end of day
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        filters.endDate = endOfDay.toISOString();
+      }
+  
+      // Make API call without authentication for now
+      const response = await axios.post('http://localhost:3000/api/logs', {
+        operation: 'viewadminlogs',
+        filters
+      }, {
+        // No authentication header for testing
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      console.log("API response:", response.data);
+  
+      if (response.data.success) {
+        setLogs(response.data.logs);
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch logs');
+      }
+      
+    } catch (err) {
+      console.error('Error fetching logs:', err);
+      setError('Failed to load logs: ' + (err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Date range filtering
-    const logDate = new Date(log.timestamp);
-    const matchesStartDate = !startDate || logDate >= startDate;
-    const matchesEndDate = !endDate || logDate <= new Date(endDate.setHours(23, 59, 59, 999));
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchLogs();
+  }, []); // Empty dependency array for initial load only
 
-    return matchesSearch && matchesModule && matchesStatus && matchesStartDate && matchesEndDate;
-  });
+  // Refetch when filters change
+  useEffect(() => {
+    // Using a debounce to prevent too many requests
+    const timer = setTimeout(() => {
+      fetchLogs();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, locationFilter, actionTypeFilter, dateRange]);
 
-  // Get unique modules for filter dropdown
-  const uniqueModules = ['All', ...new Set(logs.map(log => log.module))];
-  const uniqueStatuses = ['All', ...new Set(logs.map(log => log.status))];
+  // Get unique locations and action types for filter dropdowns
+  const uniqueLocations = ['All', ...new Set(logs.map(log => log.dActionLocation).filter(Boolean))];
+  const uniqueActionTypes = ['All', ...new Set(logs.map(log => log.dActionType).filter(Boolean))];
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
 
   // Custom header for DatePicker: only month and year as label-style dropdowns
   const renderCustomHeader = ({ date, changeYear, changeMonth, decreaseMonth, increaseMonth, prevMonthButtonDisabled, nextMonthButtonDisabled }) => (
@@ -128,7 +187,7 @@ const AdminLogs = () => {
   );
 
   // Close dropdowns on outside click
-  React.useEffect(() => {
+  useEffect(() => {
     const closeDropdowns = () => {
       setShowMonthDropdown(false);
       setShowYearDropdown(false);
@@ -158,25 +217,25 @@ const AdminLogs = () => {
           </div>
 
           <div className="filter-container">
-            <label>Module:</label>
+            <label>Location:</label>
             <select
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
             >
-              {uniqueModules.map(module => (
-                <option key={module} value={module}>{module}</option>
+              {uniqueLocations.map(location => (
+                <option key={location} value={location}>{location}</option>
               ))}
             </select>
           </div>
 
           <div className="filter-container">
-            <label>Status:</label>
+            <label>Action Type:</label>
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={actionTypeFilter}
+              onChange={(e) => setActionTypeFilter(e.target.value)}
             >
-              {uniqueStatuses.map(status => (
-                <option key={status} value={status}>{status}</option>
+              {uniqueActionTypes.map(actionType => (
+                <option key={actionType} value={actionType}>{actionType}</option>
               ))}
             </select>
           </div>
@@ -200,40 +259,47 @@ const AdminLogs = () => {
           </div>
         </div>
 
+        {/* Loading and Error States */}
+        {loading && <div className="loading-message">Loading logs...</div>}
+        {error && <div className="error-message">{error}</div>}
+
         {/* Logs Table */}
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Module</th>
-                <th>Details</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.map(log => (
-                <tr key={log.id}>
-                  <td>{log.timestamp}</td>
-                  <td>{log.user}</td>
-                  <td>{log.action}</td>
-                  <td>{log.module}</td>
-                  <td>{log.details}</td>
-                  <td>
-                    <span className={`status-badge ${log.status.toLowerCase()}`}>
-                      {log.status}
-                    </span>
-                  </td>
+        {!loading && !error && (
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Timestamp</th>
+                  <th>Action By</th>
+                  <th>Action Type</th>
+                  <th>Location</th>
+                  <th>Location ID</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {logs.map(log => (
+                  <tr key={log.dLog_ID}> {/* Changed from dLog_ID to dLog_ID */}
+                    <td>{log.dLog_ID}</td> {/* Changed from dLog_ID to dLog_ID */}
+                    <td>{formatDate(log.tActionAt)}</td>
+                    <td>{log.dActionBy}</td>
+                    <td>{log.dActionType}</td>
+                    <td>{log.dActionLocation}</td>
+                    <td>{log.dActionLocation_ID}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan="6" className="no-records">No logs found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default AdminLogs; 
+export default AdminLogs;
