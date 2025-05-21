@@ -232,9 +232,9 @@ const KPIManagement = () => {
           return;
         }
 
+        const seenNames = new Set();
         const validKpis = [];
         const invalidKpis = [];
-        const seenNames = new Set();
 
         kpisToValidate.forEach(kpi => {
           let isValid = true;
@@ -243,10 +243,10 @@ const KPIManagement = () => {
           if (!kpi.name) {
             isValid = false;
             reason = 'Missing KPI name';
-          } else if (isDuplicateKPI(kpi.name, bulkKpis)) {
+          } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === kpi.name.toLowerCase().trim())) {
             isValid = false;
-            reason = 'KPI name already exists';
-          } else if (seenNames.has(kpi.name.toLowerCase())) {
+            reason = 'KPI name already exists in database';
+          } else if (seenNames.has(kpi.name.toLowerCase().trim())) {
             isValid = false;
             reason = 'Duplicate KPI name in CSV file';
           } else if (!kpi.category || !kpi.behavior) {
@@ -261,17 +261,10 @@ const KPIManagement = () => {
           }
 
           if (isValid) {
-            validKpis.push({
-              ...kpi,
-              category: kpi.category,
-              behavior: kpi.behavior
-            });
-            seenNames.add(kpi.name.toLowerCase());
+            validKpis.push(kpi);
+            seenNames.add(kpi.name.toLowerCase().trim());
           } else {
-            invalidKpis.push({
-              ...kpi,
-              reason
-            });
+            invalidKpis.push({ ...kpi, reason });
           }
         });
 
@@ -497,10 +490,10 @@ const KPIManagement = () => {
         if (!kpi.name) {
         isValid = false;
         reason = 'Missing KPI name';
-      } else if (isDuplicateKPI(kpi.name, bulkKpis)) {
+      } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === kpi.name.toLowerCase().trim())) {
         isValid = false;
-        reason = 'KPI name already exists';
-      } else if (seenNames.has(kpi.name.toLowerCase())) {
+        reason = 'KPI name already exists in database';
+      } else if (seenNames.has(kpi.name.toLowerCase().trim())) {
         isValid = false;
         reason = 'Duplicate KPI name in CSV file';
       } else if (!kpi.category || !kpi.behavior) {
@@ -520,7 +513,7 @@ const KPIManagement = () => {
           category: kpi.category,
           behavior: kpi.behavior
         });
-        seenNames.add(kpi.name.toLowerCase());
+        seenNames.add(kpi.name.toLowerCase().trim());
       } else {
         invalidKpis.push({
           ...kpi,
@@ -1192,7 +1185,7 @@ const KPIManagement = () => {
 
                     <div className="form-row">
                       <div className="form-group">
-                        <label>RecommendedCalculation Behavior</label>
+                        <label>Recommended Calculation Behavior</label>
                         <select
                           value={behavior}
                           onChange={(e) => setBehavior(e.target.value)}
