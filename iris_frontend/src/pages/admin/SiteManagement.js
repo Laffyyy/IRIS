@@ -609,7 +609,7 @@ const SiteManagement = () => {
       // Get client name for comparison
       const clientName = clients.find(c => c.id == clientId)?.name;
       
-      // Filter out already assigned LOBs/SubLOBs
+      // Filter out already assigned SubLOBs but keep all LOBs
       const filteredLobs = allLobs.map(lob => {
         const matchingAssignments = existingAssignments.filter(
           assignment => assignment.dClientName === clientName && assignment.dLOB === lob.name
@@ -621,7 +621,8 @@ const SiteManagement = () => {
           ...lob,
           subLobs: lob.subLobs.filter(subLob => !existingSubLobs.includes(subLob.name))
         };
-      }).filter(lob => lob.subLobs.length > 0);
+      });
+      // Removed the filter that was excluding LOBs with no available Sub LOBs
   
       setClientLobs(filteredLobs);
       setClientSubLobs([]);
@@ -905,7 +906,7 @@ const SiteManagement = () => {
             (isCurrentlySelectedLob && subLob.name === initialSubLob)
           )
         };
-      }).filter(lob => lob.subLobs.length > 0 || lob.name === initialLob);
+      })
       
       setEditClientLobs(filteredLobs);
       
@@ -1226,7 +1227,7 @@ const SiteManagement = () => {
       <div className="white-card">
         <div className="site-management-header">
           <h1>Site Management</h1>
-          <p className="subtitle">Manage your sites and their clients</p>
+          <p className="subtitle">Manage sites and their clients</p>
         </div>
 
         <div className="tab-container">
@@ -1374,6 +1375,19 @@ const SiteManagement = () => {
             value={selectedSite ? { value: selectedSite.dSite_ID, label: selectedSite.dSiteName } : null}
             onChange={async (selectedOption) => {
               try {
+                // Handle null case when X button is clicked
+                if (!selectedOption) {
+                  setSelectedSite(null);
+                  setSelectedClientId('');
+                  setClientLobs([]);
+                  setClientSubLobs([]);
+                  setSelectedLobId('');
+                  setSelectedSubLobId('');
+                  setExistingAssignments([]);
+                  return;
+                }
+                
+                // Original logic for when an option is selected
                 const site = sites.find(s => s.dSite_ID === selectedOption.value);
                 setSelectedSite(site || null);
                 setSelectedClientId('');
@@ -1402,6 +1416,7 @@ const SiteManagement = () => {
                 console.error('Error updating site data:', error);
               }
             }}
+            onInputChange={(inputValue) => sanitizeInput(inputValue)}
             options={sites.map(site => ({
               value: site.dSite_ID,
               label: site.dSiteName
@@ -1431,6 +1446,7 @@ const SiteManagement = () => {
                 setSelectedSubLobId('');
               }
             }}
+            onInputChange={(inputValue) => sanitizeInput(inputValue)}
             options={availableClients.map(client => ({
               value: client.id,
               label: client.name
@@ -1465,13 +1481,14 @@ const SiteManagement = () => {
               }
               setSelectedSubLobId('');
             }}
+            onInputChange={(inputValue) => sanitizeInput(inputValue)}
             options={clientLobs.map(lob => ({
               value: lob.id,
               label: lob.name
             }))}
             isClearable
             placeholder="Select a LOB"
-            noOptionsMessage={() => "No LOBs - Add More in Client Mgt."}
+            noOptionsMessage={() => "No Available LOBs - Add More in Client Mgt."}
             isDisabled={!selectedClientId}
             className="react-select-container"
             classNamePrefix="react-select"
@@ -1486,13 +1503,14 @@ const SiteManagement = () => {
             onChange={(selectedOption) => {
               setSelectedSubLobId(selectedOption ? selectedOption.value : '');
             }}
+            onInputChange={(inputValue) => sanitizeInput(inputValue)}
             options={clientSubLobs.map(subLob => ({
               value: subLob.id,
               label: subLob.name
             }))}
             isClearable
             placeholder="Select a Sub LOB"
-            noOptionsMessage={() => "No Sub LOBs - Add More in Client Mgt."}
+            noOptionsMessage={() => "No Available Sub LOBs - Add More in Client Mgt."}
             isDisabled={!selectedLobId}
             className="react-select-container"
             classNamePrefix="react-select"
@@ -1712,6 +1730,7 @@ const SiteManagement = () => {
                       fetchExistingAssignments(parseInt(newSiteId));
                     }
                   }}
+                  onInputChange={(inputValue) => sanitizeInput(inputValue)}
                   options={sites.map(site => ({
                     value: site.dSite_ID,
                     label: site.dSiteName
@@ -1744,6 +1763,7 @@ const SiteManagement = () => {
                       setEditClientLobs([]);
                     }
                   }}
+                  onInputChange={(inputValue) => sanitizeInput(inputValue)}
                   options={[
                     // First ensure we have the current client in the list
                     ...(currentClientSite ? [{
@@ -1788,6 +1808,7 @@ const SiteManagement = () => {
                       setEditClientSubLobs([]);
                     }
                   }}
+                  onInputChange={(inputValue) => sanitizeInput(inputValue)}
                   options={editClientLobs.map(lob => ({
                     value: lob.id,
                     label: lob.name
@@ -1808,6 +1829,7 @@ const SiteManagement = () => {
                   onChange={(selectedOption) => {
                     setEditSelectedSubLobId(selectedOption ? selectedOption.value : '');
                   }}
+                  onInputChange={(inputValue) => sanitizeInput(inputValue)}
                   options={editClientSubLobs.map(subLob => ({
                     value: subLob.id,
                     label: subLob.name
