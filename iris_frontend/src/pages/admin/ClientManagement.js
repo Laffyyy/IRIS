@@ -3195,13 +3195,21 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               : `client-${r.name}`;
                           
                           return (
-                            <tr key={rowKey}>
+                            <tr
+                              key={rowKey}
+                              onClick={e => {
+                                // Prevent toggling when clicking the checkbox itself
+                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey);
+                              }}
+                              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+                            >
                               <td>
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.has(rowKey)}
                                   onChange={() => handleRowSelect(rowKey)}
                                   style={{ cursor: 'pointer' }}
+                                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
                                 />
                               </td>
                               {r.jsx.props.children}
@@ -3306,13 +3314,21 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             : `lob-${r.name}-${r.lob}`;
                           
                           return (
-                            <tr key={rowKey}>
+                            <tr
+                              key={rowKey}
+                              onClick={e => {
+                                // Prevent toggling when clicking the checkbox itself
+                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey);
+                              }}
+                              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+                            >
                               <td>
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.has(rowKey)}
                                   onChange={() => handleRowSelect(rowKey)}
                                   style={{ cursor: 'pointer' }}
+                                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
                                 />
                               </td>
                               {r.jsx.props.children}
@@ -3387,13 +3403,21 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           const rowKey = `sublob-${r.name}-${r.lob}-${r.subLob}`;
                           
                           return (
-                            <tr key={rowKey}>
+                            <tr
+                              key={rowKey}
+                              onClick={e => {
+                                // Prevent toggling when clicking the checkbox itself
+                                if (e.target.type !== 'checkbox') handleRowSelect(rowKey);
+                              }}
+                              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+                            >
                               <td>
                                 <input
                                   type="checkbox"
                                   checked={selectedRows.has(rowKey)}
                                   onChange={() => handleRowSelect(rowKey)}
                                   style={{ cursor: 'pointer' }}
+                                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
                                 />
                               </td>
                               {r.jsx.props.children}
