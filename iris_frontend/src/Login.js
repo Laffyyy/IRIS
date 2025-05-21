@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import AlertModal from './components/AlertModal';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
@@ -36,22 +37,15 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   );
 };
 
-
-
 const Login = ({ onContinue, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
-  const [otp, setOtp] = useState('');
-const [userId, setUserId] = useState('');
-const [passwords, setPasswords] = useState({
-  newPassword: '',
-  confirmPassword: ''
-});
 
   const carouselImages = [
     '/assets/stephen1.jpg',
@@ -73,15 +67,12 @@ const [passwords, setPasswords] = useState({
   const handleSubmit = async (e) => {
     e.preventDefault();
  
-    // Prepare the payload
     const payload = {
-      userId : employeeId,
-      password: password,
-      otp: "",
+      userID: employeeId,
+      password: password
     };
-    console.log('Payload:', payload);
+
     try {
-      // Send POST request to the API
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -93,18 +84,55 @@ const [passwords, setPasswords] = useState({
       const data = await response.json();
 
       if (response.ok) {
-        alert('Request successful!');
-        console.log('Response:', data);
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
         navigate('/otp'); 
       } else {
-        alert(`Error: ${data.error}`);
-        console.error('Error:', data);
+        if (data.message.includes('User not found')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Invalid username or password.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Invalid password')) {
+          setAlertModal({
+            isOpen: true,
+            message: data.message,
+            type: 'error'
+          });
+        } else if (data.message.includes('Account is locked')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account is locked due to too many failed attempts. Please contact support.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Account is deactivated')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account is deactivated. Please contact support.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Account has expired')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account has expired. Please contact support.',
+            type: 'error'
+          });
+        } else {
+          setAlertModal({
+            isOpen: true,
+            message: data.message || 'Login failed. Please try again.',
+            type: 'error'
+          });
+        }
       }
     } catch (error) {
       console.error('Error during API call:', error);
-      alert('An error occurred while sending the request.');
+      setAlertModal({
+        isOpen: true,
+        message: 'An error occurred while sending the request. Please try again later.',
+        type: 'error'
+      });
     }
   };
 
@@ -229,11 +257,21 @@ const [passwords, setPasswords] = useState({
           onClose={() => setShowModal(false)}
           onSubmit={(email) => {
             setShowModal(false);
-            console.log('Sending OTP to:', email);
-            alert(`OTP sent to ${email}`);
+            setAlertModal({
+              isOpen: true,
+              message: `OTP sent to ${email}`,
+              type: 'success'
+            });
           }}
         />
       )}
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+      />
     </div>
   );
 };

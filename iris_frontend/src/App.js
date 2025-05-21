@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -16,22 +16,28 @@ import UpdatePassword from './UpdatePassword';
 import  ProtectedRoute  from './utilities/ProtectedRoute';
 import Unauthorize from './utilities/Unautorize';
 import AdminPage from './adminpagecollection';
+import InactivityHandler from './components/InactivityHandler'; 
+
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Auth routes - no sidebar */}
-        <Route path="/" element={<Login />} />
-        <Route path="/otp" element={<Otp />} />
-        <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/security-questions" element={<SecurityQuestions />} />
-        <Route path="/update-password" element={<UpdatePassword />} />
+      <div className="App">
+        <Routes>
+          {/* Redirect root URL to admin users */}
+
+          {/*  Add this route for the Login page */}
+          <Route path="/" element={<Login />} />
+          <Route path="/otp" element={<Otp />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/security-questions" element={<SecurityQuestions />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
 
         {/* Dashboard/admin routes - with sidebar */}
        <Route
   path="/*"
   element={
+    <InactivityHandler>
     <div className="app-container">
       <Sidebar />
       <main className="main-content">
@@ -73,6 +79,7 @@ function App() {
         </Routes>
       </main>
     </div>
+    </InactivityHandler>
   }
 />
       </Routes>
