@@ -27,4 +27,9 @@ router.post('/sublob/update', (req, res) => clientManagementController.updateSub
 router.delete('/sublob/delete', (req, res) => clientManagementController.deleteSubLOB(req, res));
 router.post('/sublob/deactivate', (req, res) => clientManagementController.deactivateSubLOB(req, res));
 
+// Reactivation routes
+router.post('/reactivate', (req, res) => clientManagementController.reactivateClient(req, res));
+router.post('/lob/reactivate', (req, res) => clientManagementController.reactivateLOB(req, res));
+router.post('/sublob/reactivate', (req, res) => clientManagementController.reactivateSubLOB(req, res));
+
 module.exports = router;

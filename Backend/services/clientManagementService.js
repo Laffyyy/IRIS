@@ -911,6 +911,90 @@ class ClientManagementService {
             throw error;
         }
     }
+
+    async reactivateClient(clientName, userId) {
+        try {
+            if (!clientName) {
+                throw new Error('Client name is required');
+            }
+            // Update dStatus in tbl_clientlob
+            const [result] = await db.query(
+                'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ?',
+                ['ACTIVE', clientName]
+            );
+            // Update dStatus in tbl_clientsite
+            await db.query(
+                'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ?',
+                ['ACTIVE', clientName]
+            );
+            return {
+                message: 'Client reactivated successfully',
+                clientName,
+                affectedRows: result.affectedRows,
+                reactivatedBy: userId
+            };
+        } catch (error) {
+            console.error('Error in ClientManagementService.reactivateClient:', error);
+            throw error;
+        }
+    }
+
+    async reactivateLOB(clientName, lobName, userId) {
+        try {
+            if (!clientName || !lobName) {
+                throw new Error('Client name and LOB name are required');
+            }
+            // Update dStatus in tbl_clientlob
+            const [result] = await db.query(
+                'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ? AND dLOB = ?',
+                ['ACTIVE', clientName, lobName]
+            );
+            // Update dStatus in tbl_clientsite
+            await db.query(
+                'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ? AND dLOB = ?',
+                ['ACTIVE', clientName, lobName]
+            );
+            return {
+                message: 'LOB reactivated successfully',
+                clientName,
+                lobName,
+                affectedRows: result.affectedRows,
+                reactivatedBy: userId
+            };
+        } catch (error) {
+            console.error('Error in ClientManagementService.reactivateLOB:', error);
+            throw error;
+        }
+    }
+
+    async reactivateSubLOB(clientName, lobName, subLOBName, userId) {
+        try {
+            if (!clientName || !lobName || !subLOBName) {
+                throw new Error('Client name, LOB name, and Sub LOB name are required');
+            }
+            // Update dStatus in tbl_clientlob
+            const [result] = await db.query(
+                'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                ['ACTIVE', clientName, lobName, subLOBName]
+            );
+            // Update dStatus in tbl_clientsite
+            await db.query(
+                'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?',
+                ['ACTIVE', clientName, lobName, subLOBName]
+            );
+            return {
+                message: 'Sub LOB reactivated successfully',
+                clientName,
+                lobName,
+                subLOBName,
+                affectedRows: result.affectedRows,
+                reactivatedBy: userId
+            };
+        } catch (error) {
+            console.error('Error in ClientManagementService.reactivateSubLOB:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = ClientManagementService;

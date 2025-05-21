@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ClientManagement.css';
-import { FaTrash, FaSearch, FaTimes, FaPencilAlt, FaBan } from 'react-icons/fa';
+import { FaTrash, FaSearch, FaTimes, FaPencilAlt, FaBan, FaCheckCircle } from 'react-icons/fa';
 import axios from 'axios';
 
 const ClientManagement = () => {
@@ -1689,6 +1689,70 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
   };
 
+  // Reactivate handlers
+  const handleReactivateClient = async (type, id) => {
+    try {
+      const client = clients.find(c => c.id === id);
+      if (!client) throw new Error('Client not found');
+      if (!window.confirm(`Are you sure you want to reactivate client "${client.name}"?`)) return;
+      const response = await axios.post('http://localhost:3000/api/clients/reactivate', {
+        clientName: client.name
+      });
+      if (response.data) {
+        fetchClientData('DEACTIVATED');
+        alert('Client reactivated successfully!');
+      }
+    } catch (error) {
+      console.error('Error reactivating client:', error);
+      alert('Failed to reactivate client: ' + error.message);
+    }
+  };
+
+  const handleReactivateLOB = async (type, id) => {
+    try {
+      const lob = lobs.find(l => l.id === id);
+      if (!lob) throw new Error('LOB not found');
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) throw new Error('Client not found');
+      if (!window.confirm(`Are you sure you want to reactivate LOB "${lob.name}" for client "${client.name}"?`)) return;
+      const response = await axios.post('http://localhost:3000/api/clients/lob/reactivate', {
+        clientName: client.name,
+        lobName: lob.name
+      });
+      if (response.data) {
+        fetchClientData('DEACTIVATED');
+        alert('LOB reactivated successfully!');
+      }
+    } catch (error) {
+      console.error('Error reactivating LOB:', error);
+      alert('Failed to reactivate LOB: ' + error.message);
+    }
+  };
+
+  const handleReactivateSubLOB = async (type, id) => {
+    try {
+      const subLob = subLobs.find(s => s.id === id);
+      if (!subLob) throw new Error('Sub LOB not found');
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) throw new Error('LOB not found');
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) throw new Error('Client not found');
+      if (!window.confirm(`Are you sure you want to reactivate Sub LOB "${subLob.name}" from LOB "${lob.name}" for client "${client.name}"?`)) return;
+      const response = await axios.post('http://localhost:3000/api/clients/sublob/reactivate', {
+        clientName: client.name,
+        lobName: lob.name,
+        subLOBName: subLob.name
+      });
+      if (response.data) {
+        fetchClientData('DEACTIVATED');
+        alert('Sub LOB reactivated successfully!');
+      }
+    } catch (error) {
+      console.error('Error reactivating Sub LOB:', error);
+      alert('Failed to reactivate Sub LOB: ' + error.message);
+    }
+  };
+
   return (
     <div className="client-management-container">
       <div className="client-management-flex">
@@ -2586,9 +2650,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                       <button onClick={() => handleEditRow('client', client)} className="edit-btn">
                                         <FaPencilAlt size={12} /> Edit
                                       </button>
-                                      <button onClick={() => handleDeactivate('client', client.id)} className="deactivate-btn">
-                                        <FaBan size={12} /> Deactivate
-                                      </button>
+                                      {itemStatusTab === 'DEACTIVATED' ? (
+                                        <button onClick={() => handleReactivateClient('client', client.id)} className="reactivate-btn">
+                                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                        </button>
+                                      ) : (
+                                        <button onClick={() => handleDeactivate('client', client.id)} className="deactivate-btn">
+                                          <FaBan size={12} /> Deactivate
+                                        </button>
+                                      )}
                                     </div>
                                   </td>
                                 </tr>
@@ -2623,9 +2693,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                           <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
                                             <FaPencilAlt size={12} /> Edit
                                           </button>
-                                          <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
-                                            <FaBan size={12} /> Deactivate
-                                          </button>
+                                          {itemStatusTab === 'DEACTIVATED' ? (
+                                            <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
+                                              <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                            </button>
+                                          ) : (
+                                            <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                              <FaBan size={12} /> Deactivate
+                                            </button>
+                                          )}
                                         </div>
                                       </td>
                                     </tr>
@@ -2645,7 +2721,37 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                         <td>
                                           <div className="action-buttons">
                                             
-                                            <button 
+                                            {itemStatusTab === 'DEACTIVATED' ? (
+                                              <button
+                                                onClick={() => {
+                                                  if (activeTab === 'addClient') {
+                                                    if (activeTableTab === 'clients') {
+                                                      handleReactivateClient('client', client.id);
+                                                    } else if (activeTableTab === 'lobs') {
+                                                      handleReactivateLOB('lob', lob.id);
+                                                    } else if (activeTableTab === 'subLobs') {
+                                                      handleReactivateSubLOB('subLob', subLob.id);
+                                                    }
+                                                  } else if (activeTab === 'addLOB') {
+                                                    handleReactivateLOB('lob', lob.id);
+                                                  } else if (activeTab === 'addSubLOB') {
+                                                    handleReactivateSubLOB('subLob', subLob.id);
+                                                  } else {
+                                                    if (activeTableTab === 'clients') {
+                                                      handleReactivateClient('client', client.id);
+                                                    } else if (activeTableTab === 'lobs') {
+                                                      handleReactivateLOB('lob', lob.id);
+                                                    } else if (activeTableTab === 'subLobs') {
+                                                      handleReactivateSubLOB('subLob', subLob.id);
+                                                    }
+                                                  }
+                                                }}
+                                                className="reactivate-btn"
+                                              >
+                                                <FaCheckCircle size={14} color="#3182ce" /> Reactivate
+                                              </button>
+                                            ) : (
+                                              <button 
                                               onClick={() => {
                                                 if (activeTab === 'addClient') {
                                                   if (activeTableTab === 'clients') {
@@ -2673,6 +2779,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                             >
                                               <FaBan size={12} /> Deactivate
                                             </button>
+                                            )}
                                           </div>
                                         </td>
                                       </tr>
@@ -2729,9 +2836,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                     <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
                                       <FaPencilAlt size={12} /> Edit
                                     </button>
-                                    <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
-                                      <FaBan size={12} /> Deactivate
-                                    </button>
+                                    {itemStatusTab === 'DEACTIVATED' ? (
+                                      <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
+                                        <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
+                                        <FaBan size={12} /> Deactivate
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -2754,9 +2867,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                     <FaPencilAlt size={12} /> Edit
                                   </button>
-                                  <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
-                                    <FaBan size={12} /> Deactivate
-                                  </button>
+                                  {itemStatusTab === 'DEACTIVATED' ? (
+                                    <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                      <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                      <FaBan size={12} /> Deactivate
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -2795,9 +2914,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
                                     <FaPencilAlt size={12} /> Edit
                                   </button>
-                                  <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
-                                    <FaBan size={12} /> Deactivate
-                                  </button>
+                                  {itemStatusTab === 'DEACTIVATED' ? (
+                                    <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                      <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
+                                      <FaBan size={12} /> Deactivate
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>

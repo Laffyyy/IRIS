@@ -401,6 +401,52 @@ class ClientManagementController {
             });
         }
     }
+
+    // New methods for reactivation
+    async reactivateClient(req, res) {
+        try {
+            const { clientName } = req.body;
+            if (!clientName) {
+                return res.status(400).json({ message: 'Client name is required' });
+            }
+            const userId = getUserIdFromRequest(req);
+            const result = await this.clientManagementService.reactivateClient(clientName, userId);
+            res.status(200).json({ message: 'Client reactivated successfully', data: result });
+        } catch (error) {
+            console.error('Error reactivating client:', error);
+            res.status(500).json({ message: 'Failed to reactivate client', error: error.message });
+        }
+    }
+
+    async reactivateLOB(req, res) {
+        try {
+            const { clientName, lobName } = req.body;
+            if (!clientName || !lobName) {
+                return res.status(400).json({ message: 'Client name and LOB name are required' });
+            }
+            const userId = getUserIdFromRequest(req);
+            const result = await this.clientManagementService.reactivateLOB(clientName, lobName, userId);
+            res.status(200).json({ message: 'LOB reactivated successfully', data: result });
+        } catch (error) {
+            console.error('Error reactivating LOB:', error);
+            res.status(500).json({ message: 'Failed to reactivate LOB', error: error.message });
+        }
+    }
+
+    async reactivateSubLOB(req, res) {
+        try {
+            const { clientName, lobName, subLOBName } = req.body;
+            if (!clientName || !lobName || !subLOBName) {
+                return res.status(400).json({ message: 'Client name, LOB name, and Sub LOB name are required' });
+            }
+            const userId = getUserIdFromRequest(req);
+            const result = await this.clientManagementService.reactivateSubLOB(clientName, lobName, subLOBName, userId);
+            res.status(200).json({ message: 'Sub LOB reactivated successfully', data: result });
+        } catch (error) {
+            console.error('Error reactivating Sub LOB:', error);
+            res.status(500).json({ message: 'Failed to reactivate Sub LOB', error: error.message });
+        }
+    }
 }
 
 // Helper function to extract user ID from the request

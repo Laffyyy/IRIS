@@ -1309,3 +1309,23 @@
   background-color: #fff5f5;
   transform: scale(1.05);
 }
+
+.reactivate-btn {
+  background: none;
+  border: none;
+  color: #3182ce; /* blue */
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.reactivate-btn:hover {
+  background-color: #e6f0fa;
+  color: #004D8D;
+  transform: scale(1.05);
+}
