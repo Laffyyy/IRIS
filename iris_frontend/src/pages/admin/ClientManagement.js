@@ -1774,7 +1774,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
   };
 
   // Replace the sanitizeInput function with this updated version
-  const sanitizeInput = (value) => {
+  const sanitizeInput = (value, maxLength = null) => {
     // If the value is just spaces, return empty string
     if (value.trim() === '') return '';
     
@@ -1782,6 +1782,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     let sanitized = value.replace(/[^A-Za-z0-9 ]/g, '');
     // Replace multiple spaces with single space
     sanitized = sanitized.replace(/\s+/g, ' ');
+    // Apply maxLength if specified
+    if (maxLength !== null) {
+      sanitized = sanitized.slice(0, maxLength);
+    }
     return sanitized;
   };
 
@@ -1814,8 +1818,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   ref={clientNameInputRef}
                   type="text"
                   value={clientName}
-                  onChange={(e) => setClientName(sanitizeInput(e.target.value))}
+                  onChange={(e) => setClientName(sanitizeInput(e.target.value, 50))}
                   placeholder="Enter client name"
+                  maxLength={50}
                   style={{ 
                     outline: 'none',
                     border: '1px solid #ccc',
@@ -1847,7 +1852,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       <input
                         type="text"
                         value={card.lobName}
-                        onChange={(e) => handleLobNameChange(lobCardIndex, sanitizeInput(e.target.value))}
+                        onChange={(e) => handleLobNameChange(lobCardIndex, sanitizeInput(e.target.value, 30))}
+                        maxLength={30}
                       />
                     </div>
 
@@ -1859,7 +1865,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <input
                               type="text"
                               value={subLobName}
-                              onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, sanitizeInput(e.target.value))}
+                              onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
+                              maxLength={30}
                             />
                             {subLobIndex > 0 && (
                               <button 
@@ -1919,16 +1926,17 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     type="text"
                     value={clientSearchTerm}
                     onChange={(e) => {
-                      setClientSearchTerm(sanitizeInput(e.target.value));
+                      setClientSearchTerm(sanitizeInput(e.target.value, 50));
                       setIsClientDropdownOpen(true);
                       // Clear selected client if search term doesn't match
-                      const matchingClient = clients.find(c => c.name === sanitizeInput(e.target.value));
+                      const matchingClient = clients.find(c => c.name === sanitizeInput(e.target.value, 50));
                       if (!matchingClient) {
                         setSelectedClientForLob(null);
                         setSelectedSiteForLob(null);
                         setSiteSearchTerm('');
                       }
                     }}
+                    maxLength={50}
                     onFocus={(e) => {
                       e.target.style.borderColor = '#004D8D';
                       // Only show dropdown if there's a search term or user explicitly clicked
@@ -2026,9 +2034,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     type="text"
                     value={siteSearchTerm}
                     onChange={(e) => {
-                      setSiteSearchTerm(sanitizeInput(e.target.value));
+                      setSiteSearchTerm(sanitizeInput(e.target.value, 30));
                       setIsSiteDropdownOpen(true);
                     }}
+                    maxLength={30}
                     onFocus={() => {
                       if (validateClientSelection()) {
                         setIsSiteDropdownOpen(true);
@@ -2118,7 +2127,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       <input
                         type="text"
                         value={card.lobName}
-                        onChange={(e) => handleLobNameChangeForLob(lobCardIndex, sanitizeInput(e.target.value))}
+                        onChange={(e) => handleLobNameChangeForLob(lobCardIndex, sanitizeInput(e.target.value, 30))}
+                        maxLength={30}
                         disabled={!validateClientSelection()}
                       />
                     </div>
@@ -2131,7 +2141,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             <input
                               type="text"
                               value={subLobName}
-                              onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, sanitizeInput(e.target.value))}
+                              onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
+                              maxLength={30}
                               disabled={!validateClientSelection()}
                             />
                             {subLobIndex > 0 && (
@@ -2197,10 +2208,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       type="text"
                       value={subLobClientSearchTerm}
                       onChange={(e) => {
-                        setSubLobClientSearchTerm(sanitizeInput(e.target.value));
+                        setSubLobClientSearchTerm(sanitizeInput(e.target.value, 50));
                         setIsSubLobClientDropdownOpen(true);
                         // Clear selected client if search term doesn't match
-                        const matchingClient = clients.find(c => c.name === sanitizeInput(e.target.value));
+                        const matchingClient = clients.find(c => c.name === sanitizeInput(e.target.value, 50));
                         if (!matchingClient) {
                           setFilterClientForSubLob(null);
                           setFilterSiteForSubLob(null);
@@ -2209,6 +2220,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           setSubLobLobSearchTerm('');
                         }
                       }}
+                      maxLength={50}
                       onFocus={(e) => {
                         e.target.style.borderColor = '#004D8D';
                         // Only show dropdown if there's a search term or user explicitly clicked
@@ -2311,7 +2323,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       type="text"
                       value={subLobSiteSearchTerm}
                       onChange={(e) => {
-                        setSubLobSiteSearchTerm(sanitizeInput(e.target.value));
+                        setSubLobSiteSearchTerm(sanitizeInput(e.target.value, 30));
                         setIsSubLobSiteDropdownOpen(true);
                         // Clear site filter if input is empty
                         if (!e.target.value) {
@@ -2320,6 +2332,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           setSubLobLobSearchTerm('');
                         }
                       }}
+                      maxLength={30}
                       onFocus={() => {
                         if (validateSubLobClientSelection()) {
                           setIsSubLobSiteDropdownOpen(true);
@@ -2406,9 +2419,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       type="text"
                       value={subLobLobSearchTerm}
                       onChange={(e) => {
-                        setSubLobLobSearchTerm(sanitizeInput(e.target.value));
+                        setSubLobLobSearchTerm(sanitizeInput(e.target.value, 30));
                         setIsSubLobLobDropdownOpen(true);
                       }}
+                      maxLength={30}
                       onFocus={() => {
                         if (validateSubLobClientSelection()) {
                           setIsSubLobLobDropdownOpen(true);
@@ -2494,7 +2508,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           <input
                             type="text"
                             value={name}
-                            onChange={(e) => handleSubLobNameChange2(idx, sanitizeInput(e.target.value))}
+                            onChange={(e) => handleSubLobNameChange2(idx, sanitizeInput(e.target.value, 30))}
+                            maxLength={30}
                             disabled={!selectedLobForSubLob}
                             style={idx > 0 ? { paddingRight: '10px', width: '100%', maxWidth: '330px' } : {}}
                           />
@@ -2628,7 +2643,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       placeholder="Search..."
                       value={searchTerm}
                       onChange={(e) => {
-                        const value = sanitizeInput(e.target.value);
+                        const value = sanitizeInput(e.target.value, 50);
                         setSearchTerm(value);
                         // Rebuild dropdown suggestions as user types
                         if (value.trim().length === 0) {
@@ -2661,6 +2676,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         // Set filter immediately for dynamic search
                         setSearchFilter({ type: 'partial', value });
                       }}
+                      maxLength={50}
                       onFocus={() => {
                         if (searchDropdown.length > 0) setSearchDropdownVisible(true);
                       }}
