@@ -66,6 +66,11 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent form submission if alert modal is open
+    if (alertModal.isOpen) {
+      return;
+    }
  
     const payload = {
       userID: employeeId,
