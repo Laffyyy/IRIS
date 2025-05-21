@@ -797,35 +797,43 @@ const KPIManagement = () => {
   const renderFilterControls = () => {
     return (
       <div className="filter-controls">
-      <div className="search-bar-container">
-        <div className="search-bar">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search KPIs..."
-            value={searchQuery}
-            onChange={(e) => {
-              // Only allow alphanumeric, spaces, and hyphens
-              const value = e.target.value.replace(/[^a-zA-Z0-9\s-]/g, '');
-              setSearchQuery(value);
-              setSelectedKpi(null);
-            }}
-            onKeyDown={handleKeyDown}
-          />
-          {searchQuery && (
-            <button 
-              className="clear-search"
-              onClick={() => {
-                setSearchQuery('');
+        <select
+          className="status-filter-dropdown"
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+        >
+          <option value="All">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Deactivated">Deactivated</option>
+        </select>
+        <div className="search-bar-container">
+          <div className="search-bar">
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search KPIs..."
+              value={searchQuery}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^a-zA-Z0-9\s-]/g, '');
+                setSearchQuery(value);
                 setSelectedKpi(null);
               }}
-            >
-              <FaTimes />
-            </button>
-          )}
+              onKeyDown={handleKeyDown}
+            />
+            {searchQuery && (
+              <button 
+                className="clear-search"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedKpi(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="filter-selects">
+        <div className="filter-selects">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -1048,6 +1056,33 @@ const KPIManagement = () => {
     }
   };
 
+  // Add this with other state declarations
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  // Update filteredStatusKPIs to include statusFilter
+  const filteredStatusKPIs = kpis.filter(kpi => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesName = kpi.dKPI_Name?.toLowerCase().startsWith(query);
+      if (!matchesName) {
+        return false;
+      }
+    }
+    if (categoryFilter && kpi.dCategory !== categoryFilter) {
+      return false;
+    }
+    if (behaviorFilter && kpi.dCalculationBehavior !== behaviorFilter) {
+      return false;
+    }
+    if (statusFilter === 'Active' && kpi.dStatus === 'DEACTIVATED') {
+      return false;
+    }
+    if (statusFilter === 'Deactivated' && kpi.dStatus !== 'DEACTIVATED') {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div className="kpi-management-container">
       <div className="white-card">
@@ -1066,7 +1101,6 @@ const KPIManagement = () => {
           <div 
             className={`tab ${activeTab === 'viewKPIs' ? 'active' : ''}`}
             onClick={() => {
-              // Only reset if there's no data being edited
               if (!kpiName && !category && !behavior && individualPreview.length === 0) {
                 resetForm();
               }
@@ -1075,6 +1109,12 @@ const KPIManagement = () => {
           >
             Existing KPIs
           </div>
+          <div
+            className={`tab ${activeTab === 'statusKPIs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('statusKPIs')}
+          >
+            Active & Deactivated
+          </div>
         </div>
 
         <div className={`tab-content ${activeTab === 'addKPI' ? 'active' : ''}`}>
@@ -1082,6 +1122,7 @@ const KPIManagement = () => {
             <p className="modal-subtitle">Choose how you want to add new KPIs.</p>
             <div className="kpi-upload-sections">
               <div className="kpi-upload-card">
+                <div className="upload-label">Individual Upload</div>
                 <div className="individual-upload-form">
                   <div className="form-row">
                     <div className="form-group">
@@ -1150,6 +1191,7 @@ const KPIManagement = () => {
                 </div>
               </div>
               <div className="kpi-upload-card">
+                <div className="upload-label">Bulk Upload</div>
                 <div className="bulk-upload-form">
                   <div className="bulk-upload-actions">
                     <h3><FaUpload /> Upload KPIs</h3>
@@ -1364,6 +1406,114 @@ const KPIManagement = () => {
                           <div className="action-buttons">
                             <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
                               <FaTimes size={12} /> Disable
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`tab-content ${activeTab === 'statusKPIs' ? 'active' : ''}`}>
+          <div className="existing-kpis">
+            <div className="filter-controls">
+              <select
+                className="status-filter-dropdown"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                <option value="All">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Deactivated">Deactivated</option>
+              </select>
+              <div className="search-bar-container">
+                <div className="search-bar">
+                  <FaSearch className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search KPIs..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z0-9\s-]/g, '');
+                      setSearchQuery(value);
+                      setSelectedKpi(null);
+                    }}
+                    onKeyDown={handleKeyDown}
+                  />
+                  {searchQuery && (
+                    <button 
+                      className="clear-search"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedKpi(null);
+                      }}
+                    >
+                      <FaTimes />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="filter-selects">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={`filter-${cat}`} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <select
+                  value={behaviorFilter}
+                  onChange={(e) => setBehaviorFilter(e.target.value)}
+                >
+                  <option value="">All Behaviors</option>
+                  {behaviors.map(beh => (
+                    <option key={`filter-${beh}`} value={beh}>{beh}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="table-container">
+              <div className="table-wrapper">
+                <table className="status-kpis-table">
+                  <thead>
+                    <tr>
+                      <th>KPI Name</th>
+                      <th>Category</th>
+                      <th>Behavior</th>
+                      <th>Description</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStatusKPIs.map((kpi) => (
+                      <tr key={kpi.dKPI_ID}>
+                        <td>{kpi.dKPI_Name}</td>
+                        <td>{kpi.dCategory}</td>
+                        <td>{kpi.dCalculationBehavior}</td>
+                        <td className="description-col">{kpi.dDescription}</td>
+                        <td>
+                          {kpi.dStatus === 'DEACTIVATED' ? (
+                            <span style={{ color: '#e53e3e', fontWeight: 600 }}>Deactivated</span>
+                          ) : (
+                            <span style={{ color: '#38a169', fontWeight: 600 }}>Active</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="edit-btn"
+                              title="Edit KPI"
+                              onClick={() => setEditRecentKpi({ ...kpi })}
+                            >
+                              <FaPencilAlt style={{ marginRight: '6px' }} />
+                              Edit
                             </button>
                           </div>
                         </td>
@@ -1652,39 +1802,45 @@ const KPIManagement = () => {
       )}
 
       <div className="recently-added-table">
-        <h2>Recently Added</h2>
-        <div className="recently-added-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>KPI Name</th>
-                <th>Category</th>
-                <th>Behavior</th>
-                <th>Description</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentlyAdded.map((kpi, idx) => (
-                <tr key={idx}>
-                  <td>{kpi.name}</td>
-                  <td>{kpi.category}</td>
-                  <td>{kpi.behavior}</td>
-                  <td>{kpi.description}</td>
-                  <td>
-                    <button
-                      className="edit-btn"
-                      onClick={() => setEditRecentKpi({ ...kpi, idx })}
-                      title="Edit"
-                    >
-                      <FaPencilAlt style={{ marginRight: '6px' }} />
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="recently-added-card">
+          <h2>Recently Added</h2>
+          <div className="table-container">
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>KPI Name</th>
+                    <th>Category</th>
+                    <th>Behavior</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentlyAdded.map((kpi, idx) => (
+                    <tr key={idx}>
+                      <td>{kpi.name}</td>
+                      <td>{kpi.category}</td>
+                      <td>{kpi.behavior}</td>
+                      <td>{kpi.description}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="edit-btn"
+                            onClick={() => setEditRecentKpi({ ...kpi, idx })}
+                            title="Edit"
+                          >
+                            <FaPencilAlt style={{ marginRight: '6px' }} />
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 

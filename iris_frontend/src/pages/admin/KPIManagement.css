@@ -72,23 +72,23 @@
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .form-group textarea {
-  min-height: 80px;
+  min-height: 60px;
   resize: vertical;
 }
 
@@ -139,8 +139,9 @@
 
 .existing-kpis th,
 .existing-kpis td {
-  padding: 12px 15px;
-  text-align: left;
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
   border-bottom: 1px solid #eee;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -206,8 +207,8 @@
   width: 320px;
   min-width: 200px;
   max-width: 500px;
-  white-space: normal;         /* Allow wrapping */
-  word-break: break-word;      /* Break long words if needed */
+  white-space: normal;
+  word-break: break-word;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -341,10 +342,10 @@
   background-color: #004D8D;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   margin-top: auto;
   align-self: flex-start;
 }
@@ -362,7 +363,7 @@
 .bulk-upload-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
   height: fit-content;
 }
 
@@ -370,29 +371,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+  padding-bottom: 0;
 }
 
 .bulk-upload-actions h3 {
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .generate-template-btn {
   background: none;
   border: 1px solid #004D8D;
   color: #004D8D;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
+  gap: 6px;
 }
 
 .generate-template-btn:hover {
@@ -401,12 +402,12 @@
 
 .drop-zone {
   border: 2px dashed #ddd;
-  border-radius: 8px;
-  padding: 30px;
+  border-radius: 6px;
+  padding: 12px;
   text-align: center;
   transition: all 0.2s ease;
   background-color: #fafafa;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 .drop-zone.active {
@@ -424,18 +425,18 @@
 .drop-zone-content p {
   margin: 0;
   color: #666;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .browse-files-btn {
   background-color: #004D8D;
   color: #ffffff !important;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
-  margin-top: 10px;
+  font-size: 12px;
+  margin-top: 8px;
 }
 
 .browse-files-btn:hover {
@@ -446,10 +447,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px;
+  padding: 4px 8px;
   background-color: #f8f8f8;
   border-radius: 4px;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
+  font-size: 12px;
 }
 
 .remove-file-btn {
@@ -470,25 +472,44 @@
 /* Preview Tabs */
 .preview-tabs {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 1.5px solid #eee;
+  background: #fafbfc;
+  border-radius: 12px 12px 0 0;
+  padding: 0 8px;
+  position: relative;
 }
 
 .preview-tab {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
   background: none;
-  cursor: pointer;
-  font-size: 13px;
+  border: none;
+  border-radius: 12px 12px 0 0;
+  outline: none;
+  box-shadow: none;
   color: #666;
-  transition: all 0.2s ease;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 28px;
+  margin: 0;
+  height: 48px;
+  line-height: 48px;
+  cursor: pointer;
+  transition: color 0.2s, font-weight 0.2s;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
 }
 
 .preview-tab.active {
-  background-color: #004D8D;
-  color: white;
-  border-color: #004D8D;
+  color: #004D8D;
+  border-bottom: 3px solid #004D8D;
+  background: #fff;
+  font-weight: 700;
+  z-index: 3;
 }
 
 .preview-tab:disabled {
@@ -498,10 +519,12 @@
 
 /* Add these new styles for preview content */
 .upload-preview {
-  margin-top: 20px;
+  margin-top: 10px;
   border: 1px solid #eee;
-  border-radius: 8px;
-  overflow: hidden; /* Add this */
+  border-radius: 12px 12px 8px 8px;
+  overflow: hidden;
+  background: #fafbfc;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .preview-content {
@@ -515,39 +538,53 @@
 .invalid-kpis-table {
   margin-top: 0;
   border: none;
-  border-radius: 0;
+  border-radius: 0 0 8px 8px;
 }
 
 .valid-kpis-table table,
 .invalid-kpis-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .valid-kpis-table thead,
-.invalid-kpis-table thead {
-  position: sticky;
-  top: 0;
-  background-color: #f8f8f8;
-  z-index: 1;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+.invalid-kpis-table thead,
+.valid-kpis-table th,
+.invalid-kpis-table th {
+  background-color: #f8f8f8 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.valid-kpis-table table,
+.invalid-kpis-table table {
+  background-color: #f8f8f8 !important;
 }
 
 .valid-kpis-table th,
 .invalid-kpis-table th,
 .valid-kpis-table td,
 .invalid-kpis-table td {
-  padding: 12px 15px;
+  padding: 4px 8px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  height: 32px;
 }
 
 .valid-kpis-table th,
 .invalid-kpis-table th {
-  background-color: #f8f8f8;
+  background-color: #f8f8f8 !important;
   font-weight: 600;
   color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: center;
+  vertical-align: middle;
+  height: 44px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .invalid-kpis-table .reason-cell {
@@ -559,9 +596,9 @@
 .modal-actions {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 20px;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid #eee;
 }
 
@@ -604,12 +641,12 @@
 
 .save-btn {
   flex: 1;
-  padding: 8px;
+  padding: 6px;
   background: #0052CC;
   border: none;
   border-radius: 4px;
   color: white;
-  font-size: 0.875rem;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -1002,20 +1039,35 @@ textarea:disabled {
 
 .kpi-upload-sections {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 32px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
   justify-content: center;
-  align-items: start; /* Change from stretch to start */
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kpi-upload-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+.individual-upload-form .form-row {
+  display: block;
+  gap: 0;
+}
+
+.individual-upload-form .form-group {
+  margin-bottom: 10px;
 }
 
 .kpi-upload-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  padding: 32px 24px;
+  padding: 20px 16px;
   min-width: 0;
   box-sizing: border-box;
-  height: auto; /* Change from 100% to auto */
+  height: auto;
 }
 
 .confirm-modal {
@@ -1394,58 +1446,29 @@ input[type="checkbox"] {
 }
 
 .recently-added-table {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin: 0 auto;
-  width: 95%;
-  max-width: 1000px;
-  overflow-x: auto;
-}
-
-.recently-added-table table {
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0 0 40px 0;
   width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  max-width: 100%;
+  overflow: visible;
 }
 
-.recently-added-table th,
-.recently-added-table td {
-  padding: 12px 15px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
-  font-size: 15px;
-  vertical-align: middle;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.recently-added-table th {
-  background: #f1f5f9;
+.recently-added-table h2 {
+  font-size: 18px;
+  color: #004D8D;
+  margin-bottom: 10px;
   font-weight: 600;
-  color: #222;
-  font-size: 15px;
-  height: 38px;
-}
-
-.recently-added-table td {
-  height: 38px;
-}
-
-.recently-added-table tr:last-child td {
-  border-bottom: none;
 }
 
 .recently-added-table .edit-btn {
   background: #f1f5f9;
   color: #004D8D;
   border: none;
-  border-radius: 6px;      /* Slightly rounded corners */
-  padding: 6px 16px;       /* Rectangle shape */
+  border-radius: 4px;
+  padding: 6px 16px;
   font-size: 15px;
   cursor: pointer;
   display: inline-flex;
@@ -1459,6 +1482,13 @@ input[type="checkbox"] {
   background: #004D8D;
   color: #fff;
   box-shadow: 0 2px 8px rgba(0,77,141,0.10);
+}
+
+.recently-added-table .action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
 }
 
 .modal-content .form-group {
@@ -1515,4 +1545,147 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.upload-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #004D8D;
+  margin-bottom: 12px;
+  letter-spacing: 0.2px;
+}
+
+.recently-added-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 40px;
+}
+
+.recently-added-table td:nth-child(4) {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.tab-content.active .existing-kpis table th,
+.tab-content.active .existing-kpis table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.description-col, .existing-kpis td:nth-child(6) {
+  width: 320px;
+  min-width: 200px;
+  max-width: 500px;
+  white-space: normal;
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.existing-kpis td:nth-child(3), .existing-kpis th:nth-child(3) {
+  min-width: 180px;
+  text-align: center;
+}
+
+.existing-kpis td:nth-child(4), .existing-kpis th:nth-child(4) {
+  min-width: 140px;
+  text-align: center;
+}
+
+/* For Active & Deactivated table (KPI Name = 1, Category = 2) */
+.existing-kpis td:nth-child(1), .existing-kpis th:nth-child(1) {
+  min-width: 180px;
+  text-align: center;
+}
+.existing-kpis td:nth-child(2), .existing-kpis th:nth-child(2) {
+  min-width: 140px;
+  text-align: center;
+}
+/* For main table (KPI Name = 3, Category = 4) */
+.existing-kpis td:nth-child(3), .existing-kpis th:nth-child(3) {
+  min-width: 180px;
+  text-align: center;
+}
+.existing-kpis td:nth-child(4), .existing-kpis th:nth-child(4) {
+  min-width: 140px;
+  text-align: center;
+}
+
+/* For Active & Deactivated table: KPI Name and Category wider, left-aligned, and wrapped */
+.tab-content.active .existing-kpis td:nth-child(1),
+.tab-content.active .existing-kpis th:nth-child(1) {
+  min-width: 200px;
+  max-width: 300px;
+  white-space: normal;
+  word-break: break-word;
+  text-align: left;
+}
+.tab-content.active .existing-kpis td:nth-child(2),
+.tab-content.active .existing-kpis th:nth-child(2) {
+  min-width: 160px;
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  text-align: left;
+}
+
+.status-kpis-table td:nth-child(1), .status-kpis-table th:nth-child(1),
+.status-kpis-table td:nth-child(2), .status-kpis-table th:nth-child(2) {
+  padding: 8px 12px !important;
+}
+
+.status-kpis-table td:nth-child(1), .status-kpis-table th:nth-child(1) {
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 320px !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-align: left !important;
+  padding: 10px 16px !important;
+}
+
+.status-kpis-table td:nth-child(2), .status-kpis-table th:nth-child(2) {
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 240px !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-align: left !important;
+  padding: 10px 16px !important;
+}
+
+.status-kpis-table td:nth-child(4), .status-kpis-table th:nth-child(4) {
+  width: 320px !important;
+  min-width: 320px !important;
+  max-width: 600px !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-align: left !important;
+  padding: 10px 16px !important;
+}
+
+.status-kpis-table {
+  table-layout: fixed !important;
+}
+
+.status-filter-dropdown {
+  border: 1.5px solid #004D8D;
+  color: #004D8D;
+  background: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  width: 120px;
+  min-width: 120px;
+  margin-right: 0;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.status-filter-dropdown:focus {
+  border-color: #003366;
 }
