@@ -3,6 +3,38 @@ import './ClientManagement.css';
 import { FaTrash, FaSearch, FaTimes, FaPencilAlt, FaBan, FaCheckCircle } from 'react-icons/fa';
 import axios from 'axios';
 
+// Generalized CustomModal (already present, but add title prop and children support)
+const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmText = 'OK', cancelText = 'Cancel', children }) => {
+  if (!open) return null;
+  return (
+    <div className="modal-overlay">
+      <div className="modal custom-alert-modal" style={{ width: '400px' }}>
+        <div className="modal-header">
+          <h2 style={{ fontSize: 18, color: '#004D8D', fontWeight: 600 }}>{title || (type === 'confirm' ? 'Confirmation' : 'Notification')}</h2>
+        </div>
+        <div className="modal-body" style={{ padding: '20px 0', fontSize: 16, color: '#222' }}>{message || children}</div>
+        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          {type === 'confirm' && (
+            <button onClick={onCancel} className="cancel-btn">{cancelText}</button>
+          )}
+          <button onClick={onConfirm} className="save-btn" style={{ background: '#004D8D', color: '#fff' }}>{confirmText}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Toast component for notifications
+const Toast = ({ open, message, type = 'success' }) => {
+  if (!open) return null;
+  return (
+    <div className={`custom-toast ${type}`}>
+      <span className="toast-icon">{type === 'success' ? '✓' : '✗'}</span>
+      <span>{message}</span>
+    </div>
+  );
+};
+
 const ClientManagement = () => {
   const [activeTab, setActiveTab] = useState('addClient');
   const [clients, setClients] = useState([]);
@@ -68,6 +100,57 @@ const ClientManagement = () => {
   const [filterDate, setFilterDate] = useState('');
 
   const [itemStatusTab, setItemStatusTab] = useState('ACTIVE'); // 'ACTIVE' or 'DEACTIVATED'
+
+  // Modal state for alerts/confirmations
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState('notification'); // 'notification' | 'confirm'
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalConfirmText, setModalConfirmText] = useState('OK');
+  const [modalCancelText, setModalCancelText] = useState('Cancel');
+  const [modalCallback, setModalCallback] = useState(() => () => {});
+  const [modalCancelCallback, setModalCancelCallback] = useState(() => () => {});
+
+  // Toast state
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+
+  const showToast = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastOpen(true);
+    setTimeout(() => setToastOpen(false), 3000);
+  };
+
+  // Helper to show notification modal
+  const showNotification = (message, onConfirm) => {
+    setModalType('notification');
+    setModalMessage(message);
+    setModalConfirmText('OK');
+    setModalCancelText('');
+    setModalCallback(() => () => {
+      setModalOpen(false);
+      if (onConfirm) onConfirm();
+    });
+    setModalOpen(true);
+  };
+
+  // Helper to show confirmation modal
+  const showConfirm = (message, onConfirm, onCancel, confirmText = 'Yes', cancelText = 'No') => {
+    setModalType('confirm');
+    setModalMessage(message);
+    setModalConfirmText(confirmText);
+    setModalCancelText(cancelText);
+    setModalCallback(() => () => {
+      setModalOpen(false);
+      if (onConfirm) onConfirm();
+    });
+    setModalCancelCallback(() => () => {
+      setModalOpen(false);
+      if (onCancel) onCancel();
+    });
+    setModalOpen(true);
+  };
 
   // Add filtered client options function
   const filteredClientOptions = () => {
@@ -474,803 +557,482 @@ const ClientManagement = () => {
     return /^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(str);
   };
   
-  // Handle adding a new client
+  // Add Client with confirmation
   const handleAddClient = async () => {
     if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
-      try {
-        // Validate all input fields
-        if (!isValidInput(clientName.trim())) {
-          alert('Invalid client name. Only letters, numbers, and single spaces between words are allowed.');
-          return;
-        }
-        for (const card of lobCards) {
-          if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
-            alert('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.');
-            return;
-          }
-          for (const subLobName of card.subLobNames) {
-            if (subLobName.trim() && !isValidInput(subLobName.trim())) {
-              alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
+      showConfirm(
+        `Are you sure you want to add client "${clientName.trim()}"?`,
+        async () => {
+          try {
+            // Validate all input fields
+            if (!isValidInput(clientName.trim())) {
+              showToast('Invalid client name. Only letters, numbers, and single spaces between words are allowed.', 'error');
               return;
             }
-          }
-        }
-
-        // Check for duplicate LOB names (case-insensitive, trimmed)
-        const lobNames = lobCards.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
-        const uniqueLobNames = new Set(lobNames);
-        if (lobNames.length !== uniqueLobNames.size) {
-          alert('Error: Duplicate LOB names are not allowed.');
-          return;
-        }
-
-        // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed)
-        const allSubLobNames = lobCards.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
-        const uniqueSubLobNames = new Set(allSubLobNames);
-        if (allSubLobNames.length !== uniqueSubLobNames.size) {
-          alert('Error: Duplicate Sub LOB names are not allowed across all LOBs.');
-          return;
-        }
-
-        // Check for duplicate Sub LOBs within each LOB (already present)
-        const hasDuplicateSubLobs = lobCards.some(card => {
-          const uniqueSubLobs = new Set();
-          return card.subLobNames.some(subLobName => {
-            const trimmedName = subLobName.trim();
-            if (trimmedName && uniqueSubLobs.has(trimmedName)) {
-              return true; // Found a duplicate
-            }
-            if (trimmedName) {
-              uniqueSubLobs.add(trimmedName);
-            }
-            return false;
-          });
-        });
-        if (hasDuplicateSubLobs) {
-          alert('Error: Duplicate Sub LOB names are not allowed within the same LOB.');
-          return;
-        }
-
-        // Prepare data for API
-        const clientData = {
-          clientName: clientName.trim(),
-          LOBs: []
-        };
-        
-        // Add LOBs and SubLOBs
-        lobCards.forEach(card => {
-          if (card.lobName.trim()) {
-            const lob = {
-              name: card.lobName.trim(),
-              subLOBs: []
-            };
-            
-            // Add SubLOBs
-            card.subLobNames.forEach(subLobName => {
-              if (subLobName.trim()) {
-                lob.subLOBs.push(subLobName.trim());
+            for (const card of lobCards) {
+              if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
+                showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+                return;
               }
-            });
-            
-            // Only add LOB if it has at least one SubLOB
-            if (lob.subLOBs.length > 0) {
-              clientData.LOBs.push(lob);
-            }
-          }
-        });
-        
-        console.log('Sending client data:', clientData);
-        
-        // Send data to API
-        const response = await axios.post('http://localhost:3000/api/clients/add', clientData);
-        console.log('Client added:', response.data);
-        
-        // Refresh client data
-        const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-        
-        // Update state with new data using the same transformation logic
-        // (you could extract this to a reusable function)
-        if (refreshResponse.data && refreshResponse.data.data) {
-          // Same transformation logic as in the useEffect
-          const transformedClients = [];
-          const transformedLobs = [];
-          const transformedSubLobs = [];
-          const sitesMap = new Map();
-          let lobId = 0;
-          let subLobId = 0;
-          
-          refreshResponse.data.data.forEach((client) => {
-            // Use the actual client ID from the database
-            const clientId = client.clientId; 
-            
-            transformedClients.push({
-              id: clientId,
-              name: client.clientName,
-              createdBy: client.createdBy || '-',
-              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-            });
-            
-            if (client.LOBs && Array.isArray(client.LOBs)) {
-              client.LOBs.forEach(lob => {
-                lobId++;
-                
-                // Extract site info if available
-                if (lob.sites && Array.isArray(lob.sites)) {
-                  lob.sites.forEach(site => {
-                    if (site.siteId && site.siteName) {
-                      sitesMap.set(site.siteId, {
-                        id: site.siteId,
-                        name: site.siteName
-                      });
-                    }
-                  });
+              for (const subLobName of card.subLobNames) {
+                if (subLobName.trim() && !isValidInput(subLobName.trim())) {
+                  showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+                  return;
                 }
-                
-                transformedLobs.push({
-                  id: lobId,
-                  name: lob.name,
-                  clientId: clientId,
-                  siteId: lob.siteId || 1,
-                  sites: lob.sites || []
-                });
-                
-                if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                  lob.subLOBs.forEach(subLobName => {
-                    subLobId++;
-                    transformedSubLobs.push({
-                      id: subLobId,
-                      name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                      lobId: lobId,
-                      clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                    });
-                  });
-                }
-              });
+              }
             }
-          });
-          
-          setClients(transformedClients);
-          setLobs(transformedLobs);
-          setSubLobs(transformedSubLobs);
-          
-          // Update sites if available
-          if (sitesMap.size > 0) {
-            setSites(Array.from(sitesMap.values()));
-          }
-        }
-        
-        // Reset form
-        setClientName('');
-        setLobCards([{ lobName: '', subLobNames: [''] }]);
-        
-        // Show success message
-        alert('Client added successfully!');
-      } catch (error) {
-        console.error('Error adding client:', error);
-        alert(`Failed to add client: ${error.response?.data?.error || error.message}`);
-      }
-    }
-  };
 
-  const handleAddLob = async () => {
-    if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
-      try {
-        // Validate all input fields
-        for (const card of lobCardsForLob) {
-          if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
-            alert('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.');
-            return;
-          }
-          for (const subLobName of card.subLobNames) {
-            if (subLobName.trim() && !isValidInput(subLobName.trim())) {
-              alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
+            // Check for duplicate LOB names (case-insensitive, trimmed)
+            const lobNames = lobCards.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
+            const uniqueLobNames = new Set(lobNames);
+            if (lobNames.length !== uniqueLobNames.size) {
+              showToast('Error: Duplicate LOB names are not allowed.', 'error');
               return;
             }
-          }
-        }
 
-        // Validate that each LOB has at least one SubLOB
-        const hasValidSubLobs = lobCardsForLob.every(card => 
-          card.lobName.trim() && card.subLobNames.some(name => name.trim())
-        );
-
-        if (!hasValidSubLobs) {
-          alert('Each LOB must have at least one SubLOB');
-          return;
-        }
-
-        // Check for duplicate LOB names (case-insensitive, trimmed)
-        const lobNames = lobCardsForLob.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
-        const uniqueLobNames = new Set(lobNames);
-        if (lobNames.length !== uniqueLobNames.size) {
-          alert('Error: Duplicate LOB names are not allowed.');
-          return;
-        }
-
-        // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed)
-        const allSubLobNames = lobCardsForLob.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
-        const uniqueSubLobNames = new Set(allSubLobNames);
-        if (allSubLobNames.length !== uniqueSubLobNames.size) {
-          alert('Error: Duplicate Sub LOB names are not allowed across all LOBs.');
-          return;
-        }
-
-        // Check for duplicate Sub LOBs within each LOB card (case-insensitive, trimmed)
-        const hasDuplicateSubLobs = lobCardsForLob.some(card => {
-          const uniqueSubLobs = new Set();
-          return card.subLobNames.some(subLobName => {
-            const trimmedName = subLobName.trim().toLowerCase();
-            if (trimmedName && uniqueSubLobs.has(trimmedName)) {
-              return true; // Found a duplicate
+            // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed)
+            const allSubLobNames = lobCards.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
+            const uniqueSubLobNames = new Set(allSubLobNames);
+            if (allSubLobNames.length !== uniqueSubLobNames.size) {
+              showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
+              return;
             }
-            if (trimmedName) {
-              uniqueSubLobs.add(trimmedName);
-            }
-            return false;
-          });
-        });
-        if (hasDuplicateSubLobs) {
-          alert('Error: Duplicate Sub LOB names are not allowed within the same LOB.');
-          return;
-        }
 
-        // Get the client name from the selected client ID
-        const client = clients.find(c => c.id === selectedClientForLob);
-        if (!client) {
-          alert('Selected client not found');
-          return;
-        }
-
-        // Validate site selection if a site is selected
-        if (selectedSiteForLob) {
-          const clientLobs = lobs.filter(lob => lob.clientId === selectedClientForLob);
-          const siteExists = sites.some(site => {
-            if (site.id === selectedSiteForLob) {
-              return clientLobs.some(lob => {
-                if (lob.sites && lob.sites.length > 0) {
-                  return lob.sites.some(lobSite => lobSite.siteId === site.id);
+            // Check for duplicate Sub LOBs within each LOB (already present)
+            const hasDuplicateSubLobs = lobCards.some(card => {
+              const uniqueSubLobs = new Set();
+              return card.subLobNames.some(subLobName => {
+                const trimmedName = subLobName.trim();
+                if (trimmedName && uniqueSubLobs.has(trimmedName)) {
+                  return true; // Found a duplicate
                 }
-                return lob.siteId === site.id;
+                if (trimmedName) {
+                  uniqueSubLobs.add(trimmedName);
+                }
+                return false;
               });
+            });
+            if (hasDuplicateSubLobs) {
+              showToast('Error: Duplicate Sub LOB names are not allowed within the same LOB.', 'error');
+              return;
             }
-            return false;
-          });
 
-          if (!siteExists) {
-            alert('Selected site is not valid for this client');
-            return;
-          }
-        }
-    
-        // Process each LOB card
-        for (const card of lobCardsForLob) {
-          if (card.lobName.trim()) {
-            // Check if there's at least one SubLOB name
-            const hasSubLobs = card.subLobNames.some(name => name.trim());
-            
             // Prepare data for API
-            const lobData = {
-              clientId: client.id,
-              clientName: client.name,
-              lobName: card.lobName.trim(),
-              ...(selectedSiteForLob && { siteId: selectedSiteForLob }),
-              ...(hasSubLobs && { subLOBName: card.subLobNames.find(name => name.trim()) })
+            const clientData = {
+              clientName: clientName.trim(),
+              LOBs: []
             };
             
-            console.log('Sending LOB data:', lobData);
-            
-            // Send data to API
-            const response = await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
-            console.log('LOB added:', response.data);
-            
-            // If the LOB has additional Sub LOBs (beyond the first one), add them
-            if (card.subLobNames.length > 1) {
-              // Skip the first SubLOB since it was already added with the LOB
-              const additionalSubLobs = card.subLobNames.slice(1);
-              
-              for (const subLobName of additionalSubLobs) {
-                if (subLobName.trim()) {
-                  const subLobData = {
-                    clientId: client.id,
-                    clientName: client.name,
-                    lobName: card.lobName.trim(),
-                    subLOBName: subLobName.trim()
-                  };
-                  
-                  await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
-                }
-              }
-            }
-          }
-        }
-        
-        // Refresh client data
-        const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-        
-        // Update state with new data
-        if (refreshResponse.data && refreshResponse.data.data) {
-          // Transform API data (same as in useEffect)
-          const transformedClients = [];
-          const transformedLobs = [];
-          const transformedSubLobs = [];
-          const sitesMap = new Map();
-          let lobId = 0;
-          let subLobId = 0;
-          
-          refreshResponse.data.data.forEach((client) => {
-            // Use the actual client ID from the database
-            const clientId = client.clientId;
-            
-            transformedClients.push({
-              id: clientId,
-              name: client.clientName,
-              createdBy: client.createdBy || '-',
-              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-            });
-            
-            if (client.LOBs && Array.isArray(client.LOBs)) {
-              client.LOBs.forEach(lob => {
-                lobId++;
+            // Add LOBs and SubLOBs
+            lobCards.forEach(card => {
+              if (card.lobName.trim()) {
+                const lob = {
+                  name: card.lobName.trim(),
+                  subLOBs: []
+                };
                 
-                // Extract site info from LOB
-                if (lob.sites && Array.isArray(lob.sites)) {
-                  lob.sites.forEach(site => {
-                    if (site.siteId && site.siteName) {
-                      sitesMap.set(site.siteId, {
-                        id: site.siteId,
-                        name: site.siteName
-                      });
-                    }
-                  });
-                } else if (lob.siteId && lob.siteName) {
-                  sitesMap.set(lob.siteId, {
-                    id: lob.siteId,
-                    name: lob.siteName
-                  });
-                }
-                
-                transformedLobs.push({
-                  id: lobId,
-                  name: lob.name,
-                  clientId: clientId, // Ensure we're using the correct client ID
-                  siteId: lob.siteId || null,
-                  siteName: lob.siteName || null,
-                  sites: lob.sites || []
-                });
-                
-                if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                  lob.subLOBs.forEach(subLobName => {
-                    subLobId++;
-                    transformedSubLobs.push({
-                      id: subLobId,
-                      name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                      lobId: lobId,
-                      clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                    });
-                  });
-                }
-              });
-            }
-          });
-          
-          // Sort clients by ID in ascending order
-          transformedClients.sort((a, b) => a.id - b.id);
-          
-          setClients(transformedClients);
-          setLobs(transformedLobs);
-          setSubLobs(transformedSubLobs);
-          
-          // Update sites if new ones were found
-          const transformedSites = Array.from(sitesMap.values());
-          if (transformedSites.length > 0) {
-            setSites(transformedSites);
-          }
-        }
-        
-        // Reset form
-        setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
-        setSelectedClientForLob(null);
-        setSelectedSiteForLob(null);
-        setClientSearchTerm('');
-        setSiteSearchTerm('');
-        
-        alert('LOBs added successfully!');
-      } catch (error) {
-        console.error('Error adding LOB:', error);
-        alert(`Failed to add LOB: ${error.response?.data?.error || error.message}`);
-      }
-    } else {
-      // Validation feedback
-      if (!selectedClientForLob) {
-        alert('Please select a client');
-      } else if (!lobCardsForLob.some(card => card.lobName.trim())) {
-        alert('Please enter at least one LOB name');
-      }
-    }
-  };
-    
-    // Handle adding a new Sub LOB
-const handleAddSubLob = async () => {
-  if (!selectedLobForSubLob) {
-    alert('Please select a LOB');
-    return;
-  }
-  
-  // Validate all subLobNames
-  for (const name of subLobNames) {
-    if (name.trim() && !isValidInput(name.trim())) {
-      alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
-      return;
-    }
-  }
-
-  const validSubLobs = subLobNames.filter(name => name.trim());
-  
-  if (validSubLobs.length === 0) {
-    alert('Please enter at least one valid Sub LOB name');
-    return;
-  }
-  
-  try {
-    // Get the LOB and client objects by ID
-    const lob = lobs.find(l => l.id === selectedLobForSubLob);
-    if (!lob) {
-      alert('Selected LOB not found');
-      return;
-    }
-    
-    const client = clients.find(c => c.id === lob.clientId);
-    if (!client) {
-      alert('Client for selected LOB not found');
-      return;
-    }
-    
-    // Process each Sub LOB name
-    for (const subLobName of subLobNames) {
-      if (subLobName.trim()) {
-        try {
-          // Call API to add Sub LOB
-          const response = await axios.post('http://localhost:3000/api/clients/sublob/add', {
-            clientName: client.name,
-            lobName: lob.name,
-            subLOBName: subLobName.trim()
-          });
-          console.log('Sub LOB added:', response.data);
-        } catch (error) {
-          console.error('Error adding Sub LOB:', error);
-          alert(`Failed to add Sub LOB "${subLobName.trim()}": ${error.response?.data?.error || error.message}`);
-        }
-      }
-    }
-    
-    // Refresh client data to get updated SubLOBs
-    try {
-      const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-      if (refreshResponse.data && refreshResponse.data.data) {
-        // Transform API data (same as in useEffect)
-        const transformedClients = [];
-        const transformedLobs = [];
-        const transformedSubLobs = [];
-        const sitesMap = new Map();
-        let lobId = 0;
-        let subLobId = 0;
-        
-        refreshResponse.data.data.forEach((client) => {
-          // Use the actual client ID from the database
-          const clientId = client.clientId;
-          
-          transformedClients.push({
-            id: clientId,
-            name: client.clientName,
-            createdBy: client.createdBy || '-',
-            createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-          });
-          
-          if (client.LOBs && Array.isArray(client.LOBs)) {
-            client.LOBs.forEach(lob => {
-              lobId++;
-              
-              // Extract site info if available
-              if (lob.sites && Array.isArray(lob.sites)) {
-                lob.sites.forEach(site => {
-                  if (site.siteId && site.siteName) {
-                    sitesMap.set(site.siteId, {
-                      id: site.siteId,
-                      name: site.siteName
-                    });
+                // Add SubLOBs
+                card.subLobNames.forEach(subLobName => {
+                  if (subLobName.trim()) {
+                    lob.subLOBs.push(subLobName.trim());
                   }
                 });
-              }
-              
-              transformedLobs.push({
-                id: lobId,
-                name: lob.name,
-                clientId: clientId,
-                siteId: lob.siteId || 1,
-                sites: lob.sites || []
-              });
-              
-              if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                lob.subLOBs.forEach(subLobName => {
-                  subLobId++;
-                  transformedSubLobs.push({
-                    id: subLobId,
-                    name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                    lobId: lobId,
-                    clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                  });
-                });
+                
+                // Only add LOB if it has at least one SubLOB
+                if (lob.subLOBs.length > 0) {
+                  clientData.LOBs.push(lob);
+                }
               }
             });
+            
+            // Send data to API
+            const response = await axios.post('http://localhost:3000/api/clients/add', clientData);
+            // Refresh client data
+            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+            if (refreshResponse.data && refreshResponse.data.data) {
+              // ... transformation logic ...
+              // (reuse your transformation logic here)
+              const transformedClients = [];
+              const transformedLobs = [];
+              const transformedSubLobs = [];
+              const sitesMap = new Map();
+              let lobId = 0;
+              let subLobId = 0;
+              refreshResponse.data.data.forEach((client) => {
+                const clientId = client.clientId; 
+                transformedClients.push({
+                  id: clientId,
+                  name: client.clientName,
+                  createdBy: client.createdBy || '-',
+                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+                });
+                if (client.LOBs && Array.isArray(client.LOBs)) {
+                  client.LOBs.forEach(lob => {
+                    lobId++;
+                    if (lob.sites && Array.isArray(lob.sites)) {
+                      lob.sites.forEach(site => {
+                        if (site.siteId && site.siteName) {
+                          sitesMap.set(site.siteId, {
+                            id: site.siteId,
+                            name: site.siteName
+                          });
+                        }
+                      });
+                    }
+                    transformedLobs.push({
+                      id: lobId,
+                      name: lob.name,
+                      clientId: clientId,
+                      siteId: lob.siteId || 1,
+                      sites: lob.sites || []
+                    });
+                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                      lob.subLOBs.forEach(subLobName => {
+                        subLobId++;
+                        transformedSubLobs.push({
+                          id: subLobId,
+                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                          lobId: lobId,
+                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                        });
+                      });
+                    }
+                  });
+                }
+              });
+              setClients(transformedClients);
+              setLobs(transformedLobs);
+              setSubLobs(transformedSubLobs);
+              if (sitesMap.size > 0) {
+                setSites(Array.from(sitesMap.values()));
+              }
+            }
+            setClientName('');
+            setLobCards([{ lobName: '', subLobNames: [''] }]);
+            showToast('Client added successfully!');
+          } catch (error) {
+            console.error('Error adding client:', error);
+            showToast(`Failed to add client: ${error.response?.data?.error || error.message}`, 'error');
           }
-        });
-        
-        // Sort clients by ID in ascending order
-        transformedClients.sort((a, b) => a.id - b.id);
-        
-        setClients(transformedClients);
-        setLobs(transformedLobs);
-        setSubLobs(transformedSubLobs);
-        
-        // Update sites if available
-        if (sitesMap.size > 0) {
-          setSites(Array.from(sitesMap.values()));
-        }
-      }
-      
-      // Reset Sub LOB form after successful addition
-      setSubLobNames(['']);
-      setSelectedLobForSubLob(null);
-      setFilterClientForSubLob(null);
-      setFilterSiteForSubLob(null);
-      setSubLobClientSearchTerm('');
-      setSubLobSiteSearchTerm('');
-      setSubLobLobSearchTerm('');
-      // Show success message
-      alert('Sub LOBs added successfully!');
-    } catch (refreshError) {
-      console.error('Error refreshing data:', refreshError);
+        },
+        () => {} // onCancel
+      );
     }
-  } catch (error) {
-    console.error('Error adding Sub LOB:', error);
-    alert(`Failed to add Sub LOB: ${error.response?.data?.error || error.message}`);
-  }
-};
+  };
 
-// Updated handleEditRow function to properly store original names
-const handleEditRow = (type, data) => {
-  if (type === 'client') {
-    // For clients, use your existing currentClient state and modal
-    const clientLobs = lobs.filter(lob => lob.clientId === data.id);
-    const clientSubLobs = subLobs.filter(subLob => 
-      clientLobs.some(lob => lob.id === subLob.lobId)
-    );
-    
-    setCurrentClient({
-      ...data,
-      lobs: clientLobs.map(lob => ({...lob, originalName: lob.name})),
-      subLobs: clientSubLobs.map(subLob => ({...subLob, originalName: subLob.name})),
-      type: 'client',
-      originalName: data.name
-    });
-  } else if (type === 'lob') {
-    // For LOBs, create a minimal client object with just this LOB
-    const client = clients.find(c => c.id === data.clientId);
-    if (!client) return;
-    
-    const lobSubLobs = subLobs.filter(subLob => subLob.lobId === data.id);
-    
-    setCurrentClient({
-      id: client.id,
-      name: client.name,
-      originalName: client.name, // Add this line
-      createdBy: client.createdBy || '',
-      createdAt: client.createdAt || '',
-      lobs: [{ ...data, originalName: data.name }],
-      subLobs: lobSubLobs.map(subLob => ({ ...subLob, originalName: subLob.name })),
-      type: 'lob',
-      targetId: data.id
-    });
-  } else if (type === 'sublob') {
-    // For sublobs, find the client and LOB that own this sublob
-    const lob = lobs.find(l => l.id === data.lobId);
-    if (!lob) return;
-    
-    const client = clients.find(c => c.id === lob.clientId);
-    if (!client) return;
-    
-    setCurrentClient({
-      id: client.id,
-      name: client.name,
-      originalName: client.name, // Make sure this is set
-      createdBy: client.createdBy || '',
-      createdAt: client.createdAt || '',
-      lobs: [{ ...lob, originalName: lob.name }],
-      subLobs: [{ ...data, originalName: data.name }],
-      type: 'sublob',
-      targetId: data.id
-    });
-  }
-  
-  setEditModalOpen(true);
-};
+  // Add LOB with confirmation
+  const handleAddLob = async () => {
+    if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
+      showConfirm(
+        'Are you sure you want to add this LOB?',
+        async () => {
+          try {
+            // ... validation logic ...
+            for (const card of lobCardsForLob) {
+              if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
+                showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+                return;
+              }
+              for (const subLobName of card.subLobNames) {
+                if (subLobName.trim() && !isValidInput(subLobName.trim())) {
+                  showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+                  return;
+                }
+              }
+            }
+            const hasValidSubLobs = lobCardsForLob.every(card => 
+              card.lobName.trim() && card.subLobNames.some(name => name.trim())
+            );
+            if (!hasValidSubLobs) {
+              showToast('Each LOB must have at least one SubLOB', 'error');
+              return;
+            }
+            const lobNames = lobCardsForLob.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
+            const uniqueLobNames = new Set(lobNames);
+            if (lobNames.length !== uniqueLobNames.size) {
+              showToast('Error: Duplicate LOB names are not allowed.', 'error');
+              return;
+            }
+            const allSubLobNames = lobCardsForLob.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
+            const uniqueSubLobNames = new Set(allSubLobNames);
+            if (allSubLobNames.length !== uniqueSubLobNames.size) {
+              showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
+              return;
+            }
+            const hasDuplicateSubLobs = lobCardsForLob.some(card => {
+              const uniqueSubLobs = new Set();
+              return card.subLobNames.some(subLobName => {
+                const trimmedName = subLobName.trim().toLowerCase();
+                if (trimmedName && uniqueSubLobs.has(trimmedName)) {
+                  return true; // Found a duplicate
+                }
+                if (trimmedName) {
+                  uniqueSubLobs.add(trimmedName);
+                }
+                return false;
+              });
+            });
+            if (hasDuplicateSubLobs) {
+              showToast('Error: Duplicate Sub LOB names are not allowed within the same LOB.', 'error');
+              return;
+            }
+            const client = clients.find(c => c.id === selectedClientForLob);
+            if (!client) {
+              showToast('Selected client not found', 'error');
+              return;
+            }
+            if (selectedSiteForLob) {
+              const clientLobs = lobs.filter(lob => lob.clientId === selectedClientForLob);
+              const siteExists = sites.some(site => {
+                if (site.id === selectedSiteForLob) {
+                  return clientLobs.some(lob => {
+                    if (lob.sites && lob.sites.length > 0) {
+                      return lob.sites.some(lobSite => lobSite.siteId === site.id);
+                    }
+                    return lob.siteId === site.id;
+                  });
+                }
+                return false;
+              });
+              if (!siteExists) {
+                showToast('Selected site is not valid for this client', 'error');
+                return;
+              }
+            }
+            for (const card of lobCardsForLob) {
+              if (card.lobName.trim()) {
+                const hasSubLobs = card.subLobNames.some(name => name.trim());
+                const lobData = {
+                  clientId: client.id,
+                  clientName: client.name,
+                  lobName: card.lobName.trim(),
+                  ...(selectedSiteForLob && { siteId: selectedSiteForLob }),
+                  ...(hasSubLobs && { subLOBName: card.subLobNames.find(name => name.trim()) })
+                };
+                const response = await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
+                if (card.subLobNames.length > 1) {
+                  const additionalSubLobs = card.subLobNames.slice(1);
+                  for (const subLobName of additionalSubLobs) {
+                    if (subLobName.trim()) {
+                      const subLobData = {
+                        clientId: client.id,
+                        clientName: client.name,
+                        lobName: card.lobName.trim(),
+                        subLOBName: subLobName.trim()
+                      };
+                      await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
+                    }
+                  }
+                }
+              }
+            }
+            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+            if (refreshResponse.data && refreshResponse.data.data) {
+              // ... transformation logic ...
+              const transformedClients = [];
+              const transformedLobs = [];
+              const transformedSubLobs = [];
+              const sitesMap = new Map();
+              let lobId = 0;
+              let subLobId = 0;
+              refreshResponse.data.data.forEach((client) => {
+                const clientId = client.clientId;
+                transformedClients.push({
+                  id: clientId,
+                  name: client.clientName,
+                  createdBy: client.createdBy || '-',
+                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+                });
+                if (client.LOBs && Array.isArray(client.LOBs)) {
+                  client.LOBs.forEach(lob => {
+                    lobId++;
+                    if (lob.sites && Array.isArray(lob.sites)) {
+                      lob.sites.forEach(site => {
+                        if (site.siteId && site.siteName) {
+                          sitesMap.set(site.siteId, {
+                            id: site.siteId,
+                            name: site.siteName
+                          });
+                        }
+                      });
+                    } else if (lob.siteId && lob.siteName) {
+                      sitesMap.set(lob.siteId, {
+                        id: lob.siteId,
+                        name: lob.siteName
+                      });
+                    }
+                    transformedLobs.push({
+                      id: lobId,
+                      name: lob.name,
+                      clientId: clientId, // Ensure we're using the correct client ID
+                      siteId: lob.siteId || null,
+                      siteName: lob.siteName || null,
+                      sites: lob.sites || []
+                    });
+                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                      lob.subLOBs.forEach(subLobName => {
+                        subLobId++;
+                        transformedSubLobs.push({
+                          id: subLobId,
+                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                          lobId: lobId,
+                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                        });
+                      });
+                    }
+                  });
+                }
+              });
+              transformedClients.sort((a, b) => a.id - b.id);
+              setClients(transformedClients);
+              setLobs(transformedLobs);
+              setSubLobs(transformedSubLobs);
+              const transformedSites = Array.from(sitesMap.values());
+              if (transformedSites.length > 0) {
+                setSites(transformedSites);
+              }
+            }
+            setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
+            setSelectedClientForLob(null);
+            setSelectedSiteForLob(null);
+            setClientSearchTerm('');
+            setSiteSearchTerm('');
+            showToast('LOBs added successfully!');
+          } catch (error) {
+            console.error('Error adding LOB:', error);
+            showToast(`Failed to add LOB: ${error.response?.data?.error || error.message}`, 'error');
+          }
+        },
+        () => {} // onCancel
+      );
+    }
+  };
 
-// Fixed handleSave function to properly use the original LOB names
-const handleSave = async (updatedClient) => {
-  try {
-    // Validate all updated fields
-    if (updatedClient.name && !isValidInput(updatedClient.name.trim())) {
-      alert('Invalid client name. Only letters, numbers, and single spaces between words are allowed.');
+  // Add Sub LOB with confirmation
+  const handleAddSubLob = async () => {
+    if (!selectedLobForSubLob) {
+      showToast('Please select a LOB', 'error');
       return;
     }
-    if (updatedClient.lobs) {
-      for (const lob of updatedClient.lobs) {
-        if (lob.name && !isValidInput(lob.name.trim())) {
-          alert('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.');
-          return;
-        }
+    // Validate all subLobNames
+    for (const name of subLobNames) {
+      if (name.trim() && !isValidInput(name.trim())) {
+        showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+        return;
       }
     }
-    if (updatedClient.subLobs) {
-      for (const subLob of updatedClient.subLobs) {
-        if (subLob.name && !isValidInput(subLob.name.trim())) {
-          alert('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.');
-          return;
-        }
-      }
+    const validSubLobs = subLobNames.filter(name => name.trim());
+    if (validSubLobs.length === 0) {
+      showToast('Please enter at least one valid Sub LOB name', 'error');
+      return;
     }
-
-    if (updatedClient.type === 'client') {
-      // Update client name if changed
-      if (updatedClient.originalName !== updatedClient.name) {
-        await axios.post('http://localhost:3000/api/clients/update', {
-          oldClientName: updatedClient.originalName,
-          newClientName: updatedClient.name
-        });
-      }
-      
-      // Update client basic info in local state
-      setClients(clients.map(client => 
-        client.id === updatedClient.id ? {
-          ...client,
-          name: updatedClient.name,
-          createdBy: updatedClient.createdBy,
-          createdAt: updatedClient.createdAt
-        } : client
-      ));
-      
-      // Update LOBs
-      for (const lob of updatedClient.lobs) {
-        if (lob.originalName !== lob.name) {
-          await axios.post('http://localhost:3000/api/clients/lob/update', {
-            clientName: updatedClient.name,
-            oldLOBName: lob.originalName,
-            newLOBName: lob.name
-          });
-        }
-      }
-      
-      // Update LOBs in local state
-      setLobs(lobs.map(l => {
-        const updatedLob = updatedClient.lobs.find(ul => ul.id === l.id);
-        return updatedLob ? { ...l, name: updatedLob.name } : l;
-      }));
-      
-      // Update SubLOBs
-      for (const subLob of updatedClient.subLobs) {
-        if (subLob.originalName !== subLob.name) {
-          const parentLob = updatedClient.lobs.find(l => l.id === subLob.lobId) || 
-                           lobs.find(l => l.id === subLob.lobId);
-          if (parentLob) {
-            await axios.post('http://localhost:3000/api/clients/sublob/update', {
-              clientName: updatedClient.name,
-              lobName: parentLob.name,
-              oldSubLOBName: subLob.originalName,
-              newSubLOBName: subLob.name
-            });
+    showConfirm(
+      'Are you sure you want to add these Sub LOB(s)?',
+      async () => {
+        try {
+          const lob = lobs.find(l => l.id === selectedLobForSubLob);
+          if (!lob) {
+            showToast('Selected LOB not found', 'error');
+            return;
           }
+          const client = clients.find(c => c.id === lob.clientId);
+          if (!client) {
+            showToast('Client for selected LOB not found', 'error');
+            return;
+          }
+          for (const subLobName of subLobNames) {
+            if (subLobName.trim()) {
+              try {
+                await axios.post('http://localhost:3000/api/clients/sublob/add', {
+                  clientName: client.name,
+                  lobName: lob.name,
+                  subLOBName: subLobName.trim()
+                });
+              } catch (error) {
+                showToast(`Failed to add Sub LOB "${subLobName.trim()}": ${error.response?.data?.error || error.message}`, 'error');
+                return;
+              }
+            }
+          }
+          // Refresh client data to get updated SubLOBs
+          try {
+            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+            if (refreshResponse.data && refreshResponse.data.data) {
+              // ... transformation logic ...
+              const transformedClients = [];
+              const transformedLobs = [];
+              const transformedSubLobs = [];
+              const sitesMap = new Map();
+              let lobId = 0;
+              let subLobId = 0;
+              refreshResponse.data.data.forEach((client) => {
+                const clientId = client.clientId;
+                transformedClients.push({
+                  id: clientId,
+                  name: client.clientName,
+                  createdBy: client.createdBy || '-',
+                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+                });
+                if (client.LOBs && Array.isArray(client.LOBs)) {
+                  client.LOBs.forEach(lob => {
+                    lobId++;
+                    if (lob.sites && Array.isArray(lob.sites)) {
+                      lob.sites.forEach(site => {
+                        if (site.siteId && site.siteName) {
+                          sitesMap.set(site.siteId, {
+                            id: site.siteId,
+                            name: site.siteName
+                          });
+                        }
+                      });
+                    }
+                    transformedLobs.push({
+                      id: lobId,
+                      name: lob.name,
+                      clientId: clientId,
+                      siteId: lob.siteId || 1,
+                      sites: lob.sites || []
+                    });
+                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                      lob.subLOBs.forEach(subLobName => {
+                        subLobId++;
+                        transformedSubLobs.push({
+                          id: subLobId,
+                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                          lobId: lobId,
+                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                        });
+                      });
+                    }
+                  });
+                }
+              });
+              transformedClients.sort((a, b) => a.id - b.id);
+              setClients(transformedClients);
+              setLobs(transformedLobs);
+              setSubLobs(transformedSubLobs);
+              if (sitesMap.size > 0) {
+                setSites(Array.from(sitesMap.values()));
+              }
+            }
+            setSubLobNames(['']);
+            setSelectedLobForSubLob(null);
+            setFilterClientForSubLob(null);
+            setFilterSiteForSubLob(null);
+            setSubLobClientSearchTerm('');
+            setSubLobSiteSearchTerm('');
+            setSubLobLobSearchTerm('');
+            showToast('Sub LOBs added successfully!');
+          } catch (refreshError) {
+            console.error('Error refreshing data:', refreshError);
+          }
+        } catch (error) {
+          showToast(`Failed to add Sub LOB: ${error.response?.data?.error || error.message}`, 'error');
         }
-      }
-      
-      // Update SubLOBs in local state
-      setSubLobs(subLobs.map(s => {
-        const updatedSubLob = updatedClient.subLobs.find(us => us.id === s.id);
-        return updatedSubLob ? { ...s, name: updatedSubLob.name } : s;
-      }));
-    } 
-    else if (updatedClient.type === 'lob') {
-      // We're editing a single LOB
-      const lob = updatedClient.lobs[0];
-      
-      // Check if LOB name changed
-      if (lob.originalName !== lob.name) {
-        await axios.post('http://localhost:3000/api/clients/lob/update', {
-          clientName: updatedClient.name,
-          oldLOBName: lob.originalName,
-          newLOBName: lob.name
-        });
-        
-        // Update in local state
-        setLobs(lobs.map(l => l.id === lob.id ? { ...l, name: lob.name } : l));
-      }
-      
-      // Update SubLOBs
-      for (const subLob of updatedClient.subLobs) {
-        if (subLob.originalName !== subLob.name) {
-          await axios.post('http://localhost:3000/api/clients/sublob/update', {
-            clientName: updatedClient.name,
-            lobName: lob.name, // Use the updated LOB name
-            oldSubLOBName: subLob.originalName,
-            newSubLOBName: subLob.name
-          });
-          
-          // Update in local state
-          setSubLobs(subLobs.map(s => 
-            s.id === subLob.id ? { ...s, name: subLob.name } : s
-          ));
-        }
-      }
-    } 
-    else if (updatedClient.type === 'sublob') {
-      // We're editing a single SubLOB
-      const lob = updatedClient.lobs[0];
-      const subLob = updatedClient.subLobs[0];
-      
-      // Check if client name changed
-      if (updatedClient.originalName && updatedClient.originalName !== updatedClient.name) {
-        await axios.post('http://localhost:3000/api/clients/update', {
-          oldClientName: updatedClient.originalName,
-          newClientName: updatedClient.name
-        });
-        
-        // Update in local state
-        setClients(clients.map(c => 
-          c.id === updatedClient.id ? { ...c, name: updatedClient.name } : c
-        ));
-      }
-      
-      // Check if LOB name changed
-      if (lob.originalName !== lob.name) {
-        await axios.post('http://localhost:3000/api/clients/lob/update', {
-          clientName: updatedClient.name,
-          oldLOBName: lob.originalName,
-          newLOBName: lob.name
-        });
-        
-        // Update in local state
-        setLobs(lobs.map(l => 
-          l.id === lob.id ? { ...l, name: lob.name } : l
-        ));
-      }
-      
-      // Check if SubLOB name changed
-      if (subLob.originalName !== subLob.name) {
-        await axios.post('http://localhost:3000/api/clients/sublob/update', {
-          clientName: updatedClient.name,
-          lobName: lob.name, // Use the updated LOB name
-          oldSubLOBName: subLob.originalName,
-          newSubLOBName: subLob.name
-        });
-        
-        // Update in local state
-        setSubLobs(subLobs.map(s => 
-          s.id === subLob.id ? { ...s, name: subLob.name } : s
-        ));
-      }
-    }
-    
-    setEditModalOpen(false);
-    setCurrentClient(null);
-    
-    // Show success message
-    alert('Changes saved successfully!');
-  } catch (error) {
-    console.error('Error saving changes:', error);
-    alert(`Failed to save changes: ${error.response?.data?.error || error.message}`);
-  }
-};
-
-
+      },
+      () => {} // onCancel
+    );
+  };
 
   const handleAddAnotherLobCard = () => {
     if (lobCards.length < 4) {
@@ -1403,15 +1165,15 @@ const handleSave = async (updatedClient) => {
           setLobs(lobs.filter(lob => lob.clientId !== id));
           setSubLobs(subLobs.filter(subLob => !lobIdsToRemove.includes(subLob.lobId)));
           
-          alert(`Client "${clientToDelete.name}" deleted successfully`);
+          showToast(`Client "${clientToDelete.name}" deleted successfully`);
         })
         .catch((error) => {
           console.error('Delete error:', error);
-          alert(`Failed to delete client: ${error.response?.data?.error || error.message}`);
+          showToast(`Failed to delete client: ${error.response?.data?.error || error.message}`);
         });
       } catch (err) {
         console.error('Error in delete process:', err);
-        alert(`Error: ${err.message}`);
+        showToast(`Error: ${err.message}`);
       }
     } else if (type === 'lob') {
       setLobs(lobs.filter(lob => lob.id !== id));
@@ -1462,15 +1224,15 @@ const handleSave = async (updatedClient) => {
           // Also remove associated SubLOBs
           setSubLobs(subLobs.filter(subLob => subLob.lobId !== id));
           
-          alert(`LOB "${lobToDelete.name}" deleted successfully`);
+          showToast(`LOB "${lobToDelete.name}" deleted successfully`);
         })
         .catch((error) => {
           console.error('Delete error:', error);
-          alert(`Failed to delete LOB: ${error.response?.data?.error || error.message}`);
+          showToast(`Failed to delete LOB: ${error.response?.data?.error || error.message}`);
         });
       } catch (err) {
         console.error('Error in delete process:', err);
-        alert(`Error: ${err.message}`);
+        showToast(`Error: ${err.message}`);
       }
     } else if (type === 'subLob') {
       setSubLobs(subLobs.filter(subLob => subLob.id !== id));
@@ -1525,15 +1287,15 @@ const handleSave = async (updatedClient) => {
           // Update local state
           setSubLobs(subLobs.filter(subLob => subLob.id !== id));
           
-          alert(`SubLOB "${subLobToDelete.name}" deleted successfully`);
+          showToast(`SubLOB "${subLobToDelete.name}" deleted successfully`);
         })
         .catch((error) => {
           console.error('Delete error:', error);
-          alert(`Failed to delete SubLOB: ${error.response?.data?.error || error.message}`);
+          showToast(`Failed to delete SubLOB: ${error.response?.data?.error || error.message}`);
         });
       } catch (err) {
         console.error('Error in delete process:', err);
-        alert(`Error: ${err.message}`);
+        showToast(`Error: ${err.message}`);
       }
     } else if (type === 'subLob' && activeTab !== 'addSubLOB') {
       // If trying to delete a SubLOB but not in the Add SubLOB tab, show a message
@@ -1584,26 +1346,24 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     try {
       const client = clients.find(c => c.id === id);
       if (!client) {
-        throw new Error('Client not found');
-      }
-
-      // Confirmation dialog
-      if (!window.confirm(`Are you sure you want to deactivate client "${client.name}"?`)) {
+        showNotification('Client not found');
         return;
       }
-
-      const response = await axios.post('http://localhost:3000/api/clients/deactivate', {
-        clientName: client.name
-      });
-
-      if (response.data) {
-        // Refresh the data
-        fetchClientData();
-        alert('Client deactivated successfully!');
-      }
+      showConfirm(
+        `Are you sure you want to deactivate client "${client.name}"?`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/deactivate', {
+            clientName: client.name
+          });
+          if (response.data) {
+            fetchClientData();
+            showToast('Client deactivated successfully!');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error deactivating client:', error);
-      alert('Failed to deactivate client: ' + error.message);
+      showToast('Failed to deactivate client: ' + error.message);
     }
   };
 
@@ -1611,32 +1371,30 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     try {
       const lob = lobs.find(l => l.id === id);
       if (!lob) {
-        throw new Error('LOB not found');
-      }
-
-      const client = clients.find(c => c.id === lob.clientId);
-      if (!client) {
-        throw new Error('Client not found');
-      }
-
-      // Confirmation dialog
-      if (!window.confirm(`Are you sure you want to deactivate LOB "${lob.name}" for client "${client.name}"?`)) {
+        showNotification('LOB not found');
         return;
       }
-
-      const response = await axios.post('http://localhost:3000/api/clients/lob/deactivate', {
-        clientName: client.name,
-        lobName: lob.name
-      });
-
-      if (response.data) {
-        // Refresh the data
-        fetchClientData();
-        alert('LOB deactivated successfully!');
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        showNotification('Client not found');
+        return;
       }
+      showConfirm(
+        `Are you sure you want to deactivate LOB "${lob.name}" for client "${client.name}"?`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/lob/deactivate', {
+            clientName: client.name,
+            lobName: lob.name
+          });
+          if (response.data) {
+            fetchClientData();
+            showToast('LOB deactivated successfully!');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error deactivating LOB:', error);
-      alert('Failed to deactivate LOB: ' + error.message);
+      showToast('Failed to deactivate LOB: ' + error.message);
     }
   };
 
@@ -1644,38 +1402,36 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     try {
       const subLob = subLobs.find(s => s.id === id);
       if (!subLob) {
-        throw new Error('Sub LOB not found');
-      }
-
-      const lob = lobs.find(l => l.id === subLob.lobId);
-      if (!lob) {
-        throw new Error('LOB not found');
-      }
-
-      const client = clients.find(c => c.id === lob.clientId);
-      if (!client) {
-        throw new Error('Client not found');
-      }
-
-      // Confirmation dialog
-      if (!window.confirm(`Are you sure you want to deactivate Sub LOB "${subLob.name}" from LOB "${lob.name}" for client "${client.name}"?`)) {
+        showNotification('Sub LOB not found');
         return;
       }
-
-      const response = await axios.post('http://localhost:3000/api/clients/sublob/deactivate', {
-        clientName: client.name,
-        lobName: lob.name,
-        subLOBName: subLob.name
-      });
-
-      if (response.data) {
-        // Refresh the data
-        fetchClientData();
-        alert('Sub LOB deactivated successfully!');
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) {
+        showNotification('LOB not found');
+        return;
       }
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        showNotification('Client not found');
+        return;
+      }
+      showConfirm(
+        `Are you sure you want to deactivate Sub LOB "${subLob.name}" from LOB "${lob.name}" for client "${client.name}"?`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/sublob/deactivate', {
+            clientName: client.name,
+            lobName: lob.name,
+            subLOBName: subLob.name
+          });
+          if (response.data) {
+            fetchClientData();
+            showToast('Sub LOB deactivated successfully!');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error deactivating Sub LOB:', error);
-      alert('Failed to deactivate Sub LOB: ' + error.message);
+      showToast('Failed to deactivate Sub LOB: ' + error.message);
     }
   };
 
@@ -1693,63 +1449,93 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
   const handleReactivateClient = async (type, id) => {
     try {
       const client = clients.find(c => c.id === id);
-      if (!client) throw new Error('Client not found');
-      if (!window.confirm(`Are you sure you want to reactivate client "${client.name}"?`)) return;
-      const response = await axios.post('http://localhost:3000/api/clients/reactivate', {
-        clientName: client.name
-      });
-      if (response.data) {
-        fetchClientData('DEACTIVATED');
-        alert('Client reactivated successfully!');
+      if (!client) {
+        showNotification('Client not found');
+        return;
       }
+      showConfirm(
+        `Are you sure you want to reactivate client "${client.name}"?`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/reactivate', {
+            clientName: client.name
+          });
+          if (response.data) {
+            fetchClientData('DEACTIVATED');
+            showToast('Client reactivated successfully!');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error reactivating client:', error);
-      alert('Failed to reactivate client: ' + error.message);
+      showToast('Failed to reactivate client: ' + error.message);
     }
   };
 
   const handleReactivateLOB = async (type, id) => {
     try {
       const lob = lobs.find(l => l.id === id);
-      if (!lob) throw new Error('LOB not found');
-      const client = clients.find(c => c.id === lob.clientId);
-      if (!client) throw new Error('Client not found');
-      if (!window.confirm(`Are you sure you want to reactivate LOB "${lob.name}" for client "${client.name}"?`)) return;
-      const response = await axios.post('http://localhost:3000/api/clients/lob/reactivate', {
-        clientName: client.name,
-        lobName: lob.name
-      });
-      if (response.data) {
-        fetchClientData('DEACTIVATED');
-        alert('LOB reactivated successfully!');
+      if (!lob) {
+        showNotification('LOB not found');
+        return;
       }
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        showNotification('Client not found');
+        return;
+      }
+      showConfirm(
+        `Are you sure you want to reactivate LOB "${lob.name}" for client "${client.name}"?`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/lob/reactivate', {
+            clientName: client.name,
+            lobName: lob.name
+          });
+          if (response.data) {
+            fetchClientData('DEACTIVATED');
+            showToast('LOB reactivated successfully!');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error reactivating LOB:', error);
-      alert('Failed to reactivate LOB: ' + error.message);
+      showToast('Failed to reactivate LOB: ' + error.message);
     }
   };
 
   const handleReactivateSubLOB = async (type, id) => {
     try {
       const subLob = subLobs.find(s => s.id === id);
-      if (!subLob) throw new Error('Sub LOB not found');
-      const lob = lobs.find(l => l.id === subLob.lobId);
-      if (!lob) throw new Error('LOB not found');
-      const client = clients.find(c => c.id === lob.clientId);
-      if (!client) throw new Error('Client not found');
-      if (!window.confirm(`Are you sure you want to reactivate Sub LOB "${subLob.name}" from LOB "${lob.name}" for client "${client.name}"?`)) return;
-      const response = await axios.post('http://localhost:3000/api/clients/sublob/reactivate', {
-        clientName: client.name,
-        lobName: lob.name,
-        subLOBName: subLob.name
-      });
-      if (response.data) {
-        fetchClientData('DEACTIVATED');
-        alert('Sub LOB reactivated successfully!');
+      if (!subLob) {
+        showNotification('Sub LOB not found');
+        return;
       }
+      const lob = lobs.find(l => l.id === subLob.lobId);
+      if (!lob) {
+        showNotification('LOB not found');
+        return;
+      }
+      const client = clients.find(c => c.id === lob.clientId);
+      if (!client) {
+        showNotification('Client not found');
+        return;
+      }
+      showConfirm(
+        `Are you sure you want to reactivate Sub LOB "${subLob.name}" from LOB "${lob.name}" for client "${client.name}"?`,
+        async () => {
+          const response = await axios.post('http://localhost:3000/api/clients/sublob/reactivate', {
+            clientName: client.name,
+            lobName: lob.name,
+            subLOBName: subLob.name
+          });
+          if (response.data) {
+            fetchClientData('DEACTIVATED');
+            showToast('Sub LOB reactivated successfully!');
+          }
+        }
+      );
     } catch (error) {
       console.error('Error reactivating Sub LOB:', error);
-      alert('Failed to reactivate Sub LOB: ' + error.message);
+      showToast('Failed to reactivate Sub LOB: ' + error.message);
     }
   };
 
@@ -2647,9 +2433,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   <td>{client.createdAt || '-'}</td>
                                   <td>
                                     <div className="action-buttons">
-                                      <button onClick={() => handleEditRow('client', client)} className="edit-btn">
-                                        <FaPencilAlt size={12} /> Edit
-                                      </button>
+                                      
                                       {itemStatusTab === 'DEACTIVATED' ? (
                                         <button onClick={() => handleReactivateClient('client', client.id)} className="reactivate-btn">
                                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2690,9 +2474,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                       <td>{client.createdAt || '-'}</td>
                                       <td>
                                         <div className="action-buttons">
-                                          <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
-                                            <FaPencilAlt size={12} /> Edit
-                                          </button>
+                                          
                                           {itemStatusTab === 'DEACTIVATED' ? (
                                             <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
                                               <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2833,9 +2615,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                 <td>{client ? client.createdAt : '-'}</td>
                                 <td>
                                   <div className="action-buttons">
-                                    <button onClick={() => handleEditRow('lob', lob)} className="edit-btn">
-                                      <FaPencilAlt size={12} /> Edit
-                                    </button>
+                                    
                                     {itemStatusTab === 'DEACTIVATED' ? (
                                       <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
                                         <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2864,9 +2644,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               <td>{client ? client.createdAt : '-'}</td>
                               <td>
                                 <div className="action-buttons">
-                                  <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                    <FaPencilAlt size={12} /> Edit
-                                  </button>
+                                 
                                   {itemStatusTab === 'DEACTIVATED' ? (
                                     <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
                                       <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2911,9 +2689,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               <td>{client ? client.createdAt : '-'}</td>
                               <td>
                                 <div className="action-buttons">
-                                  <button onClick={() => handleEditRow('sublob', subLob)} className="edit-btn">
-                                    <FaPencilAlt size={12} /> Edit
-                                  </button>
+                                  
                                   {itemStatusTab === 'DEACTIVATED' ? (
                                     <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
                                       <FaCheckCircle size={14} color="#38a169" /> Reactivate
@@ -2936,111 +2712,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           </div>
         </div>
       </div>
-      {/* Edit Client Modal */}
-      {editModalOpen && currentClient && (
-        <div className="modal-overlay">
-          <div className="modal edit-client-modal">
-            <div className="modal-header">
-              <h2>Edit Client</h2>
-              <button onClick={() => setEditModalOpen(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Client ID</label>
-                <input
-                  type="text"
-                  value={currentClient.id}
-                  disabled
-                  className="disabled-input"
-                />
-              </div>
-              <div className="form-group">
-                <label>Client Name</label>
-                <input
-                  type="text"
-                  value={currentClient.name}
-                  onChange={(e) => setCurrentClient({...currentClient, name: e.target.value})}
-                  required
-                  disabled={activeTab === 'addLOB' || activeTab === 'addSubLOB'}
-                  className={activeTab === 'addLOB' || activeTab === 'addSubLOB' ? 'disabled-input' : ''}
-                />
-              </div>
-            </div>
-
-            <div className="form-section">
-              <h3>LOBs and Sub LOBs</h3>
-              {currentClient.lobs.map((lob, index) => (
-                <div key={lob.id} className="lob-edit-section">
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>LOB Name</label>
-                      <input
-                        type="text"
-                        value={lob.name}
-                        onChange={(e) => {
-                          const updatedLobs = [...currentClient.lobs];
-                          updatedLobs[index] = {...lob, name: e.target.value};
-                          setCurrentClient({...currentClient, lobs: updatedLobs});
-                        }}
-                        disabled={activeTab === 'addClient' || activeTab === 'addSubLOB'}
-                        className={activeTab === 'addClient' || activeTab === 'addSubLOB' ? 'disabled-input' : ''}
-                      />
-                    </div>
-                  </div>
-                  <div className="sub-lobs-container">
-                    {currentClient.subLobs
-                      .filter(subLob => subLob.lobId === lob.id)
-                      .map((subLob, subIndex) => (
-                        <div key={subLob.id} className="form-row">
-                          <div className="form-group">
-                            <label>Sub LOB Name</label>
-                            <input
-                              type="text"
-                              value={subLob.name}
-                              onChange={(e) => {
-                                const updatedSubLobs = [...currentClient.subLobs];
-                                const globalSubIndex = updatedSubLobs.findIndex(sl => sl.id === subLob.id);
-                                updatedSubLobs[globalSubIndex] = {...subLob, name: e.target.value};
-                                setCurrentClient({...currentClient, subLobs: updatedSubLobs});
-                              }}
-                              disabled={activeTab === 'addClient' || activeTab === 'addLOB'}
-                              className={activeTab === 'addClient' || activeTab === 'addLOB' ? 'disabled-input' : ''}
-                            />
-                          </div>
-                        </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label>Created At</label>
-                <input
-                  type="text"
-                  value={currentClient.createdAt || ''}
-                  onChange={(e) => setCurrentClient({...currentClient, createdAt: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button onClick={() => setEditModalOpen(false)} className="cancel-btn">Cancel</button>
-              <button 
-                onClick={() => handleSave(currentClient)} 
-                className="save-btn"
-                disabled={!currentClient.name.trim()}
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    
+      <CustomModal
+        open={modalOpen}
+        type={modalType}
+        title={modalType === 'confirm' ? 'Confirmation' : 'Notification'}
+        message={modalMessage}
+        onConfirm={modalCallback}
+        onCancel={modalCancelCallback}
+        confirmText={modalConfirmText}
+        cancelText={modalCancelText}
+      />
+      <Toast open={toastOpen} message={toastMessage} type={toastType} />
     </div>
   );
 };
