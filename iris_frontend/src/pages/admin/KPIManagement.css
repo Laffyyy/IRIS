@@ -123,15 +123,7 @@
   overflow: hidden;
 }
 
-/* Make table header sticky */
-.existing-kpis thead {
-  position: sticky;
-  top: 0;
-  background-color: #f8f8f8;
-  z-index: 5;
-  border-bottom: 1px solid #ddd;
-}
-
+/* Table layout fixes */
 .existing-kpis table {
   width: 100%;
   border-collapse: separate; /* Change from collapse */
@@ -216,6 +208,7 @@
   width: 7%;
   min-width: 100px;
 }
+
 /* Action buttons container */
 .existing-kpis .action-buttons {
   display: flex;
@@ -285,7 +278,6 @@
   background: #999;
 }
 
-
 .preview-content::-webkit-scrollbar {
   width: 8px;
 }
@@ -332,7 +324,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  height: auto; /* Change from 100% to auto */
+  height: auto;
 }
 
 .add-to-list-btn {
@@ -969,7 +961,7 @@
 .search-bar-container {
   flex: 1;
   position: relative;
-  min-width: 300px; /* Remove fixed width, use min-width instead */
+  min-width: 300px;
 }
 
 .suggestions-dropdown {
@@ -989,16 +981,16 @@
   padding: 6px 12px;
   cursor: pointer;
   transition: background-color 0.2s;
-  font-size: 13px; /* Match table font size */
-  color: #333; /* Match table text color */
+  font-size: 13px;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .suggestion-item:hover {
-  background-color: #f0f7ff; /* Light blue background on hover */
-  color: #004D8D; /* Brand blue color on hover */
+  background-color: #f0f7ff;
+  color: #004D8D;
 }
 
 /* Add click-away behavior */
@@ -1277,7 +1269,7 @@ textarea:disabled {
   border-radius: 4px;
   font-size: 14px;
   transition: all 0.2s ease;
-  text-transform: none; /* Ensure text case is preserved */
+  text-transform: none;
 }
 
 .confirmation-input input.error {
@@ -1598,7 +1590,7 @@ input[type="checkbox"] {
 
 .tab-content.active .existing-kpis table th,
 .tab-content.active .existing-kpis table td {
-  text-align: center;
+  text-align: left;
   vertical-align: middle;
 }
 
@@ -1614,31 +1606,31 @@ input[type="checkbox"] {
 
 .existing-kpis td:nth-child(3), .existing-kpis th:nth-child(3) {
   min-width: 180px;
-  text-align: center;
+  text-align: left;
 }
 
 .existing-kpis td:nth-child(4), .existing-kpis th:nth-child(4) {
   min-width: 140px;
-  text-align: center;
+  text-align: left;
 }
 
 /* For Active & Deactivated table (KPI Name = 1, Category = 2) */
 .existing-kpis td:nth-child(1), .existing-kpis th:nth-child(1) {
   min-width: 180px;
-  text-align: center;
+  text-align: left;
 }
 .existing-kpis td:nth-child(2), .existing-kpis th:nth-child(2) {
   min-width: 140px;
-  text-align: center;
+  text-align: left;
 }
 /* For main table (KPI Name = 3, Category = 4) */
 .existing-kpis td:nth-child(3), .existing-kpis th:nth-child(3) {
   min-width: 180px;
-  text-align: center;
+  text-align: left;
 }
 .existing-kpis td:nth-child(4), .existing-kpis th:nth-child(4) {
   min-width: 140px;
-  text-align: center;
+  text-align: left;
 }
 
 /* For Active & Deactivated table: KPI Name and Category wider, left-aligned, and wrapped */
