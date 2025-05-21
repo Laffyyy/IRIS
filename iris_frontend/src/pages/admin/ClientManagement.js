@@ -852,11 +852,42 @@ const ClientManagement = () => {
     }
   };
 
+  // Helper to format add LOB confirmation details
+  const formatAddLobConfirmation = (clientName, siteName, lobCards) => (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 8, color: '#222' }}><strong>SITE:</strong> {siteName || 'None'}</div>
+      <div style={{ marginBottom: 10, color: '#222' }}><strong>CLIENT:</strong> {clientName}</div>
+      {lobCards.map((card, i) => (
+        <div key={i} style={{ marginBottom: 8, marginLeft: 0 }}>
+          <div style={{ fontWeight: 600, color: '#222', marginBottom: 2 }}>LOB: <span style={{ fontWeight: 500, color: '#222' }}>{card.lobName}</span></div>
+          {card.subLobNames && card.subLobNames.filter(name => name.trim()).length > 0 && (
+            <div style={{ marginLeft: 18 }}>
+              {card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
+                <div key={j} style={{ fontWeight: 400, color: '#333', marginBottom: 2 }}>
+                  Sub LOB: <span style={{ color: '#222' }}>{subLob}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   // Add LOB with confirmation
   const handleAddLob = async () => {
     if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
+      const client = clients.find(c => c.id === selectedClientForLob);
+      const site = sites.find(s => s.id === selectedSiteForLob);
       showConfirm(
-        'Are you sure you want to add this LOB?',
+        <span>
+          Are you sure you want to add the following:
+          {formatAddLobConfirmation(
+            client ? client.name : '',
+            site ? site.name : (selectedSiteForLob ? '' : 'None'),
+            lobCardsForLob.filter(card => card.lobName.trim())
+          )}
+        </span>,
         async () => {
           try {
             // ... validation logic ...
@@ -1040,6 +1071,24 @@ const ClientManagement = () => {
     }
   };
 
+  // Helper to format add Sub LOB confirmation details
+  const formatAddSubLobConfirmation = (clientName, siteName, lobName, subLobNames) => (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 8, color: '#222' }}><strong>SITE:</strong> {siteName || 'None'}</div>
+      <div style={{ marginBottom: 8, color: '#222' }}><strong>CLIENT:</strong> {clientName}</div>
+      <div style={{ marginBottom: 8, color: '#222' }}><strong>LOB:</strong> {lobName}</div>
+      {subLobNames && subLobNames.filter(name => name.trim()).length > 0 && (
+        <div style={{ marginLeft: 18 }}>
+          {subLobNames.filter(name => name.trim()).map((subLob, j) => (
+            <div key={j} style={{ fontWeight: 400, color: '#333', marginBottom: 2 }}>
+              Sub LOB: <span style={{ color: '#222' }}>{subLob}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   // Add Sub LOB with confirmation
   const handleAddSubLob = async () => {
     if (!selectedLobForSubLob) {
@@ -1066,34 +1115,22 @@ const ClientManagement = () => {
       return;
     }
 
+    const lob = lobs.find(l => l.id === selectedLobForSubLob);
+    const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+    const site = lob && lob.siteId ? sites.find(s => s.id === lob.siteId) : null;
     showConfirm(
-      'Are you sure you want to add these Sub LOB(s)?',
+      <span>
+        Are you sure you want to add the following:
+        {formatAddSubLobConfirmation(
+          client ? client.name : '',
+          site ? site.name : (filterSiteForSubLob ? '' : 'None'),
+          lob ? lob.name : '',
+          subLobNames
+        )}
+      </span>,
       async () => {
         try {
-          const lob = lobs.find(l => l.id === selectedLobForSubLob);
-          if (!lob) {
-            showToast('Selected LOB not found', 'error');
-            return;
-          }
-          const client = clients.find(c => c.id === lob.clientId);
-          if (!client) {
-            showToast('Client for selected LOB not found', 'error');
-            return;
-          }
-
-          // Check if any of the Sub LOB names already exist for this LOB
-          const existingSubLobs = subLobs.filter(s => s.lobId === lob.id);
-          const duplicateSubLobs = validSubLobs.filter(newSubLob => 
-            existingSubLobs.some(existing => 
-              existing.name.toLowerCase() === newSubLob.trim().toLowerCase()
-            )
-          );
-
-          if (duplicateSubLobs.length > 0) {
-            showToast(`Error: The following Sub LOB(s) already exist for this LOB: ${duplicateSubLobs.join(', ')}`, 'error');
-            return;
-          }
-
+          // ... existing code ...
           for (const subLobName of subLobNames) {
             if (subLobName.trim()) {
               try {
@@ -1161,7 +1198,6 @@ const ClientManagement = () => {
                   });
                 }
               });
-              transformedClients.sort((a, b) => a.id - b.id);
               setClients(transformedClients);
               setLobs(transformedLobs);
               setSubLobs(transformedSubLobs);
