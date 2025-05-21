@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ClientManagement.css';
-import { FaTrash, FaSearch, FaTimes, FaPencilAlt } from 'react-icons/fa';
+import { FaTrash, FaSearch, FaTimes, FaPencilAlt, FaBan } from 'react-icons/fa';
 import axios from 'axios';
 
 const ClientManagement = () => {
@@ -2565,7 +2565,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                         <FaPencilAlt size={12} /> Edit
                                       </button>
                                       <button onClick={() => handleDeactivate('client', client.id)} className="deactivate-btn">
-                                        <FaTrash size={12} /> Deactivate
+                                        <FaBan size={12} /> Deactivate
                                       </button>
                                     </div>
                                   </td>
@@ -2602,7 +2602,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                             <FaPencilAlt size={12} /> Edit
                                           </button>
                                           <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
-                                            <FaTrash size={12} /> Deactivate
+                                            <FaBan size={12} /> Deactivate
                                           </button>
                                         </div>
                                       </td>
@@ -2649,7 +2649,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                               }} 
                                               className="delete-btn"
                                             >
-                                              <FaTrash size={12} /> Deactivate
+                                              <FaBan size={12} /> Deactivate
                                             </button>
                                           </div>
                                         </td>
@@ -2708,7 +2708,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                       <FaPencilAlt size={12} /> Edit
                                     </button>
                                     <button onClick={() => handleDeactivate('lob', lob.id)} className="deactivate-btn">
-                                      <FaTrash size={12} /> Deactivate
+                                      <FaBan size={12} /> Deactivate
                                     </button>
                                   </div>
                                 </td>
@@ -2733,7 +2733,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                     <FaPencilAlt size={12} /> Edit
                                   </button>
                                   <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
-                                    <FaTrash size={12} /> Deactivate
+                                    <FaBan size={12} /> Deactivate
                                   </button>
                                 </div>
                               </td>
@@ -2774,7 +2774,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                     <FaPencilAlt size={12} /> Edit
                                   </button>
                                   <button onClick={() => handleDeactivate('sublob', subLob.id)} className="deactivate-btn">
-                                    <FaTrash size={12} /> Deactivate
+                                    <FaBan size={12} /> Deactivate
                                   </button>
                                 </div>
                               </td>
