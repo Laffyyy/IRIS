@@ -30,9 +30,10 @@ const AppManagement = () => {
   const fetchCurrentProcessingMonth = async () => {
     try {
       const response = await axios.get('http://localhost:3000/api/processing-month');
+      console.log('Processing month API response:', response.data);
       const { dMonth, dYear } = response.data;
       setCurrentProcessingMonth({
-        month: months[dMonth - 1],
+        month: dMonth,
         year: dYear.toString()
       });
       setError(null);
