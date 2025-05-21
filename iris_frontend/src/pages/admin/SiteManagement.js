@@ -414,54 +414,18 @@ const SiteManagement = () => {
                       assignment.dSite_ID === parseInt(siteId)
       );
       
-      // If no LOB is selected, check if ALL client LOBs and Sub LOBs are assigned
+      // If no LOB is selected, check if client has ANY assignments at this site
       if (!clientSiteConfirmDetails.lobName) {
-        // Get all available LOBs and Sub LOBs for the client
-        const clientId = clients.find(c => c.name === clientName)?.id;
-        if (!clientId) return false;
-        
-        const response = await manageSite('getClientLobs', { clientId });
-        const allClientLobs = response.lobs || [];
-        
-        if (allClientLobs.length === 0) return false;
-        
-        // Check each LOB and its Sub LOBs to see if they're all assigned
-        for (const lob of allClientLobs) {
-          for (const subLob of lob.subLobs) {
-            // Check if this combination is assigned
-            const isAssigned = clientAssignments.some(
-              assignment => assignment.dLOB === lob.name && 
-                            assignment.dSubLOB === subLob.name
-            );
-            
-            if (!isAssigned) {
-              // Found an unassigned LOB/Sub LOB combination
-              return false;
-            }
-          }
-        }
-        
-        // All LOBs and Sub LOBs are assigned
-        return true;
+        // Just check if the client exists at this site at all
+        // Don't require ALL LOBs/SubLOBs to be assigned
+        return clientAssignments.length > 0;
       }
       
-      // If LOB is selected but no Sub LOB, check if ALL Sub LOBs for this LOB are already assigned
+      // If LOB is selected but no Sub LOB, check if THIS specific LOB has ANY assignments
       if (clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName) {
-        // Find LOB from client's available LOBs
-        const selectedLob = clientLobs.find(lob => lob.name === clientSiteConfirmDetails.lobName);
-        if (!selectedLob) return false;
-        
-        // Get all assigned Sub LOBs for this LOB
-        const assignedSubLobs = clientAssignments
-          .filter(assignment => assignment.dLOB === clientSiteConfirmDetails.lobName)
-          .map(assignment => assignment.dSubLOB);
-        
-        // If there are no available Sub LOBs to add (all are already assigned), then it's fully assigned
-        const availableSubLobs = selectedLob.subLobs.filter(subLob => 
-          !assignedSubLobs.includes(subLob.name)
+        return clientAssignments.some(
+          assignment => assignment.dLOB === clientSiteConfirmDetails.lobName
         );
-        
-        return availableSubLobs.length === 0;
       }
       
       // If both LOB and Sub LOB are selected, check if that specific combination exists
@@ -542,7 +506,16 @@ const SiteManagement = () => {
     try {
       // Check if client is already assigned to this site
       const clientName = clientSiteConfirmDetails.clientName;
-      const isAlreadyAssigned = isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
+      
+      console.log("Checking if client is already assigned:", clientName);
+      console.log("Current assignments:", existingAssignments);
+      console.log("Checking against LOB:", clientSiteConfirmDetails.lobName);
+      console.log("Checking against Sub LOB:", clientSiteConfirmDetails.subLobName);
+      
+      // THIS IS THE KEY FIX - add await here!
+      const isAlreadyAssigned = await isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
+      
+      console.log("Is client already assigned:", isAlreadyAssigned);
       
       if (isAlreadyAssigned) {
         // Close confirmation modal
@@ -1743,15 +1716,16 @@ const SiteManagement = () => {
         </div>
       </div>
           
-      <div className="buttons-container">
-        <button 
-          onClick={handleAddClient} 
-          className="add-button equal-width-button"
-          disabled={!selectedSite || !selectedClientId}
-        >
-          + Add Client to Site
-        </button>
-      </div>
+      <div className="buttons-container" style={{ display: 'flex', justifyContent: 'center', marginTop: '0px', width: '100%' }}>
+      <button 
+        onClick={handleAddClient} 
+        className="add-button equal-width-button"
+        disabled={!selectedSite || !selectedClientId}
+        style={{ minWidth: '180px', margin: '0 auto' }}
+      >
+        + Add Client to Site
+      </button>
+    </div>
     </div>
     
     {/* Right Card - Existing Client-Site Assignments Table */}

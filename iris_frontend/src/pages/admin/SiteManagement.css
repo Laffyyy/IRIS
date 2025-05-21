@@ -919,13 +919,15 @@ th.sortable-header {
 
 .buttons-container {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  justify-content: center;
+  margin-top: 20px;
+  width: 100%;
 }
 
 .equal-width-button {
   width: 180px;
   min-height: 40px;
+  margin: 0 auto;
   height: auto;
   white-space: normal;
   line-height: 1.2;
@@ -1581,4 +1583,19 @@ td.select-col input[type="checkbox"] {
   margin-top: 8px;
   text-align: center;
   text-transform: none; /* Ensure no text transformation */
+}
+
+/* Fix dropdown overflow issue */
+.site-management-card {
+  overflow: visible !important; /* Allow dropdowns to extend outside the card */
+}
+
+/* Fix tab content overflow */
+.tab-content.active {
+  overflow: visible !important; /* Allow dropdowns to be visible */
+}
+
+/* Fix for site-management-two-column */
+.site-management-two-column {
+  overflow: visible !important; /* Allow dropdowns to be visible */
 }
