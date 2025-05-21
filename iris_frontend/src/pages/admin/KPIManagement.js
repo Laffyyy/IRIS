@@ -93,6 +93,14 @@ const KPIManagement = () => {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('error'); // 'error' or 'success'
 
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedKpiDetails, setSelectedKpiDetails] = useState(null);
+
+  const handleViewDetails = (kpi) => {
+    setSelectedKpiDetails(kpi);
+    setShowDetailsModal(true);
+  };
+
   const showAlert = (message, type = 'error') => {
     setAlertMessage(message);
     setAlertType(type);
@@ -907,6 +915,16 @@ const KPIManagement = () => {
     // Add this function to filter KPIs
   const getFilteredKPIs = () => {
     return kpis.filter(kpi => {
+
+      // Status filter
+      if (statusFilter !== 'All') {
+        const isActive = statusFilter === 'Active';
+        const kpiIsActive = kpi.dStatus !== 'DEACTIVATED';
+        if (isActive !== kpiIsActive) {
+          return false;
+        }
+      }
+
       // If a specific KPI is selected from dropdown
       if (selectedKpi) {
         return kpi.dKPI_ID === selectedKpi;
@@ -1142,6 +1160,30 @@ const KPIManagement = () => {
     return true;
   });
 
+    {showDetailsModal && selectedKpiDetails && (
+      <div className="modal-overlay">
+        <div className="modal description-modal">
+          <div className="modal-header">
+            <h2>{selectedKpiDetails.dKPI_Name}</h2>
+            <button 
+              className="close-btn"
+              onClick={() => setShowDetailsModal(false)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-content">
+            <div className="kpi-details">
+              <p><strong>Category:</strong> {selectedKpiDetails.dCategory}</p>
+              <p><strong>Behavior:</strong> {selectedKpiDetails.dCalculationBehavior}</p>
+              <p><strong>Description:</strong></p>
+              <p>{selectedKpiDetails.dDescription}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
   return (
     <>
       {showSimpleSuccess && (
@@ -1267,7 +1309,7 @@ const KPIManagement = () => {
                       onDrop={handleDrop}
                     >
                       <div className="drop-zone-content">
-                          <p>Drag and drop your CSV file here</p>
+                          <p>Upload your CSV file here</p>
                           <p>File name format: kpi_upload_YYYYMMDD.csv</p>
                           <p>Example: kpi_upload_20250520.csv</p>
                           <p>Maximum file size: 5MB</p>
@@ -1404,7 +1446,7 @@ const KPIManagement = () => {
                       onClick={() => setShowBulkDisableModal(true)}
                     >
                       <FaTimes size={12} />
-                      Disable Selected KPIs
+                      Deactivate Selected KPIs
                       <span className="count">{selectedKPIs.length}</span>
                     </button>
                   </div>
@@ -1432,6 +1474,9 @@ const KPIManagement = () => {
                         <th onClick={() => handleSort('dCalculationBehavior')} style={{ cursor: 'pointer' }}>
                           Calculation Behavior {sortConfig.key === 'dCalculationBehavior' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
+                        <th onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                          Status {sortConfig.key === 'dStatus' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                        </th>
                         <th onClick={() => handleSort('dDescription')} style={{ cursor: 'pointer' }}>
                           Description {sortConfig.key === 'dDescription' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
@@ -1458,13 +1503,23 @@ const KPIManagement = () => {
                           <td>{kpi.dKPI_Name}</td>
                           <td>{kpi.dCategory}</td>
                           <td>{kpi.dCalculationBehavior}</td>
-                          <td>{kpi.dDescription}</td>
+                          <td>{kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}</td>
+
+                          <td data-description={kpi.dDescription}>
+                        {kpi.dDescription}
+                      </td>
+                          <td>
+                        </td>
                           <td>{kpi.dCreatedBy || '-'}</td>
                           <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
                           <td>
                             <div className="action-buttons">
-                              <button onClick={() => handleDeleteClick(kpi)} className="delete-btn">
-                                <FaTimes size={12} /> Disable
+                              <button 
+                                onClick={() => handleDeleteClick(kpi)} 
+                                className="delete-btn"
+                                disabled={kpi.dStatus === 'DEACTIVATED'}
+                              >
+                                <FaTimes size={12} /> Deactivate
                               </button>
                             </div>
                           </td>

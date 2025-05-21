@@ -119,14 +119,7 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 250px);
-}
-
-.existing-kpis table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  table-layout: fixed;
-  margin-top: 0; /* Remove top margin */
+  font-family: 'Inter', sans-serif;
 }
 
 /* Make table header sticky */
@@ -137,100 +130,128 @@
   z-index: 5;
 }
 
+/* Table layout fixes */
+/* Table layout fixes */
+.existing-kpis table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
 .existing-kpis th,
 .existing-kpis td {
-  padding: 8px 6px;
-  text-align: center;
+  padding: 10px 16px;
+  text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid #eee;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 13px;
 }
 
-/* Checkbox column (first) */
+/* Column width adjustments */
 .existing-kpis th:nth-child(1),
 .existing-kpis td:nth-child(1) {
-  width: 40px;
+  width: 3%;
   min-width: 40px;
-  max-width: 40px;
-  text-align: center;
-  overflow: visible;
-  text-overflow: unset;
-  white-space: normal;
 }
 
-/* ID column (second) */
 .existing-kpis th:nth-child(2),
 .existing-kpis td:nth-child(2) {
-  width: 60px;
-  min-width: 50px;
-  max-width: 70px;
-  text-align: center;
-  padding-left: 6px;
-  padding-right: 6px;
+  width: 5%;
+  min-width: 60px;
 }
 
-/* KPI Name */
 .existing-kpis th:nth-child(3),
 .existing-kpis td:nth-child(3) {
-  width: 260px;
-  min-width: 200px;
-  max-width: 340px;
-  white-space: normal;
-  word-break: break-word;
+  width: 15%;
+  min-width: 180px;
 }
 
-/* Category */
 .existing-kpis th:nth-child(4),
 .existing-kpis td:nth-child(4) {
-  width: 200px;
-  min-width: 180px;
-  max-width: 260px;
-  white-space: normal;      /* Allow wrapping */
-  word-break: break-word;   /* Break long words if needed */
+  width: 12%;
+  min-width: 150px;
 }
 
-/* Calculation Behavior */
 .existing-kpis th:nth-child(5),
 .existing-kpis td:nth-child(5) {
-  width: 200px;
-  min-width: 160px;
-  max-width: 260px;
-  white-space: normal;
-  word-break: break-word;
+  width: 12%;
+  min-width: 150px;
 }
 
-/* Description */
 .existing-kpis th:nth-child(6),
 .existing-kpis td:nth-child(6) {
-  width: 320px;
-  min-width: 200px;
-  max-width: 500px;
-  white-space: normal;
-  word-break: break-word;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 8%;
+  min-width: 100px;
 }
 
 .existing-kpis th:nth-child(7),
 .existing-kpis td:nth-child(7) {
-  width: 120px;  /* Created At column */
+  width: 20%;
+  min-width: 250px;
+}
+
+.existing-kpis td:nth-child(7):hover {
+  overflow: visible;
+  white-space: normal;
+}
+
+.existing-kpis td:nth-child(7):hover::after {
+  content: attr(data-description);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px;
+  width: 300px;
+  max-height: 200px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  white-space: normal;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 1000;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
 }
 
 .existing-kpis th:nth-child(8),
 .existing-kpis td:nth-child(8) {
-  width: 240px;
-  min-width: 200px;
-  max-width: 340px;
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: unset;
+  width: 10%;
+  min-width: 120px;
+}
+
+.existing-kpis th:nth-child(9),
+.existing-kpis td:nth-child(9) {
+  width: 8%;
+  min-width: 120px;
+}
+
+.existing-kpis th:nth-child(10),
+.existing-kpis td:nth-child(10) {
+  width: 7%;
+  min-width: 100px;
+}
+/* Action buttons container */
+.existing-kpis .action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+/* Deactivate button */
+.existing-kpis .deactivate-btn {
+  margin: 0;
+  padding: 6px 12px;
+  width: auto;
 }
 
 /* Add these new styles for the created by column */
 .existing-kpis td:nth-child(6) {
-  font-family: monospace;
   color: #444;
 }
 
@@ -248,17 +269,15 @@
   position: sticky;
   top: 0;
   z-index: 1;
+  padding: 12px 16px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .existing-kpis tr:hover {
   background-color: #f5f5f5;
-}
-
-.existing-kpis .action-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
 }
 
 /* Description column styles */
