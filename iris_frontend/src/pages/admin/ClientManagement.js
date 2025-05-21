@@ -675,8 +675,13 @@ const ClientManagement = () => {
   // Helper to format add client confirmation details
   const formatAddClientConfirmation = (clientName, lobCards) => {
     const darkBlue = '#1a237e';
+    // LOBs with both a name and at least one sub LOB
     const validLobCards = lobCards.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
-    const ignoredLobCards = lobCards.filter(card => card.lobName.trim() && !card.subLobNames.some(name => name.trim()));
+    // LOBs that are incomplete: missing LOB name, missing Sub LOB, or both
+    const ignoredLobCards = lobCards.filter(card => !card.lobName.trim() || !card.subLobNames.some(name => name.trim()));
+
+    // Check if any ignored card has sub lobs but no lob name
+    const hasNoLobWithSubLobs = ignoredLobCards.some(card => !card.lobName.trim() && card.subLobNames.some(name => name.trim()));
 
     return (
       <div style={{ marginTop: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '18px 20px', fontSize: 15 }}>
@@ -702,11 +707,23 @@ const ClientManagement = () => {
         ))}
         {ignoredLobCards.length > 0 && (
           <div style={{ marginTop: 18, color: '#b10000', background: '#fff3f3', padding: '12px 16px', borderRadius: 6, border: '1px solid #ffd6d6', fontSize: 14 }}>
-            <strong>Note:</strong> The following LOB(s) will <u>not</u> be added because they have no Sub LOBs:
+            <strong>Note:</strong> The following {hasNoLobWithSubLobs ? 'Sub LOB(s)' : 'LOB(s)'} will <u>not</u> be added because they are incomplete:
             <ul style={{ margin: '8px 0 0 18px', color: '#b10000' }}>
-              {ignoredLobCards.map((card, i) => (
-                <li key={i}>{card.lobName}</li>
-              ))}
+              {ignoredLobCards.map((card, i) => {
+                if (!card.lobName.trim() && card.subLobNames.some(name => name.trim())) {
+                  // For each sub lob, show 'No LOB provided: [Sub LOB Name]'
+                  return card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
+                    <li key={i + '-' + j}>No LOB provided: {subLob}</li>
+                  ));
+                } else if (card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
+                  // LOB name present but no Sub LOB
+                  return <li key={i}>{card.lobName}: No Sub LOB provided</li>;
+                } else if (!card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
+                  // Both missing
+                  return <li key={i}><em>(No LOB Name)</em>: No Sub LOB provided</li>;
+                }
+                return null;
+              })}
             </ul>
           </div>
         )}
@@ -720,7 +737,7 @@ const ClientManagement = () => {
       showConfirm(
         <span>
           Are you sure you want to add the following:
-          {formatAddClientConfirmation(clientName.trim(), lobCards.filter(card => card.lobName.trim()))}
+          {formatAddClientConfirmation(clientName.trim(), lobCards)}
         </span>,
         async () => {
           try {
@@ -1934,8 +1951,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 className="submit-button"
                 disabled={
                   !clientName.trim() || 
-                  !lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ||
-                  lobCards.some(card => card.lobName.trim() && card.subLobNames.length === 1 && !card.subLobNames[0].trim())
+                  !lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))
                 }
               >
                 Submit Client
@@ -2169,7 +2185,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                               maxLength={30}
                               disabled={!validateClientSelection()}
                             />
-                            {subLobIndex > 0 && (
+                            {subLobIndex > 0 || (card.subLobNames.length > 1 && (lobCardsForLob.some((c, idx) => idx !== lobCardIndex && c.lobName.trim() && c.subLobNames.some(name => name.trim())))) && (
                               <button 
                                 className="remove-sub-lob-field-btn"
                                 onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
@@ -2199,8 +2215,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <button 
                       onClick={handleAddAnotherLobCardForLob} 
                       className="add-lob-card-button"
-                      disabled={!validateClientSelection()}
-                      title="Add another LOB"
+                      disabled={!lobCardsForLob[0].lobName.trim() || !lobCardsForLob[0].subLobNames[0].trim()}
+                      title={!lobCardsForLob[0].lobName.trim() || !lobCardsForLob[0].subLobNames[0].trim() ? 
+                        "Please fill in the first LOB and Sub LOB before adding another" : 
+                        "Add another LOB"}
                     >
                       +
                     </button>
@@ -2213,10 +2231,8 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 className="submit-button"
                 disabled={
                   !validateClientSelection() || 
-                  !lobCardsForLob.some(card => card.lobName.trim()) ||
-                  !lobCardsForLob.every(card => 
-                    card.lobName.trim() && card.subLobNames.some(name => name.trim())
-                  )
+                  !lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ||
+                  lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.length === 1 && !card.subLobNames[0].trim())
                 }
               >
                 Submit LOB(s)
