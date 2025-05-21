@@ -1412,17 +1412,17 @@ const SiteManagement = () => {
     <div className="site-management-card">
       <h3>Existing Sites</h3>
       <div className="site-status-tabs">
-        <div 
+        <div
           className={`site-status-tab ${siteStatusTab === 'ACTIVE' ? 'active' : ''}`}
           onClick={() => setSiteStatusTab('ACTIVE')}
         >
-          Active
+          Active <span className="tab-count">{activeSites.length}</span>
         </div>
-        <div 
+        <div
           className={`site-status-tab ${siteStatusTab === 'DEACTIVATED' ? 'active' : ''}`}
           onClick={() => setSiteStatusTab('DEACTIVATED')}
         >
-          Deactivated
+          Deactivated <span className="tab-count">{deactivatedSites.length}</span>
         </div>
       </div>
       <div className="search-and-bulk-container">
@@ -1757,17 +1757,17 @@ const SiteManagement = () => {
       <h3>Existing Client-Site Assignments</h3>
 
       <div className="site-status-tabs">
-        <div 
+        <div
           className={`site-status-tab ${clientSiteStatusTab === 'ACTIVE' ? 'active' : ''}`}
           onClick={() => setClientSiteStatusTab('ACTIVE')}
         >
-          Active
+          Active <span className="tab-count">{activeClientSites.length}</span>
         </div>
-        <div 
+        <div
           className={`site-status-tab ${clientSiteStatusTab === 'DEACTIVATED' ? 'active' : ''}`}
           onClick={() => setClientSiteStatusTab('DEACTIVATED')}
         >
-          Deactivated
+          Deactivated <span className="tab-count">{deactivatedClientSites.length}</span>
         </div>
       </div>
 
@@ -2230,11 +2230,10 @@ const SiteManagement = () => {
                 type="text"
                 value={deleteConfirmText}
                 onChange={(e) => {
-                  // Convert to uppercase immediately and avoid sanitization that might 
-                  // strip uppercase characters
-                  const value = e.target.value.toUpperCase();
-                  // Optional: restrict to only letters for the confirmation text
-                  const sanitized = value.replace(/[^A-Z]/g, '');
+                  // Allow normal text input without forcing uppercase
+                  const value = e.target.value;
+                  // Only allow letters and spaces
+                  const sanitized = value.replace(/[^A-Za-z\s]/g, '');
                   setDeleteConfirmText(sanitized);
                 }}
                 placeholder="CONFIRM"
@@ -2263,7 +2262,7 @@ const SiteManagement = () => {
               <button 
                 onClick={handleConfirmedDelete} 
                 className={deleteType.includes('reactivate') ? "save-btn" : "delete-btn"}
-                disabled={deleteConfirmText.toUpperCase() !== 'CONFIRM'}
+                disabled={deleteConfirmText !== 'CONFIRM'}
                 style={{ 
                   border: "none",
                   flex: "1",
