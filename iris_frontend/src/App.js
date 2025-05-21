@@ -1,100 +1,117 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
-import SiteManagement from './pages/admin/SiteManagement';
-import KPIManagement from './pages/admin/KPIManagement';
-import './App.css';
-import Login from './Login';
-import Otp from './Otp';
-import ChangePassword from './ChangePassword';
-import SecurityQuestions from './SecurityQuestions';
-import UpdatePassword from './UpdatePassword';
 import ProtectedRoute from './utilities/ProtectedRoute';
-import Unauthorize from './utilities/Unautorize';
-import AdminPage from './adminpagecollection';
-import InactivityHandler from './components/InactivityHandler';
+import './App.css';
+
+// Layout for admin section
+function AdminLayout() {
+  return (
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+// Layout for HR section
+function HrLayout() {
+  return (
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+// Layout for Reports section
+function ReportsLayout() {
+  return (
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+// Layout for Compensation section
+function CompensationLayout() {
+  return (
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
 
 function App() {
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          {/* Login routes */}
-          <Route path="/" element={<Login />} />
-          <Route path="/otp" element={<Otp />} />
-          <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/security-questions" element={<SecurityQuestions />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
+      <Routes>
+        {/* Public/standalone routes */}
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/faqs" element={<div>FAQs Page</div>} />
 
-          {/* Protected routes */}
-          <Route
-            path="/admin/*"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminPage />
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route
-            path="/hr"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
-                      <div>HR Page</div>
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
-                      <div>Reports Page</div>
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route
-            path="/compensation"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
-                      <div>C&B Page</div>
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route path="/faqs" element={<div>FAQs Page</div>} />
-          <Route path="/unauthorized" element={<Unauthorize />} />
-        </Routes>
-      </div>
+        {/* Secured/sectioned routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="users" element={<UserManagement />} />
+          <Route path="apps" element={<AppManagement />} />
+          <Route path="clients" element={<ClientManagement />} />
+          {/* Add more admin sub-pages here */}
+        </Route>
+        <Route
+          path="/hr"
+          element={
+            <ProtectedRoute allowedRoles={['HR', 'admin']}>
+              <HrLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<div>HR Page</div>} />
+          {/* Add more HR sub-pages here */}
+        </Route>
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+              <ReportsLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<div>Reports Page</div>} />
+          {/* Add more Reports sub-pages here */}
+        </Route>
+        <Route
+          path="/compensation"
+          element={
+            <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+              <CompensationLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<div>C&B Page</div>} />
+          {/* Add more Compensation sub-pages here */}
+        </Route>
+      </Routes>
     </Router>
   );
 }
