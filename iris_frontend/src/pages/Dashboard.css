@@ -9,7 +9,7 @@
 .user-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   background-color: white;
   padding: 20px;
   border-radius: 10px;
@@ -17,18 +17,44 @@
   box-shadow: 0 0 10px rgba(0,0,0,0.05);
 }
 
+.responsibility-pills {
+  margin-top: 5px;
+}
+
+.user-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.user-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .user-info h2 {
   margin: 0;
 }
 
 .user-role {
-  display: inline-block;
   background-color: #fcefd6;
   color: #555;
   padding: 4px 10px;
   border-radius: 10px;
   font-size: 12px;
   margin-top: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.user-center {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-meta {
@@ -38,19 +64,35 @@
   gap: 8px;
 }
 
+.labelr {
+  font-size: 12px;
+  color: gray;
+  margin-right: 8px;
+  margin-left: -190px;
+}
+
 .label {
   font-size: 12px;
   color: gray;
   margin-right: 8px;
+  margin-right: 150px;
+}
+
+.login-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
 }
 
 .pill {
   background-color: #dff0ff;
   color: #0366d6;
   padding: 4px 10px;
-  margin-left: 5px;
+  margin: 0 5px;
   border-radius: 20px;
   font-size: 12px;
+  display: inline-block;
 }
 
 .status-pill {
@@ -95,10 +137,10 @@
   border-collapse: collapse;
 }
 
-.processing-table th, 
+.processing-table th,
 .processing-table td {
   padding: 12px 15px;
-  text-align: left;
+  text-align: center;
   border-bottom: 1px solid #eee;
 }
 
@@ -106,6 +148,7 @@
   font-weight: 600;
   color: #555;
   font-size: 14px;
+  text-align: left;
 }
 
 .processing-table td {
@@ -115,10 +158,20 @@
 .editable-cell {
   cursor: pointer;
   transition: background-color 0.2s;
+  font-weight: bold;
+  font-size: 1.2em;
 }
 
 .editable-cell:hover {
   background-color: #f5f5f5;
+}
+
+.status-check {
+  color: green;
+}
+
+.status-cross {
+  color: red;
 }
 
 .side-panels {
@@ -145,18 +198,29 @@
 .actions-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .action-item {
-  padding: 8px 12px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  padding: 10px 15px;
+  background-color: #FFF;
+  border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #000;
+  border: 1px solid #D7D7D7;
+  height: 50px;
 }
 
 .action-item:hover {
-  background-color: #e9e9e9;
+  background-color: #E5F4FF;
+  border: 1px solid #4E8FD9;
+}
+
+.action-icon {
+  font-size: 1.5em;
 }
