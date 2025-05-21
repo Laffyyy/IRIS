@@ -171,14 +171,14 @@ const KPIManagement = () => {
       setShowSimpleSuccess(true);
 
       setRecentlyAdded(prev => [
-        ...prev,
         {
           name: kpiToAdd.name,
           category: kpiToAdd.category,
           behavior: kpiToAdd.behavior,
           description: kpiToAdd.description,
-          dKPI_ID: updatedKpis[updatedKpis.length - 1]?.dKPI_ID || null, // Add null fallback
-        }
+          dKPI_ID: updatedKpis[updatedKpis.length - 1]?.dKPI_ID || null
+        },
+        ...prev
       ]);
     } catch (error) {
       console.error('Error details:', error);
@@ -444,6 +444,17 @@ const KPIManagement = () => {
                 dCreatedBy: '2505170018' // Add your actual user ID here
             };
 
+            setRecentlyAdded(prev => [
+              {
+                name: kpiName,
+                category: category,
+                behavior: behavior,
+                description: description,
+                dKPI_ID: response.dKPI_ID
+              },
+              ...prev
+            ]);
+
             console.log('Sending KPI data:', kpiData); // Add this for debugging
 
             const response = await fetch(BASE_URL, {
@@ -478,7 +489,7 @@ const KPIManagement = () => {
         setActiveTab('viewKPIs');
         setSimpleSuccessMessage(
           individualPreview.length === 1
-            ? '1 KPI is added'
+            ? `KPI "${kpiName}" added successfully!`
             : `${individualPreview.length} KPIs added successfully!`
         );
     } catch (error) {
@@ -729,7 +740,7 @@ const KPIManagement = () => {
           dKPI_ID: response.dKPI_ID
         }));
     
-        setRecentlyAdded(prev => [...prev, ...newlyAddedKpis]);
+        setRecentlyAdded(prev => [...newlyAddedKpis, ...prev]); 
     
         // Set success message and count
         setSimpleSuccessMessage(`${bulkKpis.length} KPI${bulkKpis.length > 1 ? 's' : ''} added successfully!`);
@@ -788,7 +799,7 @@ const handleDeleteConfirm = async () => {
       setShowDeleteModal(false);
       setKpiToDelete(null);
       setDeleteConfirmation('');
-      setSimpleSuccessMessage('KPI has been deactivated successfully');
+      setSimpleSuccessMessage(`KPI "${kpiToDelete.dKPI_Name}" has been deactivated successfully`);
       setShowSimpleSuccess(true);
     } catch (error) {
       console.error('Error deactivating KPI:', error);
@@ -827,7 +838,7 @@ const handleDeleteConfirm = async () => {
       setKpis(updatedKpis);
       setShowReactivateModal(false);
       setKpiToReactivate(null);
-      setSimpleSuccessMessage('KPI has been reactivated successfully');
+      setSimpleSuccessMessage(`KPI "${kpiToReactivate.dKPI_Name}" has been reactivated successfully`);
       setShowSimpleSuccess(true);
     } catch (error) {
       console.error('Error reactivating KPI:', error);
@@ -896,9 +907,9 @@ const handleDeleteConfirm = async () => {
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
         >
-          <option value="All">All Status</option>
           <option value="Active">Active</option>
           <option value="Deactivated">Deactivated</option>
+          <option value="All">All Status</option>
         </select>
         <div className="search-bar-container">
           <div className="search-bar">
@@ -1157,7 +1168,11 @@ const handleDeleteConfirm = async () => {
           )
         );
 
-        setSimpleSuccessMessage('1 KPI is updated');
+        setSimpleSuccessMessage(
+          updatedKpi.dKPI_ID 
+            ? `KPI "${updatedKpi.name}" updated successfully!`
+            : `KPI "${updatedKpi.name}" updated successfully!`
+        );
         setShowSimpleSuccess(true);
         setSuccessCount(0);
       } else {
@@ -1177,7 +1192,7 @@ const handleDeleteConfirm = async () => {
 
 
   // Add this with other state declarations
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('Active'); 
 
   // Update filteredStatusKPIs to include statusFilter
   const filteredStatusKPIs = kpis.filter(kpi => {
@@ -1230,12 +1245,15 @@ const handleDeleteConfirm = async () => {
     <>
           {showSimpleSuccess && (
           <div className="modal-overlay">
-            <div className="modal success-modal">
+            <div className="modal success-modal" style={{ width: '450px', height: '250px' }}>
               <div className="modal-header">
                 <h3>KPI Added</h3>
-              </div>
+            </div>
 
-              <p className="success-message">{simpleSuccessMessage}</p>
+              <p className="success-message">
+                {simpleSuccessMessage}
+                {successCount > 0 && ` (${successCount})`}
+              </p>
 
               <div className="modal-actions">
                 <button 
@@ -1315,7 +1333,7 @@ const handleDeleteConfirm = async () => {
 
                     <div className="form-row">
                       <div className="form-group">
-                        <label>Recommended Calculation Behavior</label>
+                      <label>Recommended Calculation Behavior</label>
                         <select
                           value={behavior}
                           onChange={(e) => setBehavior(e.target.value)}
@@ -1332,12 +1350,20 @@ const handleDeleteConfirm = async () => {
                     <div className="form-group">
                       <label>Description</label>
                       <textarea
-                        value={description}
-                        onChange={handleDescriptionChange}
-                        placeholder="Describe what this KPI measures and why it's important"
-                        rows="3"
-                        disabled={isDuplicateName}
-                      />
+                          value={description}
+                          onChange={handleDescriptionChange}
+                          placeholder="Describe what this KPI measures and why it's important"
+                          rows="3"
+                          disabled={isDuplicateName}
+                          style={{
+                            resize: 'none',
+                            overflowY: 'auto',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            minHeight: '80px',
+                            maxHeight: '120px'
+                          }}
+                        />
                     </div>
 
                   <button 
@@ -1486,6 +1512,49 @@ const handleDeleteConfirm = async () => {
                 </div>
               </div>
             </div>
+            <div className="recently-added-table">
+        <div className="recently-added-card">
+          <h2>Recently Added</h2>
+          <div className="table-container">
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>KPI Name</th>
+                    <th>Category</th>
+                    <th>Behavior</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentlyAdded.map((kpi, idx) => (
+                    <tr key={idx}>
+                      <td>{kpi.name}</td>
+                      <td>{kpi.category}</td>
+                      <td>{kpi.behavior}</td>
+                      <td>{kpi.description}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="edit-btn"
+                            onClick={() => setEditRecentKpi({ ...kpi, idx })}
+                            title="Edit"
+                          >
+                            <FaPencilAlt style={{ marginRight: '6px' }} />
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>     
+
           </div>
 
           <div className={`tab-content ${activeTab === 'viewKPIs' ? 'active' : ''}`}>
@@ -1557,11 +1626,15 @@ const handleDeleteConfirm = async () => {
                           <td>{kpi.dCategory}</td>
                           <td>{kpi.dCalculationBehavior}</td>
                           <td>{kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}</td>
-                          <td data-description={kpi.dDescription}>
+                          <td>
+                          <div className="description-cell" title={kpi.dDescription}>
                             {kpi.dDescription}
-                          </td>
+                          </div>
+                        </td>
                           <td>{kpi.dCreatedBy || '-'}</td>
-                          <td>{kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}</td>
+                          <td className="created-at-cell" data-tooltip={kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}>
+                            {kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}
+                          </td>
                           <td>
                           <div className="action-buttons">
                               {kpi.dStatus === 'DEACTIVATED' ? (
@@ -1591,11 +1664,13 @@ const handleDeleteConfirm = async () => {
           </div>
         </div>
 
+        
+
         {showConfirmModal && kpiToAdd && (
         <div className="modal-overlay">
         <div className="modal confirm-modal">
           <div className="modal-header">
-            <h2 style={{ color: 'red' }}>Confirm KPI Addition</h2>
+            <h2>Confirm KPI Addition</h2>
           </div>
             
               <p>Please confirm the details of the KPI to be added:</p>
@@ -1603,7 +1678,12 @@ const handleDeleteConfirm = async () => {
                 <p>Name:<strong>{kpiToAdd.name}</strong></p>
                 <p>Category:<strong>{kpiToAdd.category}</strong></p>
                 <p>Behavior:<strong>{kpiToAdd.behavior}</strong></p>
-                <p>Description:<strong>{kpiToAdd.description || '-'}</strong></p>
+                <p className="description-line">
+                  Description:
+                  <span className="description-text">
+                    {kpiToAdd.description || '-'}
+                  </span>
+                </p>
               </div>
 
             <div className="modal-actions">
@@ -1624,39 +1704,45 @@ const handleDeleteConfirm = async () => {
         {showDeleteModal && kpiToDelete && (
           <div className="modal-overlay">
             <div className="modal delete-confirmation-modal">
-              <div className="modal-header">
-                <h2>Confirm KPI Deactivation</h2>
-            
-              </div>
+            <div className="modal-header">
+              <h2 style={{ color: 'red' }}>KPI Deactivation</h2>
+            </div>
               
 
                 <div className="warning-message">
                   <FaTimesCircle className="warning-icon" />
-                  <p>Please confirm the details of the KPI you want to deactivate:</p>
+                  <p>These are the KPI details that are about to be deactivated. Please type "CONFIRM" to proceed.</p>
                 </div>
                 
                 <div className="kpi-details">
                   <p><strong>KPI Name:</strong> {kpiToDelete.dKPI_Name}</p>
                   <p><strong>Category:</strong> {kpiToDelete.dCategory}</p>
                   <p><strong>Behavior:</strong> {kpiToDelete.dCalculationBehavior}</p>
-                  <p><strong>Description:</strong> {kpiToDelete.dDescription || '-'}</p>
+                  <p className="description-line">
+                    <strong>Description:</strong>
+                    <span className="description-text">
+                      {kpiToDelete.dDescription || '-'}
+                    </span>
+                  </p>
                 </div>
 
                 <div className="confirmation-input">
-                  <p>To confirm deactivating, please type "CONFIRM":</p>
-                  <input
-                    type="text"
-                    value={deleteConfirmation}
-                    onChange={(e) => setDeleteConfirmation(validateInput(e.target.value))}
-                    onPaste={(e) => e.preventDefault()}
-                    placeholder="Type CONFIRM to confirm"
-                    className={deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' ? 'error' : ''}
-                  />
-                  {deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' && (
-                    <span className="error-message">Please type "CONFIRM" to confirm</span>
-                  )}
-                </div>
-
+                <input
+                  type="text"
+                  value={deleteConfirmation}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                    setDeleteConfirmation(value.toUpperCase());
+                  }}
+                  onPaste={(e) => e.preventDefault()}
+                  placeholder="CONFIRM"
+                  maxLength="7"
+                  className={deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' ? 'error' : ''}
+                />
+                {deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' && (
+                  <span className="error-message"></span>
+                )}
+              </div>
 
               <div className="modal-actions">
                 <button 
@@ -1799,48 +1885,7 @@ const handleDeleteConfirm = async () => {
 
        
 
-      <div className="recently-added-table">
-        <div className="recently-added-card">
-          <h2>Recently Added</h2>
-          <div className="table-container">
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>KPI Name</th>
-                    <th>Category</th>
-                    <th>Behavior</th>
-                    <th>Description</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentlyAdded.map((kpi, idx) => (
-                    <tr key={idx}>
-                      <td>{kpi.name}</td>
-                      <td>{kpi.category}</td>
-                      <td>{kpi.behavior}</td>
-                      <td>{kpi.description}</td>
-                      <td>
-                        <div className="action-buttons">
-                          <button
-                            className="edit-btn"
-                            onClick={() => setEditRecentKpi({ ...kpi, idx })}
-                            title="Edit"
-                          >
-                            <FaPencilAlt style={{ marginRight: '6px' }} />
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
         {editRecentKpi && (
           <EditKpiModal
@@ -1905,10 +1950,10 @@ const EditKpiModal = ({ kpi, kpis, recentlyAdded, onSave, onCancel, validateInpu
     <div className="modal-overlay">
       <div className="modal edit-kpi-modal">
         <div className="modal-header">
-          <h2>Edit KPI</h2>
+          <h1><b>Edit KPI</b></h1>
 
         </div>
-        <div className="modal-content">
+
           <div className="form-group">
             <label>KPI Name</label>
             <input 
@@ -1943,9 +1988,15 @@ const EditKpiModal = ({ kpi, kpis, recentlyAdded, onSave, onCancel, validateInpu
               onChange={e => setDescription(validateInput(e.target.value))}
               rows="3"
               maxLength={150}
+              style={{
+                resize: 'none',
+                overflowY: 'auto',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
             />
           </div>
-        </div>
+
         <div className="modal-actions">
           <button onClick={onCancel} className="cancel-btn">Cancel</button>
           <button 

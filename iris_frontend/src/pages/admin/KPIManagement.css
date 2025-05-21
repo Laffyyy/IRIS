@@ -1666,13 +1666,21 @@ input[type="checkbox"] {
 }
 
 .success-modal {
-  max-width: 400px;
-  width: auto;
+  max-width: 300px;
+  width: 450px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
 }
 
 .success-modal .modal-header {
-  text-align: left;
+  text-align: center;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .success-modal .modal-header h3 {
@@ -1683,9 +1691,10 @@ input[type="checkbox"] {
 }
 
 .success-message {
-  text-align: left;
+  text-align: center;
   margin: 16px 0;
   color: #666;
+  width: 100%;
 }
 
 
@@ -1699,10 +1708,111 @@ input[type="checkbox"] {
 .success-modal .modal-actions {
   display: flex;
   justify-content: center;
+  width: 100%;
+  margin-top: 20px;
 }
 
 .success-modal .save-btn {
   min-width: 100px;
   padding: 10px 20px;
   font-size: 14px;
+}
+
+.modal.edit-kpi-modal {
+  width: 90%;
+  max-width: 500px;
+  padding: 24px;
+}
+
+.modal.edit-kpi-modal .form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.modal.edit-kpi-modal .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #333;
+}
+
+.modal.edit-kpi-modal .form-group input,
+.modal.edit-kpi-modal .form-group select,
+.modal.edit-kpi-modal .form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.modal.edit-kpi-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal.edit-kpi-modal .modal-actions button {
+  min-width: 100px;
+  padding: 8px 16px;
+}
+
+.edit-kpi-modal textarea {
+  resize: none;
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 80px;
+  max-height: 120px;
+}
+
+.kpi-details .description-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.kpi-details .description-text {
+  word-break: break-word;
+  max-width: 100%;
+  white-space: pre-wrap;
+}
+
+.description-cell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.description-cell, .created-at-cell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  position: relative;
+}
+
+.description-cell:hover::after, 
+.created-at-cell:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 100%;
+  background: #333;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: normal;
+  max-width: 300px;
+  width: max-content;
+  z-index: 100;
+  pointer-events: none;
+  margin-bottom: 5px;
 }
