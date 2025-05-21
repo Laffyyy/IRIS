@@ -101,12 +101,6 @@ const Otp = ({ onBack, onComplete }) => {
       localStorage.setItem('expireTimestamp', Date.now().toString());
       setCanResend(false);
       
-      // Save new timestamps to localStorage
-      localStorage.setItem('otpResendTime', newResendTime.toString());
-      localStorage.setItem('otpResendTimestamp', Date.now().toString());
-      localStorage.setItem('otpExpireTime', newExpireTime.toString());
-      localStorage.setItem('otpExpireTimestamp', Date.now().toString());
-      
       setOtpValues(Array(6).fill(''));
       inputsRef.current.forEach(input => {
         if (input) input.value = '';

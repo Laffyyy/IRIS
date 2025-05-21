@@ -2,8 +2,34 @@ const express = require('express');
 const router = express.Router();
 const ChangePasswordController = require('../controllers/changepasswordcontroller');
 
-const changepasswordController = new ChangePasswordController(); // Instantiate the class
+const changepasswordController = new ChangePasswordController();
 
-router.post('/firstlogin', (req, res) => changepasswordController.firstLogin(req, res));
+// Single endpoint with switch case to route based on operation
+router.post('/', (req, res) => {
+    const { operation } = req.body;
+    
+    switch (operation) {
+        case 'firstLogin':
+            changepasswordController.firstLogin(req, res);
+            break;
+            
+        case 'changePassword':
+            changepasswordController.changePassword(req, res);
+            break;
+            
+        case 'changeSecurityQuestions':
+            changepasswordController.changeSecurityQuestions(req, res);
+            break;
+            
+        default:
+            res.status(400).json({ 
+                message: 'Invalid operation', 
+                error: `Operation '${operation}' not supported` 
+            });
+    }
+});
+
+// GET endpoint for fetching security questions (doesn't need operation parameter)
+router.get('/securityquestions', (req, res) => changepasswordController.getSecurityQuestions(req, res));
 
 module.exports = router;
