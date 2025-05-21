@@ -3,12 +3,15 @@ import './SecurityQuestions.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
+const MAX_ATTEMPTS = 3;
+
 const SecurityQuestions = () => {
   const [questions, setQuestions] = useState([]);
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -68,6 +71,14 @@ const SecurityQuestions = () => {
       return;
     }
 
+    if (attempts >= MAX_ATTEMPTS) {
+      setError('Too many failed attempts. You have been logged out.');
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+      return;
+    }
+
     try {
       setIsLoading(true);
       const answersPayload = {
@@ -80,13 +91,37 @@ const SecurityQuestions = () => {
       );
 
       if (response.data.success) {
+        setAttempts(0); // reset on success
         navigate('/update-password', { state: { userEmail } });
       } else {
-        setError(response.data.message || 'Verification failed');
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        setError('Incorrect Answer');
+        if (newAttempts < MAX_ATTEMPTS) {
+          alert(`Incorrect Answer. ${MAX_ATTEMPTS - newAttempts} attempt(s) left.`);
+        }
+        if (newAttempts >= MAX_ATTEMPTS) {
+          setError('Too many failed attempts. You have been logged out.');
+          alert('Too many failed attempts. You have been logged out.');
+          setTimeout(() => {
+            navigate('/');
+          }, 1500);
+        }
       }
     } catch (err) {
-      console.error('Verification error:', err);
-      setError(err.response?.data?.message || 'An error occurred during verification');
+      const newAttempts = attempts + 1;
+      setAttempts(newAttempts);
+      setError('Incorrect Answer');
+      if (newAttempts < MAX_ATTEMPTS) {
+        alert(`Incorrect Answer. ${MAX_ATTEMPTS - newAttempts} attempt(s) left.`);
+      }
+      if (newAttempts >= MAX_ATTEMPTS) {
+        setError('Too many failed attempts. You have been logged out.');
+        alert('Too many failed attempts. You have been logged out.');
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -96,9 +131,6 @@ const SecurityQuestions = () => {
     <div className="security-questions-container">
       <h2>Security Question Verification</h2>
       <p className="subtitle">Answer your security question to proceed</p>
-
-      {error && <div className="error-message">{error}</div>}
-
       <form className="form-grid" onSubmit={handleSaveChanges}>
         <div className="form-section">
           <h3>Security Question</h3>
