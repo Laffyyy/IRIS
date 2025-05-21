@@ -75,7 +75,7 @@ class LoginService {
                 { id: user.dUser_ID, role: user.dUser_Type || user.dStatus },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
-            );*/
+            );
 
             // Update the last login time
             await db.query(`UPDATE ${table} SET tLast_Login = NOW() WHERE dUser_ID = ?`, [userID]);

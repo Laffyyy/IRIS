@@ -23,9 +23,9 @@ function App() {
       <div className="App">
         <Routes>
           {/* Redirect root URL to admin users */}
-          <Route path="/" element={<Navigate to="/admin/users" replace />} />
+
           {/*  Add this route for the Login page */}
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Login />} />
           <Route path="/otp" element={<Otp />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/security-questions" element={<SecurityQuestions />} />
