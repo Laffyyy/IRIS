@@ -1735,7 +1735,12 @@ const handleDeleteConfirm = async () => {
                                   <FaCheck size={12} /> Reactivate
                                 </button>
                               ) : (
-                                null
+                                <button 
+                                  className="deactivate-btn"
+                                  onClick={() => handleDeleteClick(kpi)}
+                                >
+                                  <FaBan size={12} /> Deactivate
+                                </button>
                               )}
                             </div>
                           </td>
