@@ -27,9 +27,10 @@ function App() {
           {/* Login routes */}
           <Route path="/" element={<Login />} />
           <Route path="/otp" element={<Otp />} />
-          <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/security-questions" element={<SecurityQuestions />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route 
+            path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
 
           {/* Protected routes */}
           <Route
