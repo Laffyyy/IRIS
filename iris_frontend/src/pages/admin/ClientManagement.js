@@ -644,10 +644,7 @@ const ClientManagement = () => {
         
         // Set sites from collected site data
         const transformedSites = Array.from(sitesMap.values());
-        setSites(transformedSites.length > 0 ? transformedSites : [
-          { id: 1, name: 'Site A' },
-          { id: 2, name: 'Site B' }
-        ]);
+        setSites(transformedSites.length > 0 ? transformedSites : []);
         // After setClients(transformedClients):
         if (status === 'ACTIVE') {
           setActiveCount(transformedClients.length);
@@ -2802,7 +2799,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                           </div>
                         ))
                       ) : (
-                        <div className="dropdown-item no-results">No sites found</div>
+                        <div className="dropdown-item no-results">No sites available</div>
                       )}
                     </div>
                   )}
@@ -3108,7 +3105,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             </div>
                           ))
                         ) : (
-                          <div className="dropdown-item no-results">No sites found</div>
+                          <div className="dropdown-item no-results">No sites available</div>
                         )}
                       </div>
                     )}
