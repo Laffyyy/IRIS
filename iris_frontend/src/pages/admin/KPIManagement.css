@@ -1824,3 +1824,21 @@ input[type="checkbox"] {
   pointer-events: none;
   margin-bottom: 5px;
 }
+
+.description-container {
+  position: relative;
+  width: 100%;
+}
+
+.char-counter {
+  position: static;
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.description-container textarea {
+  padding-bottom: 8px;
+  width: 100%;
+}

@@ -30,7 +30,7 @@ const KPIManagement = () => {
   
   // Add this at the top with other state declarations
   const [descriptionCount, setDescriptionCount] = useState(0);
-  const MAX_CHARS = 150;
+  const MAX_DESCRIPTION_LENGTH = 150;
   const MAX_NAME_LENGTH = 30;
   
 
@@ -186,6 +186,7 @@ const KPIManagement = () => {
       showAlert(`Failed to add KPI: ${error.message}`);
     }
   };
+
 
   {/*// Handle file drop for bulk upload
   const handleDrag = useCallback((e) => {
@@ -807,7 +808,7 @@ const handleDeleteConfirm = async () => {
       showAlert('Failed to deactivate KPI. Please try again.');
     }
   } else {
-    showAlert('Please type "CONFIRM" to confirm deactivating');
+    showAlert('Please type "CONFIRM" to proceed deactivating');
   }
 };
 
@@ -839,8 +840,8 @@ const handleDeleteConfirm = async () => {
       setKpis(updatedKpis);
       setShowReactivateModal(false);
       setKpiToReactivate(null);
-      setSimpleSuccessMessage(`KPI "${kpiToReactivate.dKPI_Name}" has been reactivated successfully`);
-      setShowSimpleSuccess(true);
+      setValidationMessage(`KPI "${kpiToReactivate.dKPI_Name}" has been reactivated successfully`);
+      setShowValidationModal(true);
     } catch (error) {
       console.error('Error reactivating KPI:', error);
       showAlert('Failed to reactivate KPI');
@@ -855,9 +856,8 @@ const handleDeleteConfirm = async () => {
 
   const handleDescriptionChange = (e) => {
     const text = validateInput(e.target.value);
-    if (text.length <= MAX_CHARS) {
+    if (text.length <= MAX_DESCRIPTION_LENGTH) {
       setDescription(text);
-      setDescriptionCount(text.length);
     }
   };
 
@@ -1031,42 +1031,50 @@ const handleDeleteConfirm = async () => {
       }
     };
 
-  const handleBulkDisable = async () => {
-    if (bulkDisableConfirmation.trim() === 'DISABLE') {
-      try {
-        const promises = selectedKPIs.map(kpi => 
-          fetch(`http://localhost:3000/api/kpis/${kpi.dKPI_ID}`, {
-            method: 'DELETE',
-          })
-        );
-
-        const responses = await Promise.all(promises);
-        const failedResponses = responses.filter(response => !response.ok);
-        
-        if (failedResponses.length > 0) {
-          throw new Error(`Failed to disable ${failedResponses.length} KPIs`);
+    const handleBulkDisable = async () => {
+      if (bulkDisableConfirmation.trim() === 'DEACTIVATE') {
+        try {
+          const promises = selectedKPIs.map(kpi => 
+            fetch(`http://localhost:3000/api/kpis/${kpi.dKPI_ID}/deactivate`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            })
+          );
+    
+          const responses = await Promise.all(promises);
+          const failedResponses = responses.filter(response => !response.ok);
+          
+          if (failedResponses.length > 0) {
+            throw new Error(`Failed to deactivate ${failedResponses.length} KPIs`);
+          }
+    
+          // Update KPIs locally first
+          const updatedKpis = kpis.map(kpi => 
+            selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)
+              ? { ...kpi, dStatus: 'DEACTIVATED' }
+              : kpi
+          );
+          setKpis(updatedKpis);
+          
+          // Show success modal
+          setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} deactivated successfully!`);
+          setSuccessCount(selectedKPIs.length);
+          setShowSimpleSuccess(true);
+          
+          // Reset states
+          setSelectedKPIs([]);
+          setShowBulkDisableModal(false);
+          setBulkDisableConfirmation('');
+        } catch (error) {
+          console.error('Bulk deactivate error:', error);
+          showAlert(`Failed to deactivate KPIs: ${error.message}`);
         }
-
-        // Update the KPI list
-        setKpis(kpis.filter(kpi => !selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)));
-        
-        // Show success modal
-        setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} deleted successfully!`);
-        setSuccessCount(selectedKPIs.length);
-        setShowSimpleSuccess(true);
-        
-        // Reset states
-        setSelectedKPIs([]);
-        setShowBulkDisableModal(false);
-        setBulkDisableConfirmation('');
-      } catch (error) {
-        console.error('Bulk disable error:', error);
-        showAlert(`Failed to disable KPIs: ${error.message}`);
+      } else {
+        showAlert('Please type "DEACTIVATE" to confirm bulk deactivation');
       }
-    } else {
-      showAlert('Please type "DISABLE" to confirm bulk disabling');
-    }
-  };
+    };
 
   const handleBulkReactivate = async () => {
     try {
@@ -1122,6 +1130,9 @@ const handleDeleteConfirm = async () => {
   const [recentlyAdded, setRecentlyAdded] = useState([]);
   const [editRecentKpi, setEditRecentKpi] = useState(null); // for editing modal
 
+  const [showNoChangesModal, setShowNoChangesModal] = useState(false);
+  const [tempKpiData, setTempKpiData] = useState(null);
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const handleSort = (key) => {
@@ -1157,6 +1168,19 @@ const handleDeleteConfirm = async () => {
   const handleSaveRecentKpi = async (updatedKpi) => {
     try {
       if (updatedKpi.dKPI_ID) {
+        const originalKpi = kpis.find(k => k.dKPI_ID === updatedKpi.dKPI_ID);
+        const hasChanges = 
+          originalKpi.dKPI_Name !== updatedKpi.name ||
+          originalKpi.dCategory !== updatedKpi.category ||
+          originalKpi.dCalculationBehavior !== updatedKpi.behavior ||
+          originalKpi.dDescription !== updatedKpi.description;
+
+        if (!hasChanges) {
+          setTempKpiData(updatedKpi);
+          setShowNoChangesModal(true);
+          setEditRecentKpi(null);
+          return;
+        }
         // Update in backend
         const response = await fetch(`http://localhost:3000/api/kpis/${updatedKpi.dKPI_ID}`, {
           method: 'PUT',
@@ -1278,15 +1302,20 @@ const handleDeleteConfirm = async () => {
     <>
           {showSimpleSuccess && (
           <div className="modal-overlay">
-            <div className="modal success-modal" style={{ width: '450px', height: '250px' }}>
-              <div className="modal-header">
-                <h3>KPI Added</h3>
+          <div className="modal success-modal" style={{ width: '450px', height: '250px' }}>
+            <div className="modal-header">
+              <h3>
+                {simpleSuccessMessage.includes('deactivated') ? 'KPI Deactivation' :
+                 simpleSuccessMessage.includes('updated') ? 'KPI Updated' : 
+                 simpleSuccessMessage.includes('reactivated') ? 'KPI Reactivation' : 
+                 'KPI Added'}
+              </h3>
             </div>
 
-              <p className="success-message">
-                {simpleSuccessMessage}
-                {successCount > 0 && ` (${successCount})`}
-              </p>
+            <p className="success-message">
+              {simpleSuccessMessage}
+              {successCount > 0 && ` (${successCount})`}
+            </p>
 
               <div className="modal-actions">
                 <button 
@@ -1382,12 +1411,14 @@ const handleDeleteConfirm = async () => {
 
                     <div className="form-group">
                       <label>Description</label>
-                      <textarea
+                      <div className="description-container">
+                        <textarea
                           value={description}
                           onChange={handleDescriptionChange}
                           placeholder="Describe what this KPI measures and why it's important"
                           rows="3"
                           disabled={isDuplicateName}
+                          maxLength={MAX_DESCRIPTION_LENGTH}
                           style={{
                             resize: 'none',
                             overflowY: 'auto',
@@ -1397,6 +1428,10 @@ const handleDeleteConfirm = async () => {
                             maxHeight: '120px'
                           }}
                         />
+                        <div className="char-counter">
+                          {description.length}/{MAX_DESCRIPTION_LENGTH}
+                        </div>
+                      </div>
                     </div>
 
                   <button 
@@ -1808,18 +1843,16 @@ const handleDeleteConfirm = async () => {
         {showBulkDisableModal && (
           <div className="modal-overlay">
             <div className="modal delete-confirmation-modal">
-              <div className="modal-header">
-                <h2>Confirm Bulk Deactivation</h2>
+            <div className="modal-header">
+                <h2 style={{ color: 'red' }}>Bulk Deactivation</h2>
               </div>
               
-              <div className="modal-content">
                 <div className="warning-message">
                   <FaTimesCircle className="warning-icon" />
-                  <p>Please confirm the details of the KPIs you want to deactivate:</p>
+                  <p>Please confirm the deactivation of <strong>{selectedKPIs.length}</strong> KPIs.</p>
                 </div>
                 
                 <div className="kpi-details">
-                  <p><strong>Number of KPIs to deactivate:</strong> {selectedKPIs.length}</p>
                   <div className="selected-kpis-list">
                     {selectedKPIs.map(kpi => (
                       <p key={kpi.dKPI_ID}><strong>{kpi.dKPI_Name}</strong></p>
@@ -1828,20 +1861,25 @@ const handleDeleteConfirm = async () => {
                 </div>
 
                 <div className="confirmation-input">
-                  <p>To confirm deactivating {selectedKPIs.length} KPIs, please type "DEACTIVATE":</p>
-                  <input
+
+                <input
                     type="text"
                     value={bulkDisableConfirmation}
-                    onChange={(e) => setBulkDisableConfirmation(validateInput(e.target.value))}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 10);
+                      setBulkDisableConfirmation(value.toUpperCase());
+                    }}
                     onPaste={(e) => e.preventDefault()}
-                    placeholder="Type DEACTIVATE to confirm"
+                    placeholder="Type 'DEACTIVATE' to confirm"
+                    maxLength="10"
                     className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DEACTIVATE' ? 'error' : ''}
                   />
+
                   {bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DEACTIVATE' && (
-                    <span className="error-message">Please type "DEACTIVATE" to confirm</span>
+                    <span className="error-message"></span>
                   )}
                 </div>
-              </div>
+
 
               <div className="modal-actions">
                 <button 
@@ -1858,7 +1896,7 @@ const handleDeleteConfirm = async () => {
                   className="delete-confirm-btn"
                   disabled={bulkDisableConfirmation.trim() !== 'DEACTIVATE'}
                 >
-                  Deactivate {selectedKPIs.length} KPIs
+                  Deactivate
                 </button>
               </div>
             </div>
@@ -1890,13 +1928,13 @@ const handleDeleteConfirm = async () => {
           </div>
         )}
 
-  {showReactivateModal && kpiToReactivate && (
+{showReactivateModal && kpiToReactivate && (
           <div className="modal-overlay">
             <div className="modal confirm-modal">
               <div className="modal-header">
                 <h2>Confirm Reactivation</h2>
               </div>
-                <p>Are you sure you want to reactivate this KPI?</p>
+              <p>Are you sure you want to reactivate the KPI "<strong>{kpiToReactivate.dKPI_Name}</strong>"?</p>
               <div className="modal-actions">
                 <button 
                   onClick={() => {
@@ -1920,10 +1958,39 @@ const handleDeleteConfirm = async () => {
           </div>
         )}
 
-       
-
-      
-
+        {showNoChangesModal && (
+          <div className="modal-overlay">
+            <div className="modal" style={{ width: '450px', height: '250px' }}>
+              <div className="modal-header">
+                <h3>No Changes Detected</h3>
+              </div>
+                <p>No changes were made to the KPI. Do you want to continue editing?</p>
+              <div className="modal-actions" style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  onClick={() => {
+                    setShowNoChangesModal(false);
+                    setEditRecentKpi(tempKpiData);
+                  }}
+                  className="save-btn"
+                  style={{ backgroundColor: '#0052CC', flex: 1 }}
+                >
+                  Continue Editing
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowNoChangesModal(false);
+                    setTempKpiData(null);
+                  }}
+                  className="cancel-btn"
+                  style={{ backgroundColor: '#B2B6BA', flex: 1 }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {editRecentKpi && (
           <EditKpiModal
             kpi={editRecentKpi}
