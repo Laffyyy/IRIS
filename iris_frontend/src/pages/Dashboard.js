@@ -11,9 +11,9 @@ const Dashboard = () => {
   };
 
   const [processingData, setProcessingData] = useState([
-    { location: 'A', hrLog: true, hrDb: true, hrsApp: true, payroll: true, store: true, region: true },
-    { location: 'B', hrLog: false, hrDb: false, hrsApp: false, payroll: true, store: true, region: false },
-    { location: 'C', hrLog: true, hrDb: false, hrsApp: false, payroll: true, store: true, region: true },
+    { location: 'A', hrLog: true, hrDb: true, hrsApp: true, payroll: true, score: true, region: true },
+    { location: 'B', hrLog: false, hrDb: false, hrsApp: false, payroll: true, score: true, region: false },
+    { location: 'C', hrLog: true, hrDb: false, hrsApp: false, payroll: true, score: true, region: true },
   ]);
 
   const quickActions = [
@@ -32,7 +32,7 @@ const Dashboard = () => {
   };
 
   const calculateCompletion = (row) => {
-    const fields = ['hrLog', 'hrDb', 'hrsApp', 'payroll', 'store', 'region'];
+    const fields = ['hrLog', 'hrDb', 'hrsApp', 'payroll', 'score', 'region'];
     const completedCount = fields.filter(field => row[field]).length;
     return Math.round((completedCount / fields.length) * 100) + '%';
   };
@@ -75,7 +75,7 @@ const Dashboard = () => {
                   <th>HR DB</th>
                   <th>Hrs App</th>
                   <th>Payroll</th>
-                  <th>Store</th>
+                  <th>Score</th>
                   <th>Region</th>
                   <th>Completion</th>
                 </tr>
@@ -109,10 +109,10 @@ const Dashboard = () => {
                       {row.payroll ? '✓' : 'X'}
                     </td>
                     <td
-                      className={`editable-cell ${row.store ? 'status-check' : 'status-cross'}`}
-                      onClick={() => toggleCellValue(row.location, 'store')}
+                      className={`editable-cell ${row.score ? 'status-check' : 'status-cross'}`}
+                      onClick={() => toggleCellValue(row.location, 'score')}
                     >
-                      {row.store ? '✓' : 'X'}
+                      {row.score ? '✓' : 'X'}
                     </td>
                     <td
                       className={`editable-cell ${row.region ? 'status-check' : 'status-cross'}`}
