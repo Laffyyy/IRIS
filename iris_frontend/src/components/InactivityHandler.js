@@ -10,8 +10,10 @@ const InactivityHandler = ({ children }) => {
   const logoutTimeout = useRef(null);
   const loggedOutRef = useRef(false); // ⬅️ Added
 
-  const WARNING_DELAY = 1 * 30 * 1000;
-  const LOGOUT_DELAY = 3 * 60 * 1000;
+  // Warning shows after 30 seconds of inactivity
+  const WARNING_DELAY = 180 * 1000; // 3 minutes
+  // Logout occurs after 3 minutes of inactivity
+  const LOGOUT_DELAY = 300 * 1000; // 5 minutes
 
   const clearTimers = () => {
     if (warningTimeout.current) clearTimeout(warningTimeout.current);
@@ -22,7 +24,7 @@ const InactivityHandler = ({ children }) => {
     clearTimers();
     setShowWarning(false);
     setShowLoggedOut(false);
-    loggedOutRef.current = false; // ⬅️ Reset logout flag
+    loggedOutRef.current = false;
 
     warningTimeout.current = setTimeout(() => {
       setShowWarning(true);
@@ -31,7 +33,10 @@ const InactivityHandler = ({ children }) => {
     logoutTimeout.current = setTimeout(() => {
       setShowWarning(false);
       setShowLoggedOut(true);
-      loggedOutRef.current = true; // ⬅️ Set logout flag
+      loggedOutRef.current = true;
+      // Clear all localStorage items
+      localStorage.clear();
+      sessionStorage.clear();
     }, LOGOUT_DELAY);
   };
 
