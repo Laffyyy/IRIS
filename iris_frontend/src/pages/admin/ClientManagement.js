@@ -800,14 +800,14 @@ const ClientManagement = () => {
                 if (!card.lobName.trim() && card.subLobNames.some(name => name.trim())) {
                   // For each sub lob, show 'No LOB provided: [Sub LOB Name]'
                   return card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
-                    <li key={i + '-' + j}>No LOB provided: {subLob}</li>
+                    <li key={i + '-' + j}>(No LOB Name): {subLob}</li>
                   ));
                 } else if (card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
                   // LOB name present but no Sub LOB
-                  return <li key={i}>{card.lobName}: No Sub LOB provided</li>;
+                  return <li key={i}>{card.lobName}: (No Sub LOB)</li>;
                 } else if (!card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
                   // Both missing
-                  return <li key={i}><em>(No LOB Name)</em>: No Sub LOB provided</li>;
+                  return <li key={i}>(No LOB Name): (No Sub LOB)</li>;
                 }
                 return null;
               })}
@@ -1027,14 +1027,14 @@ const ClientManagement = () => {
                 if (!card.lobName.trim() && card.subLobNames.some(name => name.trim())) {
                   // For each sub lob, show 'No LOB provided: [Sub LOB Name]'
                   return card.subLobNames.filter(name => name.trim()).map((subLob, j) => (
-                    <li key={i + '-' + j}>No LOB provided: {subLob}</li>
+                    <li key={i + '-' + j}>(No LOB Name): {subLob}</li>
                   ));
                 } else if (card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
                   // LOB name present but no Sub LOB
-                  return <li key={i}>{card.lobName}: No Sub LOB provided</li>;
+                  return <li key={i}>{card.lobName}: (No Sub LOB)</li>;
                 } else if (!card.lobName.trim() && !card.subLobNames.some(name => name.trim())) {
                   // Both missing
-                  return <li key={i}><em>(No LOB Name)</em>: No Sub LOB provided</li>;
+                  return <li key={i}>(No LOB Name): (No Sub LOB)</li>;
                 }
                 return null;
               })}
@@ -1277,7 +1277,7 @@ const ClientManagement = () => {
             <strong>Note:</strong> The following Sub LOB(s) will <u>not</u> be added because they are incomplete:
             <ul style={{ margin: '8px 0 0 18px', color: '#b10000' }}>
               {ignoredSubLobs.map((subLob, i) => (
-                <li key={i}><em>(No Sub LOB Name)</em></li>
+                <li key={i}>(No Sub LOB Name)</li>
               ))}
             </ul>
           </div>
