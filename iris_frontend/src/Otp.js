@@ -5,7 +5,7 @@ import './Otp.css';
 import AlertModal from './components/AlertModal';
 import { jwtDecode } from 'jwt-decode';
 
-const Otp = ({ onBack, onComplete }) => {
+const Otp = async ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(() => {

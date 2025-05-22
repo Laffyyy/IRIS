@@ -7,6 +7,7 @@ const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const logsRoutes = require('./routes/logsRoutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
+const kpiRoutes = require('./routes/kpiManagementRoutes');
 
 // Middleware
 const userRoutes = require('./routes/userRoutes');
