@@ -1983,11 +1983,14 @@ const handleDeleteConfirm = async () => {
 
             <div className="modal-actions">
               <button
-              onClick={() => setShowBulkReactivateModal(true)}
+              onClick={() => {
+                setShowBulkReactivateModal(false);
+                setBulkReactivateConfirmation('');
+            }}
               disabled={selectedKPIs.length === 0}
               className="bulk-action-btn reactivate"
               style={{
-                backgroundColor: '#28a745',
+                backgroundColor: '#b2b6ba',
                 color: 'white',
                 border: 'none',
                 padding: '8px 16px',
@@ -1997,15 +2000,27 @@ const handleDeleteConfirm = async () => {
                 alignItems: 'center',
                 gap: '8px'
               }}
+              
             >
-              <FaRedo /> Reactivate Selected KPIs
+              Cancel
             </button>
               <button 
+                style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
                 onClick={handleBulkReactivate}
                 className="confirm-btn"
                 disabled={bulkReactivateConfirmation !== 'REACTIVATE'}
               >
-                Confirm
+                <FaRedo /> Reactivate
               </button>
             </div>
           </div>
