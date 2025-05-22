@@ -2,7 +2,7 @@
 import axios from 'axios';
 import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
-import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle, FaCheck, FaBan } from 'react-icons/fa';
+import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle, FaCheck, FaBan, FaRedo } from 'react-icons/fa';
 
 const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis to /api/kpis
 
@@ -81,8 +81,13 @@ const KPIManagement = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   const [selectedKPIs, setSelectedKPIs] = useState([]);
+  const [showBulkReactivateModal, setShowBulkReactivateModal] = useState(false);
+  const [bulkReactivateConfirmation, setBulkReactivateConfirmation] = useState('');
+
   const [showBulkDisableModal, setShowBulkDisableModal] = useState(false);
   const [bulkDisableConfirmation, setBulkDisableConfirmation] = useState('');
+
+
 
   // Add this validation function after the existing functions
   const validateInput = (value) => {
@@ -1090,37 +1095,52 @@ const handleDeleteConfirm = async () => {
       }
     };
 
-  const handleBulkReactivate = async () => {
-    try {
-      const response = await fetch('/api/kpis/bulk/reactivate', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          kpiIds: selectedKPIs.map(kpi => kpi.dKPI_ID)
-        })
-      });
-      
-      if (response.ok) {
-        // Refresh KPI list
-        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        const updatedKpis = await refreshResponse.json();
-        setKpis(updatedKpis);
-        
-        // Clear selection
-        setSelectedKPIs([]);
-        // Show success message
-        setValidationMessage(`${selectedKPIs.length} KPIs reactivated successfully`);
-        setShowValidationModal(true);
+
+    // Update the handleBulkReactivate function
+    const handleBulkReactivate = async () => {
+      if (bulkReactivateConfirmation.trim() === 'REACTIVATE') {
+        try {
+          const promises = selectedKPIs.map(kpi => 
+            fetch(`http://localhost:3000/api/kpis/${kpi.dKPI_ID}/reactivate`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            })
+          );
+    
+          const responses = await Promise.all(promises);
+          const failedResponses = responses.filter(response => !response.ok);
+          
+          if (failedResponses.length > 0) {
+            throw new Error(`Failed to reactivate ${failedResponses.length} KPIs`);
+          }
+    
+          // Update KPIs locally
+          const updatedKpis = kpis.map(kpi => 
+            selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)
+              ? { ...kpi, dStatus: 'ACTIVE' }
+              : kpi
+          );
+          setKpis(updatedKpis);
+          
+          // Show success message
+          setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} reactivated successfully!`);
+          setSuccessCount(selectedKPIs.length);
+          setShowSimpleSuccess(true);
+          
+          // Reset states
+          setSelectedKPIs([]);
+          setShowBulkReactivateModal(false);
+          setBulkReactivateConfirmation('');
+        } catch (error) {
+          console.error('Bulk reactivate error:', error);
+          showAlert(`Failed to reactivate KPIs: ${error.message}`);
+        }
       } else {
-        throw new Error('Failed to reactivate KPIs');
+        showAlert('Please type "REACTIVATE" to confirm reactivation');
       }
-    } catch (error) {
-      setValidationMessage('Failed to reactivate KPIs: ' + error.message);
-      setShowValidationModal(true);
-    }
-  };
+    };
 
   const handleSelectKPI = (kpi) => {
     if (selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)) {
@@ -1644,17 +1664,21 @@ const handleDeleteConfirm = async () => {
               {renderFilterControls()}
               <div className="table-container">
                 {selectedKPIs.length > 0 && (
-                  <div className="bulk-actions">
+                  <div className="bulk-actions" style={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-end', 
+                    marginTop: '20px' 
+                  }}>
                     <button 
-                        className={selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                          ? 'bulk-disable-btn' 
-                          : 'bulk-reactivate-btn'}
-                        onClick={() => selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                          ? setShowBulkDisableModal(true) 
-                          : handleBulkReactivate()}
-                      >{selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                        ? <><FaTimes size={12} /> Deactivate Selected KPIs</>
-                        : <><FaCheck size={12} /> Reactivate Selected KPIs</>}
+                      className={selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                        ? 'bulk-disable-btn' 
+                        : 'bulk-reactivate-btn'}
+                      onClick={() => selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                        ? setShowBulkDisableModal(true) 
+                        : setShowBulkReactivateModal(true)}
+                    >{selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                      ? <> Deactivate Selected KPIs</>
+                      : <> Reactivate Selected KPIs</>}
                       <span className="count">{selectedKPIs.length}</span>
                     </button>
                   </div>
@@ -1916,6 +1940,77 @@ const handleDeleteConfirm = async () => {
             </div>
           </div>
         )}
+
+        {showBulkReactivateModal && (
+          <div className="modal-overlay">
+            <div className="modal delete-confirmation-modal">
+            <div className="modal-header">
+                <h2>Bulk Reactivation</h2>
+              </div>
+              
+
+                  <p>Please confirm the Reactivation of <strong>{selectedKPIs.length}</strong> KPIs.</p>
+
+                
+                <div className="kpi-details">
+                  <div className="selected-kpis-list">
+                    {selectedKPIs.map(kpi => (
+                      <p key={kpi.dKPI_ID}><strong>{kpi.dKPI_Name}</strong></p>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="confirmation-input">
+
+                <input
+                    type="text"
+                    value={bulkReactivateConfirmation}  // Fixed typo from 'bulkReativateConfirmation'
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 10);
+                      setBulkReactivateConfirmation(value.toUpperCase());
+                    }}
+                    onPaste={(e) => e.preventDefault()}
+                    placeholder="Type 'REACTIVATE' to confirm"
+                    maxLength="10"
+                    className={bulkReactivateConfirmation && bulkReactivateConfirmation.trim() !== 'REACTIVATE' ? 'error' : ''}
+                  />
+
+                  {bulkReactivateConfirmation && bulkReactivateConfirmation.trim() !== 'REACTIVATE' && (  // Fixed typo from 'bulkReactivateeConfirmation'
+                    <span className="error-message"></span>
+                  )}
+                </div>
+
+
+            <div className="modal-actions">
+              <button
+              onClick={() => setShowBulkReactivateModal(true)}
+              disabled={selectedKPIs.length === 0}
+              className="bulk-action-btn reactivate"
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <FaRedo /> Reactivate Selected KPIs
+            </button>
+              <button 
+                onClick={handleBulkReactivate}
+                className="confirm-btn"
+                disabled={bulkReactivateConfirmation !== 'REACTIVATE'}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Add Validation Modal */}
         {showValidationModal && (
