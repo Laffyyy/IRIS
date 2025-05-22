@@ -112,7 +112,7 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 250px);
+  height: calc(100vh - 320px);
   font-family: 'Inter', sans-serif;
   overflow: hidden;
 }
@@ -1425,10 +1425,12 @@ input[type="checkbox"] {
 .bulk-actions {
   display: flex;
   justify-content: flex-end;
-  padding: 12px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #eee;
+  padding: 16px;
+  background-color: #fff;
+  border-top: 1px solid #eee;
+  margin-top: 0;
 }
+
 .bulk-disable-btn {
   background-color: #e53e3e;
   color: white;

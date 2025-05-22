@@ -1663,26 +1663,6 @@ const handleDeleteConfirm = async () => {
             <div className="existing-kpis">
               {renderFilterControls()}
               <div className="table-container">
-                {selectedKPIs.length > 0 && (
-                  <div className="bulk-actions" style={{ 
-                    display: 'flex', 
-                    justifyContent: 'flex-end', 
-                    marginTop: '20px' 
-                  }}>
-                    <button 
-                      className={selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                        ? 'bulk-disable-btn' 
-                        : 'bulk-reactivate-btn'}
-                      onClick={() => selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                        ? setShowBulkDisableModal(true) 
-                        : setShowBulkReactivateModal(true)}
-                    >{selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                      ? <> Deactivate Selected KPIs</>
-                      : <> Reactivate Selected KPIs</>}
-                      <span className="count">{selectedKPIs.length}</span>
-                    </button>
-                  </div>
-                )}
                 <div className="table-wrapper">
                   <table>
                     <thead>
@@ -1755,12 +1735,7 @@ const handleDeleteConfirm = async () => {
                                   <FaCheck size={12} /> Reactivate
                                 </button>
                               ) : (
-                                <button 
-                                  onClick={() => handleDeleteClick(kpi)} 
-                                  className="delete-btn"
-                                >
-                                  <FaBan size={12} /> Deactivate
-                                </button>
+                                null
                               )}
                             </div>
                           </td>
@@ -1771,11 +1746,25 @@ const handleDeleteConfirm = async () => {
                 </div>
               </div>
             </div>
+              {selectedKPIs.length > 0 && (
+                <div className="bulk-actions">
+                  <button 
+                    className={selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                      ? 'bulk-disable-btn' 
+                      : 'bulk-reactivate-btn'}
+                    onClick={() => selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                      ? setShowBulkDisableModal(true) 
+                      : setShowBulkReactivateModal(true)}
+                  >
+                    {selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                      ? <> Deactivate Selected KPIs</>
+                      : <> Reactivate Selected KPIs</>}
+                    <span className="count">{selectedKPIs.length}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-        
-
         {showConfirmModal && kpiToAdd && (
         <div className="modal-overlay">
         <div className="modal confirm-modal">
