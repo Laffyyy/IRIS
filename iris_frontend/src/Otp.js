@@ -10,11 +10,23 @@ const Otp = ({ onBack, onComplete }) => {
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(() => {
     const savedExpireTime = localStorage.getItem('otpExpireTime');
-    return savedExpireTime ? parseInt(savedExpireTime) : 180;
+    const savedExpireTimestamp = localStorage.getItem('otpExpireTimestamp');
+    if (savedExpireTime && savedExpireTimestamp) {
+      const timePassed = Math.floor((Date.now() - parseInt(savedExpireTimestamp)) / 1000);
+      const remainingTime = Math.max(0, parseInt(savedExpireTime) - timePassed);
+      return remainingTime;
+    }
+    return 180;
   });
   const [resendTime, setResendTime] = useState(() => {
     const savedResendTime = localStorage.getItem('otpResendTime');
-    return savedResendTime ? parseInt(savedResendTime) : 90;
+    const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
+    if (savedResendTime && savedResendTimestamp) {
+      const timePassed = Math.floor((Date.now() - parseInt(savedResendTimestamp)) / 1000);
+      const remainingTime = Math.max(0, parseInt(savedResendTime) - timePassed);
+      return remainingTime;
+    }
+    return 90;
   });
   const [canResend, setCanResend] = useState(() => {
     const savedCanResend = localStorage.getItem('otpCanResend');
@@ -29,6 +41,25 @@ const Otp = ({ onBack, onComplete }) => {
     return savedOtpValues ? JSON.parse(savedOtpValues) : Array(6).fill('');
   });
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
+
+  // Add effect to check credentials and redirect if missing
+  useEffect(() => {
+    const userId = localStorage.getItem('userId');
+    const password = localStorage.getItem('password');
+    
+    if (!userId || !password) {
+      // Clear any existing OTP data
+      localStorage.removeItem('otpExpireTime');
+      localStorage.removeItem('otpExpireTimestamp');
+      localStorage.removeItem('otpResendTime');
+      localStorage.removeItem('otpResendTimestamp');
+      localStorage.removeItem('otpCanResend');
+      localStorage.removeItem('otpValues');
+      
+      // Redirect to login
+      navigate('/');
+    }
+  }, [navigate]);
 
   // Add effect to focus first input on mount
   useEffect(() => {
@@ -47,26 +78,42 @@ const Otp = ({ onBack, onComplete }) => {
 
   useEffect(() => {
     if (expireTime > 0) {
-      const timer = setTimeout(() => setExpireTime(expireTime - 1), 1000);
-      return () => clearTimeout(timer);
+      const startTime = Date.now();
+      const timer = setInterval(() => {
+        const currentTime = Date.now();
+        const timePassed = Math.floor((currentTime - startTime) / 1000);
+        setExpireTime(prev => Math.max(0, prev - timePassed));
+      }, 1000);
+      return () => clearInterval(timer);
     }
   }, [expireTime]);
 
   useEffect(() => {
     if (resendTime > 0 && !canResend) {
-      const timer = setTimeout(() => setResendTime(resendTime - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setCanResend(true);
+      const startTime = Date.now();
+      const timer = setInterval(() => {
+        const currentTime = Date.now();
+        const timePassed = Math.floor((currentTime - startTime) / 1000);
+        setResendTime(prev => {
+          const newTime = Math.max(0, prev - timePassed);
+          if (newTime === 0) {
+            setCanResend(true);
+          }
+          return newTime;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
     }
   }, [resendTime, canResend]);
 
   useEffect(() => {
     localStorage.setItem('otpExpireTime', expireTime.toString());
+    localStorage.setItem('otpExpireTimestamp', Date.now().toString());
   }, [expireTime]);
 
   useEffect(() => {
     localStorage.setItem('otpResendTime', resendTime.toString());
+    localStorage.setItem('otpResendTimestamp', Date.now().toString());
   }, [resendTime]);
 
   useEffect(() => {
@@ -123,7 +170,6 @@ const Otp = ({ onBack, onComplete }) => {
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
  
-
     if (value.length > 1) return;
 
     e.target.value = value;
@@ -131,11 +177,13 @@ const Otp = ({ onBack, onComplete }) => {
     newOtpValues[index] = value;
     setOtpValues(newOtpValues);
 
+    // Check if all OTP values are filled
+    const allFilled = newOtpValues.every(val => val !== '');
+    setIsComplete(allFilled);
+
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
-      setIsComplete(true);
     }
-    
   };
 
   const handleKeyDown = (e, index) => {
@@ -156,9 +204,9 @@ const Otp = ({ onBack, onComplete }) => {
       filtered.split('').forEach((char, i) => {
         inputsRef.current[i].value = char;
         newOtpValues[i] = char;
-        setIsComplete(true);
       });
       setOtpValues(newOtpValues);
+      setIsComplete(true);
       inputsRef.current[5].focus();
     }
     e.preventDefault();
@@ -226,7 +274,7 @@ const Otp = ({ onBack, onComplete }) => {
               navigate('../change-password');
             } else if (userStatus === 'ACTIVE') {
               if (roles.includes('admin')) {
-                navigate('../dashboard');
+                navigate('../admin/dashboard');
               } else if (roles.includes('HR')) {
                 navigate('../hr');
               } else if (roles.includes('REPORTS')) {
@@ -259,7 +307,9 @@ const Otp = ({ onBack, onComplete }) => {
   const handleBack = () => {
     // Clear all OTP-related data from localStorage
     localStorage.removeItem('otpExpireTime');
+    localStorage.removeItem('otpExpireTimestamp');
     localStorage.removeItem('otpResendTime');
+    localStorage.removeItem('otpResendTimestamp');
     localStorage.removeItem('otpCanResend');
     localStorage.removeItem('otpValues');
     localStorage.removeItem('userId');
