@@ -5,6 +5,7 @@ const loginRoutes = require('./routes/loginroutes');
 const changepassRoutes = require('./routes/changepasswordroutes');
 const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
+const logsRoutes = require('./routes/logsRoutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 
 // Middleware
@@ -29,6 +30,7 @@ app.use('/api/login', loginRoutes);
 app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/sites', SiteManagementRoutes);
+app.use('/api/logs', logsRoutes);
 app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
 
 // Mount routes

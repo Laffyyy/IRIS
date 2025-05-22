@@ -198,7 +198,8 @@ body, html {
   height: 100%;
   background-size: cover;
   background-position: center;
-  transition: opacity 0.5s ease;
+  /* Remove transition for instant switch */
+  transition: none;
   filter: brightness(60%);
   position: absolute;
   top: 0;

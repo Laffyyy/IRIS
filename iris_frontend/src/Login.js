@@ -56,13 +56,6 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
-  const [otp, setOtp] = useState('');
-  const [userId, setUserId] = useState('');
-  const [passwords, setPasswords] = useState({
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const carouselImages = [
     '/assets/loginimage1.jpg',

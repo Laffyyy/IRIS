@@ -296,6 +296,40 @@
   background: #999;
 }
 
+/* Tab styles to match SiteManagement */
+.tab-container {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab.active {
+  color: #004D8D;
+  border-bottom-color: #004D8D;
+  font-weight: 500;
+}
+
+.tab:hover:not(.active) {
+  background-color: #f8f8f8;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
 /* Responsive Styles */
 @media (max-width: 768px) {
   .admin-logs-controls {
@@ -313,3 +347,4 @@
     width: 100%;
   }
 } 
+

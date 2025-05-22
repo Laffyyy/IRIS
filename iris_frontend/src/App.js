@@ -68,77 +68,81 @@ function CompensationLayout() {
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Public/standalone routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/otp" element={<Otp />} />
-        <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/security-questions" element={<SecurityQuestions />} />
-        <Route path="/update-password" element={<UpdatePassword />} />
+      <div className="App">
+        <Routes>
+          {/* Login routes */}
+          <Route path="/" element={<Login />} />
+          <Route path="/otp" element={<Otp />} />
+          <Route 
+            path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
 
-        {/* Protected routes with layouts */}
-        <Route
-          path="/admin"
-          element={
-            <InactivityHandler>
-              {/* <ProtectedRoute allowedRoles={['ADMIN']}> */}
-                <AdminLayout />
-              {/* </ProtectedRoute> */}
-            </InactivityHandler>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="apps" element={<AppManagement />} />
-          <Route path="clients" element={<ClientManagement />} />
-          <Route path="sites" element={<SiteManagement />} />
-          <Route path="kpis" element={<KPIManagement />} />
-          <Route path="logs" element={<AdminLogs />} />
-        </Route>
-
-        <Route
-          path="/hr"
-          element={
-            <InactivityHandler>
-              {/* <ProtectedRoute allowedRoles={['HR', 'ADMIN']}> */}
-                <HrLayout />
-              {/* </ProtectedRoute> */}
-            </InactivityHandler>
-          }
-        >
-          <Route index element={<Dashboard />} />
-        </Route>
-
-        <Route
-          path="/reports"
-          element={
-            <InactivityHandler>
-              {/* <ProtectedRoute allowedRoles={['REPORTS', 'ADMIN']}> */}
-                <ReportsLayout />
-              {/* </ProtectedRoute> */}
-            </InactivityHandler>
-          }
-        >
-          <Route index element={<Dashboard />} />
-        </Route>
-
-        <Route
-          path="/compensation"
-          element={
-            <InactivityHandler>
-              {/* <ProtectedRoute allowedRoles={['CNB', 'ADMIN']}> */}
-                <CompensationLayout />
-              {/* </ProtectedRoute> */}
-            </InactivityHandler>
-          }
-        >
-          <Route index element={<Dashboard />} />
-        </Route>
-
-        {/* Redirect root to login if not authenticated */}
-        <Route path="/" element={<Login />} />
-      </Routes>
+          {/* Protected routes */}
+          <Route
+            path="/admin/*"
+            element={
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
+            }
+          />
+          <Route
+            path="/hr"
+            element={
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
+                      <div>HR Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+                      <div>Reports Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
+            }
+          />
+          <Route
+            path="/compensation"
+            element={
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+                      <div>C&B Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
+            }
+          />
+          <Route path="/faqs" element={<div>FAQs Page</div>} />
+          <Route path="/unauthorized" element={<Unauthorize />} />
+        </Routes>
+      </div>
     </Router>
   );
 }
