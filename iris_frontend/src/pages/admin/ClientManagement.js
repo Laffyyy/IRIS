@@ -1161,34 +1161,52 @@ const ClientManagement = () => {
                 return;
               }
             }
-            // Only submit valid cards
+            // --- NEW LOGIC: Check if LOB exists, only add new sub LOBs if so ---
             for (const card of validLobCards) {
-              if (card.lobName.trim()) {
-                const hasSubLobs = card.subLobNames.some(name => name.trim());
-                const lobData = {
-                  clientId: client.id,
-                  clientName: client.name,
-                  lobName: card.lobName.trim(),
-                  ...(selectedSiteForLob && { siteId: selectedSiteForLob }),
-                  ...(hasSubLobs && { subLOBName: card.subLobNames.find(name => name.trim()) })
-                };
-                const response = await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
-                if (card.subLobNames.length > 1) {
-                  const additionalSubLobs = card.subLobNames.slice(1);
-                  for (const subLobName of additionalSubLobs) {
-                    if (subLobName.trim()) {
-                      const subLobData = {
-                        clientId: client.id,
-                        clientName: client.name,
-                        lobName: card.lobName.trim(),
-                        subLOBName: subLobName.trim()
-                      };
-                      await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
-                    }
+              const lobName = card.lobName.trim();
+              const subLobNames = card.subLobNames.filter(name => name.trim());
+              // Check if LOB already exists for this client
+              const existingLob = lobs.find(lob => lob.clientId === client.id && lob.name === lobName);
+              if (!existingLob) {
+                // LOB does not exist, add LOB with first sub LOB
+                const hasSubLobs = subLobNames.length > 0;
+                if (hasSubLobs) {
+                  const lobData = {
+                    clientId: client.id,
+                    clientName: client.name,
+                    lobName: lobName,
+                    ...(selectedSiteForLob && { siteId: selectedSiteForLob }),
+                    subLOBName: subLobNames[0]
+                  };
+                  await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
+                  // Add additional sub LOBs (if any)
+                  for (const subLobName of subLobNames.slice(1)) {
+                    const subLobData = {
+                      clientId: client.id,
+                      clientName: client.name,
+                      lobName: lobName,
+                      subLOBName: subLobName
+                    };
+                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
+                  }
+                }
+              } else {
+                // LOB exists, only add new sub LOBs that do not already exist
+                const existingSubLobs = subLobs.filter(sl => sl.lobId === existingLob.id).map(sl => sl.name.toLowerCase());
+                for (const subLobName of subLobNames) {
+                  if (!existingSubLobs.includes(subLobName.trim().toLowerCase())) {
+                    const subLobData = {
+                      clientId: client.id,
+                      clientName: client.name,
+                      lobName: lobName,
+                      subLOBName: subLobName.trim()
+                    };
+                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
                   }
                 }
               }
             }
+            // --- END NEW LOGIC ---
             const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
             if (refreshResponse.data && refreshResponse.data.data) {
               // ... transformation logic ...
@@ -1259,7 +1277,7 @@ const ClientManagement = () => {
             setSelectedSiteForLob(null);
             setClientSearchTerm('');
             setSiteSearchTerm('');
-            showToast('LOBs added successfully!');
+            showToast('LOBs and Sub LOBs added successfully!');
           } catch (error) {
             console.error('Error adding LOB:', error);
             showToast(`Failed to add LOB: ${error.response?.data?.error || error.message}`, 'error');
@@ -2705,9 +2723,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <button 
                       onClick={handleAddAnotherLobCard} 
                       className="add-lob-card-button"
-                      disabled={!lobCards[0].lobName.trim() || !lobCards[0].subLobNames[0].trim()}
-                      title={!lobCards[0].lobName.trim() || !lobCards[0].subLobNames[0].trim() ? 
-                        "Please fill in the first LOB and Sub LOB before adding another" : 
+                      disabled={!lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))}
+                      title={!lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ? 
+                        "Please fill in at least one LOB and Sub LOB before adding another" : 
                         "Add another LOB"}
                     >
                       +
@@ -2995,9 +3013,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <button 
                       onClick={handleAddAnotherLobCardForLob} 
                       className="add-lob-card-button"
-                      disabled={!lobCardsForLob[0].lobName.trim() || !lobCardsForLob[0].subLobNames[0].trim()}
-                      title={!lobCardsForLob[0].lobName.trim() || !lobCardsForLob[0].subLobNames[0].trim() ? 
-                        "Please fill in the first LOB and Sub LOB before adding another" : 
+                      disabled={!lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))}
+                      title={!lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ? 
+                        "Please fill in at least one LOB and Sub LOB before adding another" : 
                         "Add another LOB"}
                     >
                       +
