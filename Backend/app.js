@@ -1,26 +1,26 @@
 const express = require('express');
-const loginRoutes = require('./routes/loginroutes');
-const helment = require('helmet');
 const cors = require('cors');
+const loginRoutes = require('./routes/loginroutes');
+const helmet = require('helmet');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
+const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 const kpiRoutes = require('./routes/kpiManagementRoutes');
 
 const app = express();
 
+// Middleware
 app.use(express.json());
-app.use(helment());
+app.use(express.urlencoded({ extended: true }));
+
+// Use cors middleware before routes
 app.use(cors({
-    origin: 'http://localhost:3001', // Replace with your frontend URL
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow specific HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization'] // Allow specific headers
+    origin: 'http://localhost:3001',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+    credentials: true  // Add this line to allow credentials
 }));
-
-
-
 
 app.use('/api/login', loginRoutes);
 app.use('/api/otp', otpRoutes); // Add this line to include the OTP routes
-
-app.use('/api/kpis', kpiRoutes); 
 
 module.exports = app;
