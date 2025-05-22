@@ -30,6 +30,13 @@ const Otp = ({ onBack, onComplete }) => {
   });
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
+  // Add effect to focus first input on mount
+  useEffect(() => {
+    if (inputsRef.current[0]) {
+      inputsRef.current[0].focus();
+    }
+  }, []);
+
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
     const storedUserId = localStorage.getItem('userId');
