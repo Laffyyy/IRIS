@@ -48,9 +48,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const navigate = useNavigate();
 
   const carouselImages = [
-    '/assets/stephen1.jpg',
-    '/assets/stephen2.jpg',
-    '/assets/stephen3.jpg',
+    '/assets/loginimage1.jpg',
+    '/assets/loginimage2.jpg',
+    '/assets/loginimage3.jpg',
   ];
 
   useEffect(() => {
