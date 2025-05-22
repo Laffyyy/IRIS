@@ -1047,7 +1047,9 @@ const ClientManagement = () => {
 
   // Add LOB with confirmation
   const handleAddLob = async () => {
-    if (selectedClientForLob && lobCardsForLob.some(card => card.lobName.trim())) {
+    // Allow submission if at least one LOB card has both a LOB name and at least one Sub LOB name
+    const hasAtLeastOneValid = lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
+    if (selectedClientForLob && hasAtLeastOneValid) {
       const client = clients.find(c => c.id === selectedClientForLob);
       const site = sites.find(s => s.id === selectedSiteForLob);
       showConfirm(
@@ -1074,26 +1076,21 @@ const ClientManagement = () => {
                 }
               }
             }
-            const hasValidSubLobs = lobCardsForLob.every(card => 
-              card.lobName.trim() && card.subLobNames.some(name => name.trim())
-            );
-            if (!hasValidSubLobs) {
-              showToast('Each LOB must have at least one SubLOB', 'error');
-              return;
-            }
-            const lobNames = lobCardsForLob.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
+            // Only check for duplicates among valid cards
+            const validLobCards = lobCardsForLob.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
+            const lobNames = validLobCards.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
             const uniqueLobNames = new Set(lobNames);
             if (lobNames.length !== uniqueLobNames.size) {
               showToast('Error: Duplicate LOB names are not allowed.', 'error');
               return;
             }
-            const allSubLobNames = lobCardsForLob.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
+            const allSubLobNames = validLobCards.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
             const uniqueSubLobNames = new Set(allSubLobNames);
             if (allSubLobNames.length !== uniqueSubLobNames.size) {
               showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
               return;
             }
-            const hasDuplicateSubLobs = lobCardsForLob.some(card => {
+            const hasDuplicateSubLobs = validLobCards.some(card => {
               const uniqueSubLobs = new Set();
               return card.subLobNames.some(subLobName => {
                 const trimmedName = subLobName.trim().toLowerCase();
@@ -1110,7 +1107,6 @@ const ClientManagement = () => {
               showToast('Error: Duplicate Sub LOB names are not allowed within the same LOB.', 'error');
               return;
             }
-            const client = clients.find(c => c.id === selectedClientForLob);
             if (!client) {
               showToast('Selected client not found', 'error');
               return;
@@ -1133,7 +1129,8 @@ const ClientManagement = () => {
                 return;
               }
             }
-            for (const card of lobCardsForLob) {
+            // Only submit valid cards
+            for (const card of validLobCards) {
               if (card.lobName.trim()) {
                 const hasSubLobs = card.subLobNames.some(name => name.trim());
                 const lobData = {
