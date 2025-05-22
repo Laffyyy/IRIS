@@ -22,11 +22,11 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div className="Login-modal-overlay">
+      <div className="Login-modal-content">
         <h3>Reset Your Password</h3>
-        <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
-        <form onSubmit={handleSubmit} className="modal-form">
+        <p className="Login-modal-text">Please enter your registered email to receive an OTP code.</p>
+        <form onSubmit={handleSubmit} className="Login-modal-form">
           <input
             type="text"
             placeholder="Enter your email"
@@ -36,7 +36,7 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
             pattern="[a-zA-Z0-9\-._!@]+"
             title="Email can contain letters, numbers, and -._!@ symbols"
           />
-          <div className="modal-buttons">
+          <div className="Login-modal-buttons">
             <button type="button" onClick={onClose}>Cancel</button>
             <button type="submit">Send OTP</button>
           </div>

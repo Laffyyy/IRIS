@@ -68,16 +68,10 @@ exports.createUser = async (req, res) => {
 
 exports.checkDuplicates = async (req, res) => {
   try {
-    const { employeeIds, emails, adminEmployeeIds, adminEmails, admin } = req.body;
-    let existing = await userService.findExistingEmployeeIdsEmailsOrNames(employeeIds || [], emails || []);
-    // If admin check is requested, also check tbl_admin
-    let adminExisting = [];
-    if (admin || (adminEmployeeIds && adminEmployeeIds.length > 0) || (adminEmails && adminEmails.length > 0)) {
-      adminExisting = await userService.findExistingAdminEmployeeIdsEmails(
-        (adminEmployeeIds && adminEmployeeIds.length > 0) ? adminEmployeeIds : (admin ? employeeIds : []),
-        (adminEmails && adminEmails.length > 0) ? adminEmails : (admin ? emails : [])
-      );
-    }
+    const { employeeIds, emails, excludeLoginId } = req.body;
+    // Always check both tables
+    let existing = await userService.findExistingEmployeeIdsEmailsOrNames(employeeIds || [], emails || [], excludeLoginId);
+    let adminExisting = await userService.findExistingAdminEmployeeIdsEmails(employeeIds || [], emails || [], excludeLoginId);
     // Merge results (avoid duplicates)
     const allExisting = [...existing];
     adminExisting.forEach(adminUser => {

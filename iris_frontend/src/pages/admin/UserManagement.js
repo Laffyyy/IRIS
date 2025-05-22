@@ -2,11 +2,44 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash, FaLock, FaUsers, FaUserShield, FaHistory, FaTicketAlt, FaUserSlash, FaKey, FaShieldAlt } from 'react-icons/fa';
 import { FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
+import './UserManagement.module.css';
+import styles from './UserManagement.module.css';
 import './UserManagement.css';
+
+// Add this near the top, after imports and before the UserManagement component
+const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g;
+const sanitizeIndividualInput = (input, type) => {
+  if (typeof input !== 'string') input = String(input || '');
+  let value = input.trim();
+  value = value.replace(emojiRegex, '');
+  if (type === 'employeeId') {
+    value = value.replace(/[^0-9]/g, '').slice(0, 10);
+  } else if (type === 'name') {
+    value = value
+      .replace(/[^A-Za-z0-9\-_. ,]/g, '') // Only allowed chars (no @)
+      .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
+      .replace(/ +/g, ' ') // Collapse multiple spaces
+      .replace(/^[\-_. ,]+/, '') // No special char at start
+      .trim();
+  } else if (type === 'email') {
+    value = value.replace(/[^A-Za-z0-9@._-]/g, '');
+  }
+  return value;
+};
 
 function isExactRole(role) {
   const allowedRoles = ['HR', 'REPORTS', 'ADMIN', 'CNB'];
   return allowedRoles.includes(role);
+}
+
+// Add this helper above handleFile
+function sanitizeBulkName(name) {
+  return (name || '')
+    .replace(/[^A-Za-z0-9\-_. ,]/g, '') // Only allowed chars (no @)
+    .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
+    .replace(/^[\-_. ,]+/, '') // No special char at start
+    .replace(/ +/g, ' ') // Collapse multiple spaces to one
+    .trim(); // Remove leading/trailing spaces
 }
 
 const UserManagement = () => {
@@ -385,12 +418,24 @@ const UserManagement = () => {
       }
 
       // Helper function to sanitize input
-      const sanitizeInput = (input) => {
-        if (typeof input !== 'string') return '';
-        // Remove emojis and special characters, trim spaces
-        return input.toString()
-          .replace(emojiRegex, '')
-          .trim();
+      const sanitizeInput = (input, type) => {
+        if (typeof input !== 'string') input = String(input || '');
+        let value = input.trim();
+        // Remove leading/trailing whitespace and collapse multiple spaces inside
+        value = value.replace(/\s+/g, ' ');
+        // Remove emojis
+        value = value.replace(emojiRegex, '');
+        if (type === 'employeeId') {
+          // Remove all non-digits and trim to 10 digits
+          value = value.replace(/[^0-9]/g, '').slice(0, 10);
+        } else if (type === 'name') {
+          // Only allow letters, numbers, spaces, dots, hyphens, underscores, commas
+          value = value.replace(/[^A-Za-z0-9\-_. ,]/g, '');
+        } else if (type === 'email') {
+          // Only allow allowed email chars
+          value = value.replace(/[^A-Za-z0-9@._-]/g, '');
+        }
+        return value;
       };
 
       // Helper function to validate allowed characters
@@ -403,6 +448,8 @@ const UserManagement = () => {
             return allowedEmailRegex.test(input);
           case 'employeeId':
             return /^[0-9]{10}$/.test(input);
+          case 'role':
+            return allowedRoles.includes(input.toUpperCase());
           default:
             return true;
         }
@@ -412,7 +459,13 @@ const UserManagement = () => {
       const parsedUsers = [];
       for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i];
-        let [employeeId, name, email, role, ...extra] = row.map(cell => sanitizeInput(cell));
+        let [employeeId, name, email, role, ...extra] = [
+          sanitizeInput(row[0], 'employeeId'),
+          sanitizeBulkName(row[1]),
+          sanitizeInput(row[2], 'email'),
+          sanitizeInput(row[3], 'role'),
+          ...row.slice(4)
+        ];
         const reasons = [];
 
         // Check for extra content
@@ -429,7 +482,7 @@ const UserManagement = () => {
 
         if (!name) reasons.push('Missing Name');
         else if (!validateAllowedChars(name, 'name')) {
-          reasons.push('Name contains invalid characters. Only letters, numbers, dots, hyphens, and underscores are allowed');
+          reasons.push('Name contains invalid characters. Only letters, numbers, spaces, dots, hyphens, underscores, and commas are allowed');
         }
 
         if (!email) reasons.push('Missing Email');
@@ -530,10 +583,10 @@ const UserManagement = () => {
       for (const user of parsedUsers) {
         const reasons = [];
         const sanitizedUser = {
-          employeeId: sanitizeInput(user.employeeId),
-          name: sanitizeInput(user.name),
-          email: sanitizeInput(user.email),
-          role: sanitizeInput(user.role).toUpperCase()
+          employeeId: sanitizeInput(user.employeeId, 'employeeId'),
+          name: sanitizeInput(user.name, 'name'),
+          email: sanitizeInput(user.email, 'email'),
+          role: sanitizeInput(user.role, 'role')
         };
 
         // Re-apply all validations with sanitized data
@@ -541,7 +594,7 @@ const UserManagement = () => {
           reasons.push('Employee ID must be exactly 10 digits and contain only numbers');
         }
         if (!sanitizedUser.name || !validateAllowedChars(sanitizedUser.name, 'name')) {
-          reasons.push('Name contains invalid characters. Only letters, numbers, dots, hyphens, and underscores are allowed');
+          reasons.push('Name contains invalid characters. Only letters, numbers, spaces, dots, hyphens, underscores, and commas are allowed');
         }
         if (!sanitizedUser.email || !validateAllowedChars(sanitizedUser.email, 'email')) {
           reasons.push('Email contains invalid characters. Only letters, numbers, @, dots, hyphens, and underscores are allowed');
@@ -632,9 +685,10 @@ const UserManagement = () => {
   const handleAddToList = async () => {
     setIndividualAddError('');
     setIndividualAddErrors({});
-    const employeeId = employeeIdRef.current.value;
-    const email = emailRef.current.value;
-    const name = nameRef.current.value;
+    // Sanitize all fields before validation
+    const employeeId = sanitizeIndividualInput(employeeIdRef.current.value, 'employeeId');
+    const email = sanitizeIndividualInput(emailRef.current.value, 'email');
+    const name = sanitizeIndividualInput(nameRef.current.value, 'name');
     const role = roleRef.current.value;
     const errors = {};
     // 1. Required fields
@@ -643,19 +697,13 @@ const UserManagement = () => {
     if (!email) errors.email = 'Email is required.';
     if (!name) errors.name = 'Name is required.';
     if (!role) errors.role = 'Role is required.';
-    // Name must be 50 characters or less
     if (name && name.length > 50) errors.name = 'Name must be 50 characters or less.';
-    // Email must be 50 characters or less
     if (email && email.length > 50) errors.email = 'Email must be 50 characters or less.';
-    // 2. Email format
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
     if (email && !emailRegex.test(email)) errors.email = 'Invalid email format.';
-    // 3. Duplicates in preview
     if (employeeId && individualPreview.some(u => u.employeeId === employeeId)) errors.employeeId = 'Duplicate Employee ID in preview.';
     if (email && individualPreview.some(u => u.email === email)) errors.email = 'Duplicate Email in preview.';
-    // If any errors so far, show all
     let hasErrors = Object.keys(errors).length > 0;
-    // 4. Duplicates in database (tbl_login and tbl_admin for Admin)
     let dbDuplicates = [];
     if (!hasErrors) {
       try {
@@ -684,9 +732,7 @@ const UserManagement = () => {
       setIndividualAddErrors(errors);
       return;
     }
-    // If all good, add to preview
     setIndividualPreview(prev => [...prev, { employeeId, email, name, role, status: 'FIRST-TIME' }]);
-    // Clear the input fields
     employeeIdRef.current.value = '';
     emailRef.current.value = '';
     nameRef.current.value = '';
@@ -869,6 +915,7 @@ const UserManagement = () => {
 
   // Save user changes
   const handleSave = async (updatedUser) => {
+    let resultModalShown = false;
     try {
       const changedFields = { dLogin_ID: updatedUser.dLogin_ID };
       const changes = [];
@@ -931,8 +978,9 @@ const UserManagement = () => {
       if (Object.keys(changedFields).length === 1 && securityQuestionsChanged) {
         setEditModalOpen(false);
         setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
-        setEditResultSuccess(true);    
+        setEditResultSuccess(true);
         setShowEditResultModal(true);
+        resultModalShown = true;
         return;
       }
       // If nothing changed
@@ -940,6 +988,7 @@ const UserManagement = () => {
         setEditResultSuccess(false);
         setEditResultMessage('No changes were made.');
         setShowEditResultModal(true);
+        resultModalShown = true;
         return;
       }
       // Otherwise, update user fields
@@ -957,18 +1006,27 @@ const UserManagement = () => {
         setEditResultSuccess(false);
         setEditResultMessage(result && (result.message || result.error) ? (result.message || result.error) : 'Failed to update user.');
         setShowEditResultModal(true);
-        // Do NOT show Action Error Modal here for edit failures
+        resultModalShown = true;
         return;
       }
       setEditModalOpen(false);
       setEditResultSuccess(true);
       setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
       setShowEditResultModal(true);
+      resultModalShown = true;
       // Do NOT call setUsers here. Let fetchUsers update the table.
     } catch (error) {
       setEditResultSuccess(false);
       setEditResultMessage(error.message || 'Failed to update user');
       setShowEditResultModal(true);
+      resultModalShown = true;
+    } finally {
+      // Fallback: always show the result modal if not already shown
+      if (!resultModalShown) {
+        setEditResultSuccess(false);
+        setEditResultMessage('An unknown error occurred.');
+        setShowEditResultModal(true);
+      }
     }
   };
 
@@ -1095,7 +1153,7 @@ const UserManagement = () => {
     if (!user.dUser_Type) errors.dUser_Type = 'Role is required.';
     if (!user.dStatus) errors.dStatus = 'Status is required.';
 
-    // Check for duplicates independently
+    // Check for duplicates independently (across ALL users and admins)
     if (user.dUser_ID !== originalUser.dUser_ID || user.dEmail !== originalUser.dEmail) {
       try {
         const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
@@ -1104,10 +1162,11 @@ const UserManagement = () => {
           body: JSON.stringify({ 
             employeeIds: [user.dUser_ID], 
             emails: [user.dEmail],
-            excludeLoginId: user.dLogin_ID
+            excludeLoginId: user.dLogin_ID // Always exclude self
           })
         });
         const duplicates = await response.json();
+        // Check ALL returned users (including admins)
         if (user.dUser_ID !== originalUser.dUser_ID && Array.isArray(duplicates) && duplicates.some(u => u.dUser_ID === user.dUser_ID)) {
           errors.dUser_ID = 'Duplicate Employee ID in database.';
         }
@@ -1115,7 +1174,6 @@ const UserManagement = () => {
           errors.dEmail = 'Duplicate Email in database.';
         }
       } catch (error) {
-        console.error('Error checking duplicates:', error);
         errors.general = 'Error checking for duplicates. Please try again.';
       }
     }
@@ -1245,7 +1303,7 @@ const UserManagement = () => {
       }
     } else if (activeTable === 'users') {
       // Only show ACTIVE and FIRST-TIME users in users tab, and exclude ADMIN users
-      filtered = filtered.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN');
+      filtered = filtered.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN' && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
     }
 
     // Apply search filter
@@ -1293,7 +1351,7 @@ const UserManagement = () => {
   // Improved emoji regex (covers most emoji ranges)
   const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g;
   const allowedCharsRegex = /^[A-Za-z0-9@._-]+$/;
-  const allowedNameRegex = /^[A-Za-z0-9._-]+$/;
+  const allowedNameRegex = /^[A-Za-z0-9\-_. ,]+$/;
   const allowedEmailRegex = /^[A-Za-z0-9@._-]+$/;
   const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -1432,16 +1490,16 @@ const UserManagement = () => {
   useEffect(() => { if (showBulkConfirmModal && bulkConfirmYesBtnRef.current) bulkConfirmYesBtnRef.current.focus(); }, [showBulkConfirmModal]);
 
   return (
-    <div className="user-management-container">
-      <div className="user-management-card">
-        <div className="user-management-header">
+    <div className={styles['user-management-container']}>
+      <div className={styles['user-management-card']}>
+        <div className={styles['user-management-header']}>
           <h1>User Management</h1>
-          <div className="subtitle">Manage system users and their access</div>
+          <div className={styles['subtitle']}>Manage system users and their access</div>
         </div>
 
-        <div className="controls">
-          <div className="search-container">
-            <FaSearch className="search-icon" />
+        <div className={styles['controls']}>
+          <div className={styles['search-container']}>
+            <FaSearch className={styles['search-icon']} />
             <input
               type="text"
               placeholder="Search users..."
@@ -1456,7 +1514,7 @@ const UserManagement = () => {
 
           {activeTable === 'users' && (
             <>
-              <div className="filter-container">
+              <div className={styles['filter-container']}>
                 <label>Filter by Status:</label>
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                   <option value="All">All Status</option>
@@ -1465,7 +1523,7 @@ const UserManagement = () => {
                 </select>
               </div>
 
-              <div className="filter-container">
+              <div className={styles['filter-container']}>
                 <label>Filter by Role:</label>
                 <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                   <option value="All">All Roles</option>
@@ -1479,7 +1537,7 @@ const UserManagement = () => {
 
           {activeTable === 'admin' && (
             <>
-              <div className="filter-container">
+              <div className={styles['filter-container']}>
                 <label>Filter by Status:</label>
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                   <option value="All">All Status</option>
@@ -1492,7 +1550,7 @@ const UserManagement = () => {
 
           {activeTable === 'deactivated' && (
             <>
-              <div className="filter-container">
+              <div className={styles['filter-container']}>
                 <label>Filter by Role:</label>
                 <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                   <option value="All">All Roles</option>
@@ -1507,7 +1565,7 @@ const UserManagement = () => {
 
           {activeTable === 'tickets' && (
             <>
-              <div className="filter-container">
+              <div className={styles['filter-container']}>
                 <label>Filter by Role:</label>
                 <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                   <option value="All">All Roles</option>
@@ -1517,7 +1575,7 @@ const UserManagement = () => {
                   <option value="CNB">CNB</option>
                 </select>
               </div>
-              <div className="filter-container">
+              <div className={styles['filter-container']}>
                 <label>Filter by Status:</label>
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                   <option value="All">All Status</option>
@@ -1529,43 +1587,43 @@ const UserManagement = () => {
             </>
           )}
 
-          <button className="add-user-btn" onClick={() => setAddModalOpen(true)}>
+          <button className={styles['add-user-btn']} onClick={() => setAddModalOpen(true)}>
             <FaPlus /> Add User
           </button>
         </div>
 
-        <div className="table-container">
-          <div className="table-navigation">
+        <div className={styles['table-container']}>
+          <div className={styles['table-navigation']}>
             <div 
-              className={`nav-item ${activeTable === 'users' ? 'active' : ''}`} 
+              className={`${styles['nav-item']} ${activeTable === 'users' ? styles['active'] : ''}`} 
               onClick={() => setActiveTable('users')}
             >
-              <FaUsers className="nav-icon" />
+              <FaUsers className={styles['nav-icon']} />
               <span>Users ({users.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN').length})</span>
             </div>
             <div 
-              className={`nav-item ${activeTable === 'admin' ? 'active' : ''}`} 
+              className={`${styles['nav-item']} ${activeTable === 'admin' ? styles['active'] : ''}`} 
               onClick={() => setActiveTable('admin')}
             >
-              <FaUserShield className="nav-icon" />
+              <FaUserShield className={styles['nav-icon']} />
               <span>Admin ({users.filter(user => user.dUser_Type === 'ADMIN').length})</span>
             </div>
             <div 
-              className={`nav-item ${activeTable === 'tickets' ? 'active' : ''}`} 
+              className={`${styles['nav-item']} ${activeTable === 'tickets' ? styles['active'] : ''}`} 
               onClick={() => setActiveTable('tickets')}
             >
-              <FaTicketAlt className="nav-icon" />
+              <FaTicketAlt className={styles['nav-icon']} />
               <span>Tickets ({users.filter(user => user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED').length})</span>
             </div>
             <div 
-              className={`nav-item ${activeTable === 'deactivated' ? 'active' : ''}`} 
+              className={`${styles['nav-item']} ${activeTable === 'deactivated' ? styles['active'] : ''}`} 
               onClick={() => setActiveTable('deactivated')}
             >
-              <FaUserSlash className="nav-icon" />
+              <FaUserSlash className={styles['nav-icon']} />
               <span>Deactivated ({users.filter(user => user.dStatus === 'DEACTIVATED').length})</span>
             </div>
           </div>
-          <div className="table-wrapper">
+          <div className={styles['table-wrapper']}>
             {activeTable === 'users' && (
               getFilteredUsers().length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
@@ -1575,25 +1633,25 @@ const UserManagement = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['employee-id-col']} onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
                         Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['name-col']} onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
                         Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['email-col']} onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
                         Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['role-col']} onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
                         Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['status-col']} onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
                         Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="actions-col">
-                        <div className="actions-header">
+                      <th className={styles['actions-col']}>
+                        <div className={styles['actions-header']}>
                           Actions
-                          <div className="select-all-container">
+                          <div className={styles['select-all-container']}>
                             <input
                               type="checkbox"
                               checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
@@ -1611,7 +1669,7 @@ const UserManagement = () => {
                                 }
                               }}
                             />
-                            <span className="selected-count">
+                            <span className={styles['selected-count']}>
                               {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
                             </span>
                           </div>
@@ -1691,8 +1749,8 @@ const UserManagement = () => {
                         <td>{user.dUser_Type}</td>
                         <td>{user.dStatus}</td>
                         <td>
-                          <div className="action-buttons">
-                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                          <div className={styles['action-buttons']}>
+                            <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
                               <FaEdit size={12} /> Edit
                             </button>
                             <button
@@ -1701,7 +1759,7 @@ const UserManagement = () => {
                                 setSelectedUsers([String(user.dUser_ID)]);
                                 setShowDeleteModal(true);
                               }}
-                              className="delete-btn"
+                              className={styles['delete-btn']}
                             >
                               <FaTrash size={12} /> Delete
                             </button>
@@ -1741,25 +1799,25 @@ const UserManagement = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['employee-id-col']} onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
                         Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['name-col']} onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
                         Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['email-col']} onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
                         Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['role-col']} onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
                         Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['status-col']} onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
                         Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="actions-col">
-                        <div className="actions-header">
+                      <th className={styles['actions-col']}>
+                        <div className={styles['actions-header']}>
                           Actions
-                          <div className="select-all-container">
+                          <div className={styles['select-all-container']}>
                             <input
                               type="checkbox"
                               checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
@@ -1777,7 +1835,7 @@ const UserManagement = () => {
                                 }
                               }}
                             />
-                            <span className="selected-count">
+                            <span className={styles['selected-count']}>
                               {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
                             </span>
                           </div>
@@ -1857,8 +1915,8 @@ const UserManagement = () => {
                         <td>{user.dUser_Type}</td>
                         <td>{user.dStatus}</td>
                         <td>
-                          <div className="action-buttons">
-                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                          <div className={styles['action-buttons']}>
+                            <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
                               <FaEdit size={12} /> Edit
                             </button>
                             <button
@@ -1867,7 +1925,7 @@ const UserManagement = () => {
                                 setSelectedUsers([user.dUser_ID]);
                                 setShowDeleteModal(true);
                               }}
-                              className="delete-btn"
+                              className={styles['delete-btn']}
                             >
                               <FaTrash size={12} /> Delete
                             </button>
@@ -1907,25 +1965,25 @@ const UserManagement = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['employee-id-col']} onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
                         Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['name-col']} onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
                         Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['email-col']} onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
                         Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['role-col']} onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
                         Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['status-col']} onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
                         Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="actions-col">
-                        <div className="actions-header">
+                      <th className={styles['actions-col']}>
+                        <div className={styles['actions-header']}>
                           Actions
-                          <div className="select-all-container">
+                          <div className={styles['select-all-container']}>
                             <input
                               type="checkbox"
                               checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
@@ -1943,7 +2001,7 @@ const UserManagement = () => {
                                 }
                               }}
                             />
-                            <span className="selected-count">
+                            <span className={styles['selected-count']}>
                               {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
                             </span>
         </div>
@@ -2023,8 +2081,8 @@ const UserManagement = () => {
                         <td>{user.dUser_Type}</td>
                         <td>{user.dStatus}</td>
                         <td>
-                          <div className="action-buttons">
-                            <button onClick={() => handleEdit(user)} className="edit-btn">
+                          <div className={styles['action-buttons']}>
+                            <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
                               <FaEdit size={12} /> Edit
                             </button>
                 <button
@@ -2033,7 +2091,7 @@ const UserManagement = () => {
                                 setSelectedUsers([user.dUser_ID]);
                                 setShowDeleteModal(true);
                               }}
-                              className="delete-btn"
+                              className={styles['delete-btn']}
                 >
                               <FaTrash size={12} /> Delete
                 </button>
@@ -2073,25 +2131,25 @@ const UserManagement = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th className="employee-id-col" onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['employee-id-col']} onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
                         Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="name-col" onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['name-col']} onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
                         Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="email-col" onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['email-col']} onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
                         Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="role-col" onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['role-col']} onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
                         Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="status-col" onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                      <th className={styles['status-col']} onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
                         Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
                       </th>
-                      <th className="actions-col">
-                        <div className="actions-header">
+                      <th className={styles['actions-col']}>
+                        <div className={styles['actions-header']}>
                           Actions
-                          <div className="select-all-container">
+                          <div className={styles['select-all-container']}>
                             <input
                               type="checkbox"
                               checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
@@ -2109,7 +2167,7 @@ const UserManagement = () => {
                                 }
                               }}
                             />
-                            <span className="selected-count">
+                            <span className={styles['selected-count']}>
                               {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
                             </span>
                           </div>
@@ -2189,14 +2247,14 @@ const UserManagement = () => {
                         <td>{user.dUser_Type}</td>
                         <td>{user.dStatus}</td>
                         <td>
-                          <div className="action-buttons">
+                          <div className={styles['action-buttons']}>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedUsers([user.dUser_ID]);
                                 setShowRestoreModal(true);
                               }}
-                              className="restore-btn"
+                              className={styles['restore-btn']}
                               style={{ backgroundColor: '#0a7', color: 'white' }}
                             >
                               <FaKey size={12} /> Restore
@@ -2231,9 +2289,9 @@ const UserManagement = () => {
           </div>
         </div>
         {selectedUsers.length > 0 && activeTable !== 'deactivated' && (
-          <div className="delete-all-container">
+          <div className={styles['delete-all-container']}>
             <button
-              className="delete-all-btn"
+              className={styles['delete-all-btn']}
               onClick={() => {
                 setShowDeleteModal(true);
               }}
@@ -2244,9 +2302,9 @@ const UserManagement = () => {
         )}
 
         {selectedUsers.length > 0 && activeTable === 'deactivated' && (
-          <div className="delete-all-container">
+          <div className={styles['delete-all-container']}>
             <button
-              className="restore-all-btn"
+              className={styles['restore-all-btn']}
               onClick={() => {
                 setShowRestoreModal(true);
               }}
@@ -2261,9 +2319,9 @@ const UserManagement = () => {
       {/* Add User Modal */}
       {addModalOpen && (
         <div className="modal-overlay">
-          <div className="modal add-user-modal" style={{ width: '900px' }}>
+          <div className="add-user-modal">
             <div className="modal-header">
-              <h2>Add User</h2>
+              <h2>Add New User</h2>
               <button onClick={() => {
                 setAddModalOpen(false);
                 setShowResetDropdown(false);
@@ -2286,8 +2344,6 @@ const UserManagement = () => {
               </button>
             </div>
 
-            <p className="modal-subtitle">Enter the details for the new user.</p>
-
             <div className="upload-method-tabs">
               <button
                 className={`tab-btn ${uploadMethod === 'individual' ? 'active' : ''}`}
@@ -2302,6 +2358,9 @@ const UserManagement = () => {
                 Bulk Upload
               </button>
             </div>
+            {uploadMethod === 'individual' && (
+              <div className="modal-subtitle subtitle-aligned">Enter the details for the new user.</div>
+            )}
 
             {uploadMethod === 'individual' ? (
               <div className="individual-upload-form">
@@ -2342,7 +2401,15 @@ const UserManagement = () => {
                           .replace(/([@\-_. ,])\1+/g, '$1')
                           .replace(/^[@\-_. ,]+/, '');
                       }}
-                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, email: undefined }))}
+                      onChange={e => {
+                        let value = e.target.value
+                          .replace(/[^A-Za-z0-9@\-_. ,]/g, '') // Only allowed chars
+                          .replace(/\s+/g, '') // Remove all whitespace
+                          .replace(/([@\-_. ,])\1+/g, '$1') // No consecutive special chars
+                          .replace(/^[@\-_. ,]+/, ''); // No special char as first char
+                        emailRef.current.value = value;
+                        setIndividualAddErrors(errors => ({ ...errors, email: undefined }));
+                      }}
                       onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
                     />
                     {individualAddErrors.email && (
@@ -2361,12 +2428,24 @@ const UserManagement = () => {
                       required
                       maxLength={50}
                       onInput={e => {
-                        // Remove consecutive special chars and special char as first char
+                        // Bulk-style sanitization: allow spaces and - _ . , (no @), collapse multiple spaces, prevent consecutive special chars, no special char at start, trim
                         e.target.value = e.target.value
-                          .replace(/([@\-_. ,])\1+/g, '$1')
-                          .replace(/^[@\-_. ,]+/, '');
+                          .replace(/[^A-Za-z0-9\-_. ,]/g, '') // Only allowed chars (no @)
+                          .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
+                          .replace(/ +/g, ' ') // Collapse multiple spaces
+                          .replace(/^[\-_. ,]+/, '') // No special char at start
+                          .trim();
                       }}
-                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, name: undefined }))}
+                      onChange={e => {
+                        let value = e.target.value
+                          .replace(/[^A-Za-z0-9\-_. ,]/g, '')
+                          .replace(/([\-_. ,])\1+/g, '$1')
+                          .replace(/ +/g, ' ')
+                          .replace(/^[\-_. ,]+/, '')
+                          .trim();
+                        nameRef.current.value = value;
+                        setIndividualAddErrors(errors => ({ ...errors, name: undefined }));
+                      }}
                       onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
                     />
                     {individualAddErrors.name && (
@@ -2433,7 +2512,7 @@ const UserManagement = () => {
                         <option value="CNB">CNB</option>
                       </select>
                     </div>
-                    <div className="individual-preview" style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+                    <div className={styles['individual-preview']} style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
                       <table>
                         <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
                           <tr>
@@ -2460,15 +2539,15 @@ const UserManagement = () => {
                               <td>{user.email}</td>
                               <td>{user.role}</td>
                               <td>
-                                <button className="remove-btn" onClick={() => handleRemoveFromPreview(user.employeeId)}><FaTimes /></button>
+                                <button className={styles['remove-btn']} onClick={() => handleRemoveFromPreview(user.employeeId)}><FaTimes /></button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  <div className="add-user-actions" style={{ marginTop: 10 }}>
-                    <button onClick={() => setShowIndividualConfirmModal(true)} className="save-btn" disabled={individualPreview.length === 0}>
+                  <div className={styles['add-user-actions']} style={{ marginTop: 10 }}>
+                    <button onClick={() => setShowIndividualConfirmModal(true)} className={styles['save-btn']} disabled={individualPreview.length === 0}>
                       {individualPreview.length <= 1 ? 'Add User' : `Add Users (${individualPreview.length})`}
                     </button>
                   </div>
@@ -2476,23 +2555,23 @@ const UserManagement = () => {
                 )}
               </div>
             ) : (
-              <div className="bulk-upload-form">
-                <div className="bulk-upload-actions">
+              <div className={styles['bulk-upload-form']}>
+                <div className={styles['bulk-upload-actions']}>
                   <h3><FaUpload /> Upload Users</h3>
-                  <button onClick={generateTemplate} className="generate-template-btn">
+                  <button onClick={generateTemplate} className={styles['generate-template-btn']}>
                     <FaFileDownload /> Generate Template
                   </button>
                 </div>
 
                 {!file && (
                   <div
-                    className={`drop-zone ${dragActive ? 'active' : ''}`}
+                    className={`${styles['drop-zone']} ${dragActive ? styles['active'] : ''}`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
                   >
-                    <div className="drop-zone-content">
+                    <div className={styles['drop-zone-content']}>
                       <p>Drag and drop your file here or</p>
                       <p>CSV or Excel files only (max 5MB)</p>
                       <input
@@ -2502,7 +2581,7 @@ const UserManagement = () => {
                         onChange={handleFileChange}
                         style={{ display: 'none' }}
                       />
-                      <label htmlFor="file-upload" className="browse-files-btn">
+                      <label htmlFor="file-upload" className={styles['browse-files-btn']}>
                         Browse Files
                       </label>
                     </div>
@@ -2510,9 +2589,9 @@ const UserManagement = () => {
                 )}
 
                 {file && (
-                  <div className="file-preview" style={{ marginTop: 0 }}>
+                  <div className={styles['file-preview']} style={{ marginTop: 0 }}>
                     <span>📄 {file.name}</span>
-                    <button onClick={removeFile} className="remove-file-btn">
+                    <button onClick={removeFile} className={styles['remove-file-btn']}>
                       <FaTimesCircle />
                     </button>
                   </div>
@@ -2547,17 +2626,17 @@ const UserManagement = () => {
                         <option value="CNB">CNB</option>
                       </select>
                     </div>
-                    <div className="upload-preview">
-                      <div className="preview-tabs">
+                    <div className={styles['upload-preview']}>
+                      <div className={styles['preview-tabs']}>
                         <button
-                          className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
+                          className={`${styles['preview-tab']} ${previewTab === 'valid' ? styles['active'] : ''}`}
                           onClick={() => setPreviewTab('valid')}
                           disabled={bulkUsers.length === 0}
                         >
                           Valid ({bulkUsers.length})
                         </button>
                         <button
-                          className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
+                          className={`${styles['preview-tab']} ${previewTab === 'invalid' ? styles['active'] : ''}`}
                           onClick={() => setPreviewTab('invalid')}
                           disabled={invalidUsers.length === 0}
                         >
@@ -2565,11 +2644,11 @@ const UserManagement = () => {
                         </button>
                       </div>
 
-                      <div className="preview-content">
+                      <div className={styles['preview-content']}>
                         {previewTab === 'valid' && bulkUsers.length > 0 && (
                           <>
                             {/* Controls above the table, only shown if there are users */}
-                            <div className="valid-users-table">
+                            <div className={styles['valid-users-table']}>
                               <table>
                                 <thead>
                                   <tr>
@@ -2598,7 +2677,7 @@ const UserManagement = () => {
                                       <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                           <button
-                                            className="remove-btn"
+                                            className={styles['remove-btn']}
                                             onClick={() => setBulkUsers(bulkUsers.filter((_, i) => i !== index))}
                                           >
                                             <FaTimes />
@@ -2614,7 +2693,7 @@ const UserManagement = () => {
                         )}
 
                         {previewTab === 'invalid' && invalidUsers.length > 0 && (
-                          <div className="invalid-users-table">
+                          <div className={styles['invalid-users-table']}>
                             <table>
                               <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
                                 <tr>
@@ -2628,7 +2707,7 @@ const UserManagement = () => {
                               <tbody>
                                 {invalidUsers.map((user, index) => (
                                   <tr key={`invalid-${index}`}>
-                                    <td className="reason-cell" title={user.reasons && user.reasons.join(', ')}>
+                                    <td className={styles['reason-cell']} title={user.reasons && user.reasons.join(', ')}>
                                       {user.reasons && user.reasons.join(', ')}
                                     </td>
                                     <td title={user.employeeId}>{user.employeeId}</td>
@@ -2646,8 +2725,8 @@ const UserManagement = () => {
                   </>
                 )}
 
-                <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className="cancel-btn" onClick={() => {
+                <div className={styles['modal-actions']} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className={styles['cancel-btn']} onClick={() => {
                     setAddModalOpen(false);
                     setShowResetDropdown(false);
                     setResetConfirmText('');
@@ -2667,7 +2746,7 @@ const UserManagement = () => {
                   }}>Cancel</button>
                   <button
                     onClick={() => setShowBulkConfirmModal(true)}
-                    className="save-btn"
+                    className={styles['save-btn']}
                     disabled={bulkUsers.length === 0}
                   >
                     {bulkUsers.length === 1
@@ -2688,15 +2767,13 @@ const UserManagement = () => {
         <div className="modal-overlay">
           <div className="modal delete-confirmation-modal">
             <div className="modal-header">
-              <h2>
-              <FaTrash /> Confirm Deletion
-              </h2>
+              <h2><FaTrash /> Confirm Deletion</h2>
             </div>
             <div className="modal-content">
-            <p>
-              You are about to <strong>DELETE</strong> {selectedUsers.length} user(s).
-            </p>
-            {selectedUsers.length > 0 && (
+              <p>
+                You are about to <strong>DELETE</strong> {selectedUsers.length} user(s).
+              </p>
+              {selectedUsers.length > 0 && (
                 <div className="user-list">
                   {users
                     .filter(user => selectedUsers.includes(String(user.dUser_ID)))
@@ -2708,24 +2785,23 @@ const UserManagement = () => {
                         </div>
                       </div>
                     ))}
-              </div>
-            )}
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value.slice(0, 7))}
-              placeholder="Type DELETE to confirm"
-              className="delete-confirm-input"
-              maxLength={7}
-              onInput={e => {
-                // Allow both cases for input
-                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
-              }}
-              ref={deleteConfirmInputRef}
-              onKeyDown={e => { if (e.key === 'Enter') document.getElementById('delete-permanently-btn')?.click(); }}
-            />
+                </div>
+              )}
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value.slice(0, 7))}
+                placeholder="Type DELETE to confirm"
+                className="delete-confirm-input"
+                maxLength={7}
+                onInput={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                }}
+                ref={deleteConfirmInputRef}
+                onKeyDown={e => { if (e.key === 'Enter') document.getElementById('delete-permanently-btn')?.click(); }}
+              />
             </div>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
               <button
                 className="cancel-btn"
                 onClick={() => {
@@ -2738,7 +2814,6 @@ const UserManagement = () => {
               <button
                 className="delete-btn"
                 id="delete-permanently-btn"
-                // Require uppercase for confirmation
                 disabled={deleteConfirmText.trim() !== 'DELETE'}
                 onClick={() => {
                   setLastDeleteCount(selectedUsers.length);
@@ -2752,21 +2827,142 @@ const UserManagement = () => {
         </div>
       )}
 
+      {/* Delete Result Modal */}
+      {showDeleteResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{deleteResultSuccess ? 'Deactivation Successful' : 'Deactivation Failed'}</h2>
+            </div>
+            <p>{
+              deleteResultSuccess
+                ? (lastDeleteCount === 1
+                    ? 'User deactivated successfully!'
+                    : `Users (${lastDeleteCount}) deactivated successfully!`)
+                : deleteResultMessage
+            }</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" ref={deleteResultOkBtnRef} onClick={() => setShowDeleteResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {showRestoreModal && (
+        <div className="modal-overlay">
+          <div className="modal restore-confirmation-modal">
+            <div className="modal-header">
+              <h2 style={{ color: '#0a7', display: 'flex', alignItems: 'center', gap: 8 }}><FaKey style={{ color: '#0a7' }} /> Confirm Restoration</h2>
+            </div>
+            <div className="modal-content">
+              <p>
+                You are about to restore {selectedUsers.length} user(s). This will change their status to FIRST-TIME.
+              </p>
+              {selectedUsers.length > 0 && (
+                <div className="user-list">
+                  {users
+                    .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                    .map(user => (
+                      <div key={user.dUser_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">{user.dName}</div>
+                          <div className="user-email">{user.dEmail}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              <input
+                type="text"
+                value={restoreConfirmText}
+                onChange={(e) => setRestoreConfirmText(e.target.value.slice(0, 7))}
+                placeholder="Type RESTORE to confirm"
+                className="delete-confirm-input"
+                maxLength={7}
+                onInput={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                }}
+                ref={restoreConfirmInputRef}
+                onKeyDown={e => { if (e.key === 'Enter') document.getElementById('restore-btn')?.click(); }}
+              />
+            </div>
+            <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowRestoreModal(false);
+                  setRestoreConfirmText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="restore-btn"
+                id="restore-btn"
+                disabled={restoreConfirmText.trim() !== 'RESTORE'}
+                onClick={handleRestoreUsers}
+                style={{ backgroundColor: '#0a7', color: 'white' }}
+              >
+                <FaKey /> Restore Users
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Result Modal */}
+      {showRestoreResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{restoreResultSuccess ? 'Restoration Successful' : 'Restoration Failed'}</h2>
+            </div>
+            <p>{restoreResultMessage}</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" ref={restoreResultOkBtnRef} onClick={() => setShowRestoreResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Changes Modal */}
+      {showNoChangesModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>No Changes</h2>
+            </div>
+            <p>No changes were made.</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" ref={noChangesOkBtnRef} onClick={() => setShowNoChangesModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showActionErrorModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>Action Failed</h2>
+            </div>
+            <p style={{ color: '#b00', fontWeight: 500 }}>{actionErrorMessage}</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" ref={actionErrorOkBtnRef} onClick={() => setShowActionErrorModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit User Modal */}
       {editModalOpen && currentUser && (
         <div className="modal-overlay">
-          <div className="modal edit-user-modal" style={{ position: 'relative' }}>
-            <button
-              onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); setEmployeeIdEditable(false); }}
-              className="close-btn"
-              style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}
-            >
-              <FaTimes />
-            </button>
+          <div className="edit-user-modal">
             <div className="modal-header">
               <h2 style={{ margin: 0 }}>Edit User</h2>
             </div>
-            <div className="edit-user-flex-row" style={{ display: 'flex', gap: 32 }}>
+            <div className="edit-user-flex-row">
               {/* Left column: Employee ID, Email, Name, Role, Status */}
               <div style={{ flex: 1, minWidth: 260 }}>
                 <div className="form-group" style={{ marginBottom: 16 }}>
@@ -2866,11 +3062,11 @@ const UserManagement = () => {
                     type="text"
                     name="name"
                     value={currentUser.dName}
-                    onChange={(e) => {
+                    onChange={e => {
                       let value = e.target.value
-                        .replace(/[^A-Za-z0-9@\-_. ,]/g, '') // Only allowed chars
-                        .replace(/  +/g, ' ') // No double spaces
-                        .replace(/^ +/, ''); // No leading space
+                        .replace(/[^A-Za-z0-9\-_. ,]/g, '') // Only allowed chars (no @)
+                        .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
+                        .replace(/^[\-_. ,]+/, ''); // No special char as first char
                       setCurrentUser({...currentUser, dName: value});
                       if (editUserErrors.dName) {
                         setEditUserErrors(prev => ({ ...prev, dName: undefined }));
@@ -3079,7 +3275,7 @@ const UserManagement = () => {
       {/* Bulk upload confirmation modal */}
       {showBulkConfirmModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
+          <div className="modal">
             <div className="modal-header">
               <h2>Confirm Bulk Upload</h2>
               <button onClick={() => setShowBulkConfirmModal(false)} className="close-btn">
@@ -3108,7 +3304,7 @@ const UserManagement = () => {
       {/* Bulk upload result modal */}
       {showBulkResultModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
+          <div className="modal">
             <div className="modal-header">
               <h2>{bulkResultSuccess ? 'Upload Successful' : 'Upload Failed'}</h2>
             </div>
@@ -3126,21 +3322,16 @@ const UserManagement = () => {
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>Confirm Edit</h2>
-              <button onClick={() => setShowEditConfirmModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
             </div>
             <p>Are you sure you want to save changes to this user?</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => { setShowEditConfirmModal(false); setIndividualAddError(''); }}>No</button>
+              <button className="cancel-btn" onClick={() => setShowEditConfirmModal(false)}>No</button>
               <button
                 className="save-btn"
-                ref={editConfirmYesBtnRef}
                 onClick={async () => {
                   setShowEditConfirmModal(false);
                   await handleSave(pendingEditUser);
                 }}
-                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
               >
                 Yes
               </button>
@@ -3159,225 +3350,6 @@ const UserManagement = () => {
             <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="save-btn" ref={editResultOkBtnRef} onClick={() => setShowEditResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation modal */}
-      {showIndividualConfirmModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
-            <div className="modal-header">
-              <h2>Confirm Add User</h2>
-              <button onClick={() => setShowIndividualConfirmModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <p>Are you sure you want to add {individualPreview.length} user(s)?</p>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => { setShowIndividualConfirmModal(false); setIndividualAddError(''); }}>No</button>
-              <button
-                className="save-btn"
-                ref={individualConfirmYesBtnRef}
-                onClick={async () => {
-                  setLastAddCount(individualPreview.length);
-                  setShowIndividualConfirmModal(false);
-                  try {
-                    const response = await fetch('http://localhost:3000/api/users/bulk', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        users: individualPreview.map(user => ({
-                          ...user,
-                          password: 'defaultPass123',
-                          createdBy: 'admin'
-                        }))
-                      })
-                    });
-                    let result = null;
-                    try {
-                      result = await response.json();
-                    } catch (e) {}
-                    if (!response.ok) {
-                      setShowIndividualResultModal(true);
-                      setIndividualResultSuccess(false);
-                      setIndividualResultMessage('Add user error: ' + (result && result.message ? result.message : 'Failed to add users'));
-                      // Also show unified error modal
-                      setActionErrorMessage('Add user error: ' + (result && result.message ? result.message : 'Failed to add users'));
-                      setShowActionErrorModal(true);
-                      return;
-                    }
-                    setShowIndividualResultModal(true);
-                    setIndividualResultSuccess(true);
-                    setIndividualResultMessage('Users added successfully!');
-                    setIndividualPreview([]);
-                    // Do NOT call fetchUsers here. Let it be handled by WebSocket.
-                  } catch (error) {
-                    setShowIndividualResultModal(true);
-                    setIndividualResultSuccess(false);
-                    setIndividualResultMessage('Add user error: ' + (error.message || 'Unknown error'));
-                  }
-                }}
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Result modal */}
-      {showIndividualResultModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
-            <div className="modal-header">
-              <h2>{individualResultSuccess ? 'Add Successful' : 'Add Failed'}</h2>
-            </div>
-            <p>{
-              individualResultSuccess
-                ? (lastAddCount === 1
-                    ? 'User added successfully!'
-                    : `Users (${lastAddCount}) added successfully!`)
-                : individualResultMessage
-            }</p>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" ref={individualResultOkBtnRef} onClick={() => setShowIndividualResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Result Modal */}
-      {showDeleteResultModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
-            <div className="modal-header">
-              <h2>{deleteResultSuccess ? 'Deactivation Successful' : 'Deactivation Failed'}</h2>
-            </div>
-            <p>{
-              deleteResultSuccess
-                ? (lastDeleteCount === 1
-                    ? 'User deactivated successfully!'
-                    : `Users (${lastDeleteCount}) deactivated successfully!`)
-                : deleteResultMessage
-            }</p>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" ref={deleteResultOkBtnRef} onClick={() => setShowDeleteResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Restore Confirmation Modal */}
-      {showRestoreModal && (
-        <div className="modal-overlay">
-          <div className="modal delete-confirmation-modal">
-            <div className="modal-header">
-              <h2 style={{ color: '#0a7', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FaKey style={{ color: '#0a7' }} /> Confirm Restoration
-              </h2>
-            </div>
-            <div className="modal-content">
-              <p>
-                You are about to restore {selectedUsers.length} user(s).
-                This will change their status to FIRST-TIME.
-              </p>
-              {selectedUsers.length > 0 && (
-                <div className="user-list">
-                  {users
-                    .filter(user => selectedUsers.includes(String(user.dUser_ID)))
-                    .map(user => (
-                      <div key={user.dUser_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">{user.dName}</div>
-                          <div className="user-email">{user.dEmail}</div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-              <input
-                type="text"
-                value={restoreConfirmText}
-                onChange={(e) => setRestoreConfirmText(e.target.value.slice(0, 7))}
-                placeholder="Type RESTORE to confirm"
-                className="delete-confirm-input"
-                maxLength={7}
-                onInput={e => {
-                  // Allow both cases for input
-                  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
-                }}
-                ref={restoreConfirmInputRef}
-                onKeyDown={e => { if (e.key === 'Enter') document.getElementById('restore-btn')?.click(); }}
-              />
-            </div>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                className="cancel-btn"
-                onClick={() => {
-                  setShowRestoreModal(false);
-                  setRestoreConfirmText('');
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="restore-btn"
-                id="restore-btn"
-                // Require uppercase for confirmation
-                disabled={restoreConfirmText !== 'RESTORE'}
-                onClick={handleRestoreUsers}
-                style={{ backgroundColor: '#0a7', color: 'white' }}
-                ref={confirmFirstInputRef}
-                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
-              >
-                <FaKey /> Restore Users
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Restore Result Modal */}
-      {showRestoreResultModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
-            <div className="modal-header">
-              <h2>{restoreResultSuccess ? 'Restoration Successful' : 'Restoration Failed'}</h2>
-            </div>
-            <p>{restoreResultMessage}</p>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" ref={restoreResultOkBtnRef} onClick={() => setShowRestoreResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* No Changes Modal */}
-      {showNoChangesModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
-            <div className="modal-header">
-              <h2>No Changes</h2>
-            </div>
-            <p>No changes were made.</p>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" ref={noChangesOkBtnRef} onClick={() => setShowNoChangesModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showActionErrorModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '400px' }}>
-            <div className="modal-header">
-              <h2>Action Failed</h2>
-            </div>
-            <p style={{ color: '#b00', fontWeight: 500 }}>{actionErrorMessage}</p>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" ref={actionErrorOkBtnRef} onClick={() => setShowActionErrorModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
           </div>
         </div>

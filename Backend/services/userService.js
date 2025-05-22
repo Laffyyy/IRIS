@@ -14,12 +14,15 @@ exports.insertUser = async ({ employeeId, name, email, hashedPassword, role, sta
   return result.insertId;
 };
 
-exports.findExistingEmployeeIdsEmailsOrNames = async (employeeIds, emails) => {
+exports.findExistingEmployeeIdsEmailsOrNames = async (employeeIds, emails, excludeLoginId) => {
   if (employeeIds.length === 0 && emails.length === 0) return [];
-  const [rows] = await pool.query(
-    `SELECT dUser_ID, dEmail FROM iris.tbl_login WHERE dUser_ID IN (?) OR dEmail IN (?)`,
-    [employeeIds, emails]
-  );
+  let query = `SELECT dUser_ID, dEmail FROM iris.tbl_login WHERE (dUser_ID IN (?) OR dEmail IN (?))`;
+  const params = [employeeIds, emails];
+  if (excludeLoginId) {
+    query += ' AND dLogin_ID != ?';
+    params.push(excludeLoginId);
+  }
+  const [rows] = await pool.query(query, params);
   return rows;
 };
 
@@ -137,12 +140,15 @@ exports.updateUserSecurityQuestions = async (loginId, questions) => {
   return result;
 };
 
-exports.findExistingAdminEmployeeIdsEmails = async (employeeIds, emails) => {
+exports.findExistingAdminEmployeeIdsEmails = async (employeeIds, emails, excludeLoginId) => {
   if ((!employeeIds || employeeIds.length === 0) && (!emails || emails.length === 0)) return [];
-  const [rows] = await pool.query(
-    `SELECT dUser_ID, dEmail FROM iris.tbl_admin WHERE (dUser_ID IN (?) OR dEmail IN (?))`,
-    [employeeIds.length ? employeeIds : [''], emails.length ? emails : ['']]
-  );
+  let query = `SELECT dUser_ID, dEmail FROM iris.tbl_admin WHERE (dUser_ID IN (?) OR dEmail IN (?))`;
+  const params = [employeeIds.length ? employeeIds : [''], emails.length ? emails : ['']];
+  if (excludeLoginId) {
+    query += ' AND dAdmin_ID != ?';
+    params.push(excludeLoginId);
+  }
+  const [rows] = await pool.query(query, params);
   return rows;
 };
 

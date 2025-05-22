@@ -97,19 +97,9 @@ select:focus {
 .form-buttons {
   margin-top: 30px;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 15px;
   width: 100%;
-}
-
-.cancel-btn,
-.save-btn {
-  flex: 1;
-  padding: 12px 0;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
 }
 
 .cancel-btn {
@@ -141,6 +131,11 @@ select:focus {
 
   h2 {
     font-size: 24px;
+  }
+
+  .form-buttons {
+    flex-direction: row;
+    gap: 20px;
   }
 }
 

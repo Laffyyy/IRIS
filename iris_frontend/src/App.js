@@ -14,8 +14,8 @@ import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
 import ProtectedRoute from './utilities/ProtectedRoute';
+import InactivityHandler from './components/InactivityHandler';
 import './App.css';
-import SiteManagement from './pages/admin/SiteManagement';
 
 // Layout for admin section
 function AdminLayout() {
@@ -70,57 +70,74 @@ function App() {
     <Router>
       <Routes>
         {/* Public/standalone routes */}
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/faqs" element={<div>FAQs Page</div>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/otp" element={<Otp />} />
+        <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/security-questions" element={<SecurityQuestions />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
 
-        {/* Secured/sectioned routes */}
+        {/* Protected routes with layouts */}
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminLayout />
-            </ProtectedRoute>
+            <InactivityHandler>
+              {/* <ProtectedRoute allowedRoles={['ADMIN']}> */}
+                <AdminLayout />
+              {/* </ProtectedRoute> */}
+            </InactivityHandler>
           }
         >
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="apps" element={<AppManagement />} />
           <Route path="clients" element={<ClientManagement />} />
           <Route path="sites" element={<SiteManagement />} />
-          {/* Add more admin sub-pages here */}
+          <Route path="kpis" element={<KPIManagement />} />
+          <Route path="logs" element={<AdminLogs />} />
         </Route>
+
         <Route
           path="/hr"
           element={
-            <ProtectedRoute allowedRoles={['HR', 'admin']}>
-              <HrLayout />
-            </ProtectedRoute>
+            <InactivityHandler>
+              {/* <ProtectedRoute allowedRoles={['HR', 'ADMIN']}> */}
+                <HrLayout />
+              {/* </ProtectedRoute> */}
+            </InactivityHandler>
           }
         >
-          <Route index element={<div>HR Page</div>} />
-          {/* Add more HR sub-pages here */}
+          <Route index element={<Dashboard />} />
         </Route>
+
         <Route
           path="/reports"
           element={
-            <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
-              <ReportsLayout />
-            </ProtectedRoute>
+            <InactivityHandler>
+              {/* <ProtectedRoute allowedRoles={['REPORTS', 'ADMIN']}> */}
+                <ReportsLayout />
+              {/* </ProtectedRoute> */}
+            </InactivityHandler>
           }
         >
-          <Route index element={<div>Reports Page</div>} />
-          {/* Add more Reports sub-pages here */}
+          <Route index element={<Dashboard />} />
         </Route>
+
         <Route
           path="/compensation"
           element={
-            <ProtectedRoute allowedRoles={['CNB', 'admin']}>
-              <CompensationLayout />
-            </ProtectedRoute>
+            <InactivityHandler>
+              {/* <ProtectedRoute allowedRoles={['CNB', 'ADMIN']}> */}
+                <CompensationLayout />
+              {/* </ProtectedRoute> */}
+            </InactivityHandler>
           }
         >
-          <Route index element={<div>C&B Page</div>} />
-          {/* Add more Compensation sub-pages here */}
+          <Route index element={<Dashboard />} />
         </Route>
+
+        {/* Redirect root to login if not authenticated */}
+        <Route path="/" element={<Login />} />
       </Routes>
     </Router>
   );

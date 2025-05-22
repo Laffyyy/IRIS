@@ -4,7 +4,7 @@
   position: relative;
 }
 
-.white-card {
+.admin-logs-white-card {
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -18,7 +18,7 @@
   font-weight: 600;
 }
 
-.admin-logs-header .subtitle {
+.admin-logs-header .admin-logs-subtitle {
   font-size: 12px;
   color: #666;
   margin-bottom: 16px;
@@ -26,7 +26,7 @@
 }
 
 /* Controls Section */
-.controls {
+.admin-logs-controls {
   display: flex;
   gap: 15px;
   margin-bottom: 16px;
@@ -34,13 +34,13 @@
   align-items: center;
 }
 
-.search-container {
+.admin-logs-search-container {
   position: relative;
   flex: 1;
   min-width: 200px;
 }
 
-.search-container input {
+.admin-logs-search-container input {
   width: 100%;
   padding: 8px 8px 8px 30px;
   border: 1px solid #ddd;
@@ -48,7 +48,7 @@
   font-size: 13px;
 }
 
-.search-icon {
+.admin-logs-search-icon {
   position: absolute;
   left: 10px;
   top: 50%;
@@ -57,19 +57,19 @@
   font-size: 12px;
 }
 
-.filter-container {
+.admin-logs-filter-container {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.filter-container label {
+.admin-logs-filter-container label {
   font-size: 12px;
   white-space: nowrap;
   text-align: left;
 }
 
-.filter-container select {
+.admin-logs-filter-container select {
   padding: 8px;
   font-size: 13px;
   border: 1px solid #ddd;
@@ -77,18 +77,18 @@
 }
 
 /* Date Picker Styles */
-.date-picker-wrapper {
+.admin-logs-date-picker-wrapper {
   display: flex;
   align-items: center;
 }
 
-.date-input-container {
+.admin-logs-date-input-container {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.date-icon {
+.admin-logs-date-icon {
   position: absolute;
   left: 10px;
   color: #999;
@@ -97,7 +97,7 @@
   z-index: 1;
 }
 
-.date-picker-input {
+.admin-logs-date-picker-input {
   padding: 8px 30px 8px 30px !important;
   border: 1px solid #ddd !important;
   border-radius: 4px !important;
@@ -107,7 +107,7 @@
   cursor: pointer !important;
 }
 
-.date-picker-input:focus {
+.admin-logs-date-picker-input:focus {
   outline: none !important;
   border-color: #004D8D !important;
   box-shadow: 0 0 0 2px rgba(0, 77, 141, 0.1) !important;
@@ -179,7 +179,7 @@
 }
 
 /* Table Styles */
-.table-container {
+.admin-logs-table-container {
   overflow-x: auto;
   margin-top: 12px;
   border: 1px solid #eee;
@@ -189,7 +189,7 @@
   position: relative;
 }
 
-.table-container table {
+.admin-logs-table-container table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -197,8 +197,8 @@
   table-layout: fixed;
 }
 
-.table-container th,
-.table-container td {
+.admin-logs-table-container th,
+.admin-logs-table-container td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #e0e0e0;
@@ -210,37 +210,37 @@
 }
 
 /* Column Widths */
-.table-container th:nth-child(1),
-.table-container td:nth-child(1) {
+.admin-logs-table-container th:nth-child(1),
+.admin-logs-table-container td:nth-child(1) {
   width: 150px; /* Timestamp */
 }
 
-.table-container th:nth-child(2),
-.table-container td:nth-child(2) {
+.admin-logs-table-container th:nth-child(2),
+.admin-logs-table-container td:nth-child(2) {
   width: 120px; /* User */
 }
 
-.table-container th:nth-child(3),
-.table-container td:nth-child(3) {
+.admin-logs-table-container th:nth-child(3),
+.admin-logs-table-container td:nth-child(3) {
   width: 120px; /* Action */
 }
 
-.table-container th:nth-child(4),
-.table-container td:nth-child(4) {
+.admin-logs-table-container th:nth-child(4),
+.admin-logs-table-container td:nth-child(4) {
   width: 120px; /* Module */
 }
 
-.table-container th:nth-child(5),
-.table-container td:nth-child(5) {
+.admin-logs-table-container th:nth-child(5),
+.admin-logs-table-container td:nth-child(5) {
   width: 30%; /* Details */
 }
 
-.table-container th:nth-child(6),
-.table-container td:nth-child(6) {
+.admin-logs-table-container th:nth-child(6),
+.admin-logs-table-container td:nth-child(6) {
   width: 100px; /* Status */
 }
 
-.table-container th {
+.admin-logs-table-container th {
   background-color: #f8fafc;
   font-weight: 600;
   color: #333;
@@ -249,67 +249,67 @@
   z-index: 1;
 }
 
-.table-container tr:hover {
+.admin-logs-table-container tr:hover {
   background-color: #f5f5f5;
 }
 
 /* Status Badge */
-.status-badge {
+.admin-logs-status-badge {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
 }
 
-.status-badge.success {
+.admin-logs-status-badge.success {
   background-color: #e6f4ea;
   color: #1e7e34;
 }
 
-.status-badge.error {
+.admin-logs-status-badge.error {
   background-color: #fce8e6;
   color: #d32f2f;
 }
 
-.status-badge.warning {
+.admin-logs-status-badge.warning {
   background-color: #fff3e0;
   color: #f57c00;
 }
 
 /* Scrollbar Styles */
-.table-container::-webkit-scrollbar {
+.admin-logs-table-container::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.table-container::-webkit-scrollbar-track {
+.admin-logs-table-container::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
 
-.table-container::-webkit-scrollbar-thumb {
+.admin-logs-table-container::-webkit-scrollbar-thumb {
   background: #ccc;
   border-radius: 4px;
 }
 
-.table-container::-webkit-scrollbar-thumb:hover {
+.admin-logs-table-container::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
 
 /* Responsive Styles */
 @media (max-width: 768px) {
-  .controls {
+  .admin-logs-controls {
     flex-direction: column;
   }
   
-  .search-container,
-  .filter-container,
-  .date-picker-wrapper {
+  .admin-logs-search-container,
+  .admin-logs-filter-container,
+  .admin-logs-date-picker-wrapper {
     width: 100%;
   }
   
-  .filter-container select,
-  .date-picker-input {
+  .admin-logs-filter-container select,
+  .admin-logs-date-picker-input {
     width: 100%;
   }
 } 

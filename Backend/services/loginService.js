@@ -129,7 +129,7 @@ class LoginService {
                 const token = jwt.sign(
                     { 
                         id: user.dUser_ID, 
-                        role: user.dUser_Type,
+                        roles: [user.dUser_Type.toUpperCase()],
                         sessionId: sessionId
                     },
                     process.env.JWT_SECRET,

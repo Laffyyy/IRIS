@@ -139,16 +139,16 @@ const AdminLogs = () => {
 
   return (
     <div className="admin-logs-container">
-      <div className="white-card">
+      <div className="admin-logs-white-card">
         <div className="admin-logs-header">
           <h1>Admin Logs</h1>
-          <p className="subtitle">View and manage system activity logs</p>
+          <p className="admin-logs-subtitle">View and manage system activity logs</p>
         </div>
 
         {/* Search and Filter Controls */}
-        <div className="controls">
-          <div className="search-container">
-            <FaSearch className="search-icon" />
+        <div className="admin-logs-controls">
+          <div className="admin-logs-search-container">
+            <FaSearch className="admin-logs-search-icon" />
             <input
               type="text"
               placeholder="Search logs..."
@@ -157,7 +157,7 @@ const AdminLogs = () => {
             />
           </div>
 
-          <div className="filter-container">
+          <div className="admin-logs-filter-container">
             <label>Module:</label>
             <select
               value={moduleFilter}
@@ -169,7 +169,7 @@ const AdminLogs = () => {
             </select>
           </div>
 
-          <div className="filter-container">
+          <div className="admin-logs-filter-container">
             <label>Status:</label>
             <select
               value={statusFilter}
@@ -181,9 +181,9 @@ const AdminLogs = () => {
             </select>
           </div>
 
-          <div className="date-picker-wrapper">
-            <div className="date-input-container">
-              <FaCalendarAlt className="date-icon" />
+          <div className="admin-logs-date-picker-wrapper">
+            <div className="admin-logs-date-input-container">
+              <FaCalendarAlt className="admin-logs-date-icon" />
               <DatePicker
                 selectsRange={true}
                 startDate={startDate}
@@ -191,7 +191,7 @@ const AdminLogs = () => {
                 onChange={(update) => setDateRange(update)}
                 placeholderText="Select date range"
                 dateFormat="MMM d, yyyy"
-                className="date-picker-input"
+                className="admin-logs-date-picker-input"
                 isClearable={true}
                 maxDate={new Date()}
                 renderCustomHeader={renderCustomHeader}
@@ -201,7 +201,7 @@ const AdminLogs = () => {
         </div>
 
         {/* Logs Table */}
-        <div className="table-container">
+        <div className="admin-logs-table-container">
           <table>
             <thead>
               <tr>
@@ -222,7 +222,7 @@ const AdminLogs = () => {
                   <td>{log.module}</td>
                   <td>{log.details}</td>
                   <td>
-                    <span className={`status-badge ${log.status.toLowerCase()}`}>
+                    <span className={`admin-logs-status-badge ${log.status.toLowerCase()}`}>
                       {log.status}
                     </span>
                   </td>
