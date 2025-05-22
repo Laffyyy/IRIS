@@ -1972,11 +1972,14 @@ const handleDeleteConfirm = async () => {
 
             <div className="modal-actions">
               <button
-              onClick={() => setShowBulkReactivateModal(true)}
+              onClick={() => {
+                setShowBulkReactivateModal(false);
+                setBulkReactivateConfirmation('');
+            }}
               disabled={selectedKPIs.length === 0}
               className="bulk-action-btn reactivate"
               style={{
-                backgroundColor: '#28a745',
+                backgroundColor: '#b2b6ba',
                 color: 'white',
                 border: 'none',
                 padding: '8px 16px',
@@ -1986,15 +1989,27 @@ const handleDeleteConfirm = async () => {
                 alignItems: 'center',
                 gap: '8px'
               }}
+              
             >
-              <FaRedo /> Reactivate Selected KPIs
+              Cancel
             </button>
               <button 
+                style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
                 onClick={handleBulkReactivate}
                 className="confirm-btn"
                 disabled={bulkReactivateConfirmation !== 'REACTIVATE'}
               >
-                Confirm
+                <FaRedo /> Reactivate
               </button>
             </div>
           </div>
@@ -2004,15 +2019,14 @@ const handleDeleteConfirm = async () => {
         {/* Add Validation Modal */}
         {showValidationModal && (
           <div className="modal-overlay">
-            <div className="modal validation-modal">
+            <div className={`modal validation-modal ${validationMessage.includes('reactivated') ? 'success-modal' : ''}`}>
               <div className="modal-header">
-                <h2>Validation Error</h2>
+                <h2>{validationMessage.includes('reactivated') ? 'KPI Reactivation' : 'Validation Error'}</h2>
               </div>
 
-                <div className="warning-message">
-                  <FaTimesCircle className="warning-icon" />
-                  <p>{validationMessage}</p>
-
+              <div className={`warning-message ${validationMessage.includes('reactivated') ? 'success-message' : ''}`}>
+                <FaCheck className={validationMessage.includes('reactivated') ? 'success-icon' : 'warning-icon'} />
+                <p>{validationMessage}</p>
               </div>
               <div className="modal-actions">
                 <button 

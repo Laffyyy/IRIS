@@ -1759,7 +1759,7 @@ input[type="checkbox"] {
 .success-modal {
   max-width: 300px;
   width: 450px;
-  height: 200px;
+  height: 300px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1784,8 +1784,9 @@ input[type="checkbox"] {
 .success-message {
   text-align: center;
   margin: 16px 0;
-  color: #666;
+  color: #28a745 !important;
   width: 100%;
+  background-color: white;
 }
 
 
@@ -1981,4 +1982,9 @@ input[type="checkbox"] {
 .description-container textarea {
   padding-bottom: 8px;
   width: 100%;
+}
+
+
+.success-message .success-icon {
+  color: #28a745 !important;
 }
