@@ -67,8 +67,18 @@ class ChangePasswordController {
             const { userId, newPassword, securityQuestions } = req.body;
             console.log('Processing first login for user:', userId);
           
-            const result = await this.ChangePasswordService.updateFirstTimeUser(userId, newPassword, securityQuestions);
-            res.status(200).json({ message: 'Profile updated successfully', data: result });
+            await this.ChangePasswordService.updateFirstTimeUser(userId, newPassword, securityQuestions);
+            
+            // Generate and return authentication token
+            const authData = await this.ChangePasswordService.generateAuthToken(userId);
+            
+            res.status(200).json({ 
+                message: 'Profile updated successfully', 
+                data: {
+                    token: authData.token,
+                    user: authData.user
+                } 
+            });
         } catch (error) {
             console.error('Error in firstLogin:', error);
             res.status(500).json({ 

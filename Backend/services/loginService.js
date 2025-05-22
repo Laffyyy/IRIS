@@ -13,7 +13,7 @@ class LoginService {
     }
 
     
-    async loginUser(userID, password, otp = null) {
+    async loginUser(userID, password, otp = null, options = {}) {
         console.log('LoginService.loginUser called:', { userID, hasPassword: !!password, hasOtp: !!otp });
         try {
             let user = null;
@@ -112,29 +112,6 @@ class LoginService {
                 console.log('Account has expired');
                 throw new Error('Account has expired');
             }
-
-            //PJ IF UR READING THIS, THIS PART WAS INCLUDED FOR CHANGE PASSWORD
-            // Skip OTP for password change scenario
-            const shouldBypassOtp = options.bypassOtp && options.passwordChanged;
-            
-            // Modify the OTP check:
-            if (!otp && !shouldBypassOtp) {
-                console.log('Generating OTP for user:', userID);
-                const generatedOtp = await this.otpService.generateOtp(user.dUser_ID);
-                return { message: 'OTP sent to your registered email' };
-            }
-            
-            // If we're bypassing OTP, skip the verification
-            if (!shouldBypassOtp && otp) {
-                console.log('Verifying OTP for user:', userID);
-                const otpVerificationResult = await this.otpService.verifyOtp(user.dUser_ID, otp);
-                console.log('OTP verification result:', otpVerificationResult);
-
-                if (otpVerificationResult.message.includes('expired') || otpVerificationResult.message.includes('No OTP found')) {
-                    return otpVerificationResult;
-                }
-            }
-            //PJ THIS IS WHERE THE CHANGE PASSWORD MODIFICATION ENDS
 
             // Handle OTP
             if (otp) {

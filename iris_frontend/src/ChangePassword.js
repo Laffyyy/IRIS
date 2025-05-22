@@ -176,29 +176,8 @@ const ChangePassword = () => {
         throw new Error(data.error || 'Failed to update password');
       }
   
-      // Password changed successfully, now get a token using the new credentials
-      const loginResponse = await fetch('http://localhost:3000/api/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userID: userId,
-          password: passwords.newPassword,
-          bypassOtp: true, // Add this flag to indicate OTP should be bypassed
-          passwordChanged: true // Add this flag to indicate this is right after password change
-        })
-      });
-  
-      const loginData = await loginResponse.json();
-  
-      if (!loginResponse.ok) {
-        // This shouldn't happen normally since we just set the password
-        throw new Error('Authentication failed after password change');
-      }
-  
       // Extract token from response
-      const token = loginData.data.token;
+      const token = data.data?.token;
       
       if (token) {
         localStorage.setItem('token', token);

@@ -193,7 +193,7 @@ class ChangePasswordService {
     
     async changePassword(userID, newPassword) {
         try {
-            // Get existing password hashes
+            // First get current password hashes to check against reuse
             const [currentUser] = await db.query(
                 'SELECT dPassword1_hash, dPassword2_hash, dPassword3_hash FROM tbl_login WHERE dUser_ID = ?', 
                 [userID]
@@ -208,21 +208,22 @@ class ChangePasswordService {
                 currentUser[0].dPassword1_hash,
                 currentUser[0].dPassword2_hash,
                 currentUser[0].dPassword3_hash
-            ].filter(Boolean);
+            ].filter(Boolean); // Filter out null values
             
+            // Check each previous password
             for (const oldPasswordHash of previousPasswords) {
                 if (oldPasswordHash) {
                     const isMatch = await bcrypt.compare(newPassword, oldPasswordHash);
                     if (isMatch) {
-                        throw new Error('New password cannot be the same as any of your last 3 passwords');
+                        throw new Error('The user cannot use the same password as any of their last 3 passwords.');
                     }
                 }
             }
-            
+    
             // Hash the new password
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             
-            // Update password history
+            // Update password and rotate history
             await db.query(`
                 UPDATE tbl_login 
                 SET dPassword3_hash = dPassword2_hash,
@@ -235,6 +236,7 @@ class ChangePasswordService {
             
             return { message: 'Password changed successfully' };
         } catch (error) {
+            console.error('Error in changePassword:', error);
             throw error;
         }
     }
@@ -300,6 +302,74 @@ class ChangePasswordService {
           throw error;
       }
   }
+
+  async generateAuthToken(userID) {
+    try {
+        // Get user information including role
+        const [userRows] = await db.query(
+            'SELECT dUser_ID, dUser_Type FROM tbl_login WHERE dUser_ID = ?',
+            [userID]
+        );
+        
+        if (userRows.length === 0) {
+            // If not in tbl_login, check tbl_admin
+            const [adminRows] = await db.query(
+                'SELECT dUser_ID, "admin" AS dUser_Type FROM tbl_admin WHERE dUser_ID = ?',
+                [userID]
+            );
+            
+            if (adminRows.length === 0) {
+                throw new Error('User not found');
+            }
+            
+            // Generate token for admin user
+            const sessionId = require('crypto').randomBytes(32).toString('hex');
+            const token = jwt.sign(
+                { 
+                    id: adminRows[0].dUser_ID, 
+                    role: adminRows[0].dUser_Type,
+                    sessionId: sessionId
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+            
+            return {
+                token,
+                user: {
+                    id: adminRows[0].dUser_ID,
+                    type: adminRows[0].dUser_Type
+                }
+            };
+        }
+        
+        // Generate token for regular user
+        const sessionId = require('crypto').randomBytes(32).toString('hex');
+        const token = jwt.sign(
+            { 
+                id: userRows[0].dUser_ID, 
+                role: userRows[0].dUser_Type,
+                sessionId: sessionId
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+        
+        return {
+            token,
+            user: {
+                id: userRows[0].dUser_ID,
+                type: userRows[0].dUser_Type
+            }
+        };
+    } catch (error) {
+        console.error('Error generating auth token:', error);
+        throw error;
+    }
+}
+
+
+
 }
 
 module.exports = ChangePasswordService;

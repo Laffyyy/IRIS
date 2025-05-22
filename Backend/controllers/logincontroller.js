@@ -27,8 +27,8 @@ class LoginController {
             //PJ I ADDED THIS
             console.log('Attempting login for user:', userID);
             const result = await this.loginService.loginUser(userID, password, otp, {
-                bypassOtp,
-                passwordChanged
+                bypassOtp: bypassOtp || false,
+                passwordChanged: passwordChanged || false
             });
             console.log('Login result:', { 
                 hasToken: !!result.token,
