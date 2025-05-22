@@ -33,6 +33,7 @@ class LoginService {
                     console.log('User found in tbl_admin');
                     user = adminRows[0];
                     table = 'tbl_admin';
+                    user.dUser_Type = 'admin'; // Set user type for admin
                 }
             }
 
@@ -131,9 +132,10 @@ class LoginService {
                         role: user.dUser_Type,
                         sessionId: sessionId
                     },
-                    process.env.JWT_SECRET || 'your_jwt_secret_key_here',
+                    process.env.JWT_SECRET,
                     { expiresIn: '1h' }
                 );
+                
 
                 // Update user session info
                 console.log('Updating user session info');
