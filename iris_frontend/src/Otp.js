@@ -150,13 +150,19 @@ const Otp = ({ onBack, onComplete }) => {
         throw new Error('Failed to resend OTP');
       }
 
-      setResendTime(90);
-      setExpireTime(180);
-      localStorage.setItem('resendTime', '90');
-      localStorage.setItem('expireTime', '180');
-      localStorage.setItem('resendTimestamp', Date.now().toString());
-      localStorage.setItem('expireTimestamp', Date.now().toString());
+      const newResendTime = 90;
+      const newExpireTime = 180;
+      
+      setResendTime(newResendTime);
+      setExpireTime(newExpireTime);
       setCanResend(false);
+      
+      // Save new timestamps to localStorage
+      localStorage.setItem('otpResendTime', newResendTime.toString());
+      localStorage.setItem('otpResendTimestamp', Date.now().toString());
+      localStorage.setItem('otpExpireTime', newExpireTime.toString());
+      localStorage.setItem('otpExpireTimestamp', Date.now().toString());
+      
       setOtpValues(Array(6).fill(''));
       inputsRef.current.forEach(input => {
         if (input) input.value = '';

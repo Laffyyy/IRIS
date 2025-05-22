@@ -8,6 +8,13 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
 
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    // Allow alphanumeric characters and specific symbols: -._!@
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
+    setEmail(filteredValue);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(email);
@@ -21,11 +28,13 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
         <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
         <form onSubmit={handleSubmit} className="modal-form">
           <input
-            type="email"
+            type="text"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleEmailChange}
             required
+            pattern="[a-zA-Z0-9\-._!@]+"
+            title="Email can contain letters, numbers, and -._!@ symbols"
           />
           <div className="modal-buttons">
             <button type="button" onClick={onClose}>Cancel</button>
