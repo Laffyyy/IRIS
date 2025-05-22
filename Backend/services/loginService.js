@@ -129,7 +129,7 @@ class LoginService {
                 const token = jwt.sign(
                     { 
                         id: user.dUser_ID, 
-                        role: user.dUser_Type,
+                        roles: [user.dUser_Type.toUpperCase()],
                         sessionId: sessionId
                     },
                     process.env.JWT_SECRET,
@@ -211,7 +211,6 @@ class LoginService {
             throw error;
         }
     }
-
     async registerUser(userData) {
         try {
             // Generate custom userID

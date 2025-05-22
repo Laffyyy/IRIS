@@ -1,4 +1,4 @@
-.modal-overlay {
+.InactivityWarningModal-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -11,7 +11,7 @@
   z-index: 9999;
 }
 
-.modal-content {
+.InactivityWarningModal-modal-content {
   background-color: white;
   padding: 2rem 3rem;
   border-radius: 10px;

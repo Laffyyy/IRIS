@@ -12,8 +12,8 @@ const LoggedOutModal = () => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div className="LoggedOutModal-modal-overlay">
+      <div className="LoggedOutModal-modal-content">
         <h2>You have been logged out</h2>
         <p>Due to inactivity, your session has expired.</p>
         <button onClick={handleLoginAgain}>Login Again</button>
