@@ -112,15 +112,16 @@ const ChangePassword = () => {
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9_-]/g, '');
+    // Allow alphanumeric plus dash, dot, underscore, exclamation point, and @ symbol
+    const filteredValue = value.replace(/[^a-zA-Z0-9_\-.!@]/g, '');
     const truncatedValue = filteredValue.slice(0, 30);
-
+  
     if (field === 'newPassword') {
       // Check password complexity requirements
       const hasUpperCase = /[A-Z]/.test(value);
       const hasLowerCase = /[a-z]/.test(value);
       const hasNumber = /[0-9]/.test(value);
-      const hasSpecial = /[^A-Za-z0-9]/.test(value);
+      const hasSpecial = /[_\-.!@]/.test(value);
       const hasMinLength = value.length >= 12;
       
       if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial || !hasMinLength) {
@@ -129,14 +130,14 @@ const ChangePassword = () => {
         if (!hasUpperCase) warning += '\n- Include at least one uppercase letter';
         if (!hasLowerCase) warning += '\n- Include at least one lowercase letter';  
         if (!hasNumber) warning += '\n- Include at least one number';
-        if (!hasSpecial) warning += '\n- Include at least one special character';
+        if (!hasSpecial) warning += '\n- Include at least one special character (`-` , `.` ,  `_` ,  `!` ,  `@`)';
         
         setPasswordWarning(warning);
       } else {
         setPasswordWarning('');
       }
     }
-
+  
     setPasswords(prev => ({
       ...prev,
       [field]: truncatedValue,
@@ -337,8 +338,8 @@ const ChangePassword = () => {
                       {!/[0-9]/.test(passwords.newPassword) && (
                         <li className="requirement-item">Include at least one number</li>
                       )}
-                      {!/[^A-Za-z0-9]/.test(passwords.newPassword) && (
-                        <li className="requirement-item">Include at least one special character</li>
+                      {!/[_\-.!@]/.test(passwords.newPassword) && (
+                        <li className="requirement-item">Include at least one special character (- . _ ! @)</li>
                       )}
                     </ul>
                   </div>
