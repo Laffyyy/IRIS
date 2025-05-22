@@ -147,7 +147,7 @@ body, html {
 .iris-forgot-wrapper {
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: -8px;
   margin-bottom: 10px;
 }
 
@@ -182,10 +182,15 @@ body, html {
 }
 
 /* Carousel Styles */
+.iris-button-wrapper {
+  margin-top: 20px;
+}
+
 .carousel-container {
   width: 100%;
   height: 100%;
   position: relative;
+  overflow: hidden;
 }
 
 .carousel-slide {
@@ -193,8 +198,19 @@ body, html {
   height: 100%;
   background-size: cover;
   background-position: center;
-  transition: background-image 0.5s ease;
+  transition: opacity 0.5s ease;
   filter: brightness(60%);
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.carousel-slide.current {
+  z-index: 1;
+}
+
+.carousel-slide.next {
+  z-index: 0;
 }
 
 .carousel-btn {
@@ -225,29 +241,6 @@ body, html {
 
 .next-btn {
   right: 10px;
-}
-
-.carousel-indicators {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-.indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.indicator.active {
-  background: white;
 }
 
 /* Eye icon */
@@ -314,10 +307,6 @@ input[type="password"]::-webkit-strong-password-auto-fill-button {
     width: 40px;
     height: 40px;
   }
-
-  .carousel-indicators {
-    bottom: 15px;
-  }
 }
 
 .modal-overlay {
@@ -336,7 +325,8 @@ input[type="password"]::-webkit-strong-password-auto-fill-button {
 .modal-content {
   background: #fff;
   padding: 2rem;
-  width: 320px;
+  width: 450px;
+  height: 250px;
   border-radius: 10px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   text-align: left;

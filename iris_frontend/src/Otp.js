@@ -9,18 +9,18 @@ const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(() => {
-    const savedExpireTime = localStorage.getItem('otpExpireTime');
-    const savedExpireTimestamp = localStorage.getItem('otpExpireTimestamp');
+    const savedExpireTime = localStorage.getItem('expireTime');
+    const savedExpireTimestamp = localStorage.getItem('expireTimestamp');
     if (savedExpireTime && savedExpireTimestamp) {
       const timePassed = Math.floor((Date.now() - parseInt(savedExpireTimestamp)) / 1000);
       const remainingTime = Math.max(0, parseInt(savedExpireTime) - timePassed);
       return remainingTime;
     }
-    return 180;
+    return 180; // 3 minutes
   });
   const [resendTime, setResendTime] = useState(() => {
-    const savedResendTime = localStorage.getItem('otpResendTime');
-    const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
+    const savedResendTime = localStorage.getItem('resendTime');
+    const savedResendTimestamp = localStorage.getItem('resendTimestamp');
     if (savedResendTime && savedResendTimestamp) {
       const timePassed = Math.floor((Date.now() - parseInt(savedResendTimestamp)) / 1000);
       const remainingTime = Math.max(0, parseInt(savedResendTime) - timePassed);
@@ -28,45 +28,10 @@ const Otp = ({ onBack, onComplete }) => {
     }
     return 90;
   });
-  const [canResend, setCanResend] = useState(() => {
-    const savedCanResend = localStorage.getItem('otpCanResend');
-    return savedCanResend === 'true';
-  });
+  const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(() => localStorage.getItem('userId') || '');
-  const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(() => {
-    const savedOtpValues = localStorage.getItem('otpValues');
-    return savedOtpValues ? JSON.parse(savedOtpValues) : Array(6).fill('');
-  });
-  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
-
-  // Add effect to check credentials and redirect if missing
-  useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    const password = localStorage.getItem('password');
-    
-    if (!userId || !password) {
-      // Clear any existing OTP data
-      localStorage.removeItem('otpExpireTime');
-      localStorage.removeItem('otpExpireTimestamp');
-      localStorage.removeItem('otpResendTime');
-      localStorage.removeItem('otpResendTimestamp');
-      localStorage.removeItem('otpCanResend');
-      localStorage.removeItem('otpValues');
-      
-      // Redirect to login
-      navigate('/');
-    }
-  }, [navigate]);
-
-  // Add effect to focus first input on mount
-  useEffect(() => {
-    if (inputsRef.current[0]) {
-      inputsRef.current[0].focus();
-    }
-  }, []);
+  const [userId, setUserId] = useState(''); // Store userId from local storage or props
 
   useEffect(() => {
     // Retrieve userId from localStorage (assuming it was saved during login)
@@ -76,33 +41,40 @@ const Otp = ({ onBack, onComplete }) => {
     }
   }, []);
 
+  // Add new useEffect for focusing first input
+  useEffect(() => {
+    // Focus on the first input when component mounts
+    if (inputsRef.current[0]) {
+      inputsRef.current[0].focus();
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
+  const [isComplete, setIsComplete] = useState(false);
+  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
+
   useEffect(() => {
     if (expireTime > 0) {
-      const startTime = Date.now();
-      const timer = setInterval(() => {
-        const currentTime = Date.now();
-        const timePassed = Math.floor((currentTime - startTime) / 1000);
-        setExpireTime(prev => Math.max(0, prev - timePassed));
+      const timer = setTimeout(() => {
+        const newExpireTime = expireTime - 1;
+        setExpireTime(newExpireTime);
+        localStorage.setItem('expireTime', newExpireTime.toString());
+        localStorage.setItem('expireTimestamp', Date.now().toString());
       }, 1000);
-      return () => clearInterval(timer);
+      return () => clearTimeout(timer);
     }
   }, [expireTime]);
 
   useEffect(() => {
     if (resendTime > 0 && !canResend) {
-      const startTime = Date.now();
-      const timer = setInterval(() => {
-        const currentTime = Date.now();
-        const timePassed = Math.floor((currentTime - startTime) / 1000);
-        setResendTime(prev => {
-          const newTime = Math.max(0, prev - timePassed);
-          if (newTime === 0) {
-            setCanResend(true);
-          }
-          return newTime;
-        });
+      const timer = setTimeout(() => {
+        const newResendTime = resendTime - 1;
+        setResendTime(newResendTime);
+        localStorage.setItem('resendTime', newResendTime.toString());
+        localStorage.setItem('resendTimestamp', Date.now().toString());
       }, 1000);
-      return () => clearInterval(timer);
+      return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
     }
   }, [resendTime, canResend]);
 
@@ -143,6 +115,10 @@ const Otp = ({ onBack, onComplete }) => {
 
       setResendTime(90);
       setExpireTime(180);
+      localStorage.setItem('resendTime', '90');
+      localStorage.setItem('expireTime', '180');
+      localStorage.setItem('resendTimestamp', Date.now().toString());
+      localStorage.setItem('expireTimestamp', Date.now().toString());
       setCanResend(false);
       setOtpValues(Array(6).fill(''));
       inputsRef.current.forEach(input => {
@@ -183,6 +159,11 @@ const Otp = ({ onBack, onComplete }) => {
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
+      setIsComplete(true);
+    } else if (value && index === 5) {
+      // When the last input is filled, focus on the Continue button
+      setIsComplete(true);
+      document.getElementById('otp-submit-button').focus();
     }
   };
 
@@ -270,52 +251,49 @@ const Otp = ({ onBack, onComplete }) => {
                 ? [decoded.role]
                 : [];
 
-            if (userStatus === 'FIRST-TIME') {
-              navigate('../change-password');
-            } else if (userStatus === 'ACTIVE') {
-              if (roles.includes('admin')) {
-                navigate('../admin/dashboard');
-              } else if (roles.includes('HR')) {
-                navigate('../hr');
-              } else if (roles.includes('REPORTS')) {
-                navigate('../reports');
-              } else if (roles.includes('CNB')) {
-                navigate('../compensation');
-              } else {
-                navigate('/'); // fallback
-              }
-            }
-          }
-        });
-      } else {
-        console.log(data);
-        setAlertModal({
-          isOpen: true,
-          message:'Failed to verify OTP. Please try again.',
-          type: 'error'
-        });
+      if (userStatus === 'FIRST-TIME') {
+        navigate('../change-password'); // Redirect to change password page
+      } else if (userStatus === 'ACTIVE') {
+        alert('Login successful');
+        navigate('../dashboard'); // Redirect to dashboard or home page
       }
-    } catch (error) {
-      setAlertModal({
-        isOpen: true,
-        message: 'An error occurred while verifying the OTP. Please try again.',
-        type: 'error'
-      });
+    } else {
+      // Handle failed OTP verification
+      alert(data.data.message || 'Failed to verify OTP. Please try again.');
     }
-  };
+  } catch (error) {
+    console.error('Error during OTP verification:', error);
+    alert('An error occurred while verifying the OTP. Please try again.');
+  }
 
-  const handleBack = () => {
-    // Clear all OTP-related data from localStorage
-    localStorage.removeItem('otpExpireTime');
-    localStorage.removeItem('otpExpireTimestamp');
-    localStorage.removeItem('otpResendTime');
-    localStorage.removeItem('otpResendTimestamp');
-    localStorage.removeItem('otpCanResend');
-    localStorage.removeItem('otpValues');
+  
+  
+
+};
+ const handleBack = () => {
+    // Clear all timer-related data from localStorage
+    localStorage.removeItem('expireTime');
+    localStorage.removeItem('expireTimestamp');
+    localStorage.removeItem('resendTime');
+    localStorage.removeItem('resendTimestamp');
+    // Clear other login data
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
-    navigate('/');
+    navigate('/'); // Redirect to the login page
   }
+
+  // Add cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      // Only clear timer data if we're not refreshing
+      if (!window.performance.navigation.type === 1) {
+        localStorage.removeItem('expireTime');
+        localStorage.removeItem('expireTimestamp');
+        localStorage.removeItem('resendTime');
+        localStorage.removeItem('resendTimestamp');
+      }
+    };
+  }, []);
 
   return (
     <div className="otp-container">
@@ -376,7 +354,7 @@ const Otp = ({ onBack, onComplete }) => {
             disabled={!isComplete}
             type="button"
           >
-            Login
+            Continue
           </button>
         </div>
       </div>
