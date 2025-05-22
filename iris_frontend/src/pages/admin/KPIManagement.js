@@ -2030,15 +2030,14 @@ const handleDeleteConfirm = async () => {
         {/* Add Validation Modal */}
         {showValidationModal && (
           <div className="modal-overlay">
-            <div className="modal validation-modal">
+            <div className={`modal validation-modal ${validationMessage.includes('reactivated') ? 'success-modal' : ''}`}>
               <div className="modal-header">
-                <h2>Validation Error</h2>
+                <h2>{validationMessage.includes('reactivated') ? 'KPI Reactivation' : 'Validation Error'}</h2>
               </div>
 
-                <div className="warning-message">
-                  <FaTimesCircle className="warning-icon" />
-                  <p>{validationMessage}</p>
-
+              <div className={`warning-message ${validationMessage.includes('reactivated') ? 'success-message' : ''}`}>
+                <FaCheck className={validationMessage.includes('reactivated') ? 'success-icon' : 'warning-icon'} />
+                <p>{validationMessage}</p>
               </div>
               <div className="modal-actions">
                 <button 
