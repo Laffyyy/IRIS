@@ -1348,10 +1348,19 @@ input[type="checkbox"] {
   background-color: #f8f9fa;
   border-bottom: 1px solid #eee;
 }
-
 .bulk-disable-btn {
   background-color: #e53e3e;
   color: white;
+}
+
+.bulk-reactivate-btn {
+  background-color: #2e7d32;
+  color: white;
+}
+
+/* Shared button styles */
+.bulk-disable-btn, 
+.bulk-reactivate-btn {
   border: none;
   padding: 8px 16px;
   border-radius: 4px;
@@ -1363,16 +1372,15 @@ input[type="checkbox"] {
   transition: all 0.2s ease;
 }
 
-.bulk-disable-btn:hover:not(:disabled) {
+.bulk-disable-btn:hover {
   background-color: #c53030;
 }
 
-.bulk-disable-btn:disabled {
-  background-color: #feb2b2;
-  cursor: not-allowed;
+.bulk-reactivate-btn:hover {
+  background-color: #1b5e20;
 }
 
-.bulk-disable-btn .count {
+.count {
   background-color: rgba(255, 255, 255, 0.2);
   padding: 2px 8px;
   border-radius: 12px;

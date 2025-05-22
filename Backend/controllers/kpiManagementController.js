@@ -230,3 +230,16 @@ exports.reactivateKPI = async (req, res) => {
         });
     }
 };
+
+exports.bulkReactivateKPIs = async (req, res) => {
+    try {
+        const { kpiIds } = req.body;
+        await KPI.updateMany(
+            { _id: { $in: kpiIds } },
+            { $set: { dStatus: 'ACTIVE' } }
+        );
+        res.status(200).json({ message: 'KPIs reactivated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

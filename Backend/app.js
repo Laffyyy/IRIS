@@ -22,5 +22,6 @@ app.use(cors({
 
 app.use('/api/login', loginRoutes);
 app.use('/api/otp', otpRoutes); // Add this line to include the OTP routes
+app.use('/api/kpis', kpiRoutes);
 
 module.exports = app;

@@ -23,4 +23,7 @@ router.put('/:id/deactivate', kpiController.deactivateKPI);
 // PUT reactivate KPI
 router.put('/:id/reactivate', kpiController.reactivateKPI);
 
+// Add new route for bulk reactivation
+router.put('/bulk/reactivate', kpiController.bulkReactivateKPIs);
+
 module.exports = router;

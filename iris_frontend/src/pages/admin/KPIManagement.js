@@ -1,4 +1,5 @@
 // KPIManagement.js
+import axios from 'axios';
 import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
 import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle, FaCheck, FaBan } from 'react-icons/fa';
@@ -1067,6 +1068,38 @@ const handleDeleteConfirm = async () => {
     }
   };
 
+  const handleBulkReactivate = async () => {
+    try {
+      const response = await fetch('/api/kpis/bulk/reactivate', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          kpiIds: selectedKPIs.map(kpi => kpi.dKPI_ID)
+        })
+      });
+      
+      if (response.ok) {
+        // Refresh KPI list
+        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
+        const updatedKpis = await refreshResponse.json();
+        setKpis(updatedKpis);
+        
+        // Clear selection
+        setSelectedKPIs([]);
+        // Show success message
+        setValidationMessage(`${selectedKPIs.length} KPIs reactivated successfully`);
+        setShowValidationModal(true);
+      } else {
+        throw new Error('Failed to reactivate KPIs');
+      }
+    } catch (error) {
+      setValidationMessage('Failed to reactivate KPIs: ' + error.message);
+      setShowValidationModal(true);
+    }
+  };
+
   const handleSelectKPI = (kpi) => {
     if (selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)) {
       setSelectedKPIs(selectedKPIs.filter(selected => selected.dKPI_ID !== kpi.dKPI_ID));
@@ -1564,11 +1597,15 @@ const handleDeleteConfirm = async () => {
                 {selectedKPIs.length > 0 && (
                   <div className="bulk-actions">
                     <button 
-                      className="bulk-disable-btn"
-                      onClick={() => setShowBulkDisableModal(true)}
-                    >
-                      <FaTimes size={12} />
-                      Deactivate Selected KPIs
+                        className={selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                          ? 'bulk-disable-btn' 
+                          : 'bulk-reactivate-btn'}
+                        onClick={() => selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                          ? setShowBulkDisableModal(true) 
+                          : handleBulkReactivate()}
+                      >{selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
+                        ? <><FaTimes size={12} /> Deactivate Selected KPIs</>
+                        : <><FaCheck size={12} /> Reactivate Selected KPIs</>}
                       <span className="count">{selectedKPIs.length}</span>
                     </button>
                   </div>
