@@ -3326,17 +3326,71 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                 <div className="item-status-tabs" style={{ display: 'flex', gap: 16 }}>
                   <div
                     className={`item-status-tab${itemStatusTab === 'ACTIVE' ? ' active' : ''}`}
-                    style={{ cursor: 'pointer', fontWeight: itemStatusTab === 'ACTIVE' ? 'bold' : 'normal', color: itemStatusTab === 'ACTIVE' ? '#004D8D' : '#666', borderBottom: itemStatusTab === 'ACTIVE' ? '2px solid #004D8D' : '2px solid transparent', padding: '8px 16px' }}
+                    style={{
+                      cursor: 'pointer',
+                      fontWeight: itemStatusTab === 'ACTIVE' ? 'bold' : 'normal',
+                      color: itemStatusTab === 'ACTIVE' ? '#004D8D' : '#666',
+                      borderBottom: itemStatusTab === 'ACTIVE' ? '2px solid #004D8D' : '2px solid transparent',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
                     onClick={() => setItemStatusTab('ACTIVE')}
                   >
-                    Active ({activeCount})
+                    Active
+                    <span
+                      style={{
+                        background: itemStatusTab === 'ACTIVE' ? '#004D8D' : '#e2e8f0',
+                        color: itemStatusTab === 'ACTIVE' ? '#fff' : '#666',
+                        borderRadius: 12,
+                        padding: '2px 10px',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        marginLeft: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        boxShadow: itemStatusTab === 'ACTIVE' ? '0 2px 8px rgba(0,77,141,0.08)' : 'none',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <FaCheckCircle style={{ marginRight: 4 }} />
+                      {activeCount}
+                    </span>
                   </div>
                   <div
                     className={`item-status-tab${itemStatusTab === 'DEACTIVATED' ? ' active' : ''}`}
-                    style={{ cursor: 'pointer', fontWeight: itemStatusTab === 'DEACTIVATED' ? 'bold' : 'normal', color: itemStatusTab === 'DEACTIVATED' ? '#004D8D' : '#666', borderBottom: itemStatusTab === 'DEACTIVATED' ? '2px solid #004D8D' : '2px solid transparent', padding: '8px 16px' }}
+                    style={{
+                      cursor: 'pointer',
+                      fontWeight: itemStatusTab === 'DEACTIVATED' ? 'bold' : 'normal',
+                      color: itemStatusTab === 'DEACTIVATED' ? '#b10000' : '#666',
+                      borderBottom: itemStatusTab === 'DEACTIVATED' ? '2px solid #b10000' : '2px solid transparent',
+                      padding: '8px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
                     onClick={() => setItemStatusTab('DEACTIVATED')}
                   >
-                    Deactivated ({deactivatedCount})
+                    Deactivated
+                    <span
+                      style={{
+                        background: itemStatusTab === 'DEACTIVATED' ? '#b10000' : '#e2e8f0',
+                        color: itemStatusTab === 'DEACTIVATED' ? '#fff' : '#666',
+                        borderRadius: 12,
+                        padding: '2px 10px',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        marginLeft: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        boxShadow: itemStatusTab === 'DEACTIVATED' ? '0 2px 8px rgba(177,0,0,0.08)' : 'none',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <FaBan style={{ marginRight: 4 }} />
+                      {deactivatedCount}
+                    </span>
                   </div>
                 </div>
                 {/* Search and filter controls (existing code) */}
