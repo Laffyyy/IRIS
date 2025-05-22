@@ -37,6 +37,39 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
 
   // Helper to render summary details in modal
   function renderSummaryBox(message, selectedCount) {
+    // Bulk action: message is an object with type 'bulk' and items array
+    if (message && typeof message === 'object' && message.type === 'bulk' && Array.isArray(message.items)) {
+      return (
+        <div style={{ lineHeight: 1.7 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Selected Items:</div>
+          <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 14, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '33%' }} />
+                <col style={{ width: '33%' }} />
+                <col style={{ width: '34%' }} />
+              </colgroup>
+              <thead>
+                <tr style={{ background: '#f5f5f5' }}>
+                  <th style={{ textAlign: 'left', padding: '4px 8px' }}>Client</th>
+                  <th style={{ textAlign: 'left', padding: '4px 8px' }}>LOB</th>
+                  <th style={{ textAlign: 'left', padding: '4px 8px' }}>Sub LOB</th>
+                </tr>
+              </thead>
+              <tbody>
+                {message.items.map((item, idx) => (
+                  <tr key={idx} style={{ background: idx % 2 === 0 ? '#fafbfc' : '#fff' }}>
+                    <td style={{ padding: '4px 8px', wordBreak: 'break-word' }}>{item.client || '-'}</td>
+                    <td style={{ padding: '4px 8px', wordBreak: 'break-word' }}>{item.lob || '-'}</td>
+                    <td style={{ padding: '4px 8px', wordBreak: 'break-word' }}>{item.subLob || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
     // Bulk action: message contains 'selected item' or 'selected items'
     if (typeof message === 'string' && /selected item/i.test(message)) {
       return (
@@ -67,7 +100,7 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
 
   return (
     <div className="modal-overlay">
-      <div className="modal custom-alert-modal" style={{ width: '410px', borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: 0 }}>
+      <div className="modal custom-alert-modal" style={{ width: '560px', minWidth: '520px', borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: 0 }}>
         {/* Header row: icon/title left, close right */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 24px 0 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -82,7 +115,9 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
           {/* Main message */}
           <div style={{ marginBottom: 14, color: '#222', fontSize: 15 }}>
             {/* Bulk action message */}
-            {((isDeactivate || isReactivate) && typeof message === 'string' && /selected item/i.test(message)) ? (
+            {((isDeactivate || isReactivate) && typeof message === 'object' && message.type === 'bulk') ? (
+              <span>You are about to {isDeactivate ? 'deactivate' : 'reactivate'} {message.count} item{message.count === 1 ? '' : 's'}. Type <b>CONFIRM</b> to proceed.</span>
+            ) : ((isDeactivate || isReactivate) && typeof message === 'string' && /selected item/i.test(message)) ? (
               <span>You are about to {isDeactivate ? 'deactivate' : 'reactivate'} selected items. Type <b>CONFIRM</b> to proceed.</span>
             ) : isDeactivate ? (
               <span>You are about to deactivate 1 item. This action cannot be undone. Type <b>CONFIRM</b> to proceed.</span>
@@ -1955,8 +1990,28 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       return;
     }
 
+    // Build details for each selected row
+    const selectedItemsArray = Array.from(selectedRows).map(rowKey => {
+      const [type, ...parts] = rowKey.split('-');
+      if (type === 'client') {
+        const clientName = parts.join('-');
+        return { client: clientName, lob: '', subLob: '' };
+      } else if (type === 'lob') {
+        const [clientName, lobName] = parts;
+        return { client: clientName, lob: lobName, subLob: '' };
+      } else if (type === 'sublob') {
+        const [clientName, lobName, subLobName] = parts;
+        return { client: clientName, lob: lobName, subLob: subLobName };
+      }
+      return { client: '', lob: '', subLob: '' };
+    });
+
     showConfirm(
-      `Are you sure you want to deactivate ${selectedRows.size} selected item(s)?`,
+      {
+        type: 'bulk',
+        items: selectedItemsArray,
+        count: selectedItemsArray.length
+      },
       async () => {
         try {
           const deactivationPromises = [];
@@ -2013,8 +2068,28 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       return;
     }
 
+    // Build details for each selected row
+    const selectedItemsArray = Array.from(selectedRows).map(rowKey => {
+      const [type, ...parts] = rowKey.split('-');
+      if (type === 'client') {
+        const clientName = parts.join('-');
+        return { client: clientName, lob: '', subLob: '' };
+      } else if (type === 'lob') {
+        const [clientName, lobName] = parts;
+        return { client: clientName, lob: lobName, subLob: '' };
+      } else if (type === 'sublob') {
+        const [clientName, lobName, subLobName] = parts;
+        return { client: clientName, lob: lobName, subLob: subLobName };
+      }
+      return { client: '', lob: '', subLob: '' };
+    });
+
     showConfirm(
-      `Are you sure you want to reactivate ${selectedRows.size} selected item(s)?`,
+      {
+        type: 'bulk',
+        items: selectedItemsArray,
+        count: selectedItemsArray.length
+      },
       async () => {
         try {
           const reactivationPromises = [];
