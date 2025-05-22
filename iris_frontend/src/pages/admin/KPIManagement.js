@@ -2019,11 +2019,11 @@ const handleDeleteConfirm = async () => {
               <div className="modal-header">
                 <h2>Validation Error</h2>
               </div>
-              <div className="modal-content">
+
                 <div className="warning-message">
                   <FaTimesCircle className="warning-icon" />
                   <p>{validationMessage}</p>
-                </div>
+
               </div>
               <div className="modal-actions">
                 <button 
