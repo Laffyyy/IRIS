@@ -230,7 +230,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleEmployeeIdChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9]/g, '');
+    const filteredValue = value.replace(/[^0-9]/g, '');
     const truncatedValue = filteredValue.slice(0, 10);
     setEmployeeId(truncatedValue);
   };

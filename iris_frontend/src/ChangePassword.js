@@ -13,6 +13,7 @@ const ChangePassword = () => {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const [passwordWarning, setPasswordWarning] = useState('');
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
   const [securityQuestionsList, setSecurityQuestionsList] = useState({
     set1: [],
     set2: [],
@@ -115,9 +116,24 @@ const ChangePassword = () => {
     const truncatedValue = filteredValue.slice(0, 30);
 
     if (field === 'newPassword') {
-      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,20}$/;
-      if (truncatedValue.length >= 20 && !strongPasswordRegex.test(truncatedValue)) {
-        alert('Password must include uppercase, lowercase, number, and special character.');
+      // Check password complexity requirements
+      const hasUpperCase = /[A-Z]/.test(value);
+      const hasLowerCase = /[a-z]/.test(value);
+      const hasNumber = /[0-9]/.test(value);
+      const hasSpecial = /[^A-Za-z0-9]/.test(value);
+      const hasMinLength = value.length >= 12;
+      
+      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial || !hasMinLength) {
+        let warning = 'Password must:';
+        if (!hasMinLength) warning += '\n- Be at least 12 characters long';
+        if (!hasUpperCase) warning += '\n- Include at least one uppercase letter';
+        if (!hasLowerCase) warning += '\n- Include at least one lowercase letter';  
+        if (!hasNumber) warning += '\n- Include at least one number';
+        if (!hasSpecial) warning += '\n- Include at least one special character';
+        
+        setPasswordWarning(warning);
+      } else {
+        setPasswordWarning('');
       }
     }
 
@@ -130,9 +146,22 @@ const ChangePassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setFormSubmitAttempted(true); // Mark form as submitted attempt
+
+    if (!isFormValid()) {
+      return; // Stop execution if the form isn't valid
+    }
+
     setLoading(true);
-  
+    
     try {
+        // Validate each field
+        if (!passwords.newPassword || !passwords.confirmPassword || 
+          !securityQuestions.questionId1 || !securityQuestions.questionId2 || !securityQuestions.questionId3 ||
+          !answers.answer1 || !answers.answer2 || !answers.answer3) {
+        return; // Stop execution but display the empty field errors
+      }
+
       // Validate passwords match
       if (passwords.newPassword !== passwords.confirmPassword) {
         throw new Error('Passwords do not match');
@@ -222,6 +251,34 @@ const ChangePassword = () => {
     }
   };
 
+  const isFormValid = () => {
+    // Check password requirements
+    const password = passwords.newPassword;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+    const hasMinLength = password.length >= 12;
+    const passwordsMatch = password === passwords.confirmPassword;
+    
+    // Check if all security questions are selected
+    const allQuestionsSelected = 
+      securityQuestions.questionId1 && 
+      securityQuestions.questionId2 && 
+      securityQuestions.questionId3;
+      
+    // Check if all security answers are provided
+    const allAnswersProvided = 
+      answers.answer1 && 
+      answers.answer2 && 
+      answers.answer3;
+    
+    // Only enable the button if all conditions are met
+    return hasUpperCase && hasLowerCase && hasNumber && hasSpecial && 
+           hasMinLength && passwordsMatch && allQuestionsSelected && 
+           allAnswersProvided;
+  };
+
   const handleCancel = () => {
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
@@ -259,6 +316,33 @@ const ChangePassword = () => {
                   {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                 </button>
               </div>
+              {/* Password requirements list - added below input */}
+                {(passwords.newPassword.length < 12 || 
+                  !/[A-Z]/.test(passwords.newPassword) || 
+                  !/[a-z]/.test(passwords.newPassword) || 
+                  !/[0-9]/.test(passwords.newPassword) || 
+                  !/[^A-Za-z0-9]/.test(passwords.newPassword)) && (
+                  <div className="password-requirements">
+                    <small>Password must:</small>
+                    <ul>
+                      {passwords.newPassword.length < 12 && (
+                        <li className="requirement-item">Be at least 12 characters long</li>
+                      )}
+                      {!/[A-Z]/.test(passwords.newPassword) && (
+                        <li className="requirement-item">Include at least one uppercase letter</li>
+                      )}
+                      {!/[a-z]/.test(passwords.newPassword) && (
+                        <li className="requirement-item">Include at least one lowercase letter</li>
+                      )}
+                      {!/[0-9]/.test(passwords.newPassword) && (
+                        <li className="requirement-item">Include at least one number</li>
+                      )}
+                      {!/[^A-Za-z0-9]/.test(passwords.newPassword) && (
+                        <li className="requirement-item">Include at least one special character</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
             </div>
 
             <div className="security-question-group">
@@ -281,6 +365,21 @@ const ChangePassword = () => {
                   {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                 </button>
               </div>
+                {/* Show password match error on form submit with various conditions */}
+                {formSubmitAttempted && (
+                  <>
+                    {!passwords.confirmPassword && (
+                      <div className="password-mismatch">
+                        Confirm Password field cannot be empty
+                      </div>
+                    )}
+                    {passwords.confirmPassword && passwords.newPassword !== passwords.confirmPassword && (
+                      <div className="password-mismatch">
+                        Password does not match with New Password
+                      </div>
+                    )}
+                  </>
+                )}
             </div>
           </div>
 
@@ -313,6 +412,19 @@ const ChangePassword = () => {
                 onChange={(e) => handleAnswerChange(e, 'answer1')}
                 maxLength={30}
               />
+              {formSubmitAttempted && (
+                <>
+                  {!securityQuestions.questionId1 && !answers.answer1 && (
+                    <div className="password-mismatch">Security Question and Answer cannot be empty</div>
+                  )}
+                  {!securityQuestions.questionId1 && answers.answer1 && (
+                    <div className="password-mismatch">Security Question cannot be empty</div>
+                  )}
+                  {securityQuestions.questionId1 && !answers.answer1 && (
+                    <div className="password-mismatch">Answer cannot be empty</div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Question 2 */}
@@ -340,6 +452,19 @@ const ChangePassword = () => {
                 onChange={(e) => handleAnswerChange(e, 'answer2')}
                 maxLength={30}
               />
+              {formSubmitAttempted && (
+                  <>
+                    {!securityQuestions.questionId2 && !answers.answer2 && (
+                      <div className="password-mismatch">Security Question and Answer cannot be empty</div>
+                    )}
+                    {!securityQuestions.questionId2 && answers.answer2 && (
+                      <div className="password-mismatch">Security Question cannot be empty</div>
+                    )}
+                    {securityQuestions.questionId2 && !answers.answer2 && (
+                      <div className="password-mismatch">Answer cannot be empty</div>
+                    )}
+                  </>
+                )}
             </div>
 
             {/* Question 3 */}
@@ -367,6 +492,19 @@ const ChangePassword = () => {
                 onChange={(e) => handleAnswerChange(e, 'answer3')}
                 maxLength={30}
               />
+              {formSubmitAttempted && (
+                  <>
+                    {!securityQuestions.questionId3 && !answers.answer3 && (
+                      <div className="password-mismatch">Security Question and Answer cannot be empty</div>
+                    )}
+                    {!securityQuestions.questionId3 && answers.answer3 && (
+                      <div className="password-mismatch">Security Question cannot be empty</div>
+                    )}
+                    {securityQuestions.questionId3 && !answers.answer3 && (
+                      <div className="password-mismatch">Answer cannot be empty</div>
+                    )}
+                  </>
+                )}
             </div>
           </div>
         </form>
