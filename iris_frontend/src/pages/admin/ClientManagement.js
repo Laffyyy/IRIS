@@ -3243,7 +3243,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <button 
                       onClick={handleAddAnotherSubLobField} 
                       className="add-lob-card-button"
-                      disabled={!selectedLobForSubLob}
+                      disabled={!selectedLobForSubLob || !subLobNames[0] || !subLobNames[0].trim()}
                       title="Add another Sub LOB"
                     >
                       +
