@@ -2,10 +2,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import AlertModal from './components/AlertModal';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    // Allow alphanumeric characters and specific symbols: -._!@
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
+    setEmail(filteredValue);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -14,19 +22,21 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div className="Login-modal-overlay">
+      <div className="Login-modal-content">
         <h3>Reset Your Password</h3>
-        <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
-        <form onSubmit={handleSubmit} className="modal-form">
+        <p className="Login-modal-text">Please enter your registered email to receive an OTP code.</p>
+        <form onSubmit={handleSubmit} className="Login-modal-form">
           <input
-            type="email"
+            type="text"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleEmailChange}
             required
+            pattern="[a-zA-Z0-9\-._!@]+"
+            title="Email can contain letters, numbers, and -._!@ symbols"
           />
-          <div className="modal-buttons">
+          <div className="Login-modal-buttons">
             <button type="button" onClick={onClose}>Cancel</button>
             <button type="submit">Send OTP</button>
           </div>
@@ -43,6 +53,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [nextImageIndex, setNextImageIndex] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
   const [otp, setOtp] = useState('');
@@ -65,18 +76,25 @@ const Login = ({ onContinue, onForgotPassword }) => {
     }
   }, []);
 
+  useEffect(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent form submission if alert modal is open
+    if (alertModal.isOpen) {
+      return;
+    }
  
-    // Prepare the payload
     const payload = {
-      userId : employeeId,
-      password: password,
-      otp: "",
+      userID: employeeId,
+      password: password
     };
-    console.log('Payload:', payload);
+
     try {
-      // Send POST request to the API
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -88,18 +106,55 @@ const Login = ({ onContinue, onForgotPassword }) => {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Request successful!');
-        console.log('Response:', data);
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
         navigate('/otp'); 
       } else {
-        alert(`Error: ${data.message}`);
-        console.error('Error:', data);
+        if (data.message.includes('User not found')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Invalid username or password.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Invalid password')) {
+          setAlertModal({
+            isOpen: true,
+            message: data.message,
+            type: 'error'
+          });
+        } else if (data.message.includes('Account is locked')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account is locked due to too many failed attempts. Please contact support.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Account is deactivated')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account is deactivated. Please contact support.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Account has expired')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account has expired. Please contact support.',
+            type: 'error'
+          });
+        } else {
+          setAlertModal({
+            isOpen: true,
+            message: data.message || 'Login failed. Please try again.',
+            type: 'error'
+          });
+        }
       }
     } catch (error) {
       console.error('Error during API call:', error);
-      alert('An error occurred while sending the request.');
+      setAlertModal({
+        isOpen: true,
+        message: 'An error occurred while sending the request. Please try again later.',
+        type: 'error'
+      });
     }
   };
 
@@ -112,11 +167,14 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleEmployeeIdChange = (e) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^0-9]/g, '');
+    const filteredValue = value.replace(/[^a-zA-Z0-9]/g, '');
     const truncatedValue = filteredValue.slice(0, 10);
     setEmployeeId(truncatedValue);
   };
 
+  onContinue = (e) => {
+    navigate('/otp');
+  }
   useEffect(() => {
     const interval = setInterval(() => {
       setIsTransitioning(true);
@@ -227,11 +285,21 @@ const Login = ({ onContinue, onForgotPassword }) => {
           onClose={() => setShowModal(false)}
           onSubmit={(email) => {
             setShowModal(false);
-            console.log('Sending OTP to:', email);
-            alert(`OTP sent to ${email}`);
+            setAlertModal({
+              isOpen: true,
+              message: `OTP sent to ${email}`,
+              type: 'success'
+            });
           }}
         />
       )}
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+      />
     </div>
   );
 };

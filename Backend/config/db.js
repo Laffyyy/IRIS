@@ -1,5 +1,6 @@
 const mysql = require('mysql2');
 require('dotenv').config();
+const fs = require('fs');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -10,7 +11,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   ssl: {
-    rejectUnauthorized: true // Ensure SSL is used
+    rejectUnauthorized: false
   }
 });
 
