@@ -111,7 +111,7 @@ const ChangePassword = () => {
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9!@#$%^&*()_\-+=<>?{}[\]~.,:;'"|\\]/g, '');
+    const filteredValue = value.replace(/[^a-zA-Z0-9_-]/g, '');
     const truncatedValue = filteredValue.slice(0, 30);
 
     if (field === 'newPassword') {
@@ -184,7 +184,7 @@ const ChangePassword = () => {
         
         // Show success message
         setSuccess(true);
-        setSuccessMessage('Password changed successfully! Redirecting...');
+        setSuccessMessage('Changes Saved. Redirecting to Dashboard...');
         setShowSuccessToast(true);
         
         // Decode token to get user roles

@@ -183,6 +183,13 @@ class ChangePasswordService {
             userID
           ]
         );
+
+        await db.query(
+            `INSERT INTO tbl_logs_passwordchange 
+             (dUser_ID, dModifiedBy, tTimeStamp, dChangeReason)
+             VALUES (?, ?, NOW(), ?)`,
+            [userID, userID, 'FIRST-TIME']
+          );
         
         return { message: 'Profile updated successfully' };
       } catch (error) {
