@@ -901,17 +901,31 @@ const handleDeleteConfirm = async () => {
   };
 
   const renderFilterControls = () => {
+    // Count active and deactivated KPIs
+    const activeCount = kpis.filter(kpi => kpi.dStatus !== 'DEACTIVATED').length;
+    const deactivatedCount = kpis.filter(kpi => kpi.dStatus === 'DEACTIVATED').length;
     return (
       <div className="filter-controls">
-        <select
-          className="status-filter-dropdown"
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-        >
-          <option value="Active">Active</option>
-          <option value="Deactivated">Deactivated</option>
-          <option value="All">All Status</option>
-        </select>
+        <div className="status-tab-group">
+          <button
+            className={`status-tab${statusFilter === 'Active' ? ' active' : ''}`}
+            onClick={() => setStatusFilter('Active')}
+          >
+            <span className="status-label">Active</span>
+            <span className="status-badge active-badge">
+              <span className="check-circle"><FaCheck size={8} /></span> {activeCount}
+            </span>
+          </button>
+          <button
+            className={`status-tab${statusFilter === 'Deactivated' ? ' deactivated active' : ''}`}
+            onClick={() => setStatusFilter('Deactivated')}
+          >
+            <span className="status-label">Deactivated</span>
+            <span className="status-badge deactivated-badge">
+              <FaBan size={14} /> {deactivatedCount}
+            </span>
+          </button>
+        </div>
         <div className="search-bar-container">
           <div className="search-bar">
             <FaSearch className="search-icon" />
@@ -1651,34 +1665,34 @@ const handleDeleteConfirm = async () => {
                     <tbody>
                       {getSortedKPIs().map((kpi, index) => (
                         <tr key={kpi.dKPI_ID}>
-                          <td>
+                          <td data-label="Select">
                             <input
                               type="checkbox"
                               checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
                               onChange={() => handleSelectKPI(kpi)}
                             />
                           </td>
-                          <td>{kpi.dKPI_ID}</td>
-                          <td>{kpi.dKPI_Name}</td>
-                          <td>{kpi.dCategory}</td>
-                          <td>{kpi.dCalculationBehavior}</td>
-                          <td>{kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}</td>
-                          <td>
-                          <div className="description-cell" title={kpi.dDescription}>
-                            {kpi.dDescription}
-                          </div>
-                        </td>
-                          <td>{kpi.dCreatedBy || '-'}</td>
-                          <td className="created-at-cell" data-tooltip={kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}>
+                          <td data-label="ID">{kpi.dKPI_ID}</td>
+                          <td data-label="KPI Name">{kpi.dKPI_Name}</td>
+                          <td data-label="Category">{kpi.dCategory}</td>
+                          <td data-label="Calculation Behavior">{kpi.dCalculationBehavior}</td>
+                          <td data-label="Status">{kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}</td>
+                          <td data-label="Description">
+                            <div className="description-cell" title={kpi.dDescription}>
+                              {kpi.dDescription}
+                            </div>
+                          </td>
+                          <td data-label="Created By">{kpi.dCreatedBy || '-'}</td>
+                          <td data-label="Created At" className="created-at-cell" data-tooltip={kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}>
                             {kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}
                           </td>
-                          <td>
-                          <div className="action-buttons">
+                          <td data-label="Actions">
+                            <div className="action-buttons">
                               {kpi.dStatus === 'DEACTIVATED' ? (
                                 <button 
-                                className="reactivate-btn"
-                                onClick={() => handleReactivateClick(kpi)}
-                              >
+                                  className="reactivate-btn"
+                                  onClick={() => handleReactivateClick(kpi)}
+                                >
                                   <FaCheck size={12} /> Reactivate
                                 </button>
                               ) : (
@@ -1687,9 +1701,9 @@ const handleDeleteConfirm = async () => {
                                   className="delete-btn"
                                 >
                                   <FaBan size={12} /> Deactivate
-                                  </button>
+                                </button>
                               )}
-                          </div>
+                            </div>
                           </td>
                         </tr>
                       ))}
