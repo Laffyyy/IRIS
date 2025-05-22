@@ -4,6 +4,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import ModalWarning from './ModalWarning';
 import ModalPasswordExpired from './ModalPasswordExpired';
+import AlertModal from './components/AlertModal';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
@@ -53,6 +54,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [password, setPassword] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
   // Add new state for the password expiration modals
@@ -70,6 +72,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
     '/assets/loginimage1.jpg',
     '/assets/loginimage2.jpg',
     '/assets/loginimage3.jpg',
+    '/assets/loginimage1.jpg',
+    '/assets/loginimage2.jpg',
+    '/assets/loginimage3.jpg',
   ];
 
   useEffect(() => {
@@ -78,14 +83,22 @@ const Login = ({ onContinue, onForgotPassword }) => {
     }
   }, []);
 
+  useEffect(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    // Prepare the payload
+    
+    // Prevent form submission if alert modal is open
+    if (alertModal.isOpen) {
+      return;
+    }
+ 
     const payload = {
-      userId : employeeId,
-      password: password,
-      otp: "",
+      userID: employeeId,
+      password: password
     };
     try {
       // First check if password has expired before proceeding with login
@@ -177,11 +190,64 @@ const Login = ({ onContinue, onForgotPassword }) => {
           navigate('/otp');
         }
       } else {
-        alert(`Error: ${data.message}`);
+        if (data.message.includes('User not found')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Invalid username or password.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Invalid password')) {
+          setAlertModal({
+            isOpen: true,
+            message: data.message,
+            type: 'error'
+          });
+        } else if (data.message.includes('Account is locked')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account is locked due to too many failed attempts. Please contact support.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Account is deactivated')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account is deactivated. Please contact support.',
+            type: 'error'
+          });
+        } else if (data.message.includes('Account has expired')) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Your account has expired. Please contact support.',
+            type: 'error'
+          });
+        } else {
+          setAlertModal({
+            isOpen: true,
+            message: data.message || 'Login failed. Please try again.',
+            type: 'error'
+          });
+        }
       }
     } catch (error) {
-      alert('An error occurred while sending the request.');
+      console.error('Error during API call:', error);
+      setAlertModal({
+        isOpen: true,
+        message: 'An error occurred while sending the request. Please try again later.',
+        type: 'error'
+      });
     }
+  };
+
+  // Handler for the expired password modal
+  const handleChangePassword = () => {
+    setShowExpiredModal(false);
+    navigate('/change-password');
+  };
+
+  // Handler for the warning modal
+  const handleCloseWarning = () => {
+    setShowWarningModal(false);
+    navigate('/otp'); // Continue the login flow after the warning is acknowledged
   };
 
   // Handler for the expired password modal
@@ -308,8 +374,11 @@ const Login = ({ onContinue, onForgotPassword }) => {
           onClose={() => setShowModal(false)}
           onSubmit={(email) => {
             setShowModal(false);
-            console.log('Sending OTP to:', email);
-            alert(`OTP sent to ${email}`);
+            setAlertModal({
+              isOpen: true,
+              message: `OTP sent to ${email}`,
+              type: 'success'
+            });
           }}
         />
       )}
@@ -328,6 +397,13 @@ const Login = ({ onContinue, onForgotPassword }) => {
           daysRemaining={daysRemaining}
           expirationDate={localStorage.getItem('expirationDate')}
         />
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+      />
     </div>
   );
 };
