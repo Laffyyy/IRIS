@@ -8,14 +8,26 @@ import { jwtDecode } from 'jwt-decode';
 const Otp = ({ onBack, onComplete }) => {
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
-  const [expireTime, setExpireTime] = useState(180); // 3 minutes
-  const [resendTime, setResendTime] = useState(90);
-  const [canResend, setCanResend] = useState(false);
+  const [expireTime, setExpireTime] = useState(() => {
+    const savedExpireTime = localStorage.getItem('otpExpireTime');
+    return savedExpireTime ? parseInt(savedExpireTime) : 180;
+  });
+  const [resendTime, setResendTime] = useState(() => {
+    const savedResendTime = localStorage.getItem('otpResendTime');
+    return savedResendTime ? parseInt(savedResendTime) : 90;
+  });
+  const [canResend, setCanResend] = useState(() => {
+    const savedCanResend = localStorage.getItem('otpCanResend');
+    return savedCanResend === 'true';
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(''); // Store userId from local storage or props
+  const [userId, setUserId] = useState(() => localStorage.getItem('userId') || '');
   const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
+  const [otpValues, setOtpValues] = useState(() => {
+    const savedOtpValues = localStorage.getItem('otpValues');
+    return savedOtpValues ? JSON.parse(savedOtpValues) : Array(6).fill('');
+  });
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
   useEffect(() => {
@@ -41,6 +53,22 @@ const Otp = ({ onBack, onComplete }) => {
       setCanResend(true);
     }
   }, [resendTime, canResend]);
+
+  useEffect(() => {
+    localStorage.setItem('otpExpireTime', expireTime.toString());
+  }, [expireTime]);
+
+  useEffect(() => {
+    localStorage.setItem('otpResendTime', resendTime.toString());
+  }, [resendTime]);
+
+  useEffect(() => {
+    localStorage.setItem('otpCanResend', canResend.toString());
+  }, [canResend]);
+
+  useEffect(() => {
+    localStorage.setItem('otpValues', JSON.stringify(otpValues));
+  }, [otpValues]);
 
   const handleResendCode = async () => {
     if (!canResend) return;
@@ -205,14 +233,14 @@ const Otp = ({ onBack, onComplete }) => {
           }
         });
       } else {
+        console.log(data);
         setAlertModal({
           isOpen: true,
-          message: data.message || 'Failed to verify OTP. Please try again.',
+          message:'Failed to verify OTP. Please try again.',
           type: 'error'
         });
       }
     } catch (error) {
-      console.error('Error during OTP verification:', error);
       setAlertModal({
         isOpen: true,
         message: 'An error occurred while verifying the OTP. Please try again.',
@@ -222,10 +250,14 @@ const Otp = ({ onBack, onComplete }) => {
   };
 
   const handleBack = () => {
-    // Clear local storage or any other necessary cleanup
+    // Clear all OTP-related data from localStorage
+    localStorage.removeItem('otpExpireTime');
+    localStorage.removeItem('otpResendTime');
+    localStorage.removeItem('otpCanResend');
+    localStorage.removeItem('otpValues');
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
-    navigate('/'); // Redirect to the login page
+    navigate('/');
   }
 
   return (
