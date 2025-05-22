@@ -5,7 +5,16 @@ import './Otp.css';
 import AlertModal from './components/AlertModal';
 import { jwtDecode } from 'jwt-decode';
 
+
+
 const Otp = ({ onBack, onComplete }) => {
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    message: '',
+    type: '',
+    onClose: null
+  });
+  
   const navigate = useNavigate(); // Initialize useNavigate
   const inputsRef = useRef([]);
   const [expireTime, setExpireTime] = useState(() => {
@@ -199,6 +208,7 @@ const Otp = ({ onBack, onComplete }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Fix the handleSubmit function structure
   const handleSubmit = async () => {
     const otp = otpValues.join('');
     const userId = localStorage.getItem('userId');
@@ -227,9 +237,9 @@ const Otp = ({ onBack, onComplete }) => {
         },
         body: JSON.stringify(payload)
       });
-
+  
       const data = await response.json();
-
+  
       if (response.ok) {
         const userStatus = data.data.user?.status;
         const token = data.data.token;
@@ -237,39 +247,42 @@ const Otp = ({ onBack, onComplete }) => {
         if (token) {
           localStorage.setItem('token', token);
         }
-
+  
         setAlertModal({
           isOpen: true,
           message: data.message || 'Login successful',
           type: 'success',
           onClose: () => {
-            // Decode token to get user roles
             const decoded = jwtDecode(token);
             const roles = decoded.roles
               ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
               : decoded.role
                 ? [decoded.role]
                 : [];
-
-      if (userStatus === 'FIRST-TIME') {
-        navigate('../change-password'); // Redirect to change password page
-      } else if (userStatus === 'ACTIVE') {
-        alert('Login successful');
-        navigate('../dashboard'); // Redirect to dashboard or home page
+  
+            if (userStatus === 'FIRST-TIME') {
+              navigate('../change-password');
+            } else if (userStatus === 'ACTIVE') {
+              navigate('../dashboard');
+            }
+          }
+        });
+      } else {
+        setAlertModal({
+          isOpen: true,
+          message: data.data.message || 'Failed to verify OTP. Please try again.',
+          type: 'error'
+        });
       }
-    } else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
+    } catch (error) {
+      console.error('Error during OTP verification:', error);
+      setAlertModal({
+        isOpen: true,
+        message: 'An error occurred while verifying the OTP. Please try again.',
+        type: 'error'
+      });
     }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
-};
+  };
  const handleBack = () => {
     // Clear all timer-related data from localStorage
     localStorage.removeItem('expireTime');
