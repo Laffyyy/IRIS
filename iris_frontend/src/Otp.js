@@ -84,8 +84,6 @@ const Otp = ({ onBack, onComplete }) => {
     }
   }, []); // Empty dependency array means this runs once on mount
 
-  const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
   useEffect(() => {
     if (expireTime > 0) {
@@ -184,6 +182,7 @@ const Otp = ({ onBack, onComplete }) => {
   const handleInputChange = (e, index) => {
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
+ 
  
     if (value.length > 1) return;
 
@@ -334,7 +333,7 @@ const Otp = ({ onBack, onComplete }) => {
     localStorage.removeItem('otpValues');
     localStorage.removeItem('userId');
     localStorage.removeItem('password');
-    navigate('/'); // Redirect to the login page
+    navigate('/');
   }
 
   // Add cleanup effect for component unmount
