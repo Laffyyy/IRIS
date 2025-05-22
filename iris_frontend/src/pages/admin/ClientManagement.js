@@ -2545,6 +2545,40 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     setSelectAll(false);
   }, [itemStatusTab]);
 
+  // Add clearFormStates function
+  const clearFormStates = (tab) => {
+    // Clear Add Client tab states
+    if (tab !== 'addClient') {
+      setClientName('');
+      setLobCards([{ lobName: '', subLobNames: [''] }]);
+    }
+
+    // Clear Add LOB tab states
+    if (tab !== 'addLOB') {
+      setSelectedClientForLob(null);
+      setSelectedSiteForLob(null);
+      setClientSearchTerm('');
+      setSiteSearchTerm('');
+      setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
+      setIsClientDropdownOpen(false);
+      setIsSiteDropdownOpen(false);
+    }
+
+    // Clear Add Sub LOB tab states
+    if (tab !== 'addSubLOB') {
+      setSubLobNames(['']);
+      setSelectedLobForSubLob(null);
+      setFilterClientForSubLob(null);
+      setFilterSiteForSubLob(null);
+      setSubLobClientSearchTerm('');
+      setSubLobSiteSearchTerm('');
+      setSubLobLobSearchTerm('');
+      setIsSubLobClientDropdownOpen(false);
+      setIsSubLobSiteDropdownOpen(false);
+      setIsSubLobLobDropdownOpen(false);
+    }
+  };
+
   return (
     <div className="client-management-container">
       <div className="client-management-flex">
@@ -2555,13 +2589,31 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             <p className="subtitle">Manage clients, LOBs, and Sub LOBs</p>
           </div>
           <div className="tab-container">
-            <div className={`tab ${activeTab === 'addClient' ? 'active' : ''}`} onClick={() => setActiveTab('addClient')}>
+            <div 
+              className={`tab ${activeTab === 'addClient' ? 'active' : ''}`} 
+              onClick={() => {
+                clearFormStates('addClient');
+                setActiveTab('addClient');
+              }}
+            >
               Add Client
             </div>
-            <div className={`tab ${activeTab === 'addLOB' ? 'active' : ''}`} onClick={() => setActiveTab('addLOB')}>
+            <div 
+              className={`tab ${activeTab === 'addLOB' ? 'active' : ''}`} 
+              onClick={() => {
+                clearFormStates('addLOB');
+                setActiveTab('addLOB');
+              }}
+            >
               Add LOB
             </div>
-            <div className={`tab ${activeTab === 'addSubLOB' ? 'active' : ''}`} onClick={() => setActiveTab('addSubLOB')}>
+            <div 
+              className={`tab ${activeTab === 'addSubLOB' ? 'active' : ''}`} 
+              onClick={() => {
+                clearFormStates('addSubLOB');
+                setActiveTab('addSubLOB');
+              }}
+            >
               Add Sub LOB
             </div>
           </div>
