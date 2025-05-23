@@ -1,0 +1,208 @@
+.data-management-container {
+  padding: 20px;
+  font-family: 'Inter', sans-serif;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  margin-left: 80px;
+}
+
+.data-management-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.data-management-header {
+  margin-bottom: 24px;
+}
+
+.data-management-header h1 {
+  font-size: 18px;
+  color: #004D8D;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.data-management-header .subtitle {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+.controls-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.search-container {
+  position: relative;
+  flex: 1;
+  max-width: 300px;
+}
+
+.search-container input {
+  width: 100%;
+  padding: 8px 8px 8px 32px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 12px;
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.data-type-filter,
+.month-filter {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #333;
+  background-color: white;
+  min-width: 120px;
+}
+
+.table-section {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.table-container {
+  overflow-x: auto;
+  flex-grow: 1;
+  margin: 0 -20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th, td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+thead tr {
+  border-bottom: 1px solid #eee;
+}
+
+td {
+  color: #444;
+}
+
+.checkbox-column {
+  width: 40px;
+  text-align: center;
+  padding: 12px 8px;
+}
+
+.checkbox-column input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* Column specific styles */
+td:nth-child(2) { /* Employee ID */
+  font-family: monospace;
+  color: #004D8D;
+}
+
+td:nth-child(4) { /* Type */
+  font-weight: 500;
+}
+
+td:nth-child(6) { /* Description */
+  max-width: 300px;
+  white-space: normal;
+}
+
+td:nth-child(7) { /* Timestamp */
+  white-space: nowrap;
+  color: #666;
+}
+
+.action-bar {
+  padding: 16px 0 0;
+  margin-top: 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .data-management-container {
+    margin-left: 0;
+    padding: 10px;
+  }
+
+  .controls-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-container {
+    max-width: none;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .data-type-filter,
+  .month-filter {
+    width: 100%;
+  }
+}

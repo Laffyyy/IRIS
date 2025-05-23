@@ -13,6 +13,8 @@ import Otp from './Otp';
 import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
+import EmployeeData from './pages/HR/EmployeeData';
+import DataManagement from './pages/HR/DataMGMT';
 
 function App() {
   return (
@@ -43,6 +45,8 @@ function App() {
                   <Route path="reports" element={<div>Reports Page</div>} />
                   <Route path="compensation" element={<div>C&B Page</div>} />
                   <Route path="faqs" element={<div>FAQs Page</div>} />
+                  <Route path="hr/employee-data" element={<EmployeeData />} />
+                  <Route path="hr/data-management" element={<DataManagement />} />
                 </Routes>
               </main>
             </div>

@@ -29,7 +29,15 @@ const navItems = [
       { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
     ]
   },
-  { name: 'HR', path: '/hr', icon: hrIcon },
+  { 
+    name: 'HR', 
+    icon: hrIcon,
+    subItems: [
+      { name: 'Employee Data', path: '/hr/employee-data', icon: userManagementIcon },
+      { name: 'Data Management', path: '/hr/data-management', icon: appManagementIcon },
+      { name: 'Reports', path: '/hr/reports', icon: reportsIcon }
+    ]
+  },
   { name: 'Reports', path: '/reports', icon: reportsIcon },
   { name: 'C&B', path: '/cb', icon: cbIcon },
   { name: 'FAQs', path: '/faqs', icon: faqsIcon }
