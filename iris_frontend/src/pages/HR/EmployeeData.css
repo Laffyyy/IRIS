@@ -7,31 +7,24 @@
 }
 
 .employee-data-header {
-  margin-bottom: 24px;
-  text-align: left; /* Align header and subtitle to the left */
-  /* Remove flexbox to stack header and subtitle vertically */
-  display: block;
-}
-
-.employee-data-header h1 {
-  font-size: 18px;
-  color: #004D8D;
-  margin: 0 0 4px 0; /* margin bottom 4px to separate from subtitle */
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.employee-data-header .subtitle {
-  font-size: 12px;
-  color: #666;
-  margin: 0;
-  line-height: 1.2;
-  padding: 0;
-}
-
-/* Removed subtitle-container padding-left */
-
-/* rest of your CSS unchanged */
+    margin-bottom: 24px;
+    text-align: left; /* Align header and subtitle to the left */
+    /* Remove flexbox to stack header and subtitle vertically */
+    display: block;
+  }
+  .employee-data-header h1 {
+    font-size: 18px;
+    color: #004D8D;
+    margin: 0 0 4px 0; /* margin bottom 4px to separate from subtitle */
+    font-weight: 600;
+  }
+  .employee-data-header .subtitle {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+    text-align: left;
+  }
+  
 
 .upload-section {
   background: white;
@@ -278,4 +271,3 @@ tbody tr:hover {
     border-radius: 0;
   }
 }
-
