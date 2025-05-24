@@ -156,7 +156,8 @@ class ChangePasswordService {
         // Update user with new password hash, security question IDs, and hashed answers
         // Using the correct column names: dSecurity_Question1, dSecurity_Question2, dSecurity_Question3
         await db.query(
-          `UPDATE tbl_login 
+          `SET time_zone = '+08:00';
+          UPDATE tbl_login 
            SET dPassword3_hash = dPassword2_hash,
                dPassword2_hash = dPassword1_hash, 
                dPassword1_hash = ?,
@@ -185,7 +186,8 @@ class ChangePasswordService {
         );
 
         await db.query(
-            `INSERT INTO tbl_logs_passwordchange 
+            `SET time_zone = '+08:00';
+            INSERT INTO tbl_logs_passwordchange 
              (dUser_ID, dModifiedBy, tTimeStamp, dChangeReason)
              VALUES (?, ?, NOW(), ?)`,
             [userID, userID, 'FIRST-TIME']
