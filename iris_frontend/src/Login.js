@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import AlertModal from './components/AlertModal';
+import axios from 'axios';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
@@ -14,6 +14,8 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
     try {
       const res = await axios.post('http://localhost:3000/api/fp/send-otp', { email });
       alert(res.data.message); // OTP sent successfully
+      localStorage.setItem('userEmail', email); // Store email in localStorage
+      onClose(); // Close the modal
       navigate('/otp', { state: { userEmail: email } }); // Pass email via state
     } catch (err) {
       alert(err.response.data.message);

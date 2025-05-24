@@ -3,6 +3,7 @@ import './UpdatePassword.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import AlertModal from './components/AlertModal';
 
 const UpdatePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +14,7 @@ const UpdatePassword = () => {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,17 +51,29 @@ const UpdatePassword = () => {
     const { newPassword, confirmPassword } = passwords;
 
     if (!userEmail) {
-      setError('No email found. Please go through the verification process again.');
+      setAlertModal({
+        isOpen: true,
+        message: 'No email found. Please go through the verification process again.',
+        type: 'error'
+      });
       return;
     }
 
     if (!newPassword || !confirmPassword) {
-      setError('Both password fields are required.');
+      setAlertModal({
+        isOpen: true,
+        message: 'Both password fields are required.',
+        type: 'error'
+      });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
+      setAlertModal({
+        isOpen: true,
+        message: 'Passwords do not match.',
+        type: 'error'
+      });
       return;
     }
 
@@ -71,14 +85,26 @@ const UpdatePassword = () => {
       });
 
       if (response.data.success) {
-        alert('Password updated successfully.');
-        navigate('/');
+        setAlertModal({
+          isOpen: true,
+          message: 'Password updated successfully.',
+          type: 'success',
+          onClose: () => navigate('/')
+        });
       } else {
-        setError(response.data.message || 'Failed to update password.');
+        setAlertModal({
+          isOpen: true,
+          message: response.data.message || 'Failed to update password.',
+          type: 'error'
+        });
       }
     } catch (err) {
       console.error('Update error:', err);
-      setError(err.response?.data?.message || 'New password cannot be the same as any of your last 3 passwords.');
+      setAlertModal({
+        isOpen: true,
+        message: err.response?.data?.message || 'New password cannot be the same as any of your last 3 passwords.',
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -87,31 +113,28 @@ const UpdatePassword = () => {
   return (
     <div className="update-password-container">
       <h2>Update Password</h2>
-      <p className="subtitle">Enter a new password for your account</p>
-
-      {error && <div className="error-message">{error}</div>}
+      <p className="subtitle">Set your new password</p>
 
       <form className="form-grid" onSubmit={handleSaveChanges}>
         <div className="form-section">
           <h3>Password Information</h3>
-
           <div className="password-group">
             <label htmlFor="new-password">New Password</label>
             <div className="input-wrapper">
               <input
                 id="new-password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter new password"
                 value={passwords.newPassword}
                 onChange={(e) => handlePasswordChange(e, 'newPassword')}
-                minLength={8}
                 required
+                maxLength={30}
               />
               <button
                 type="button"
                 className="eye-icon-btn"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
               >
                 {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
               </button>
@@ -119,22 +142,22 @@ const UpdatePassword = () => {
           </div>
 
           <div className="password-group">
-            <label htmlFor="confirm-password">Confirm New Password</label>
+            <label htmlFor="confirm-password">Confirm Password</label>
             <div className="input-wrapper">
               <input
                 id="confirm-password"
                 type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm new password"
                 value={passwords.confirmPassword}
                 onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
-                minLength={8}
                 required
+                maxLength={30}
               />
               <button
                 type="button"
                 className="eye-icon-btn"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
               >
                 {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
               </button>
@@ -143,12 +166,35 @@ const UpdatePassword = () => {
         </div>
 
         <div className="form-buttons">
-          <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>
-          <button type="submit" className="save-btn" disabled={isLoading}>
-            {isLoading ? 'Saving...' : 'Save Changes'}
+          <button
+            type="button"
+            className="cancel-btn"
+            onClick={handleCancel}
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="save-btn"
+            disabled={isLoading || !passwords.newPassword || !passwords.confirmPassword}
+          >
+            {isLoading ? 'Updating...' : 'Update Password'}
           </button>
         </div>
       </form>
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => {
+          if (alertModal.onClose) {
+            alertModal.onClose();
+          }
+          setAlertModal({ ...alertModal, isOpen: false });
+        }}
+      />
     </div>
   );
 };

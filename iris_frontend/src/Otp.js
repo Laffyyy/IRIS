@@ -6,10 +6,12 @@ import AlertModal from './components/AlertModal';
 import { jwtDecode } from 'jwt-decode';
 import axios from 'axios';
 
-const Otp = ({ onBack, onComplete }) => {
+const Otp = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const inputsRef = useRef([]);
+  
+  // State initialization with localStorage persistence
   const [expireTime, setExpireTime] = useState(() => {
     const savedExpireTime = localStorage.getItem('otpExpireTime');
     const savedExpireTimestamp = localStorage.getItem('otpExpireTimestamp');
@@ -20,6 +22,7 @@ const Otp = ({ onBack, onComplete }) => {
     }
     return 180;
   });
+  
   const [resendTime, setResendTime] = useState(() => {
     const savedResendTime = localStorage.getItem('otpResendTime');
     const savedResendTimestamp = localStorage.getItem('otpResendTimestamp');
@@ -30,27 +33,16 @@ const Otp = ({ onBack, onComplete }) => {
     }
     return 90;
   });
+  
   const [canResend, setCanResend] = useState(() => {
     const savedCanResend = localStorage.getItem('otpCanResend');
     return savedCanResend === 'true';
   });
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [userId, setUserId] = useState('');
-  const [isComplete, setIsComplete] = useState(false);
-  const [otpValues, setOtpValues] = useState(Array(6).fill(''));
-
-  useEffect(() => {
-    // Get userEmail or userId from navigation state
-    if (location.state?.userEmail) {
-      setUserEmail(location.state.userEmail);
-    }
-    if (location.state?.userId) {
-      setUserId(location.state.userId);
-    }
-  }, [location.state]);
-  const [userId, setUserId] = useState(() => localStorage.getItem('userId') || '');
   const [isComplete, setIsComplete] = useState(false);
   const [otpValues, setOtpValues] = useState(() => {
     const savedOtpValues = localStorage.getItem('otpValues');
@@ -58,40 +50,45 @@ const Otp = ({ onBack, onComplete }) => {
   });
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
-  // Add effect to check credentials and redirect if missing
+  // Initialize user data from location state or localStorage
   useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    const password = localStorage.getItem('password');
-    
-    if (!userId || !password) {
-      // Clear any existing OTP data
-      localStorage.removeItem('otpExpireTime');
-      localStorage.removeItem('otpExpireTimestamp');
-      localStorage.removeItem('otpResendTime');
-      localStorage.removeItem('otpResendTimestamp');
-      localStorage.removeItem('otpCanResend');
-      localStorage.removeItem('otpValues');
+    if (location.state?.userEmail) {
+      setUserEmail(location.state.userEmail);
+    } else if (location.state?.userId) {
+      setUserId(location.state.userId);
+    } else {
+      // Check localStorage for user data
+      const storedUserId = localStorage.getItem('userId');
+      const storedUserEmail = localStorage.getItem('userEmail');
       
-      // Redirect to login
+      if (storedUserId) setUserId(storedUserId);
+      if (storedUserEmail) setUserEmail(storedUserEmail);
+    }
+  }, [location.state]);
+
+  // Check credentials and redirect if missing
+  useEffect(() => {
+    // For login flow (userId)
+    const storedUserId = localStorage.getItem('userId');
+    const storedPassword = localStorage.getItem('password');
+    
+    // For forgot password flow (email)
+    const storedUserEmail = localStorage.getItem('userEmail');
+    
+    if (!storedUserId && !storedUserEmail) {
+      clearOtpData();
       navigate('/');
     }
   }, [navigate]);
 
-  // Add effect to focus first input on mount
+  // Focus first input on mount
   useEffect(() => {
     if (inputsRef.current[0]) {
       inputsRef.current[0].focus();
     }
   }, []);
 
-  useEffect(() => {
-    // Retrieve userId from localStorage (assuming it was saved during login)
-    const storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
-  }, []);
-
+  // Timer effects
   useEffect(() => {
     if (expireTime > 0) {
       const startTime = Date.now();
@@ -122,6 +119,7 @@ const Otp = ({ onBack, onComplete }) => {
     }
   }, [resendTime, canResend]);
 
+  // Persist state to localStorage
   useEffect(() => {
     localStorage.setItem('otpExpireTime', expireTime.toString());
     localStorage.setItem('otpExpireTimestamp', Date.now().toString());
@@ -140,30 +138,35 @@ const Otp = ({ onBack, onComplete }) => {
     localStorage.setItem('otpValues', JSON.stringify(otpValues));
   }, [otpValues]);
 
+  const clearOtpData = () => {
+    localStorage.removeItem('otpExpireTime');
+    localStorage.removeItem('otpExpireTimestamp');
+    localStorage.removeItem('otpResendTime');
+    localStorage.removeItem('otpResendTimestamp');
+    localStorage.removeItem('otpCanResend');
+    localStorage.removeItem('otpValues');
+  };
+
   const handleResendCode = async () => {
     if (!canResend) return;
 
     try {
       setLoading(true);
+      let response;
+      
       if (userEmail) {
-        // For email users
-        await axios.post('http://localhost:3000/api/fp/send-otp', { email: userEmail });
+        // For email users (forgot password flow)
+        response = await axios.post('http://localhost:3000/api/fp/send-otp', { email: userEmail });
       } else if (userId) {
-        // For userId users
-        await axios.post('http://localhost:3000/api/otp/generate', { userId });
+        // For userId users (login flow)
+        response = await axios.post('http://localhost:3000/api/otp/generate', { userId });
       } else {
-        setError('No user information found for resending OTP.');
+        setAlertModal({
+          isOpen: true,
+          message: 'No user information found for resending OTP.',
+          type: 'error'
+        });
         return;
-      const response = await fetch('http://localhost:3000/api/otp/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userID: userId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to resend OTP');
       }
 
       setResendTime(90);
@@ -175,15 +178,16 @@ const Otp = ({ onBack, onComplete }) => {
       });
       inputsRef.current[0]?.focus();
       setError('');
+      
       setAlertModal({
         isOpen: true,
-        message: 'A new OTP has been sent to your email.',
+        message: 'A new OTP has been sent.',
         type: 'success'
       });
     } catch (err) {
       setAlertModal({
         isOpen: true,
-        message: 'Failed to resend OTP. Please try again.',
+        message: err.response?.data?.message || 'Failed to resend OTP. Please try again.',
         type: 'error'
       });
     } finally {
@@ -194,7 +198,6 @@ const Otp = ({ onBack, onComplete }) => {
   const handleInputChange = (e, index) => {
     let value = e.target.value.toUpperCase();
     value = value.replace(/[^A-Z0-9]/g, '');
- 
 
     if (value.length > 1) return;
 
@@ -202,10 +205,6 @@ const Otp = ({ onBack, onComplete }) => {
     const newOtpValues = [...otpValues];
     newOtpValues[index] = value;
     setOtpValues(newOtpValues);
-
-    // Check if all OTP values are filled
-    const allFilled = newOtpValues.every(val => val !== '');
-    setIsComplete(allFilled);
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
@@ -234,7 +233,6 @@ const Otp = ({ onBack, onComplete }) => {
       });
       setOtpValues(newOtpValues);
       setIsComplete(true);
-      setIsComplete(true);
       inputsRef.current[5].focus();
     }
     e.preventDefault();
@@ -248,91 +246,106 @@ const Otp = ({ onBack, onComplete }) => {
 
   const handleSubmit = async () => {
     const otp = otpValues.join('');
-    if (!userEmail) {
-      alert('User email is missing. Please log in again.');
-      return;
-    }
-    const otp = otpValues.join('');
-    const userId = localStorage.getItem('userId');
-    const password = localStorage.getItem('password');
+    
+    try {
+      let response;
+      
+      if (userEmail) {
+        // Forgot password flow
+        const payload = { email: userEmail, otp };
+        response = await axios.post('http://localhost:3000/api/fp/verify-otp', payload);
+        
+        if (response.status === 200) {
+          setAlertModal({
+            isOpen: true,
+            message: response.data.message || 'OTP verified!',
+            type: 'success',
+            onClose: () => {
+              localStorage.setItem('userEmail', userEmail);
+              navigate('/security-questions', { state: { userEmail } });
+            }
+          });
+        }
+      } else if (userId) {
+        // Login flow
+        const password = localStorage.getItem('password');
+        if (!password) {
+          setAlertModal({
+            isOpen: true,
+            message: 'Session expired. Please log in again.',
+            type: 'error',
+            onClose: () => {
+              clearOtpData();
+              navigate('/');
+            }
+          });
+          return;
+        }
+        
+        const payload = { userID: userId, password, otp };
+        response = await axios.post('http://localhost:3000/api/login/', payload);
+        
+        if (response.status === 200) {
+          const { data } = response;
+          const userStatus = data.data.user?.status;
+          const token = data.data.token;
+          
+          if (token) {
+            localStorage.setItem('token', token);
+          }
 
-    if (!userId || !password) {
+          setAlertModal({
+            isOpen: true,
+            message: data.message || 'Login successful',
+            type: 'success',
+            onClose: () => {
+              // Decode token to get user roles
+              const decoded = jwtDecode(token);
+              const roles = decoded.roles
+                ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
+                : decoded.role
+                  ? [decoded.role]
+                  : [];
+
+              if (userStatus === 'FIRST-TIME') {
+                navigate('../change-password');
+              } else if (userStatus === 'ACTIVE') {
+                if (roles.includes('admin')) {
+                  navigate('../admin/dashboard');
+                } else if (roles.includes('HR')) {
+                  navigate('../hr');
+                } else if (roles.includes('REPORTS')) {
+                  navigate('../reports');
+                } else if (roles.includes('CNB')) {
+                  navigate('../compensation');
+                } else {
+                  navigate('/');
+                }
+              }
+            }
+          });
+        }
+      } else {
+        setAlertModal({
+          isOpen: true,
+          message: 'User information not found. Please try again.',
+          type: 'error'
+        });
+        return;
+      }
+    } catch (error) {
       setAlertModal({
         isOpen: true,
-        message: 'User ID or password is missing. Please log in again.',
+        message: error.response?.data?.message || 'An error occurred while verifying the OTP. Please try again.',
         type: 'error'
       });
-      return;
     }
-
-  // Prepare the payload
-  const payload = {
-    userId,
-    password,
-    otp
   };
 
-  try {
-    // Send POST request to the API
-    const response = await fetch('http://localhost:3000/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-  // Handle successful OTP verification
-  const userStatus = data.data.user.status;
-  localStorage.setItem('token', data.data.token); // Save token to localStorage
-  alert(data.data.message);
-
-  // Decode token to get user roles
-  const decoded = jwtDecode(data.data.token);
-  const roles = decoded.roles
-    ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
-    : decoded.role
-      ? [decoded.role]
-      : [];
-
-  if (userStatus === 'FIRST-TIME') {
-    navigate('../change-password');
-  } else if (userStatus === 'ACTIVE') {
-    alert('Login successful');
-    if (roles.includes('admin')) {
-      navigate('../dashboard');
-    } else if (roles.includes('HR')) {
-      navigate('../hr');
-    } else if (roles.includes('REPORTS')) {
-      navigate('../reports');
-    } else if (roles.includes('CNB')) {
-      navigate('../cb');
-    } else {
-      navigate('/'); // fallback
-    }
-  }
-} else {
-      // Handle failed OTP verification
-      alert(data.data.message || 'Failed to verify OTP. Please try again.');
-    }
-  } catch (error) {
-    console.error('Error during OTP verification:', error);
-    alert('An error occurred while verifying the OTP. Please try again.');
-  }
-
-  
-  
-
-};
- const handleBack = () => {
-    // Clear local storage or any other necessary cleanup
-    localStorage.removeItem('userId');
-    localStorage.removeItem('password');
-    navigate('/'); // Redirect to the login page
-  }
+  const handleBack = () => {
+    clearOtpData();
+    navigate('/');
+  };
 
   return (
     <div className="otp-container">
@@ -375,9 +388,10 @@ const Otp = ({ onBack, onComplete }) => {
           <button
             className="resend-otp"
             onClick={handleResendCode}
-            disabled={!canResend}
+            disabled={!canResend || loading}
           >
-            {canResend ? 'Resend Code' : `Resend in ${formatTime(resendTime)}`}
+            {loading ? 'Sending...' : 
+             canResend ? 'Resend Code' : `Resend in ${formatTime(resendTime)}`}
           </button>
         </div>
 
@@ -385,15 +399,17 @@ const Otp = ({ onBack, onComplete }) => {
           <button
             className="otp-back"
             onClick={handleBack}
-          >Back</button>
+            disabled={loading}
+          >
+            Back
+          </button>
           <button
             id="otp-submit-button"
             className={`otp-submit ${isComplete ? 'otp-submit-enabled' : ''}`}
             onClick={handleSubmit}
-            disabled={!isComplete}
-            type="button"
+            disabled={!isComplete || loading}
           >
-            Verify OTP
+            {loading ? 'Verifying...' : 'Verify OTP'}
           </button>
         </div>
       </div>
