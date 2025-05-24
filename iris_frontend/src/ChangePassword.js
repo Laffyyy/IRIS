@@ -3,6 +3,7 @@ import './ChangePassword.css';
 import { useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { jwtDecode } from 'jwt-decode';
+import AlertModal from './components/AlertModal';
 
 const ChangePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,14 +15,12 @@ const ChangePassword = () => {
   const navigate = useNavigate();
   const [passwordWarning, setPasswordWarning] = useState('');
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info', onClose: null });
   const [securityQuestionsList, setSecurityQuestionsList] = useState({
     set1: [],
     set2: [],
     set3: []
   });
-
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   const [passwords, setPasswords] = useState({
     newPassword: '',
@@ -114,7 +113,7 @@ const ChangePassword = () => {
     const value = e.target.value;
     // Allow alphanumeric plus dash, dot, underscore, exclamation point, and @ symbol
     const filteredValue = value.replace(/[^a-zA-Z0-9_\-.!@]/g, '');
-    const truncatedValue = filteredValue.slice(0, 30);
+    const truncatedValue = filteredValue.slice(0, 20);
   
     if (field === 'newPassword') {
       // Check password complexity requirements
@@ -122,11 +121,13 @@ const ChangePassword = () => {
       const hasLowerCase = /[a-z]/.test(value);
       const hasNumber = /[0-9]/.test(value);
       const hasSpecial = /[_\-.!@]/.test(value);
-      const hasMinLength = value.length >= 12;
+      const hasMinLength = value.length >= 15;
+      const hasMaxLength = value.length <= 20;
       
-      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial || !hasMinLength) {
+      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecial || !hasMinLength || !hasMaxLength) {
         let warning = 'Password must:';
         if (!hasMinLength) warning += '\n- Be at least 12 characters long';
+        if (!hasMaxLength) warning += '\n- Be no more than 20 characters long';
         if (!hasUpperCase) warning += '\n- Include at least one uppercase letter';
         if (!hasLowerCase) warning += '\n- Include at least one lowercase letter';  
         if (!hasNumber) warning += '\n- Include at least one number';
@@ -156,13 +157,13 @@ const ChangePassword = () => {
     setLoading(true);
     
     try {
-        // Validate each field
-        if (!passwords.newPassword || !passwords.confirmPassword || 
-          !securityQuestions.questionId1 || !securityQuestions.questionId2 || !securityQuestions.questionId3 ||
-          !answers.answer1 || !answers.answer2 || !answers.answer3) {
-        return; // Stop execution but display the empty field errors
+      // Validate each field
+      if (!passwords.newPassword || !passwords.confirmPassword || 
+        !securityQuestions.questionId1 || !securityQuestions.questionId2 || !securityQuestions.questionId3 ||
+        !answers.answer1 || !answers.answer2 || !answers.answer3) {
+        return;
       }
-
+  
       // Validate passwords match
       if (passwords.newPassword !== passwords.confirmPassword) {
         throw new Error('Passwords do not match');
@@ -212,11 +213,6 @@ const ChangePassword = () => {
       if (token) {
         localStorage.setItem('token', token);
         
-        // Show success message
-        setSuccess(true);
-        setSuccessMessage('Changes Saved. Redirecting to Dashboard...');
-        setShowSuccessToast(true);
-        
         // Decode token to get user roles
         const decoded = jwtDecode(token);
         const roles = decoded.roles 
@@ -226,27 +222,39 @@ const ChangePassword = () => {
             : [];
         
         // Redirect based on role after short delay
-        setTimeout(() => {
-          setShowSuccessToast(false);
-          
-          // Role-based redirection
-          if (roles.includes('admin')) {
-            navigate('../dashboard');
-          } else if (roles.includes('HR')) {
-            navigate('../hr');
-          } else if (roles.includes('REPORTS')) {
-            navigate('../reports');
-          } else if (roles.includes('CNB')) {
-            navigate('../compensation');
-          } else {
-            navigate('../dashboard'); // Default fallback
+        setAlertModal({
+          isOpen: true,
+          message: 'First-Time Login Completed. Press Ok to Continue',
+          type: 'success',
+          onClose: () => {
+            // Role-based redirection happens when user clicks OK
+            if (roles.includes('admin')) {
+              navigate('../dashboard');
+            } else if (roles.includes('HR')) {
+              navigate('../hr');
+            } else if (roles.includes('REPORTS')) {
+              navigate('../reports');
+            } else if (roles.includes('CNB')) {
+              navigate('../compensation');
+            } else {
+              navigate('../dashboard'); // Default fallback
+            }
           }
-        }, 2000);
+        });
       } else {
         throw new Error('No token received after authentication');
       }
     } catch (err) {
-      setError(err.message);
+      if (err.message.includes('same as any of your last 3 passwords') || 
+        err.message.includes('cannot be the same as any of your last')) {
+      setAlertModal({
+        isOpen: true,
+        message: "New Password can't be the same as old password.",
+        type: 'error'
+      });
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -259,7 +267,8 @@ const ChangePassword = () => {
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
     const hasSpecial = /[^A-Za-z0-9]/.test(password);
-    const hasMinLength = password.length >= 12;
+    const hasMinLength = password.length >= 15;
+    const hasMaxLength = password.length <= 20;
     const passwordsMatch = password === passwords.confirmPassword;
     
     // Check if all security questions are selected
@@ -276,7 +285,7 @@ const ChangePassword = () => {
     
     // Only enable the button if all conditions are met
     return hasUpperCase && hasLowerCase && hasNumber && hasSpecial && 
-           hasMinLength && passwordsMatch && allQuestionsSelected && 
+           hasMinLength && hasMaxLength && passwordsMatch && allQuestionsSelected && 
            allAnswersProvided;
   };
 
@@ -318,32 +327,36 @@ const ChangePassword = () => {
                 </button>
               </div>
               {/* Password requirements list - added below input */}
-                {(passwords.newPassword.length < 12 || 
-                  !/[A-Z]/.test(passwords.newPassword) || 
-                  !/[a-z]/.test(passwords.newPassword) || 
-                  !/[0-9]/.test(passwords.newPassword) || 
-                  !/[^A-Za-z0-9]/.test(passwords.newPassword)) && (
-                  <div className="password-requirements">
-                    <small>Password must:</small>
-                    <ul>
-                      {passwords.newPassword.length < 12 && (
-                        <li className="requirement-item">Be at least 12 characters long</li>
-                      )}
-                      {!/[A-Z]/.test(passwords.newPassword) && (
-                        <li className="requirement-item">Include at least one uppercase letter</li>
-                      )}
-                      {!/[a-z]/.test(passwords.newPassword) && (
-                        <li className="requirement-item">Include at least one lowercase letter</li>
-                      )}
-                      {!/[0-9]/.test(passwords.newPassword) && (
-                        <li className="requirement-item">Include at least one number</li>
-                      )}
-                      {!/[_\-.!@]/.test(passwords.newPassword) && (
-                        <li className="requirement-item">Include at least one special character (- . _ ! @)</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
+                {(passwords.newPassword.length < 15 || 
+                passwords.newPassword.length > 20 ||
+                !/[A-Z]/.test(passwords.newPassword) || 
+                !/[a-z]/.test(passwords.newPassword) || 
+                !/[0-9]/.test(passwords.newPassword) || 
+                !/[^A-Za-z0-9]/.test(passwords.newPassword)) && (
+                <div className="password-requirements">
+                  <small>Password must:</small>
+                  <ul>
+                    {passwords.newPassword.length < 15 && (
+                      <li className="requirement-item">Be at least 15 characters long</li>
+                    )}
+                    {passwords.newPassword.length > 20 && (
+                      <li className="requirement-item">Be no more than 20 characters long</li>
+                    )}
+                    {!/[A-Z]/.test(passwords.newPassword) && (
+                      <li className="requirement-item">Include at least one uppercase letter</li>
+                    )}
+                    {!/[a-z]/.test(passwords.newPassword) && (
+                      <li className="requirement-item">Include at least one lowercase letter</li>
+                    )}
+                    {!/[0-9]/.test(passwords.newPassword) && (
+                      <li className="requirement-item">Include at least one number</li>
+                    )}
+                    {!/[_\-.!@]/.test(passwords.newPassword) && (
+                      <li className="requirement-item">Include at least one special character (- . _ ! @)</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="security-question-group">
@@ -515,16 +528,17 @@ const ChangePassword = () => {
           <button type="submit" className="save-btn" onClick={handleSubmit}>Save Changes</button>
         </div>
       </div>
-
-      {/* Success Toast Notification */}
-      {showSuccessToast && (
-        <div className="success-toast">
-          <div className="toast-content">
-            <span className="toast-icon">✓</span>
-            {successMessage}
-          </div>
-        </div>
-      )}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => {
+          if (alertModal.onClose) {
+            alertModal.onClose();
+          }
+          setAlertModal({ ...alertModal, isOpen: false });
+        }}
+      />
     </div>
   );
 };
