@@ -21,7 +21,7 @@ const forgotPasswordService = {
                 user.dPassword1_hash,
                 user.dPassword2_hash,
                 user.dPassword3_hash
-            ].filter(Boolean); // remove nulls if any
+            ].filter(Boolean);
 
             for (const oldHash of previousPasswords) {
                 const isMatch = await bcrypt.compare(newPassword, oldHash);
@@ -42,6 +42,16 @@ const forgotPasswordService = {
                     tLastUpdated = NOW()
                 WHERE dUser_ID = ?`, 
                 [hashedPassword, user.dUser_ID]
+            );
+
+            // Log the password change (insert or update if already exists for this user)
+            await db.query(
+                `INSERT INTO tbl_logs_passwordchange (dUser_ID, dModifiedBy, tTimeStamp, dChangeReason)
+                 VALUES (?, ?, NOW(), ?)
+                 ON DUPLICATE KEY UPDATE 
+                    tTimeStamp = NOW(),
+                    dChangeReason = VALUES(dChangeReason)`,
+                [user.dUser_ID, user.dUser_ID, 'FORGOT']
             );
 
             return { message: 'Password reset successfully' };

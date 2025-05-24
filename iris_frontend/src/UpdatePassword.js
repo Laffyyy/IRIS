@@ -78,7 +78,7 @@ const UpdatePassword = () => {
       }
     } catch (err) {
       console.error('Update error:', err);
-      setError(err.response?.data?.message || 'An error occurred while updating password.');
+      setError(err.response?.data?.message || 'New password cannot be the same as any of your last 3 passwords.');
     } finally {
       setIsLoading(false);
     }

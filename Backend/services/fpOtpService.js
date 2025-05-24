@@ -99,7 +99,12 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
 
   // Query for latest matching OTP that is unused and not expired
   const [rows] = await db.query(
-    `SELECT * FROM tbl_otp WHERE dUser_ID = ? AND dOTP = ? AND dOTP_Status = 0 ORDER BY tOTP_Created DESC LIMIT 1`,
+    `SELECT * FROM tbl_otp 
+     WHERE dUser_ID = ? 
+       AND dOTP = ? 
+       AND dOTP_Status = 0 
+       AND tOTP_Expires > NOW()
+     ORDER BY tOTP_Created DESC LIMIT 1`,
     [userId, otp]
   );
 
@@ -107,13 +112,8 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
     throw new Error('Invalid or expired OTP');
   }
 
+  // No need to check expiration in JS anymore
   const otpRecord = rows[0];
-  const now = new Date();
-  const expiresAt = new Date(otpRecord.tOTP_Expires);
-
-  if (now > expiresAt) {
-    throw new Error('OTP expired');
-  }
 
   // Mark OTP as used
   await db.query(
@@ -121,8 +121,6 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
     [userId, otp]
   );
 
-  // Determine redirect path or return info
   const redirectPath = '/security-questions';
-
   return { message: 'OTP verified successfully', redirect: redirectPath };
 };

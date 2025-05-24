@@ -2,7 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const login = require('../models/login');
-const OtpService = require('./otpService'); // Import the OtpService
+const OtpService = require('./otpservice'); // Import the OtpService
 
 class LoginService {
     constructor() {

@@ -15,13 +15,17 @@ const Otp = ({ onBack, onComplete }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const [otpValues, setOtpValues] = useState(Array(6).fill(''));
 
   useEffect(() => {
-    // Get userEmail from navigation state
-    if (location.state && location.state.userEmail) {
+    // Get userEmail or userId from navigation state
+    if (location.state?.userEmail) {
       setUserEmail(location.state.userEmail);
+    }
+    if (location.state?.userId) {
+      setUserId(location.state.userId);
     }
   }, [location.state]);
 
@@ -46,10 +50,16 @@ const Otp = ({ onBack, onComplete }) => {
 
     try {
       setLoading(true);
-      // API call to resend OTP
-      await axios.post('http://localhost:3000/api/otp/generate', {
-        userEmail,
-      });
+      if (userEmail) {
+        // For email users
+        await axios.post('http://localhost:3000/api/fp/send-otp', { email: userEmail });
+      } else if (userId) {
+        // For userId users
+        await axios.post('http://localhost:3000/api/otp/generate', { userId });
+      } else {
+        setError('No user information found for resending OTP.');
+        return;
+      }
 
       setResendTime(90);
       setExpireTime(180);
@@ -60,6 +70,7 @@ const Otp = ({ onBack, onComplete }) => {
       });
       inputsRef.current[0]?.focus();
       setError('');
+      alert('A new OTP has been sent.');
     } catch (err) {
       setError('Failed to resend OTP. Please try again.');
     } finally {
