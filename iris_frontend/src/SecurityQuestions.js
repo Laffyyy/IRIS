@@ -134,31 +134,27 @@ const SecurityQuestions = () => {
       <form className="form-grid" onSubmit={handleSaveChanges}>
         <div className="form-section">
           <h3>Security Question</h3>
-
-          {isLoading && questions.length === 0 ? (
-            <p>Loading questions...</p>
-          ) : (
-            <div className="question-answer-container">
-              <input
-                type="text"
-                value={questions.length > 0 ? questions[0].question : 'No question available'}
-                disabled
-                className="static-question-input"
-                style={{ marginBottom: '1rem' }}
-              />
-              <input
-                type="text"
-                placeholder="Your answer"
-                value={answer}
-                onChange={handleAnswerChange}
-                maxLength={30}
-                required
-                disabled={isLoading}
-              />
-            </div>
-          )}
+          <div className="security-question-group">
+            <label htmlFor="security-question">Security Question</label>
+            <input
+              id="security-question"
+              type="text"
+              value={questions.length > 0 ? questions[0].question : 'No question available'}
+              disabled
+              className="static-question-input"
+              style={{ marginBottom: '1rem' }}
+            />
+            <input
+              type="text"
+              placeholder="Your answer"
+              value={answer}
+              onChange={handleAnswerChange}
+              maxLength={30}
+              required
+              disabled={isLoading}
+            />
+          </div>
         </div>
-
         <div className="form-buttons">
           <button
             type="button"
@@ -172,7 +168,6 @@ const SecurityQuestions = () => {
             type="submit"
             className="save-btn"
             disabled={isLoading || !selectedQuestion || !answer}
-            
           >
             {isLoading ? 'Verifying...' : 'Verify Answer'}
           </button>
