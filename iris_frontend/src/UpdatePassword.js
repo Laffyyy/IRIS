@@ -23,13 +23,41 @@ const UpdatePassword = () => {
   const answer = location.state?.answer || '';
   const userEmail = location.state?.userEmail || '';
 
+  const validatePassword = (password) => {
+    // Check length (15-20 characters)
+    if (password.length < 15 || password.length > 20) {
+      return 'Password must be between 15 and 20 characters';
+    }
+
+    // Check for at least one uppercase letter
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+
+    // Check for at least one lowercase letter
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+
+    // Check for at least one number
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+
+    // Check for allowed special characters
+    const allowedSpecialChars = /^[a-zA-Z0-9!\/[_\-.!@,]+$/;
+    if (!allowedSpecialChars.test(password)) {
+      return 'Password can only contain letters, numbers, and these special characters: !/[_\-.!@,';
+    }
+
+    return null;
+  };
+
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
-    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
-    const truncatedValue = filteredValue.slice(0, 30);
     setPasswords(prev => ({
       ...prev,
-      [field]: truncatedValue
+      [field]: value
     }));
   };
 
@@ -63,6 +91,17 @@ const UpdatePassword = () => {
       setAlertModal({
         isOpen: true,
         message: 'Both password fields are required.',
+        type: 'error'
+      });
+      return;
+    }
+
+    // Validate password
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      setAlertModal({
+        isOpen: true,
+        message: passwordError,
         type: 'error'
       });
       return;
@@ -127,7 +166,7 @@ const UpdatePassword = () => {
                 value={passwords.newPassword}
                 onChange={(e) => handlePasswordChange(e, 'newPassword')}
                 required
-                maxLength={30}
+                maxLength={20}
               />
               <button
                 type="button"
@@ -150,7 +189,7 @@ const UpdatePassword = () => {
                 value={passwords.confirmPassword}
                 onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
                 required
-                maxLength={30}
+                maxLength={20}
               />
               <button
                 type="button"
