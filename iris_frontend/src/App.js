@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -13,69 +13,89 @@ import Otp from './Otp';
 import ChangePassword from './ChangePassword';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
-import  ProtectedRoute  from './utilities/ProtectedRoute';
+import ProtectedRoute from './utilities/ProtectedRoute';
 import Unauthorize from './utilities/Unautorize';
 import AdminPage from './adminpagecollection';
+import InactivityHandler from './components/InactivityHandler';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Auth routes - no sidebar */}
-        <Route path="/" element={<Login />} />
-        <Route path="/otp" element={<Otp />} />
-        <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/security-questions" element={<SecurityQuestions />} />
-        <Route path="/update-password" element={<UpdatePassword />} />
-
-        {/* Dashboard/admin routes - with sidebar */}
-       <Route
-  path="/*"
-  element={
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
+      <div className="App">
         <Routes>
+          {/* Login routes */}
+          <Route path="/" element={<Login />} />
+          <Route path="/otp" element={<Otp />} />
+          <Route 
+            path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
+
+          {/* Protected routes */}
           <Route
-            path="admin/*"
+            path="/admin/*"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminPage />
-              </ProtectedRoute>
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
             }
           />
           <Route
-            path="hr"
+            path="/hr"
             element={
-              <ProtectedRoute allowedRoles={['HR', 'admin']}>
-                <div>HR Page</div>
-              </ProtectedRoute>
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
+                      <div>HR Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
             }
           />
           <Route
-            path="reports"
+            path="/reports"
             element={
-              <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
-                <div>Reports Page</div>
-              </ProtectedRoute>
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+                      <div>Reports Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
             }
           />
           <Route
-            path="compensation"
+            path="/compensation"
             element={
-              <ProtectedRoute allowedRoles={['CNB', 'admin']}>
-                <div>C&B Page</div>
-              </ProtectedRoute>
+              <InactivityHandler>
+                <div className="app-container">
+                  <Sidebar />
+                  <main className="main-content">
+                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+                      <div>C&B Page</div>
+                    </ProtectedRoute>
+                  </main>
+                </div>
+              </InactivityHandler>
             }
           />
-          <Route path="faqs" element={<div>FAQs Page</div>} />
-          <Route path="unauthorized" element={<Unauthorize />} />
+          <Route path="/faqs" element={<div>FAQs Page</div>} />
+          <Route path="/unauthorized" element={<Unauthorize />} />
         </Routes>
-      </main>
-    </div>
-  }
-/>
-      </Routes>
+      </div>
     </Router>
   );
 }
