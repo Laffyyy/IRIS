@@ -28,9 +28,9 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/otp" element={<Otp />} />
           <Route 
-            path="/change-password" element={<ProtectedRoute allowedRoles={['ADMIN' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
-          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['ADMIN' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
-          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['ADMIN' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
+            path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
 
           {/* Protected routes */}
           <Route
@@ -40,7 +40,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <ProtectedRoute allowedRoles={['admin']}>
                       <AdminPage />
                     </ProtectedRoute>
                   </main>
@@ -55,7 +55,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
+                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
                       <div>HR Page</div>
                     </ProtectedRoute>
                   </main>
@@ -70,7 +70,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['REPORTS', 'ADMIN']}>
+                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
                       <div>Reports Page</div>
                     </ProtectedRoute>
                   </main>
@@ -85,7 +85,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['CNB', 'ADMIN']}>
+                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
                       <div>C&B Page</div>
                     </ProtectedRoute>
                   </main>
