@@ -585,115 +585,138 @@ const ClientManagement = () => {
   }
 }, [filterClientForSubLob, lobs]);
 
-  // Add fetchClientData function here, before useEffect
-  const fetchClientData = async (status = itemStatusTab) => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`http://localhost:3000/api/clients/getAll?status=${status}`);
+const fetchClientData = async (status = itemStatusTab) => {
+  try {
+    setLoading(true);
+    const response = await axios.get(`http://localhost:3000/api/clients/getAll?status=${status}`);
+    
+    if (response.data && response.data.data) {
+      console.log('Client data from API:', response.data.data);
       
-      if (response.data && response.data.data) {
-        console.log('Client data from API:', response.data.data);
-        
-        const transformedClients = [];
-        const transformedLobs = [];
-        const transformedSubLobs = [];
-        const sitesMap = new Map();
-        let lobId = 0;
-        let subLobId = 0;
-        
-        // First, create a map of unique clients
-        const uniqueClients = new Map();
-        
-        response.data.data.forEach((client) => {
-          const clientId = client.clientId;
-          // Only add each client once, using their unique ID
-          if (!uniqueClients.has(clientId)) {
-            uniqueClients.set(clientId, {
-              id: clientId,
-              name: client.clientName,
-              createdBy: client.createdBy || '-',
-              createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-            });
-          }
-        });
-        
-        // Convert unique clients map to array
-        transformedClients.push(...uniqueClients.values());
-        
-        // Now process LOBs and SubLOBs
-        response.data.data.forEach((client) => {
-          const clientId = client.clientId;
-          
-          if (client.LOBs && Array.isArray(client.LOBs)) {
-            client.LOBs.forEach(lob => {
-              lobId++;
-              
-              // Extract site info from LOB
-              if (lob.sites && Array.isArray(lob.sites)) {
-                lob.sites.forEach(site => {
-                  if (site.siteId && site.siteName) {
-                    sitesMap.set(site.siteId, {
-                      id: site.siteId,
-                      name: site.siteName
-                    });
-                  }
-                });
-              } else if (lob.siteId && lob.siteName) {
-                sitesMap.set(lob.siteId, {
-                  id: lob.siteId,
-                  name: lob.siteName
-                });
-              }
-              
-              transformedLobs.push({
-                id: lobId,
-                name: lob.name,
-                clientId: clientId,
-                clientRowId: lob.clientRowId || clientId, // Store the unique row-specific clientId
-                siteId: lob.siteId || null,
-                siteName: lob.siteName || null,
-                sites: lob.sites || []
-              });
-              
-              if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                lob.subLOBs.forEach(subLobName => {
-                  subLobId++;
-                  transformedSubLobs.push({
-                    id: subLobId,
-                    name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                    lobId: lobId,
-                    clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                  });
-                });
-              }
-            });
-          }
-        });
-        
-        // Sort clients by ID in ascending order
-        transformedClients.sort((a, b) => a.id - b.id);
-        
-        setClients(transformedClients);
-        setLobs(transformedLobs);
-        setSubLobs(transformedSubLobs);
-        
-        // Set sites from collected site data
-        const transformedSites = Array.from(sitesMap.values());
-        setSites(transformedSites.length > 0 ? transformedSites : []);
-        // After setClients(transformedClients):
-        if (status === 'ACTIVE') {
-          setActiveCount(transformedClients.length);
-        } else if (status === 'DEACTIVATED') {
-          setDeactivatedCount(transformedClients.length);
+      const transformedClients = [];
+      const transformedLobs = [];
+      const transformedSubLobs = [];
+      const sitesMap = new Map();
+      let lobId = 0;
+      let subLobId = 0;
+      
+      // First, create a map of unique clients
+      const uniqueClients = new Map();
+      
+      response.data.data.forEach((client) => {
+        const clientId = client.clientId;
+        // Only add each client once, using their unique ID
+        if (!uniqueClients.has(clientId)) {
+          uniqueClients.set(clientId, {
+            id: clientId,
+            name: client.clientName,
+            createdBy: client.createdBy || '-',
+            createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+          });
         }
+      });
+      
+      // Convert unique clients map to array
+      transformedClients.push(...uniqueClients.values());
+      
+      // Now process LOBs and SubLOBs
+      response.data.data.forEach((client) => {
+        const clientId = client.clientId;
+        
+        if (client.LOBs && Array.isArray(client.LOBs)) {
+          client.LOBs.forEach(lob => {
+            lobId++;
+            
+            // Extract site info from LOB
+            if (lob.sites && Array.isArray(lob.sites)) {
+              lob.sites.forEach(site => {
+                if (site.siteId && site.siteName) {
+                  sitesMap.set(site.siteId, {
+                    id: site.siteId,
+                    name: site.siteName
+                  });
+                }
+              });
+            } else if (lob.siteId && lob.siteName) {
+              sitesMap.set(lob.siteId, {
+                id: lob.siteId,
+                name: lob.siteName
+              });
+            }
+            
+            transformedLobs.push({
+              id: lobId,
+              name: lob.name,
+              clientId: clientId,
+              clientRowId: lob.clientRowId || clientId, // Store the unique row-specific clientId
+              siteId: lob.siteId || null,
+              siteName: lob.siteName || null,
+              sites: lob.sites || []
+            });
+            
+            if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+              lob.subLOBs.forEach(subLobName => {
+                subLobId++;
+                transformedSubLobs.push({
+                  id: subLobId,
+                  name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                  lobId: lobId,
+                  clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                });
+              });
+            }
+          });
+        }
+      });
+      
+      // Sort clients by ID in ascending order
+      transformedClients.sort((a, b) => a.id - b.id);
+      
+      setClients(transformedClients);
+      setLobs(transformedLobs);
+      setSubLobs(transformedSubLobs);
+      
+      // Set sites from collected site data
+      const transformedSites = Array.from(sitesMap.values());
+      setSites(transformedSites.length > 0 ? transformedSites : []);
+      
+      // Calculate row count based on how they're displayed in the UI
+      let rowCount = 0;
+      
+      transformedClients.forEach(client => {
+        const clientLobs = transformedLobs.filter(lob => lob.clientId === client.id);
+        if (clientLobs.length === 0) {
+          // Client with no LOBs is just one row
+          rowCount++;
+        } else {
+          // For each LOB, count either the LOB itself or all its SubLOBs
+          clientLobs.forEach(lob => {
+            const lobSubLobs = transformedSubLobs.filter(subLob => subLob.lobId === lob.id);
+            if (lobSubLobs.length === 0) {
+              // LOB with no SubLOBs is one row
+              rowCount++;
+            } else {
+              // Each SubLOB is a separate row
+              rowCount += lobSubLobs.length;
+            }
+          });
+        }
+      });
+      
+      // Update the appropriate count based on status
+      if (status === 'ACTIVE') {
+        setActiveCount(rowCount);
+      } else if (status === 'DEACTIVATED') {
+        setDeactivatedCount(rowCount);
       }
-    } catch (err) {
-      console.error('Error fetching client data:', err);
-      setError('Failed to load clients. Please try again later.');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('Error fetching client data:', err);
+    setError('Failed to load clients. Please try again later.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchClientData(itemStatusTab);
