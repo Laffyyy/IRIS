@@ -140,7 +140,6 @@ function App() {
           <Route path="/faqs" element={<div>FAQs Page</div>} />
           <Route path="/unauthorized" element={<Unauthorize />} />
         </Routes>
-      </div>
     </Router>
   );
 }
