@@ -960,12 +960,12 @@ th, tr {
 }
 
 /* Delete Confirmation Modal */
-.delete-confirmation-modal {
+.usermanagement-delete-confirmation-modal, .restore-confirmation-modal {
   width: 500px;
   max-width: 90%;
 }
 
-.delete-confirmation-modal .modal-header {
+.usermanagement-delete-confirmation-modal .modal-header, .restore-confirmation-modal .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -974,7 +974,7 @@ th, tr {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.delete-confirmation-modal .modal-header h2 {
+.usermanagement-delete-confirmation-modal .modal-header h2, .restore-confirmation-modal .modal-header h2 {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -983,22 +983,22 @@ th, tr {
   font-size: 20px;
 }
 
-.delete-confirmation-modal, .restore-confirmation-modal .modal-content {
+.usermanagement-delete-confirmation-modal .modal-content, .restore-confirmation-modal .modal-content {
   padding: 0;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .modal-content p {
+.usermanagement-delete-confirmation-modal .modal-content p, .restore-confirmation-modal .modal-content p {
   margin-bottom: 16px;
   color: #333;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .user-list {
+.usermanagement-delete-confirmation-modal .user-list, .restore-confirmation-modal .user-list {
   margin-bottom: 16px;
   max-height: 200px;
   overflow-y: auto;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .user-list-item {
+.usermanagement-delete-confirmation-modal .user-list-item, .restore-confirmation-modal .user-list-item {
   display: flex;
   align-items: center;
   padding: 8px;
@@ -1007,29 +1007,29 @@ th, tr {
   margin-bottom: 8px;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .user-list-item:last-child {
+.usermanagement-delete-confirmation-modal .user-list-item:last-child, .restore-confirmation-modal .user-list-item:last-child {
   margin-bottom: 0;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .user-list-item:hover {
+.usermanagement-delete-confirmation-modal .user-list-item:hover, .restore-confirmation-modal .user-list-item:hover {
   background: #f0f0f0;
 }
 
-.delete-confirmation-modal .user-info {
+.usermanagement-delete-confirmation-modal .user-info, .restore-confirmation-modal .user-info {
   flex: 1;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .user-name {
+.usermanagement-delete-confirmation-modal .user-name, .restore-confirmation-modal .user-name {
   font-weight: 500;
   color: #333;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .user-email {
+.usermanagement-delete-confirmation-modal .user-email, .restore-confirmation-modal .user-email {
   color: #666;
   font-size: 0.9em;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .delete-confirm-input {
+.usermanagement-delete-confirmation-modal .delete-confirm-input, .restore-confirmation-modal .delete-confirm-input {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #ddd;
@@ -1038,17 +1038,17 @@ th, tr {
   font-size: 14px;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .delete-confirm-input:focus {
+.usermanagement-delete-confirmation-modal .delete-confirm-input:focus {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .delete-confirm-input::placeholder {
+.usermanagement-delete-confirmation-modal .delete-confirm-input::placeholder {
   color: #999;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .modal-actions {
+.usermanagement-delete-confirmation-modal .modal-actions {
   display: flex;
   justify-content: flex-start;
   gap: 12px;
@@ -1056,7 +1056,7 @@ th, tr {
   padding: 0;
 }
 
-.delete-confirmation-modal,  .restore-confirmation-modal .cancel-btn {
+.usermanagement-delete-confirmation-modal .cancel-btn {
   background: #f8f9fa;
   color: #333;
   border: 1px solid #ddd;
@@ -1067,11 +1067,11 @@ th, tr {
   transition: all 0.2s;
 }
 
-.delete-confirmation-modal .cancel-btn:hover {
+.usermanagement-delete-confirmation-modal .cancel-btn:hover {
   background: #e9ecef;
 }
 
-.delete-confirmation-modal .delete-btn {
+.usermanagement-delete-confirmation-modal .delete-btn {
   background: #dc3545;
   color: white;
   border: none;
@@ -1085,15 +1085,15 @@ th, tr {
   gap: 6px;
 }
 
-.delete-confirmation-modal .delete-btn:hover:not(:disabled) {
+.usermanagement-delete-confirmation-modal .delete-btn:hover:not(:disabled) {
   background: #c82333;
 }
 
-.delete-confirmation-modal .delete-btn:active:not(:disabled) {
+.usermanagement-delete-confirmation-modal .delete-btn:active:not(:disabled) {
   background: #bd2130;
 }
 
-.delete-confirmation-modal .delete-btn:disabled {
+.usermanagement-delete-confirmation-modal .delete-btn:disabled {
   background: #e9ecef;
   color: #6c757d;
   cursor: not-allowed;
@@ -1102,17 +1102,17 @@ th, tr {
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
-  .delete-confirmation-modal,  .restore-confirmation-modal {
+  .usermanagement-delete-confirmation-modal,  .restore-confirmation-modal {
     width: 90%;
     padding: 20px;
   }
 
-  .delete-confirmation-modal,  .restore-confirmation-modal .modal-actions {
+  .usermanagement-delete-confirmation-modal,  .restore-confirmation-modal .modal-actions {
     flex-direction: column;
   }
 
-  .delete-confirmation-modal,  .restore-confirmation-modal .cancel-btn,
-  .delete-confirmation-modal,  .restore-confirmation-modal .delete-btn {
+  .usermanagement-delete-confirmation-modal,  .restore-confirmation-modal .cancel-btn,
+  .usermanagement-delete-confirmation-modal,  .restore-confirmation-modal .delete-btn {
     width: 100%;
   }
 }

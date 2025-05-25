@@ -52,6 +52,7 @@ const UserManagement = () => {
 
   // Add navigation state at the top with other state declarations
   const [activeTable, setActiveTable] = useState('users');
+  const [recentlyAddedUsers, setRecentlyAddedUsers] = useState([]);
 
   const [securityQuestionsData, setSecurityQuestionsData] = useState([
     { question: '', answer: '' },
@@ -103,7 +104,6 @@ const UserManagement = () => {
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [previewTab, setPreviewTab] = useState('valid');
-  const [individualPreview, setIndividualPreview] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -144,7 +144,6 @@ const UserManagement = () => {
   // Add state for individual add errors and confirmation/result modals
   const [individualAddError, setIndividualAddError] = useState('');
   const [individualAddErrors, setIndividualAddErrors] = useState({});
-  const [showIndividualConfirmModal, setShowIndividualConfirmModal] = useState(false);
   const [showIndividualResultModal, setShowIndividualResultModal] = useState(false);
   const [individualResultSuccess, setIndividualResultSuccess] = useState(false);
   const [individualResultMessage, setIndividualResultMessage] = useState('');
@@ -170,9 +169,7 @@ const UserManagement = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
   const [statusFilter, setStatusFilter] = useState('All');
   // For preview tables
-  const [individualSortConfig, setIndividualSortConfig] = useState({ key: null, direction: null });
   const [individualSearchTerm, setIndividualSearchTerm] = useState('');
-  const [individualRoleFilter, setIndividualRoleFilter] = useState('All');
   const [individualStatusFilter, setIndividualStatusFilter] = useState('All');
   const [bulkSortConfig, setBulkSortConfig] = useState({ key: null, direction: null });
   const [bulkSearchTerm, setBulkSearchTerm] = useState('');
@@ -181,18 +178,12 @@ const UserManagement = () => {
 
   // Debounced search terms
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  const [debouncedIndividualSearchTerm, setDebouncedIndividualSearchTerm] = useState(individualSearchTerm);
   const [debouncedBulkSearchTerm, setDebouncedBulkSearchTerm] = useState(bulkSearchTerm);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
     return () => clearTimeout(handler);
   }, [searchTerm]);
-
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedIndividualSearchTerm(individualSearchTerm), 400);
-    return () => clearTimeout(handler);
-  }, [individualSearchTerm]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedBulkSearchTerm(bulkSearchTerm), 400);
@@ -212,16 +203,6 @@ const UserManagement = () => {
         return { key, direction: 'asc' };
       });
     }
-  };
-  const handleIndividualSort = (key) => {
-    setIndividualSortConfig(prev => {
-      if (prev.key === key) {
-        if (prev.direction === 'asc') return { key, direction: 'desc' };
-        if (prev.direction === 'desc') return { key: null, direction: null };
-        return { key, direction: 'asc' };
-      }
-      return { key, direction: 'asc' };
-    });
   };
   const handleBulkSort = (key) => {
     setBulkSortConfig(prev => {
@@ -273,57 +254,20 @@ const UserManagement = () => {
     return sorted;
   }, [filteredUsers, sortConfig]);
 
-  // --- Individual Preview Filtering/Sorting ---
-  const filteredIndividualPreview = individualPreview.filter(user => {
-    const matchesSearch =
-      (user.employeeId && user.employeeId.toString().toLowerCase().includes(debouncedIndividualSearchTerm.toLowerCase())) ||
-      (user.name && user.name.toLowerCase().includes(debouncedIndividualSearchTerm.toLowerCase())) ||
-      (user.email && user.email.toLowerCase().includes(debouncedIndividualSearchTerm.toLowerCase()));
-    const matchesRole =
-      individualRoleFilter === 'All' || (user.role && user.role === individualRoleFilter);
-    const matchesStatus =
-      individualStatusFilter === 'All' || (user.status && user.status === individualStatusFilter);
-    return matchesSearch && matchesRole && matchesStatus;
-  });
-  const sortedIndividualPreview = React.useMemo(() => {
-    if (!individualSortConfig.key || !individualSortConfig.direction) return filteredIndividualPreview;
-    const sorted = [...filteredIndividualPreview].sort((a, b) => {
-      let aValue = a[individualSortConfig.key];
-      let bValue = b[individualSortConfig.key];
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-      if (aValue < bValue) return individualSortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return individualSortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return sorted;
-  }, [filteredIndividualPreview, individualSortConfig]);
-
   // --- Bulk Preview Filtering/Sorting ---
-  const filteredBulkUsers = bulkUsers.filter(user => {
-    const matchesSearch =
-      (user.employeeId && user.employeeId.toString().toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase())) ||
-      (user.name && user.name.toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase())) ||
-      (user.email && user.email.toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase()));
-    const matchesRole =
-      bulkRoleFilter === 'All' || (user.role && user.role === bulkRoleFilter);
-    const matchesStatus =
-      bulkStatusFilter === 'All' || (user.status && user.status === bulkStatusFilter);
-    return matchesSearch && matchesRole && matchesStatus;
-  });
-  const sortedBulkUsers = React.useMemo(() => {
-    if (!bulkSortConfig.key || !bulkSortConfig.direction) return filteredBulkUsers;
-    const sorted = [...filteredBulkUsers].sort((a, b) => {
-      let aValue = a[bulkSortConfig.key];
-      let bValue = b[bulkSortConfig.key];
-      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-      if (aValue < bValue) return bulkSortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return bulkSortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+  const filteredBulkUsers = React.useMemo(() => {
+    return bulkUsers.filter(user => {
+      const matchesSearch =
+        (user.employeeId && user.employeeId.toString().toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase())) ||
+        (user.name && user.name.toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase())) ||
+        (user.email && user.email.toLowerCase().includes(debouncedBulkSearchTerm.toLowerCase()));
+      const matchesRole =
+        bulkRoleFilter === 'All' || (user.role && user.role === bulkRoleFilter);
+      const matchesStatus =
+        bulkStatusFilter === 'All' || (user.status && user.status === bulkStatusFilter);
+      return matchesSearch && matchesRole && matchesStatus;
     });
-    return sorted;
-  }, [filteredBulkUsers, bulkSortConfig]);
+  }, [bulkUsers, debouncedBulkSearchTerm, bulkRoleFilter, bulkStatusFilter]);
 
   // Fetch users function
   const fetchUsers = async () => {
@@ -681,103 +625,10 @@ const UserManagement = () => {
   const nameRef = useRef();
   const roleRef = useRef();
 
-  // Update handleAddToList to use refs
-  const handleAddToList = async () => {
-    setIndividualAddError('');
-    setIndividualAddErrors({});
-    // Sanitize all fields before validation
-    const employeeId = sanitizeIndividualInput(employeeIdRef.current.value, 'employeeId');
-    const email = sanitizeIndividualInput(emailRef.current.value, 'email');
-    const name = sanitizeIndividualInput(nameRef.current.value, 'name');
-    const role = roleRef.current.value;
-    const errors = {};
-    // 1. Required fields
-    if (!employeeId) errors.employeeId = 'Employee ID is required.';
-    else if (!/^[0-9]{10}$/.test(employeeId)) errors.employeeId = 'Employee ID must be exactly 10 digits.';
-    if (!email) errors.email = 'Email is required.';
-    if (!name) errors.name = 'Name is required.';
-    if (!role) errors.role = 'Role is required.';
-    if (name && name.length > 50) errors.name = 'Name must be 50 characters or less.';
-    if (email && email.length > 50) errors.email = 'Email must be 50 characters or less.';
-    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-    if (email && !emailRegex.test(email)) errors.email = 'Invalid email format.';
-    if (employeeId && individualPreview.some(u => u.employeeId === employeeId)) errors.employeeId = 'Duplicate Employee ID in preview.';
-    if (email && individualPreview.some(u => u.email === email)) errors.email = 'Duplicate Email in preview.';
-    let hasErrors = Object.keys(errors).length > 0;
-    let dbDuplicates = [];
-    if (!hasErrors) {
-      try {
-        if (role && role.toUpperCase() === 'ADMIN') {
-          const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeIds: [employeeId], emails: [email], admin: true })
-          });
-          dbDuplicates = await response.json();
-        } else {
-          const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
-          });
-          dbDuplicates = await response.json();
-        }
-        if (dbDuplicates.some(u => u.dUser_ID === employeeId)) errors.employeeId = 'Duplicate Employee ID in database';
-        if (dbDuplicates.some(u => u.dEmail === email)) errors.email = 'Duplicate Email in database';
-      } catch (e) {
-        errors.general = 'Error checking duplicates in database.';
-      }
-    }
-    if (Object.keys(errors).length > 0) {
-      setIndividualAddErrors(errors);
-      return;
-    }
-    setIndividualPreview(prev => [...prev, { employeeId, email, name, role, status: 'FIRST-TIME' }]);
-    employeeIdRef.current.value = '';
-    emailRef.current.value = '';
-    nameRef.current.value = '';
-    roleRef.current.value = '';
-    setIndividualAddErrors({});
-  };
-
   // Add state for last add count
   const [lastAddCount, setLastAddCount] = useState(0);
   const [lastDeleteCount, setLastDeleteCount] = useState(0);
 
-  // Submit individual users
-  const handleAddIndividual = async () => {
-    if (individualPreview.length > 0) {
-      setLastAddCount(individualPreview.length);
-      try {
-        const response = await fetch('http://localhost:3000/api/users/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            users: individualPreview.map(user => ({
-              ...user,
-              password: 'defaultPass123',
-              createdBy: 'admin'
-            }))
-          })
-        });
-        if (!response.ok) {
-          setShowIndividualResultModal(true);
-          setIndividualResultSuccess(false);
-          setIndividualResultMessage('Add user error: ' + (response.json().then(data => data.message) || 'Failed to add users'));
-          // Also show unified error modal
-          setActionErrorMessage('Add user error: ' + (response.json().then(data => data.message) || 'Failed to add users'));
-          setShowActionErrorModal(true);
-          return;
-        }
-        const result = await response.json();
-        setAddModalOpen(false);
-        setIndividualPreview([]);
-        // Do NOT call setUsers here. Let fetchUsers update the table.
-      } catch (error) {
-        console.error('Error adding users:', error);
-      }
-    }
-  };
 
   // Submit bulk users (with result modal)
   const handleBulkUpload = async () => {
@@ -788,7 +639,7 @@ const UserManagement = () => {
         body: JSON.stringify({ 
           users: bulkUsers.map(user => ({
             ...user,
-            password: 'defaultPassword123',
+            password: 'password123',
             createdBy: 'admin',
             status: 'FIRST-TIME',
           }))
@@ -897,20 +748,6 @@ const UserManagement = () => {
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
-  };
-
-  // Handle security question changes
-  const handleSecurityQuestionChange = (index, field, value) => {
-    const updatedQuestions = [...securityQuestionsData];
-    updatedQuestions[index][field] = value;
-    setSecurityQuestionsData(updatedQuestions);
-  };
-
-  // Remove user from preview list
-  const handleRemoveFromPreview = (employeeIdToRemove) => {
-    setIndividualPreview(prev =>
-      prev.filter(user => user.employeeId !== employeeIdToRemove)
-    );
   };
 
   // Save user changes
@@ -1060,65 +897,9 @@ const UserManagement = () => {
       if (editingPreviewUser.email && !emailRegex.test(editingPreviewUser.email)) errors.email = 'Invalid email format';
       if (!editingPreviewUser.role) errors.role = 'Role is required';
       // Check for duplicates in preview (excluding self)
-      if (individualPreview.some((u, i) => i !== editingPreviewIndex && u.employeeId === editingPreviewUser.employeeId)) errors.employeeId = 'Duplicate Employee ID in preview.';
-      if (individualPreview.some((u, i) => i !== editingPreviewIndex && u.email === editingPreviewUser.email)) errors.email = 'Duplicate Email in preview.';
       setEditPreviewErrors(errors);
     }
-  }, [editingPreviewUser, editPreviewModalOpen, individualPreview, editingPreviewIndex]);
-
-  // Add async DB duplicate check for Employee ID and Email in edit preview modal
-  useEffect(() => {
-    let isMounted = true;
-    async function checkDbDuplicates() {
-      if (!editPreviewModalOpen || !editingPreviewUser || !originalPreviewUser) return;
-      setEditPreviewCheckingDb(true);
-      const checkedEmployeeId = editingPreviewUser.employeeId;
-      const checkedEmail = editingPreviewUser.email;
-      let errors = { ...editPreviewErrors };
-      // Only check for duplicates if value is changed from original
-      const employeeIdChanged = checkedEmployeeId !== originalPreviewUser.employeeId;
-      const emailChanged = checkedEmail !== originalPreviewUser.email;
-      // Preview duplicate check (only if changed)
-      if (employeeIdChanged && individualPreview.some((u, i) => i !== editingPreviewIndex && u.employeeId === checkedEmployeeId)) {
-        errors.employeeId = 'Duplicate Employee ID in preview.';
-      }
-      if (emailChanged && individualPreview.some((u, i) => i !== editingPreviewIndex && u.email === checkedEmail)) {
-        errors.email = 'Duplicate Email in preview.';
-      }
-      // DB duplicate check (only if changed)
-      if ((employeeIdChanged && checkedEmployeeId) || (emailChanged && checkedEmail)) {
-        try {
-          const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeIds: employeeIdChanged ? [checkedEmployeeId] : [], emails: emailChanged ? [checkedEmail] : [] })
-          });
-          const dbDuplicates = await response.json();
-          if (employeeIdChanged && dbDuplicates.some(u => u.dUser_ID === checkedEmployeeId)) {
-            errors.employeeId = 'Duplicate Employee ID in database.';
-          }
-          if (emailChanged && dbDuplicates.some(u => u.dEmail === checkedEmail)) {
-            errors.email = 'Duplicate Email in database.';
-          }
-        } catch (e) {
-          // Optionally show DB error
-        }
-      }
-      // Only update errors if the checked values still match the current input
-      if (
-        isMounted &&
-        editingPreviewUser &&
-        editingPreviewUser.employeeId === checkedEmployeeId &&
-        editingPreviewUser.email === checkedEmail
-      ) {
-        setEditPreviewErrors(errors);
-        setEditPreviewCheckingDb(false);
-      }
-    }
-    checkDbDuplicates();
-    return () => { isMounted = false; };
-  // eslint-disable-next-line
-  }, [editPreviewModalOpen, editingPreviewUser, originalPreviewUser, individualPreview, editingPreviewIndex]);
+  }, [editingPreviewUser, editPreviewModalOpen, editingPreviewIndex]);
 
   // Determine modal size based on preview data
   const shouldExpandModal = (bulkUsers.length > 10 || invalidUsers.length > 10);
@@ -1137,48 +918,50 @@ const UserManagement = () => {
   const [editUserErrors, setEditUserErrors] = useState({});
 
   // Add validation function for edit modal
-  async function validateEditUser(user, originalUser) {
+  const validateEditUser = async (user, originalUser) => {
     const errors = {};
-    // Basic validation
-    if (!user.dUser_ID) errors.dUser_ID = 'Employee ID is required.';
-    else if (!/^[0-9]{10}$/.test(user.dUser_ID)) errors.dUser_ID = 'Employee ID must be exactly 10 digits.';
-    if (!user.dName) errors.dName = 'Name is required.';
-    else if (user.dName.length > 50) errors.dName = 'Name must be 50 characters or less.';
-    if (!user.dEmail) errors.dEmail = 'Email is required.';
-    else {
-      if (user.dEmail.length > 50) errors.dEmail = 'Email must be 50 characters or less.';
-      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-      if (!emailRegex.test(user.dEmail)) errors.dEmail = 'Invalid email format.';
+    if (!user.employeeId) errors.employeeId = 'Employee ID is required.';
+    else if (!/^[0-9]{10}$/.test(user.employeeId)) errors.employeeId = 'Employee ID must be exactly 10 digits.';
+    if (!user.email) errors.email = 'Email is required.';
+    if (!user.name) errors.name = 'Name is required.';
+    if (!user.role) errors.role = 'Role is required.';
+    if (user.name && user.name.length > 50) errors.name = 'Name must be 50 characters or less.';
+    if (user.email && user.email.length > 50) errors.email = 'Email must be 50 characters or less.';
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (user.email && !emailRegex.test(user.email)) errors.email = 'Invalid email format.';
+    
+    // Check for duplicates in recently added users instead of individualPreview
+    if (user.employeeId !== originalUser.employeeId && recentlyAddedUsers.some(u => u.employeeId === user.employeeId)) {
+      errors.employeeId = 'Duplicate Employee ID in recently added users.';
     }
-    if (!user.dUser_Type) errors.dUser_Type = 'Role is required.';
-    if (!user.dStatus) errors.dStatus = 'Status is required.';
-
-    // Check for duplicates independently (across ALL users and admins)
-    if (user.dUser_ID !== originalUser.dUser_ID || user.dEmail !== originalUser.dEmail) {
-      try {
-        const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            employeeIds: [user.dUser_ID], 
-            emails: [user.dEmail],
-            excludeLoginId: user.dLogin_ID // Always exclude self
-          })
-        });
-        const duplicates = await response.json();
-        // Check ALL returned users (including admins)
-        if (user.dUser_ID !== originalUser.dUser_ID && Array.isArray(duplicates) && duplicates.some(u => u.dUser_ID === user.dUser_ID)) {
-          errors.dUser_ID = 'Duplicate Employee ID in database.';
-        }
-        if (user.dEmail !== originalUser.dEmail && Array.isArray(duplicates) && duplicates.some(u => u.dEmail === user.dEmail)) {
-          errors.dEmail = 'Duplicate Email in database.';
-        }
-      } catch (error) {
-        errors.general = 'Error checking for duplicates. Please try again.';
+    if (user.email !== originalUser.email && recentlyAddedUsers.some(u => u.email === user.email)) {
+      errors.email = 'Duplicate Email in recently added users.';
+    }
+    
+    if (Object.keys(errors).length > 0) return errors;
+    
+    // Check for duplicates in DB
+    try {
+      const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeIds: [user.employeeId],
+          emails: [user.email]
+        })
+      });
+      const dbDuplicates = await response.json();
+      if (dbDuplicates.some(u => u.dUser_ID === user.employeeId && u.dUser_ID !== originalUser.employeeId)) {
+        errors.employeeId = 'Duplicate Employee ID in database.';
       }
+      if (dbDuplicates.some(u => u.dEmail === user.email && u.dEmail !== originalUser.email)) {
+        errors.email = 'Duplicate Email in database.';
+      }
+    } catch (e) {
+      errors.general = 'Error checking duplicates in database.';
     }
     return errors;
-  }
+  };
 
   // Watch for changes in currentUser in edit modal
   useEffect(() => {
@@ -1480,14 +1263,210 @@ const UserManagement = () => {
   useEffect(() => { if (showNoChangesModal && noChangesOkBtnRef.current) noChangesOkBtnRef.current.focus(); }, [showNoChangesModal]);
 
   // Add refs for Yes buttons in confirmation modals
-  const individualConfirmYesBtnRef = useRef();
   const editConfirmYesBtnRef = useRef();
   const bulkConfirmYesBtnRef = useRef();
 
   // Auto-focus Yes button when confirmation modals open
-  useEffect(() => { if (showIndividualConfirmModal && individualConfirmYesBtnRef.current) individualConfirmYesBtnRef.current.focus(); }, [showIndividualConfirmModal]);
   useEffect(() => { if (showEditConfirmModal && editConfirmYesBtnRef.current) editConfirmYesBtnRef.current.focus(); }, [showEditConfirmModal]);
   useEffect(() => { if (showBulkConfirmModal && bulkConfirmYesBtnRef.current) bulkConfirmYesBtnRef.current.focus(); }, [showBulkConfirmModal]);
+
+  // Add at the top, after other state declarations
+  const [addUserMessage, setAddUserMessage] = useState(null);
+
+  // Add state for error modal
+  const [showAddUserErrorModal, setShowAddUserErrorModal] = useState(false);
+  const [addUserErrorDetail, setAddUserErrorDetail] = useState('');
+
+  // Add the new handler for adding a user
+  const handleAddUser = async () => {
+    setAddUserMessage(null);
+    // Sanitize all fields before validation
+    const employeeId = sanitizeIndividualInput(employeeIdRef.current.value, 'employeeId');
+    const email = sanitizeIndividualInput(emailRef.current.value, 'email');
+    const name = sanitizeIndividualInput(nameRef.current.value, 'name');
+    const role = roleRef.current.value;
+    const errors = {};
+    // 1. Required fields
+    if (!employeeId) errors.employeeId = ['Employee ID is required.'];
+    else if (!/^[0-9]{10}$/.test(employeeId)) errors.employeeId = ['Employee ID must be exactly 10 digits.'];
+    if (!email) errors.email = ['Email is required.'];
+    if (!name) errors.name = ['Name is required.'];
+    if (!role) errors.role = ['Role is required.'];
+    if (name && name.length > 50) (errors.name = errors.name || []).push('Name must be 50 characters or less.');
+    if (email && email.length > 50) (errors.email = errors.email || []).push('Email must be 50 characters or less.');
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (email && !emailRegex.test(email)) (errors.email = errors.email || []).push('Invalid email format.');
+    if (employeeId && recentlyAddedUsers.some(u => u.employeeId === employeeId)) (errors.employeeId = errors.employeeId || []).push('Duplicate Employee ID in recently added users.');
+    if (email && recentlyAddedUsers.some(u => u.email === email)) (errors.email = errors.email || []).push('Duplicate Email in recently added users.');
+    if (Object.keys(errors).length > 0) {
+      setAddUserMessage({ type: 'error', errors });
+      setAddUserErrorDetail(Object.values(errors).flat().join(' '));
+      return;
+    }
+    
+    // Check for duplicates in DB
+    try {
+      const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeIds: [employeeId], emails: [email] })
+      });
+      const dbDuplicates = await response.json();
+      if (dbDuplicates.some(u => u.dUser_ID === employeeId)) {
+        setAddUserMessage({ type: 'error', errors: { employeeId: ['Duplicate Employee ID in database.'] } });
+        setAddUserErrorDetail('Duplicate Employee ID in database.');
+        return;
+      }
+      if (dbDuplicates.some(u => u.dEmail === email)) {
+        setAddUserMessage({ type: 'error', errors: { email: ['Duplicate Email in database.'] } });
+        setAddUserErrorDetail('Duplicate Email in database.');
+        return;
+      }
+    } catch (e) {
+      setAddUserMessage({ type: 'error', text: 'Error checking duplicates in database.' });
+      return;
+    }
+    
+    // Add user to DB
+    try {
+      const response = await fetch('http://localhost:3000/api/users/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          users: [{ employeeId, email, name, role, password: 'defaultPass123', createdBy: 'admin', status: 'FIRST-TIME' }]
+        })
+      });
+      if (!response.ok) {
+        let msg = 'Failed to add user.';
+        let detail = '';
+        try { const data = await response.json(); if (data && data.message) { msg = data.message; detail = data.message; } } catch {}
+        setAddUserMessage({ type: 'error', errors: { general: msg } });
+        setAddUserErrorDetail(detail || msg);
+        setShowAddUserErrorModal(true);
+        return;
+      }
+      setAddUserMessage({ type: 'success', text: 'User added successfully!' });
+      setRecentlyAddedUsers(prev => [{ employeeId, email, name, role }, ...prev]);
+      // Clear form
+      if (employeeIdRef.current) employeeIdRef.current.value = '';
+      if (emailRef.current) emailRef.current.value = '';
+      if (nameRef.current) nameRef.current.value = '';
+      if (roleRef.current) roleRef.current.value = '';
+    } catch (e) {
+      setAddUserMessage({ type: 'error', text: 'Failed to add user.' });
+    }
+  };
+
+  // Undo single user: delete from DB and remove from recentlyAddedUsers
+  const handleUndoUser = async (user) => {
+    setAddUserMessage(null);
+    try {
+      // Delete user by Employee ID
+      const response = await fetch('http://localhost:3000/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: [user.employeeId] })
+      });
+      if (!response.ok) {
+        let msg = 'Failed to undo user.';
+        try { const data = await response.json(); if (data && data.message) msg = data.message; } catch {}
+        setAddUserMessage({ type: 'error', errors: { general: msg } });
+        setAddUserErrorDetail(msg);
+        setShowAddUserErrorModal(true);
+        return;
+      }
+      setRecentlyAddedUsers(prev => prev.filter(u => u.employeeId !== user.employeeId));
+      setAddUserMessage({ type: 'success', text: 'User deleted successfully!' });
+    } catch (e) {
+      setAddUserMessage({ type: 'error', errors: { general: 'Failed to undo user.' } });
+      setAddUserErrorDetail('Failed to undo user.');
+      setShowAddUserErrorModal(true);
+    }
+  };
+
+  // Undo all users: delete all from DB and clear recentlyAddedUsers
+  const handleUndoAll = async () => {
+    setAddUserMessage(null);
+    if (recentlyAddedUsers.length === 0) return;
+    try {
+      const response = await fetch('http://localhost:3000/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: recentlyAddedUsers.map(user => user.employeeId) })
+      });
+      if (!response.ok) {
+        let msg = 'Failed to undo all users.';
+        try { const data = await response.json(); if (data && data.message) msg = data.message; } catch {}
+        setAddUserMessage({ type: 'error', errors: { general: msg } });
+        setAddUserErrorDetail(msg);
+        setShowAddUserErrorModal(true);
+        return;
+      }
+      setRecentlyAddedUsers([]);
+      setAddUserMessage({ type: 'success', text: 'All users deleted successfully!' });
+    } catch (e) {
+      setAddUserMessage({ type: 'error', errors: { general: 'Failed to undo all users.' } });
+      setAddUserErrorDetail('Failed to undo all users.');
+      setShowAddUserErrorModal(true);
+    }
+  };
+
+  // Remove individualPreview cleanup
+  const handleClose = () => {
+    setAddModalOpen(false);
+    setNewUser({
+      employeeId: '',
+      email: '',
+      name: '',
+      role: 'HR'
+    });
+    setIndividualAddErrors({});
+    setIndividualAddError('');
+    setShowIndividualResultModal(false);
+    setIndividualResultSuccess(false);
+    setIndividualResultMessage('');
+    setAddUserMessage(null); // Reset error state when modal is closed
+    // Remove this line
+    // setIndividualPreview([]);
+  };
+
+  // Remove individualPreview cleanup from other functions
+  const handleCancel = () => {
+    setEditModalOpen(false);
+    setCurrentUser(null);
+    setOriginalUser(null);
+    setShowPasswordFields(false);
+    setShowSecurityQuestions(false);
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setSecurityQuestionsData([
+      { question: '', answer: '' },
+      { question: '', answer: '' },
+      { question: '', answer: '' }
+    ]);
+    setEmployeeIdEditable(false);
+    // Remove this line
+    // setIndividualPreview([]);
+  };
+
+  // 1. Make the success message disappear after 3 seconds
+  useEffect(() => {
+    if (addUserMessage?.type === 'success') {
+      const timer = setTimeout(() => setAddUserMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [addUserMessage]);
+
+  // Add useEffect to auto-close error modal after 3 seconds
+  useEffect(() => {
+    if (showAddUserErrorModal) {
+      const timer = setTimeout(() => setShowAddUserErrorModal(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAddUserErrorModal]);
 
   return (
     <div className={styles['user-management-container']}>
@@ -2322,24 +2301,7 @@ const UserManagement = () => {
           <div className="add-user-modal">
             <div className="modal-header">
               <h2>Add New User</h2>
-              <button onClick={() => {
-                setAddModalOpen(false);
-                setShowResetDropdown(false);
-                setResetConfirmText('');
-                setResetConfirmed(false);
-                setIndividualAddError('');
-                setIndividualPreview([]);
-                setBulkUsers([]);
-                setInvalidUsers([]);
-                setPreviewTab('valid');
-                setFile(null);
-                setFileError('');
-                setIndividualAddErrors({}); // <-- reset errors
-                if (employeeIdRef.current) employeeIdRef.current.value = '';
-                if (emailRef.current) emailRef.current.value = '';
-                if (nameRef.current) nameRef.current.value = '';
-                if (roleRef.current) roleRef.current.value = '';
-              }} className="close-btn">
+              <button onClick={handleClose} className="close-btn">
                 <FaTimes />
               </button>
             </div>
@@ -2378,14 +2340,14 @@ const UserManagement = () => {
                       onInput={e => {
                         e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                       }}
-                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, employeeId: undefined }))}
-                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
+                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-user-btn')?.click(); }}
                     />
-                    {individualAddErrors.employeeId && (
-                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.employeeId}</div>
+                    {addUserMessage?.type === 'error' && addUserMessage.errors?.employeeId && (
+                      <div style={{ color: 'red', fontSize: 13, marginTop: 2 }}>
+                        {addUserMessage.errors.employeeId}
+                      </div>
                     )}
                   </div>
-
                   <div className="form-group">
                     <label>Email</label>
                     <input
@@ -2395,29 +2357,20 @@ const UserManagement = () => {
                       required
                       maxLength={50}
                       onInput={e => {
-                        // Remove all whitespace, consecutive special chars, and special char as first char
                         e.target.value = e.target.value
                           .replace(/\s+/g, '')
                           .replace(/([@\-_. ,])\1+/g, '$1')
                           .replace(/^[@\-_. ,]+/, '');
                       }}
-                      onChange={e => {
-                        let value = e.target.value
-                          .replace(/[^A-Za-z0-9@\-_. ,]/g, '') // Only allowed chars
-                          .replace(/\s+/g, '') // Remove all whitespace
-                          .replace(/([@\-_. ,])\1+/g, '$1') // No consecutive special chars
-                          .replace(/^[@\-_. ,]+/, ''); // No special char as first char
-                        emailRef.current.value = value;
-                        setIndividualAddErrors(errors => ({ ...errors, email: undefined }));
-                      }}
-                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
+                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-user-btn')?.click(); }}
                     />
-                    {individualAddErrors.email && (
-                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.email}</div>
+                    {addUserMessage?.type === 'error' && addUserMessage.errors?.email && (
+                      <div style={{ color: 'red', fontSize: 13, marginTop: 2 }}>
+                        {addUserMessage.errors.email}
+                      </div>
                     )}
                   </div>
                 </div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label>Employee Name</label>
@@ -2428,38 +2381,30 @@ const UserManagement = () => {
                       required
                       maxLength={50}
                       onInput={e => {
-                        // Bulk-style sanitization: allow spaces and - _ . , (no @), collapse multiple spaces, prevent consecutive special chars, no special char at start, trim
-                        e.target.value = e.target.value
-                          .replace(/[^A-Za-z0-9\-_. ,]/g, '') // Only allowed chars (no @)
-                          .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
-                          .replace(/ +/g, ' ') // Collapse multiple spaces
-                          .replace(/^[\-_. ,]+/, '') // No special char at start
-                          .trim();
+                        let v = e.target.value;
+                        v = v.replace(/[^A-Za-z0-9\-_. ,]/g, ''); // Only allowed chars
+                        v = v.replace(/^[ ]+/, ''); // No space at start
+                        v = v.replace(/([\-_. ,])\1+/g, '$1'); // No consecutive special chars
+                        v = v.replace(/ +/g, ' '); // Collapse multiple spaces
+                        v = v.replace(/^[\-_. ,]+/, ''); // No special char at start
+                        // Allow a space after a valid char (not just in the middle)
+                        if (v.length > 1 && v[v.length - 1] === ' ' && v[v.length - 2] === ' ') {
+                          v = v.slice(0, -1); // Prevent consecutive spaces
+                        }
+                        e.target.value = v;
                       }}
-                      onChange={e => {
-                        let value = e.target.value
-                          .replace(/[^A-Za-z0-9\-_. ,]/g, '')
-                          .replace(/([\-_. ,])\1+/g, '$1')
-                          .replace(/ +/g, ' ')
-                          .replace(/^[\-_. ,]+/, '')
-                          .trim();
-                        nameRef.current.value = value;
-                        setIndividualAddErrors(errors => ({ ...errors, name: undefined }));
-                      }}
-                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-to-list-btn')?.click(); }}
+                      onKeyDown={e => { if (e.key === 'Enter') document.getElementById('add-user-btn')?.click(); }}
                     />
-                    {individualAddErrors.name && (
-                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.name}</div>
-                    )}
+                    {addUserMessage?.type === 'error' && Array.isArray(addUserMessage.errors?.name) && addUserMessage.errors.name.map((msg, i) => (
+                      <div key={i} style={{ color: 'red', fontSize: 13, marginTop: 2 }}>{msg}</div>
+                    ))}
                   </div>
-
                   <div className="form-group">
                     <label>Department/Role</label>
                     <select
                       name="role"
                       ref={roleRef}
                       defaultValue=""
-                      onChange={() => setIndividualAddErrors(errors => ({ ...errors, role: undefined }))}
                     >
                       <option value="">Select a role</option>
                       <option value="ADMIN">ADMIN</option>
@@ -2467,91 +2412,66 @@ const UserManagement = () => {
                       <option value="REPORTS">REPORTS</option>
                       <option value="CNB">CNB</option>
                     </select>
-                    {individualAddErrors.role && (
-                      <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{individualAddErrors.role}</div>
+                    {addUserMessage?.type === 'error' && addUserMessage.errors?.role && (
+                      <div style={{ color: 'red', fontSize: 13, marginTop: 2 }}>
+                        {addUserMessage.errors.role}
+                      </div>
                     )}
                   </div>
                 </div>
-
-                <div className="form-row" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                <div className="form-row" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+                  {addUserMessage?.type === 'error' && (
+                      <div style={{ color: 'red', fontWeight: 500, marginLeft: 8, minWidth: 180, textAlign: 'left' }}>
+                        {addUserMessage.errors?.general}
+                      </div>
+                  )}
+                  {addUserMessage?.type === 'success' && (
+                    <div style={{ color: 'green', fontWeight: 500, marginLeft: 8, minWidth: 180, textAlign: 'left' }}>
+                      {addUserMessage.text}
+                    </div>
+                  )}
                   <button
-                    className="add-to-list-btn"
-                    id="add-to-list-btn"
-                    onClick={handleAddToList}
-                    disabled={false}
+                    className="add-user-btn"
+                    id="add-user-btn"
+                    onClick={handleAddUser}
                   >
-                    + Add to List
+                    Add User
                   </button>
                 </div>
-                {individualAddErrors.general && (
-                  <div style={{ color: 'red', marginTop: 8 }}>{individualAddErrors.general}</div>
-                )}
-
-                <hr className="add-user-hr" />
-
-                {individualPreview.length > 0 && (
-                  <>
-                    {/* Controls above the table, only shown if there are users */}
-                    <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-start' }}>
-                      <input
-                        type="text"
-                        placeholder="Search..."
-                        value={debouncedIndividualSearchTerm}
-                        onChange={e => {
-                          // Only allow alphanumeric characters, spaces, and basic punctuation
-                          const filteredValue = e.target.value.replace(/[^a-zA-Z0-9\s\-._@]/g, '').slice(0, 50);
-                          setDebouncedIndividualSearchTerm(filteredValue);
-                        }}
-                        style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4, minWidth: 120 }}
-                      />
-                      <select value={individualRoleFilter} onChange={e => setIndividualRoleFilter(e.target.value)} style={{ padding: 4, border: '1px solid #ccc', borderRadius: 4 }}>
-                        <option value="All">All Roles</option>
-                        <option value="ADMIN">ADMIN</option>
-                        <option value="HR">HR</option>
-                        <option value="REPORTS">REPORTS</option>
-                        <option value="CNB">CNB</option>
-                      </select>
-                    </div>
-                    <div className={styles['individual-preview']} style={{ maxHeight: shouldExpandModal ? 'calc(100vh - 420px)' : '340px', overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
-                      <table>
-                        <thead style={{ position: 'sticky', top: 0, background: '#f8f8f8', zIndex: 1 }}>
+                {/* Recently Added Section */}
+                {recentlyAddedUsers.length > 0 && (
+                  <div style={{ marginTop: 24 }}>
+                    <h3>Recently Added ({recentlyAddedUsers.length})</h3>
+                    <div style={{ maxHeight: 220, overflowY: 'auto', borderRadius: 4, border: '1px solid #f0f0f0', background: '#fafbfc' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
+                        <thead>
                           <tr>
-                            <th onClick={() => handleIndividualSort('employeeId')} style={{ cursor: 'pointer' }}>
-                              Employee ID {individualSortConfig.key === 'employeeId' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
-                            </th>
-                            <th onClick={() => handleIndividualSort('name')} style={{ cursor: 'pointer' }}>
-                              Name {individualSortConfig.key === 'name' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
-                            </th>
-                            <th onClick={() => handleIndividualSort('email')} style={{ cursor: 'pointer' }}>
-                              Email {individualSortConfig.key === 'email' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
-                            </th>
-                            <th onClick={() => handleIndividualSort('role')} style={{ cursor: 'pointer' }}>
-                              Role {individualSortConfig.key === 'role' ? (individualSortConfig.direction === 'asc' ? '▲' : individualSortConfig.direction === 'desc' ? '▼' : '') : ''}
-                            </th>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {sortedIndividualPreview.map((user, index) => (
-                            <tr key={`individual-preview-${index}`}>
+                          {recentlyAddedUsers.slice(0, Math.max(5, recentlyAddedUsers.length)).map((user, idx) => (
+                            <tr key={`recently-added-${idx}`}>
                               <td>{user.employeeId}</td>
                               <td>{user.name}</td>
                               <td>{user.email}</td>
                               <td>{user.role}</td>
                               <td>
-                                <button className={styles['remove-btn']} onClick={() => handleRemoveFromPreview(user.employeeId)}><FaTimes /></button>
+                                <button style={{ color: '#1976d2', border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => handleUndoUser(user)}>Undo</button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  <div className={styles['add-user-actions']} style={{ marginTop: 10 }}>
-                    <button onClick={() => setShowIndividualConfirmModal(true)} className={styles['save-btn']} disabled={individualPreview.length === 0}>
-                      {individualPreview.length <= 1 ? 'Add User' : `Add Users (${individualPreview.length})`}
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                      <button style={{ color: '#1976d2', border: '1px solid #1976d2', background: 'none', borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }} onClick={handleUndoAll}>Undo All</button>
+                    </div>
                   </div>
-                  </>
                 )}
               </div>
             ) : (
@@ -2668,7 +2588,7 @@ const UserManagement = () => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {sortedBulkUsers.map((user, index) => (
+                                  {filteredBulkUsers.map((user, index) => (
                                     <tr key={`valid-${index}`}>
                                       <td>{user.employeeId}</td>
                                       <td>{user.name}</td>
@@ -2726,24 +2646,7 @@ const UserManagement = () => {
                 )}
 
                 <div className={styles['modal-actions']} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className={styles['cancel-btn']} onClick={() => {
-                    setAddModalOpen(false);
-                    setShowResetDropdown(false);
-                    setResetConfirmText('');
-                    setResetConfirmed(false);
-                    setIndividualAddError('');
-                    setIndividualPreview([]);
-                    setBulkUsers([]);
-                    setInvalidUsers([]);
-                    setPreviewTab('valid');
-                    setFile(null);
-                    setFileError('');
-                    setIndividualAddErrors({}); // <-- reset errors
-                    if (employeeIdRef.current) employeeIdRef.current.value = '';
-                    if (emailRef.current) emailRef.current.value = '';
-                    if (nameRef.current) nameRef.current.value = '';
-                    if (roleRef.current) roleRef.current.value = '';
-                  }}>Cancel</button>
+                  <button className={styles['cancel-btn']} onClick={handleClose}>Cancel</button>
                   <button
                     onClick={() => setShowBulkConfirmModal(true)}
                     className={styles['save-btn']}
@@ -2765,7 +2668,7 @@ const UserManagement = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="modal-overlay">
-          <div className="modal delete-confirmation-modal">
+          <div className="modal usermanagement-delete-confirmation-modal">
             <div className="modal-header">
               <h2><FaTrash /> Confirm Deletion</h2>
             </div>
@@ -3239,7 +3142,7 @@ const UserManagement = () => {
               </div>
             </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => { setEditModalOpen(false); setShowResetDropdown(false); setResetConfirmText(''); setResetConfirmed(false); setCurrentUser(null); setOriginalUser(null); setEditUserErrors({}); setShowPasswordFields(false); setShowSecurityQuestions(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); setSecurityQuestionsData([ { question: '', answer: '' }, { question: '', answer: '' }, { question: '', answer: '' } ]); setIndividualAddError(''); setEmployeeIdEditable(false); }}>Cancel</button>
+              <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
               <button
                 onClick={async () => {
                   // 1. Check if any changes were made
@@ -3282,7 +3185,7 @@ const UserManagement = () => {
                 <FaTimes />
               </button>
             </div>
-            <p>Are you sure you want to upload {bulkUsers.length} users?</p>
+            <p>Are you sure you want to upload {bulkUsers.length} user/s?</p>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="cancel-btn" onClick={() => { setShowBulkConfirmModal(false); setIndividualAddError(''); }}>Cancel</button>
               <button
@@ -3350,6 +3253,20 @@ const UserManagement = () => {
             <p dangerouslySetInnerHTML={{ __html: editResultMessage }} />
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="save-btn" ref={editResultOkBtnRef} onClick={() => setShowEditResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddUserErrorModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2 style={{ color: '#b00' }}>Add User Error</h2>
+            </div>
+            <p style={{ color: '#b00', fontWeight: 500 }}>{addUserErrorDetail}</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="save-btn" onClick={() => setShowAddUserErrorModal(false)}>OK</button>
             </div>
           </div>
         </div>
