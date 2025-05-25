@@ -7,6 +7,7 @@ import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
+import AdminLogs from './pages/admin/AdminLogs';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';
@@ -26,9 +27,10 @@ function App() {
           {/* Login routes */}
           <Route path="/" element={<Login />} />
           <Route path="/otp" element={<Otp />} />
-          <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/security-questions" element={<SecurityQuestions />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route 
+            path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
 
           {/* Protected routes */}
           <Route
