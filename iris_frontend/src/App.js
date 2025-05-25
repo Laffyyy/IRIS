@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
@@ -8,6 +8,7 @@ import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
 import AdminLogs from './pages/admin/AdminLogs';
+import './App.css';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
@@ -17,7 +18,6 @@ import ProtectedRoute from './utilities/ProtectedRoute';
 import Unauthorize from './utilities/Unautorize';
 import AdminPage from './adminpagecollection';
 import InactivityHandler from './components/InactivityHandler';
-import './App.css';
 
 function App() {
   return (
