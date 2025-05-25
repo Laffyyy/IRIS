@@ -261,6 +261,7 @@ const Otp = ({ onBack, onComplete }) => {
       if (response.ok) {
         const userStatus = data.data.user?.status;
         const token = data.data.token;
+        const isPasswordExpired = localStorage.getItem('isPasswordExpired') === 'true';
         
         if (token) {
           localStorage.setItem('token', token);
@@ -268,7 +269,9 @@ const Otp = ({ onBack, onComplete }) => {
 
         setAlertModal({
           isOpen: true,
-          message: data.message || 'Login successful',
+          message: isPasswordExpired 
+          ? 'Verification Successful. Please Update your Password' 
+          : (data.message || 'Login successful'),
           type: 'success',
           onClose: () => {
             // Decode token to get user roles
@@ -279,10 +282,17 @@ const Otp = ({ onBack, onComplete }) => {
                 ? [decoded.role]
                 : [];
 
-              if (userStatus === 'FIRST-TIME') {
+              if (isPasswordExpired) {
+              localStorage.removeItem('isPasswordExpired'); // Clear the flag
+              navigate('../update-password');
+            } 
+            // Then check for first-time login
+            else if (userStatus === 'FIRST-TIME') {
                 localStorage.removeItem('isFirstTimeLogin'); // Clear the flag
                 navigate('../change-password');
-              } else if (userStatus === 'ACTIVE') {
+              } 
+            // Finally, handle normal role-based navigation
+            else if (userStatus === 'ACTIVE') {
                 if (roles.includes('admin')) {
                   navigate('../admin/dasboard');
                 } else if (roles.includes('HR')) {

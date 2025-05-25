@@ -4,7 +4,6 @@ class LoginController {
     constructor() {
         this.loginService = new LoginService();
     }
-
     async login(req, res) {
         console.log('Login request received:', {
             body: req.body,
@@ -104,9 +103,25 @@ class LoginController {
     async checkPasswordExpiration(req, res) {
         try {
             const { userId } = req.body;
-            const isExpired = await this.loginService.checkPasswordExpiration(userId);
+            const result = await this.loginService.checkPasswordExpiration(userId);
             
-            res.status(200).json({ isExpired });
+            // If result is just a boolean, transform it to include minutes left
+            let response = { isExpired: result };
+            
+            // If the service returns an object with expirationDate, calculate minutes left
+            if (result && typeof result === 'object' && result.expirationDate) {
+                const now = new Date();
+                const expDate = new Date(result.expirationDate);
+                const minutesLeft = Math.floor((expDate - now) / (1000 * 60));
+                
+                response = {
+                    isExpired: now >= expDate,
+                    minutesLeft: minutesLeft > 0 ? minutesLeft : 0,
+                    expirationDate: result.expirationDate // Include the expiration date
+                };
+            }
+            
+            res.status(200).json(response);
         } catch (error) {
             res.status(500).json({ 
                 message: 'Error checking password expiration', 
