@@ -11,6 +11,7 @@ import AdminLogs from './pages/admin/AdminLogs';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
+import AdminPage from './adminpagecollection';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
 import ProtectedRoute from './utilities/ProtectedRoute';

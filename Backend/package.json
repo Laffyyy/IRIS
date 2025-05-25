@@ -11,9 +11,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "nodemailer": "^7.0.3",
-    "nodemon": "^3.1.10",
-    "redis": "^5.0.1",
     "backend": "file:",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -22,8 +19,12 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.1",
+    "nodemailer": "^7.0.3",
+    "nodemon": "^3.1.10",
+    "redis": "^5.0.1",
     "socket.io": "^4.8.1",
     "ws": "^8.18.2",
+    "xlsx": "^0.18.5",
     "zongji": "^0.5.1"
   }
 }
