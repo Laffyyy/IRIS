@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const login = require('../models/login');
-const OtpService = require('./otpService'); // Import the OtpService
+const OtpService = require('./otpservice'); // Import the OtpService
 
 
 class LoginService {
@@ -13,7 +13,7 @@ class LoginService {
     }
 
     
-    async loginUser(userID, password, otp = null) {
+    async loginUser(userID, password, otp = null, options = {}) {
         console.log('LoginService.loginUser called:', { userID, hasPassword: !!password, hasOtp: !!otp });
         try {
             let user = null;
@@ -273,8 +273,18 @@ class LoginService {
         }
     }
 
-    async checkPasswordExpiration(userID) {
+    async checkPasswordExpiration(userId) {
         try {
+            console.log('Checking password expiration for user:', userId);
+            // First query to check column existence
+            const [columns] = await db.query(
+                'SHOW COLUMNS FROM tbl_login'
+            );
+            
+            const columnNames = columns.map(col => col.Field);
+            console.log('Available columns in tbl_login:', columnNames);
+            
+            // Original query with correct column name
             const [rows] = await db.query(
                 'SELECT tExpirationDate, dStatus FROM tbl_login WHERE dUser_ID = ?', 
                 [userID]
@@ -301,7 +311,10 @@ class LoginService {
                 );
             }
             
-            return isExpired;
+            return {
+                isExpired: isExpired,
+                expirationDate: expirationDate // Return the raw expiration date
+            };
         } catch (error) {
             console.error('Error checking password expiration:', error);
             throw error;
