@@ -68,7 +68,8 @@
   display: block;
   margin-bottom: 4px;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
+  text-align: left;
 }
 
 .form-group input,
@@ -873,6 +874,7 @@
   font-size: 13px;
   color: #666;
   margin-bottom: 20px;
+  text-align: left;
 }
 
 /* Edit KPI Modal */

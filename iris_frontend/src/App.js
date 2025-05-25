@@ -7,6 +7,7 @@ import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
+import AdminLogs from './pages/admin/AdminLogs';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';

@@ -15,6 +15,7 @@ import appManagementIcon from '../assets/icons/apps.png';
 import siteManagementIcon from '../assets/icons/sites.png';
 import clientManagementIcon from '../assets/icons/clients.png';
 import kpiManagementIcon from '../assets/icons/kpis.png';
+import logsIcon from '../assets/icons/logs.png';
 import { getUserRoles } from '../utilities/auth'; 
 
 
