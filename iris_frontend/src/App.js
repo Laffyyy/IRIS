@@ -22,13 +22,15 @@ import './App.css';
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Public/standalone routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/otp" element={<Otp />} />
-        <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/security-questions" element={<SecurityQuestions />} />
-        <Route path="/update-password" element={<UpdatePassword />} />
+      <div className="App">
+        <Routes>
+          {/* Login routes */}
+          <Route path="/" element={<Login />} />
+          <Route path="/otp" element={<Otp />} />
+          <Route 
+            path="/change-password" element={<ProtectedRoute allowedRoles={['ADMIN' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['ADMIN' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['ADMIN' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
 
           {/* Protected routes */}
           <Route
@@ -38,7 +40,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['admin']}>
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
                       <AdminPage />
                     </ProtectedRoute>
                   </main>
@@ -53,7 +55,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
+                    <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
                       <div>HR Page</div>
                     </ProtectedRoute>
                   </main>
@@ -68,7 +70,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+                    <ProtectedRoute allowedRoles={['REPORTS', 'ADMIN']}>
                       <div>Reports Page</div>
                     </ProtectedRoute>
                   </main>
@@ -83,7 +85,7 @@ function App() {
                 <div className="app-container">
                   <Sidebar />
                   <main className="main-content">
-                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+                    <ProtectedRoute allowedRoles={['CNB', 'ADMIN']}>
                       <div>C&B Page</div>
                     </ProtectedRoute>
                   </main>
@@ -94,6 +96,7 @@ function App() {
           <Route path="/faqs" element={<div>FAQs Page</div>} />
           <Route path="/unauthorized" element={<Unauthorize />} />
         </Routes>
+      </div>
     </Router>
   );
 }
