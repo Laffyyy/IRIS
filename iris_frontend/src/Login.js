@@ -202,6 +202,31 @@ const Login = ({ onContinue, onForgotPassword }) => {
           if (expirationCheck.ok) {
             const expirationData = await expirationCheck.json();
             
+            // Store expiration date for modals if available
+            if (expirationData.expirationDate) {
+              localStorage.setItem('expirationDate', expirationData.expirationDate);
+            }
+            
+            // First check if password is already expired
+            if (expirationData.isExpired) {
+              // Password is already expired - show expired modal
+              localStorage.setItem('isPasswordExpired', 'true');
+              setShowExpiredModal(true);
+              return; // Wait for user's action on the expired modal
+            } 
+            // Then check if password will expire soon (within 10 days)
+            else if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
+              // Calculate days remaining
+              setDaysRemaining(Math.ceil(expirationData.minutesLeft / (24 * 60)));
+              
+              // Show warning modal
+              setShowWarningModal(true);
+              return; // Wait for user to acknowledge the warning
+            } 
+            else {
+              // Password is not expired and not close to expiring - continue normal login flow
+              navigate('/otp');
+            }
             if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
               // Password will expire soon (10 days or less) - show warning
               
