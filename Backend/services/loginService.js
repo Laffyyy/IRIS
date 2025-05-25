@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const login = require('../models/login');
-const OtpService = require('./otpService'); // Import the OtpService
+const OtpService = require('./otpservice'); // Import the OtpService
 
 
 class LoginService {
@@ -13,7 +13,7 @@ class LoginService {
     }
 
     
-    async loginUser(userID, password, otp = null) {
+    async loginUser(userID, password, otp = null, options = {}) {
         console.log('LoginService.loginUser called:', { userID, hasPassword: !!password, hasOtp: !!otp });
         try {
             let user = null;

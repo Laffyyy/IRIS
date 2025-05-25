@@ -24,6 +24,10 @@
   margin-bottom: 16px;
 }
 
+.subtitle {
+  text-align: left;
+}
+
 .controls {
   display: flex;
   gap: 15px;
@@ -63,6 +67,7 @@
 .filter-container label {
   font-size: 12px;
   white-space: nowrap;
+  text-align: left;
 }
 
 .filter-container select {
@@ -381,6 +386,7 @@
   color: #666;
   font-size: 13px;
   margin-bottom: 20px;
+  text-align: left;
 }
 
 .upload-method-tabs {
@@ -424,6 +430,7 @@
   margin-bottom: 6px;
   font-weight: 500;
   font-size: 12px;
+  text-align: left;
 }
 
 .form-group input,
@@ -836,6 +843,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  text-align: left;
 }
 
 .password-fields,
