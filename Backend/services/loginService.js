@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const login = require('../models/login');
 const OtpService = require('./otpservice'); // Import the OtpService
 
+
 class LoginService {
     constructor() {
         this.otpService = new OtpService(); // Initialize OtpService
@@ -12,7 +13,7 @@ class LoginService {
     }
 
     
-    async loginUser(userID, password, otp = null) {
+    async loginUser(userID, password, otp = null, options = {}) {
         console.log('LoginService.loginUser called:', { userID, hasPassword: !!password, hasOtp: !!otp });
         try {
             let user = null;

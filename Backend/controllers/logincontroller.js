@@ -13,7 +13,7 @@ class LoginController {
         });
 
         try {
-            const { userID, password, otp } = req.body;
+            const { userID, password, otp, bypassOtp, passwordChanged } = req.body; //PJJ I ADDED THE BYPASSOTP AND PASSWORD CHANGED
             
             if (!userID || !password) {
                 console.log('Missing credentials:', { userID: !!userID, password: !!password });
@@ -22,13 +22,20 @@ class LoginController {
                 });
             }
 
+
+            //PJ I ADDED THIS
             console.log('Attempting login for user:', userID);
-            const result = await this.loginService.loginUser(userID, password, otp);
+            const result = await this.loginService.loginUser(userID, password, otp, {
+                bypassOtp: bypassOtp || false,
+                passwordChanged: passwordChanged || false
+            });
             console.log('Login result:', { 
                 hasToken: !!result.token,
                 message: result.message,
-                requiresOtp: !otp && result.message === 'OTP sent to your registered email'
+                requiresOtp: !otp && result.message === 'OTP sent to your registered email',
+                bypassOtp: !!bypassOtp
             });
+            
             
             // If OTP is required but not provided
             if (!otp && result.message === 'OTP sent to your registered email') {

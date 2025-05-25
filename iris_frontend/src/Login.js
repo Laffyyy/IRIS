@@ -53,8 +53,10 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [nextImageIndex, setNextImageIndex] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
+  const [isTransitioning, setIsTransitioning] = useState(false); // Add this line
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
   // Add new state for the password expiration modals
@@ -90,50 +92,86 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Prevent form submission if alert modal is open
     if (alertModal.isOpen) {
       return;
     }
- 
-    const payload = {
-      userID: employeeId,
-      password: password
-    };
+
+    if (!employeeId || !password) {
+      setAlertModal({
+        isOpen: true,
+        message: 'Please enter both username and password.',
+        type: 'warning'
+      });
+      return;
+    }
+
     try {
-      // First check if password has expired before proceeding with login
-      const expirationCheck = await fetch('http://localhost:3000/api/password-expiration/manage', {
+      // First check user status and verify credentials in one call
+      const verifyResponse = await fetch('http://localhost:3000/api/changepass/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          operation: 'check',
-          userId: employeeId 
+          userID: employeeId, 
+          password: password 
         })
       });
-      
-      if (expirationCheck.ok) {
-        const expirationData = await expirationCheck.json();
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        // Authentication failed
+        setAlertModal({
+          isOpen: true,
+          message: verifyData.message || 'Invalid username or password.',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Authentication succeeded, now check status
+      if (verifyData.status === 'FIRST-TIME') {
+        // Store the credentials in localStorage for the change password page
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        localStorage.setItem('isFirstTimeLogin', 'true');
         
-        // If password is expired, show the modal and stop the login flow
-        if (expirationData.isExpired) {
-          // Store user ID and flag that password needs changing
-          localStorage.setItem('userId', employeeId);
-          localStorage.setItem('passwordExpired', 'true');
+        // Generate OTP for first-time login user before redirecting
+        try {
+          const otpResponse = await fetch('http://localhost:3000/api/otp/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId: employeeId })
+          });
           
-          // Set expiration date for the modal if available
-          if (expirationData.expirationDate) {
-            localStorage.setItem('expirationDate', expirationData.expirationDate);
+          if (!otpResponse.ok) {
+            throw new Error('Failed to generate OTP');
           }
           
-          // Show the expired password modal
-          setShowExpiredModal(true);
-          return; // Stop the login flow here
+          // Now we can redirect to OTP page since an OTP has been sent
+          navigate('/otp');
+        } catch (otpError) {
+          console.error('Error generating OTP:', otpError);
+          setAlertModal({
+            isOpen: true,
+            message: 'Failed to send verification code. Please try again.',
+            type: 'error'
+          });
         }
+        return;
       }
-      
-      // Continue with login flow only if password is not expired
+
+      // If we reach here, it's a normal login process
+      const payload = {
+        userID: employeeId,
+        password: password
+      };
+
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -191,6 +229,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
           navigate('/otp');
         }
       } else {
+        // Handle other login response errors as before
         if (data.message.includes('User not found')) {
           setAlertModal({
             isOpen: true,
@@ -323,11 +362,20 @@ const handleChangePassword = async () => {
     setEmployeeId(truncatedValue);
   };
 
+  onContinue = (e) => {
+    navigate('/otp');
+  }
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1
-      );
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentImageIndex((prevIndex) => {
+          const next = prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1;
+          setNextImageIndex(next === carouselImages.length - 1 ? 0 : next + 1);
+          return next;
+        });
+        setIsTransitioning(false);
+      }, 100);
     }, 5000);
     return () => clearInterval(interval);
   }, [carouselImages.length]);
@@ -336,7 +384,7 @@ const handleChangePassword = async () => {
     <div className="iris-wrapper">
       <div className="iris-login-box">
         <div className="iris-left">
-          <img src="/assets/logo.png" alt="IRIS Logo" className="iris-logo" />
+          <img src={`${process.env.PUBLIC_URL}/assets/logo.png`} alt="IRIS Logo" className="iris-logo" />
           <h2 className="iris-title">IRIS</h2>
           <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
 
@@ -344,7 +392,7 @@ const handleChangePassword = async () => {
             <div className="iris-input-wrapper">
               <label className="iris-label">Username</label>
               <span className="iris-icon">
-                <img src="/assets/user-icon.png" alt="User Icon" />
+                <img src={`${process.env.PUBLIC_URL}/assets/user-icon.png`} alt="User Icon" />
               </span>
               <input
                 id="employee-id"
@@ -359,7 +407,7 @@ const handleChangePassword = async () => {
             <div className="iris-input-wrapper">
               <label className="iris-label">Password</label>
               <span className="iris-icon password-icon">
-                <img src="/assets/lock-icon.png" alt="Lock Icon" />
+                <img src={`${process.env.PUBLIC_URL}/assets/lock-icon.png`} alt="Lock Icon" />
               </span>
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input
@@ -405,11 +453,17 @@ const handleChangePassword = async () => {
         <div className="iris-right">
           <div className="carousel-container">
             <div
-              className="carousel-slide"
+              className="carousel-slide current"
               style={{
                 backgroundImage: `url(${carouselImages[currentImageIndex]})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
+                opacity: isTransitioning ? 0 : 1,
+              }}
+            />
+            <div
+              className="carousel-slide next"
+              style={{
+                backgroundImage: `url(${carouselImages[nextImageIndex]})`,
+                opacity: isTransitioning ? 1 : 0,
               }}
             />
           </div>

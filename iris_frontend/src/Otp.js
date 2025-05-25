@@ -141,19 +141,13 @@ const Otp = ({ onBack, onComplete }) => {
         throw new Error('Failed to resend OTP');
       }
 
-      const newResendTime = 90;
-      const newExpireTime = 180;
-      
-      setResendTime(newResendTime);
-      setExpireTime(newExpireTime);
+      setResendTime(90);
+      setExpireTime(180);
+      localStorage.setItem('resendTime', '90');
+      localStorage.setItem('expireTime', '180');
+      localStorage.setItem('resendTimestamp', Date.now().toString());
+      localStorage.setItem('expireTimestamp', Date.now().toString());
       setCanResend(false);
-      
-      // Save new timestamps to localStorage
-      localStorage.setItem('otpResendTime', newResendTime.toString());
-      localStorage.setItem('otpResendTimestamp', Date.now().toString());
-      localStorage.setItem('otpExpireTime', newExpireTime.toString());
-      localStorage.setItem('otpExpireTimestamp', Date.now().toString());
-      
       setOtpValues(Array(6).fill(''));
       inputsRef.current.forEach(input => {
         if (input) input.value = '';
@@ -193,6 +187,11 @@ const Otp = ({ onBack, onComplete }) => {
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
+      setIsComplete(true);
+    } else if (value && index === 5) {
+      // When the last input is filled, focus on the Continue button
+      setIsComplete(true);
+      document.getElementById('otp-submit-button').focus();
     }
   };
 
@@ -283,29 +282,30 @@ const Otp = ({ onBack, onComplete }) => {
                 ? [decoded.role]
                 : [];
 
-            if (isPasswordExpired) {
+              if (isPasswordExpired) {
               localStorage.removeItem('isPasswordExpired'); // Clear the flag
               navigate('../update-password');
             } 
             // Then check for first-time login
             else if (userStatus === 'FIRST-TIME') {
-              navigate('../change-password');
-            } 
+                localStorage.removeItem('isFirstTimeLogin'); // Clear the flag
+                navigate('../change-password');
+              } 
             // Finally, handle normal role-based navigation
             else if (userStatus === 'ACTIVE') {
-              if (roles.includes('admin')) {
-                navigate('../admin/dashboard');
-              } else if (roles.includes('HR')) {
-                navigate('../hr');
-              } else if (roles.includes('REPORTS')) {
-                navigate('../reports');
-              } else if (roles.includes('CNB')) {
-                navigate('../compensation');
-              } else {
-                navigate('/'); // fallback
+                if (roles.includes('admin')) {
+                  navigate('../admin/dasboard');
+                } else if (roles.includes('HR')) {
+                  navigate('../hr');
+                } else if (roles.includes('REPORTS')) {
+                  navigate('../reports');
+                } else if (roles.includes('CNB')) {
+                  navigate('../compensation');
+                } else {
+                  navigate('/'); // fallback
+                }
               }
             }
-          }
         });
       } else {
         console.log(data);
@@ -336,6 +336,19 @@ const Otp = ({ onBack, onComplete }) => {
     localStorage.removeItem('password');
     navigate('/');
   }
+
+  // Add cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      // Only clear timer data if we're not refreshing
+      if (!window.performance.navigation.type === 1) {
+        localStorage.removeItem('expireTime');
+        localStorage.removeItem('expireTimestamp');
+        localStorage.removeItem('resendTime');
+        localStorage.removeItem('resendTimestamp');
+      }
+    };
+  }, []);
 
   return (
     <div className="otp-container">
