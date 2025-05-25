@@ -229,7 +229,7 @@ const ChangePassword = () => {
           onClose: () => {
             // Role-based redirection happens when user clicks OK
             if (roles.includes('admin')) {
-              navigate('../dashboard');
+              navigate('../admin/dashboard');
             } else if (roles.includes('HR')) {
               navigate('../hr');
             } else if (roles.includes('REPORTS')) {
