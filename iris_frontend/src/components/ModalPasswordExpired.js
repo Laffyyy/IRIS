@@ -37,9 +37,6 @@ export default function ModalPasswordExpired({ open, onClose, onChangePassword, 
   return (
     <div className="modal-overlay">
       <div className="modal-expired"> {/* Changed from modal-warning to modal-expired */}
-        <button className="close-btn" onClick={onClose} aria-label="Close">
-          &times;
-        </button>
         <div className="modal-title">
           <span className="icon">&#9888;</span>
           Password Expired

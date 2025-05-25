@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import ModalWarning from './ModalWarning';
-import ModalPasswordExpired from './ModalPasswordExpired';
+import ModalWarning from './components/ModalWarning';
+import ModalPasswordExpired from './components/ModalPasswordExpired';
 import AlertModal from './components/AlertModal';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
@@ -116,19 +116,20 @@ const Login = ({ onContinue, onForgotPassword }) => {
       if (expirationCheck.ok) {
         const expirationData = await expirationCheck.json();
         
-        // Handle expired password first before attempting login
+        // If password is expired, show the modal and stop the login flow
         if (expirationData.isExpired) {
-          // Store user ID for the change password page
+          // Store user ID and flag that password needs changing
           localStorage.setItem('userId', employeeId);
+          localStorage.setItem('passwordExpired', 'true');
           
           // Set expiration date for the modal if available
           if (expirationData.expirationDate) {
             localStorage.setItem('expirationDate', expirationData.expirationDate);
           }
           
-          // Show the expired modal instead of confirm
+          // Show the expired password modal
           setShowExpiredModal(true);
-          return; // Stop processing until user responds to modal
+          return; // Stop the login flow here
         }
       }
       
@@ -239,22 +240,68 @@ const Login = ({ onContinue, onForgotPassword }) => {
   };
 
   // Handler for the expired password modal
-  const handleChangePassword = () => {
-    setShowExpiredModal(false);
-    navigate('/change-password');
-  };
+// Replace your handleChangePassword function with this:
 
-  // Handler for the warning modal
-  const handleCloseWarning = () => {
-    setShowWarningModal(false);
-    navigate('/otp'); // Continue the login flow after the warning is acknowledged
-  };
+const handleChangePassword = async () => {
+  try {
+    // Check if employeeId is available
+    if (!employeeId) {
+      console.error('Employee ID is missing');
+      setAlertModal({
+        isOpen: true,
+        message: 'User ID is missing. Please try logging in again.',
+        type: 'error'
+      });
+      return;
+    }
+    
+    // First generate an OTP for verification
+    const otpResponse = await fetch('http://localhost:3000/api/otp/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        userId: employeeId
+      })
+    });
 
-  // Handler for the expired password modal
-  const handleChangePassword = () => {
+    if (!otpResponse.ok) {
+      const errorData = await otpResponse.json();
+      throw new Error(errorData.message || 'Failed to send verification code');
+    }
+    
+    // Set flags in localStorage for the OTP page
+    localStorage.setItem('isPasswordExpired', 'true');
+    localStorage.setItem('userId', employeeId);
+    localStorage.setItem('password', password); // Also store password for OTP verification
+    
+    // Close the expired password modal 
     setShowExpiredModal(false);
-    navigate('/change-password');
-  };
+    
+    // Create a custom navigation function
+    const navigateToOtpPage = () => {
+      navigate('/otp');
+    };
+    
+    // Show the success message with the navigation function attached
+    setAlertModal({
+      isOpen: true,
+      message: 'Verification code sent to your email',
+      type: 'success',
+      onClose: navigateToOtpPage // Attach custom close handler
+    });
+    
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    setAlertModal({
+      isOpen: true,
+      message: `Failed to send verification code: ${error.message}`,
+      type: 'error'
+    });
+  }
+};
+
 
   // Handler for the warning modal
   const handleCloseWarning = () => {
@@ -398,12 +445,29 @@ const Login = ({ onContinue, onForgotPassword }) => {
           expirationDate={localStorage.getItem('expirationDate')}
         />
 
-      <AlertModal
-        isOpen={alertModal.isOpen}
-        message={alertModal.message}
-        type={alertModal.type}
-        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
-      />
+<AlertModal
+  isOpen={alertModal.isOpen}
+  message={alertModal.message}
+  type={alertModal.type}
+  onClose={() => {
+    // Check if we have a custom onClose handler
+    if (alertModal.onClose) {
+      alertModal.onClose();
+    } else {
+      // Check if we need to navigate after closing using the flag method
+      const shouldNavigate = localStorage.getItem('navigateToOtp') === 'true';
+      
+      // If navigation flag is set, navigate and clear the flag
+      if (shouldNavigate) {
+        localStorage.removeItem('navigateToOtp');
+        navigate('/otp');
+      }
+    }
+    
+    // Close the modal
+    setAlertModal({ ...alertModal, isOpen: false });
+  }}
+/>
     </div>
   );
 };
