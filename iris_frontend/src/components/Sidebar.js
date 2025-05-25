@@ -19,13 +19,19 @@ import logsIcon from '../assets/icons/logs.png';
 import { getUserRoles } from '../utilities/auth'; 
 
 
+
 const Sidebar = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [expandedItems, setExpandedItems] = useState([]);
 
   const shouldShowExpanded = isLocked || isHovered;
-  const userRoles = (['ADMIN']).map(r => r.toLowerCase());
+  const userRoles = getUserRoles();
+
+  if (!userRoles || userRoles.length === 0) {
+    return null;
+  }
+
 
   const navItems = [
   ...(userRoles.includes('admin') ? [
@@ -38,8 +44,7 @@ const Sidebar = () => {
         { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
         { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
         { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
-        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon },
-        { name: 'Admin Logs', path: '/admin/logs', icon: logsIcon }
+        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
       ]
     }
   ] : []),
@@ -54,6 +59,8 @@ const Sidebar = () => {
   ] : []),
   { name: 'FAQs', path: '/faqs', icon: faqsIcon }
 ];
+
+
 
   const toggleSubMenu = (itemName) => {
     if (expandedItems.includes(itemName)) {
