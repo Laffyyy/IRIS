@@ -23,8 +23,14 @@ router.get('/', async (req, res) => {
 // Set processing month
 router.post('/', async (req, res) => {
     try {
-        const { month, year } = req.body;
+        console.log('Received request body:', req.body);
+        const { month, year, createdBy } = req.body;
         
+        if (!month || !year) {
+            console.error('Missing month or year in request');
+            return res.status(400).json({ message: 'Month and year are required' });
+        }
+
         // Convert month name to number
         const months = {
             'January': 1, 'February': 2, 'March': 3, 'April': 4,
@@ -33,7 +39,16 @@ router.post('/', async (req, res) => {
         };
         
         const monthNumber = months[month];
+        if (!monthNumber) {
+            console.error('Invalid month name:', month);
+            return res.status(400).json({ message: 'Invalid month name' });
+        }
+
         const yearNumber = parseInt(year);
+        if (isNaN(yearNumber)) {
+            console.error('Invalid year:', year);
+            return res.status(400).json({ message: 'Invalid year' });
+        }
 
         // Validate future date
         const currentDate = new Date();
@@ -41,19 +56,25 @@ router.post('/', async (req, res) => {
         const currentMonth = currentDate.getMonth() + 1;
 
         if (yearNumber > currentYear || (yearNumber === currentYear && monthNumber > currentMonth)) {
+            console.error('Attempt to set future date:', { monthNumber, yearNumber });
             return res.status(400).json({ message: 'Cannot set processing month to a future date' });
         }
 
+        console.log('Inserting processing month:', { monthNumber, yearNumber });
         // Insert new processing month
-        await db.query(
+        const [result] = await db.query(
             'INSERT INTO tbl_processingmonth (dYear, dMonth, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, NOW())',
-            [yearNumber, monthNumber, req.user?.id || 1] // Fallback to ID 1 if no user context
+            [yearNumber, monthNumber, createdBy]
         );
+        console.log('Insert result:', result);
 
         res.json({ message: 'Processing month set successfully' });
     } catch (error) {
         console.error('Error setting processing month:', error);
-        res.status(500).json({ message: 'Error setting processing month' });
+        res.status(500).json({ 
+            message: 'Error setting processing month',
+            error: error.message 
+        });
     }
 });
 

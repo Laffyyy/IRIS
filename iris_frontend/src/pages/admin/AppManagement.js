@@ -10,15 +10,13 @@ const AppManagement = () => {
   const [understood, setUnderstood] = useState(false);
   const [currentProcessingMonth, setCurrentProcessingMonth] = useState(null);
   const [error, setError] = useState(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() + i).toString());
-
-  // Get current real-time month and year
   const currentDate = new Date();
   const currentMonth = months[currentDate.getMonth()];
   const currentYear = currentDate.getFullYear().toString();
@@ -30,33 +28,29 @@ const AppManagement = () => {
   const fetchCurrentProcessingMonth = async () => {
     try {
       const response = await axios.get('http://localhost:3000/api/processing-month');
-      console.log('Processing month API response:', response.data);
       const { dMonth, dYear } = response.data;
       setCurrentProcessingMonth({
-        month: dMonth,
+        month: dMonth, 
         year: dYear.toString()
       });
       setError(null);
     } catch (error) {
-      console.error('Error fetching processing month:', error);
       setError('Error fetching current processing month');
       setCurrentProcessingMonth(null);
     }
   };
 
   const handleSave = () => {
-    // Validate that selected date is not in the future
-    const selectedMonthIndex = months.indexOf(month) + 1;
-    const selectedYear = parseInt(year);
-    const currentMonthNum = currentDate.getMonth() + 1;
-    const currentYearNum = currentDate.getFullYear();
-
-    if (selectedYear > currentYearNum || 
-        (selectedYear === currentYearNum && selectedMonthIndex > currentMonthNum)) {
-      setError('Cannot set processing month to a future date');
+    // Prevent setting the same processing month
+    if (
+      currentProcessingMonth &&
+      currentProcessingMonth.month === month &&
+      currentProcessingMonth.year === year
+    ) {
+      setError('Selected processing month is already the current processing month.');
+      setShowErrorModal(true);
       return;
     }
-
     setShowConfirmation(true);
     setError(null);
   };
@@ -66,16 +60,15 @@ const AppManagement = () => {
       try {
         await axios.post('http://localhost:3000/api/processing-month', {
           month,
-          year
+          year,
+          createdBy: localStorage.getItem('userId')
         });
-        
         await fetchCurrentProcessingMonth();
         setShowConfirmation(false);
         setConfirmationText('');
         setUnderstood(false);
         setError(null);
       } catch (error) {
-        console.error('Error setting processing month:', error);
         setError(error.response?.data?.message || 'Error setting processing month');
       }
     }
@@ -87,11 +80,13 @@ const AppManagement = () => {
     setUnderstood(false);
   };
 
+  // Format value for month picker
+  const monthPickerValue = `${year}-${String(months.indexOf(month) + 1).padStart(2, '0')}`;
+  const maxMonthPicker = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+
   return (
     <div className="app-management-container">
       <div className="white-card">
-        {error && <div className="error-message">{error}</div>}
-        
         <div className="app-management-header">
           <h1>App Management</h1>
           <p className="subtitle">
@@ -121,20 +116,17 @@ const AppManagement = () => {
           <h2>Configure Processing Month</h2>
           <div className="form-row">
             <div className="form-group">
-              <label>Month</label>
-              <select value={month} onChange={(e) => setMonth(e.target.value)}>
-                {months.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Year</label>
-              <select value={year} onChange={(e) => setYear(e.target.value)}>
-                {years.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+              <label>Processing Month</label>
+              <input
+                type="month"
+                value={monthPickerValue}
+                max={maxMonthPicker}
+                onChange={e => {
+                  const [y, m] = e.target.value.split('-');
+                  setYear(y);
+                  setMonth(months[parseInt(m, 10) - 1]);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -171,7 +163,12 @@ const AppManagement = () => {
                 <input
                   type="text"
                   value={confirmationText}
-                  onChange={(e) => setConfirmationText(e.target.value.toUpperCase())}
+                  maxLength={7}
+                  onChange={(e) => {
+                    // Only allow letters, max 7
+                    const sanitized = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                    setConfirmationText(sanitized);
+                  }}
                   placeholder="CONFIRM"
                 />
               </div>
@@ -186,6 +183,24 @@ const AppManagement = () => {
                   disabled={confirmationText !== 'CONFIRM' || !understood}
                 >
                   Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showErrorModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-content">
+              <h3>Error</h3>
+              <div className="warning">
+                <p>{error}</p>
+              </div>
+              <div className="modal-buttons">
+                <button onClick={() => setShowErrorModal(false)} className="confirm-btn">
+                  OK
                 </button>
               </div>
             </div>
