@@ -11,60 +11,13 @@ import AdminLogs from './pages/admin/AdminLogs';
 import Login from './Login';
 import Otp from './Otp';
 import ChangePassword from './ChangePassword';
-import AdminPage from './adminpagecollection';
 import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
 import ProtectedRoute from './utilities/ProtectedRoute';
+import Unauthorize from './utilities/Unautorize';
+import AdminPage from './adminpagecollection';
 import InactivityHandler from './components/InactivityHandler';
 import './App.css';
-
-// Layout for admin section
-function AdminLayout() {
-  return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-
-// Layout for HR section
-function HrLayout() {
-  return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-
-// Layout for Reports section
-function ReportsLayout() {
-  return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-
-// Layout for Compensation section
-function CompensationLayout() {
-  return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
 
 function App() {
   return (
