@@ -20,10 +20,19 @@ const generateOtpCode = () => {
 };
 
 exports.sendOtp = async (email) => {
-  const [userRows] = await db.query(
+  // First check tbl_login
+  let [userRows] = await db.query(
     'SELECT dUser_ID, dStatus FROM tbl_login WHERE BINARY dEmail = ?',
     [email]
   );
+
+  // If not found in tbl_login, check tbl_admin
+  if (userRows.length === 0) {
+    [userRows] = await db.query(
+      'SELECT dUser_ID, dStatus FROM tbl_admin WHERE BINARY dEmail = ?',
+      [email]
+    );
+  }
 
   if (userRows.length === 0) {
     throw new Error('Email not registered');
@@ -83,10 +92,20 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
 
   // Find userId if only email provided
   if (!userId && email) {
-    const [userRows] = await db.query(
+    // Check tbl_login first
+    let [userRows] = await db.query(
       'SELECT dUser_ID FROM tbl_login WHERE BINARY dEmail = ?',
       [email]
     );
+
+    // If not found in tbl_login, check tbl_admin
+    if (userRows.length === 0) {
+      [userRows] = await db.query(
+        'SELECT dUser_ID FROM tbl_admin WHERE BINARY dEmail = ?',
+        [email]
+      );
+    }
+
     if (userRows.length === 0) {
       throw new Error('Email not registered');
     }
@@ -111,9 +130,6 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
   if (rows.length === 0) {
     throw new Error('Invalid or expired OTP');
   }
-
-  // No need to check expiration in JS anymore
-  const otpRecord = rows[0];
 
   // Mark OTP as used
   await db.query(

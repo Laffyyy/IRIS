@@ -2,11 +2,21 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 
 exports.getSecurityQuestions = async (email) => {
-  const [userRows] = await db.query(
+  // First check tbl_login
+  let [userRows] = await db.query(
     `SELECT dSecurity_Question1, dSecurity_Question2, dSecurity_Question3 
      FROM tbl_login WHERE dEmail = ?`,
     [email]
   );
+
+  // If not found in tbl_login, check tbl_admin
+  if (userRows.length === 0) {
+    [userRows] = await db.query(
+      `SELECT dSecurity_Question1, dSecurity_Question2, dSecurity_Question3 
+       FROM tbl_admin WHERE dEmail = ?`,
+      [email]
+    );
+  }
 
   if (userRows.length === 0) {
     throw new Error('User not found');
@@ -25,13 +35,25 @@ exports.getSecurityQuestions = async (email) => {
 };
 
 exports.verifyAnswers = async (email, answers) => {
-  const [userRows] = await db.query(
+  // First check tbl_login
+  let [userRows] = await db.query(
     `SELECT dSecurity_Question1, dAnswer_1,
             dSecurity_Question2, dAnswer_2,
             dSecurity_Question3, dAnswer_3
      FROM tbl_login WHERE dEmail = ?`,
     [email]
   );
+
+  // If not found in tbl_login, check tbl_admin
+  if (userRows.length === 0) {
+    [userRows] = await db.query(
+      `SELECT dSecurity_Question1, dAnswer_1,
+              dSecurity_Question2, dAnswer_2,
+              dSecurity_Question3, dAnswer_3
+       FROM tbl_admin WHERE dEmail = ?`,
+      [email]
+    );
+  }
 
   if (userRows.length === 0) {
     throw new Error('User not found');

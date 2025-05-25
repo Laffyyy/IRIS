@@ -4,11 +4,24 @@ const bcrypt = require('bcrypt');
 const forgotPasswordService = {
     async resetPasswordByEmail(email, newPassword) {
         try {
-            // Find user by email and get password hashes
-            const [userRows] = await db.query(
-                'SELECT dUser_ID, dPassword1_hash, dPassword2_hash, dPassword3_hash FROM iris.tbl_login WHERE dEmail = ?', 
+            // First check tbl_login
+            let [userRows] = await db.query(
+                'SELECT dUser_ID, dPassword1_hash, dPassword2_hash, dPassword3_hash FROM tbl_login WHERE dEmail = ?', 
                 [email]
             );
+
+            let table = 'tbl_login';
+
+            // If not found in tbl_login, check tbl_admin
+            if (userRows.length === 0) {
+                [userRows] = await db.query(
+                    'SELECT dUser_ID, dPassword1_hash, dPassword2_hash, dPassword3_hash FROM tbl_admin WHERE dEmail = ?', 
+                    [email]
+                );
+                if (userRows.length > 0) {
+                    table = 'tbl_admin';
+                }
+            }
 
             if (userRows.length === 0) {
                 throw new Error('User not found');
@@ -35,7 +48,7 @@ const forgotPasswordService = {
 
             // Update password history and last updated timestamp
             await db.query(`
-                UPDATE tbl_login 
+                UPDATE ${table} 
                 SET dPassword3_hash = dPassword2_hash,
                     dPassword2_hash = dPassword1_hash,
                     dPassword1_hash = ?,

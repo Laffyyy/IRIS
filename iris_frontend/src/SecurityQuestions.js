@@ -46,7 +46,8 @@ const SecurityQuestions = () => {
         setAlertModal({
           isOpen: true,
           message: 'Failed to load security questions',
-          type: 'error'
+          type: 'error',
+          onClose: () => navigate('/')
         });
       } finally {
         setIsLoading(false);
