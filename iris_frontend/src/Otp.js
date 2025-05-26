@@ -184,10 +184,23 @@ const Otp = () => {
         type: 'success'
       });
     } catch (err) {
+      let errorMessage = err.response?.data?.message || 'Failed to resend OTP. Please try again.';
+      let errorType = 'error';
+
+      if (errorMessage.includes('No security questions found')) {
+        errorMessage = 'Please set up security questions first before requesting an OTP.';
+        errorType = 'warning';
+      }
+
       setAlertModal({
         isOpen: true,
-        message: err.response?.data?.message || 'Failed to resend OTP. Please try again.',
-        type: 'error'
+        message: errorMessage,
+        type: errorType,
+        onClose: () => {
+          if (errorMessage.includes('No security questions found')) {
+            navigate('/');
+          }
+        }
       });
     } finally {
       setLoading(false);
@@ -264,7 +277,12 @@ const Otp = () => {
             type: 'success',
             onClose: () => {
               localStorage.setItem('userEmail', userEmail);
-              navigate('/security-questions', { state: { userEmail } });
+              // Check if we should go to security questions or directly to update password
+              if (response.data.skipSecurityQuestions) {
+                navigate('/update-password', { state: { userEmail } });
+              } else {
+                navigate('/security-questions', { state: { userEmail } });
+              }
             }
           });
         }

@@ -1,6 +1,7 @@
 // services/fpOtpService.js
 const db = require('../config/db');
 const nodemailer = require('nodemailer');
+const securityQuestionsService = require('./securityQuestionsService');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -54,6 +55,12 @@ exports.sendOtp = async (email) => {
   // Only proceed if ACTIVE
   if (status !== 'ACTIVE') {
     throw new Error('Account status not supported.');
+  }
+
+  // Check if user has security questions
+  const hasQuestions = await securityQuestionsService.hasSecurityQuestions(email);
+  if (!hasQuestions) {
+    throw new Error('No security questions found. Please set up security questions first.');
   }
 
   const otp = generateOtpCode();

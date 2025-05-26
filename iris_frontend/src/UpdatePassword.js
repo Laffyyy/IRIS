@@ -160,53 +160,48 @@ const UpdatePassword = () => {
       <h2>Update Password</h2>
       <p className="subtitle">Set your new password</p>
 
-      <form className="form-grid" onSubmit={handleSaveChanges}>
-        <div className="form-section">
-          <h3>Password Information</h3>
-          <div className="password-group">
-            <label htmlFor="new-password">New Password</label>
-            <div className="input-wrapper">
-              <input
-                id="new-password"
-                type={showPassword ? 'text' : 'password'}
-                value={passwords.newPassword}
-                onChange={(e) => handlePasswordChange(e, 'newPassword')}
-                required
-                maxLength={20}
-              />
-              <button
-                type="button"
-                className="eye-icon-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                tabIndex={-1}
-              >
-                {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-              </button>
-            </div>
+      <form className="update-password-form" onSubmit={handleSaveChanges}>
+        <div className="password-section">
+          <label htmlFor="new-password" className="password-label">New Password</label>
+          <div className="input-wrapper">
+            <input
+              id="new-password"
+              type={showPassword ? 'text' : 'password'}
+              value={passwords.newPassword}
+              onChange={(e) => handlePasswordChange(e, 'newPassword')}
+              required
+              maxLength={20}
+            />
+            <button
+              type="button"
+              className="eye-icon-btn"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              tabIndex={-1}
+            >
+              {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+            </button>
           </div>
 
-          <div className="password-group">
-            <label htmlFor="confirm-password">Confirm Password</label>
-            <div className="input-wrapper">
-              <input
-                id="confirm-password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={passwords.confirmPassword}
-                onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
-                required
-                maxLength={20}
-              />
-              <button
-                type="button"
-                className="eye-icon-btn"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-              </button>
-            </div>
+          <label htmlFor="confirm-password" className="password-label">Confirm Password</label>
+          <div className="input-wrapper">
+            <input
+              id="confirm-password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={passwords.confirmPassword}
+              onChange={(e) => handlePasswordChange(e, 'confirmPassword')}
+              required
+              maxLength={20}
+            />
+            <button
+              type="button"
+              className="eye-icon-btn"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+            </button>
           </div>
         </div>
 

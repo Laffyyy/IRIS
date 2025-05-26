@@ -88,3 +88,30 @@ exports.verifyAnswers = async (email, answers) => {
 
   return true; // All selected question-answer pairs matched
 };
+
+exports.hasSecurityQuestions = async (email) => {
+  // First check tbl_login
+  let [userRows] = await db.query(
+    `SELECT dSecurity_Question1, dSecurity_Question2, dSecurity_Question3 
+     FROM tbl_login WHERE dEmail = ?`,
+    [email]
+  );
+
+  // If not found in tbl_login, check tbl_admin
+  if (userRows.length === 0) {
+    [userRows] = await db.query(
+      `SELECT dSecurity_Question1, dSecurity_Question2, dSecurity_Question3 
+       FROM tbl_admin WHERE dEmail = ?`,
+      [email]
+    );
+  }
+
+  if (userRows.length === 0) {
+    throw new Error('User not found');
+  }
+
+  const { dSecurity_Question1, dSecurity_Question2, dSecurity_Question3 } = userRows[0];
+  
+  // Check if any security question is set
+  return !!(dSecurity_Question1 || dSecurity_Question2 || dSecurity_Question3);
+};

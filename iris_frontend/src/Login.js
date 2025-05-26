@@ -16,7 +16,9 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
     const value = e.target.value;
     // Allow alphanumeric characters and specific symbols: -._!@
     const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
-    setEmail(filteredValue);
+    // Limit to 30 characters
+    const truncatedValue = filteredValue.slice(0, 30);
+    setEmail(truncatedValue);
   };
 
   const handleSubmit = async (e) => {
@@ -54,6 +56,7 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
             value={email}
             onChange={handleEmailChange}
             required
+            maxLength={30}
             pattern="[a-zA-Z0-9\-._!@]+"
             title="Email can contain letters, numbers, and -._!@ symbols"
           />

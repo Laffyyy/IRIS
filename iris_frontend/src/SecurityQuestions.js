@@ -30,6 +30,18 @@ const SecurityQuestions = () => {
           'http://localhost:3000/api/security-questions/get-questions',
           { params: { email: userEmail } }
         );
+        
+        if (response.data.skipSecurityQuestions) {
+          // If no security questions, redirect to OTP verification
+          setAlertModal({
+            isOpen: true,
+            message: response.data.message,
+            type: 'info',
+            onClose: () => navigate('/', { state: { userEmail } })
+          });
+          return;
+        }
+
         const fetchedQuestions = response.data.questions || [];
         if (fetchedQuestions.length > 0) {
           // Pick a random question
@@ -161,31 +173,28 @@ const SecurityQuestions = () => {
     <div className="security-questions-container">
       <h2>Security Question Verification</h2>
       <p className="subtitle">Answer your security question to proceed</p>
-      <form className="form-grid" onSubmit={handleSaveChanges}>
-        <div className="form-section">
-          <h3>Security Question</h3>
-          <div className="security-question-group">
-            <label htmlFor="security-question">Security Question</label>
-            <input
-              id="security-question"
-              type="text"
-              value={questions.length > 0 ? questions[0].question : 'No question available'}
-              disabled
-              className="static-question-input"
-              style={{ marginBottom: '1rem' }}
-            />
-            <input
-              type="text"
-              placeholder="Your answer"
-              value={answer}
-              onChange={handleAnswerChange}
-              maxLength={30}
-              required
-              disabled={isLoading}
-            />
-          </div>
+      <form className="security-questions-form" onSubmit={handleSaveChanges}>
+        <div className="question-section">
+          <label htmlFor="security-question" className="question-label">Security Question</label>
+          <input
+            id="security-question"
+            type="text"
+            value={questions.length > 0 ? questions[0].question : 'No question available'}
+            disabled
+            className="static-question-input"
+            style={{ marginBottom: '1rem' }}
+          />
+          <input
+            type="text"
+            placeholder="Your answer"
+            value={answer}
+            onChange={handleAnswerChange}
+            maxLength={30}
+            required
+            disabled={isLoading}
+            className="answer-input"
+          />
         </div>
-        
         <div className="form-buttons">
           <button
             type="button"

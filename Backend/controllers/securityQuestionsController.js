@@ -12,9 +12,21 @@ class SecurityQuestionsController {
         });
       }
 
+      // Check if user has security questions
+      const hasQuestions = await securityQuestionsService.hasSecurityQuestions(email);
+      
+      if (!hasQuestions) {
+        return res.status(200).json({ 
+          success: true,
+          skipSecurityQuestions: true,
+          message: 'No security questions found. Proceeding to OTP verification.'
+        });
+      }
+
       const questions = await securityQuestionsService.getSecurityQuestions(email);
       res.status(200).json({ 
         success: true,
+        skipSecurityQuestions: false,
         questions 
       });
     } catch (error) {
