@@ -11,18 +11,25 @@ const KPIManagement = () => {
   const categories = ['Compliance', 'Customer Experience', 'Employee Performance', 'Finance', 'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'];
   const behaviors = ['Lower the Better', 'Higher the Better', 'Hit or Miss'];
 
-  const isDuplicateKPI = (name, bulkKpis = []) => {
+ const isDuplicateKPI = (name, bulkKpis = []) => {
     if (!name) return false;
+    
     // Check against existing KPIs
-    const isDuplicateInExisting = kpis.some(existingKpi => 
-      existingKpi?.dKPI_Name?.toLowerCase().trim() === name.toLowerCase().trim()
-    );
+    const isDuplicateInExisting = kpis.some(existingKpi => {
+        // Add null checks for existingKpi and its properties
+        if (!existingKpi || !existingKpi.dKPI_Name) return false;
+        return existingKpi.dKPI_Name.toLowerCase().trim() === name.toLowerCase().trim();
+    });
+
     // Check against current bulk upload
-    const isDuplicateInBulk = bulkKpis.filter(
-      bulkKpi => bulkKpi?.name?.toLowerCase().trim() === name.toLowerCase().trim()
-    ).length > 1; // More than one means duplicate in bulk
+    const isDuplicateInBulk = bulkKpis.filter(bulkKpi => {
+        // Add null checks for bulkKpi and its properties
+        if (!bulkKpi || !bulkKpi.name) return false;
+        return bulkKpi.name.toLowerCase().trim() === name.toLowerCase().trim();
+    }).length > 1; // More than one means duplicate in bulk
+
     return isDuplicateInExisting || isDuplicateInBulk;
-  };
+};
   
   const [activeTab, setActiveTab] = useState('addKPI');
   const [editingKpi, setEditingKpi] = useState(null);
@@ -43,6 +50,7 @@ const KPIManagement = () => {
   // Edit modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentKpi, setCurrentKpi] = useState(null);
+  const [editingBulkKpi, setEditingBulkKpi] = useState(null);
 
   // Add bulk upload states
   const [uploadMethod, setUploadMethod] = useState('individual');
@@ -53,7 +61,14 @@ const KPIManagement = () => {
   const [previewTab, setPreviewTab] = useState('valid');
   const [individualPreview, setIndividualPreview] = useState([]);
 
+  // Add these helper functions after your state declarations
+  const hasActiveKPIs = () => selectedKPIs.some(kpi => kpi.dStatus !== 'DEACTIVATED');
+  const hasDeactivatedKPIs = () => selectedKPIs.some(kpi => kpi.dStatus === 'DEACTIVATED');
+  const areAllDeactivated = () => selectedKPIs.every(kpi => kpi.dStatus === 'DEACTIVATED');
+  const areAllActive = () => selectedKPIs.every(kpi => kpi.dStatus !== 'DEACTIVATED');
   
+  // Add confirmation when adding KPIs
+  const [addConfirmation, setAddConfirmation] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -105,6 +120,10 @@ const KPIManagement = () => {
   const [showReactivateModal, setShowReactivateModal] = useState(false);
   const [kpiToReactivate, setKpiToReactivate] = useState(null);
 
+  // First add this state to track the last selected item
+  const [lastSelectedId, setLastSelectedId] = useState(null);
+
+
   const handleViewDetails = (kpi) => {
     setSelectedKpiDetails(kpi);
     setShowDetailsModal(true);
@@ -116,110 +135,133 @@ const KPIManagement = () => {
     setShowAlertModal(true);
   };
 
+
   const handleFormSubmit = () => {
-    if (editingKpi) {
-      handleUpdateKpi();
-    } else {
-      // Check for duplicates in existing KPIs
-      if (isDuplicateKPI(kpiName)) {
-        showAlert('A KPI with this name already exists. Please use a different name.');
-        return;
+      if (!kpiName.trim()) {
+          showAlert('KPI name is required');
+          return;
       }
 
-      // Set the KPI to add and show confirmation modal
+      if (isDuplicateKPI(kpiName)) {
+          showAlert('A KPI with this name already exists');
+          return;
+      }
+
+      // Generate the next KPI ID
+      const nextKpiId = generateNextKpiId(kpis);
+
       setKpiToAdd({
-        name: kpiName,
-        category: category,
-        behavior: behavior,
-        description: description
+          id: nextKpiId,
+          name: kpiName,
+          category: category,
+          behavior: behavior,
+          description: description
       });
       setShowConfirmModal(true);
-    }
   };
 
   const handleConfirmAdd = async () => {
-    try {
-      const kpiData = {
-        dKPI_Name: kpiToAdd.name.trim(),
-        dCategory: kpiToAdd.category,
-        dCalculationBehavior: kpiToAdd.behavior,
-        dDescription: kpiToAdd.description || '',
-        dCreatedBy: '2505170018'
-      };
+      try {
+          const kpiData = {
+              dKPI_ID: kpiToAdd.id.trim(),    
+              dKPI_Name: kpiToAdd.name.trim(),
+              dCategory: kpiToAdd.category,
+              dDescription: kpiToAdd.description || '',
+              dCalculationBehavior: kpiToAdd.behavior,
+              dCreatedBy: '2505170018'
+          };
 
-      const response = await fetch(BASE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(kpiData)
-      });
+          const response = await fetch(BASE_URL, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+              },
+              body: JSON.stringify(kpiData)
+          });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Server error: ${response.status}`);
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || `Server error: ${response.status}`);
+          }
+
+          const newKpi = await response.json();
+
+          // Update both recentlyAdded and kpis states
+          setRecentlyAdded(prev => [{
+              dKPI_ID: newKpi.dKPI_ID || kpiData.dKPI_ID,
+              name: newKpi.dKPI_Name,
+              category: newKpi.dCategory,
+              behavior: newKpi.dCalculationBehavior,
+              description: newKpi.dDescription
+          }, ...prev]);
+
+          // Add the new KPI to the existing table data
+          setKpis(prevKpis => [{
+              dKPI_ID: newKpi.dKPI_ID,
+              dKPI_Name: newKpi.dKPI_Name,
+              dCategory: newKpi.dCategory,
+              dDescription: newKpi.dDescription,
+              dCalculationBehavior: newKpi.dCalculationBehavior,
+              dStatus: 'ACTIVE',
+              dCreatedBy: kpiData.dCreatedBy,
+              tCreatedAt: new Date().toISOString()
+          }, ...prevKpis]);
+
+          resetForm();
+          setShowConfirmModal(false);
+          setSimpleSuccessMessage(`${kpiToAdd.name} has been added successfully`);
+          setShowSimpleSuccess(true);
+      } catch (error) {
+          console.error('Error details:', error);
+          showAlert(`Failed to add KPI: ${error.message}`);
       }
-
-      // Refresh KPI list
-      const refreshResponse = await fetch(BASE_URL);
-      if (!refreshResponse.ok) {
-        throw new Error('Failed to refresh KPI list');
-      }
-      const updatedKpis = await refreshResponse.json();
-      setKpis(updatedKpis);
-
-      resetForm();
-      setShowConfirmModal(false);
-      setSimpleSuccessMessage(`${kpiToAdd.name} has been added successfully`);
-      setShowSimpleSuccess(true);
-
-      setShowSimpleSuccess(true);
-
-      setRecentlyAdded(prev => [
-        {
-          name: kpiToAdd.name,
-          category: kpiToAdd.category,
-          behavior: kpiToAdd.behavior,
-          description: kpiToAdd.description,
-          dKPI_ID: updatedKpis[updatedKpis.length - 1]?.dKPI_ID || null
-        },
-        ...prev
-      ]);
-    } catch (error) {
-      console.error('Error details:', error);
-      showAlert(`Failed to add KPI: ${error.message}`);
-    }
   };
 
 
-  {/*// Handle file drop for bulk upload
-  const handleDrag = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      // Use the same validation as handleFileChange
-      if (!ALLOWED_FILE_PATTERN.test(file.name)) {
-        setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
-        setShowValidationModal(true);
-        return;
+    const handleDrag = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (e.type === "dragenter" || e.type === "dragover") {
+        setDragActive(true);
+      } else if (e.type === "dragleave") {
+        setDragActive(false);
       }
-      handleFile(file);
-    }
-  }, []); */}
+    };
+
+  const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
+        
+        // Validate file extension
+        if (!file.name.endsWith('.csv')) {
+          setValidationMessage('Please upload a CSV file');
+          setShowValidationModal(true);
+          return;
+        }
+
+        // Validate filename pattern
+        if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+          setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
+          setShowValidationModal(true);
+          return;
+        }
+
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          setValidationMessage('File size exceeds 5MB limit');
+          setShowValidationModal(true);
+          return;
+        }
+
+        handleFile(file);
+      }
+    };
 
   const handleFileChange = (e) => {
       if (e.target.files && e.target.files[0]) {
@@ -246,75 +288,29 @@ const KPIManagement = () => {
         resetBulkUploadState();
         return;
       }
+
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
-        const kpisToValidate = processFileContent(text);
-
-      // Check for duplicates in existing KPIs
-      if (isDuplicateKPI(kpiName)) {
-        showAlert('A KPI with this name already exists. Please use a different name.');
-        return;
-      }
-        
-        if (kpisToValidate.length === 0) {
-          setValidationMessage('No valid KPIs found in the file');
-          setShowValidationModal(true);
-          resetBulkUploadState();
-          return;
-        }
-        
-
-
-
-        // First, count all names in the file
-        const nameCounts = {};
-        kpisToValidate.forEach(kpi => {
-          const key = kpi.name?.toLowerCase().trim();
-          if (key) {
-            nameCounts[key] = (nameCounts[key] || 0) + 1;
-          }
-        });
-
-        const validKpis = [];
-        const invalidKpis = [];
-
-        kpisToValidate.forEach(kpi => {
-          let isValid = true;
-          let reason = '';
-          const key = kpi.name?.toLowerCase().trim();
-
-          if (!kpi.name) {
-            isValid = false;
-            reason = 'Missing KPI name';
-          } else if (kpis.some(existingKpi => existingKpi.dKPI_Name.toLowerCase().trim() === key)) {
-            isValid = false;
-            reason = 'KPI name already exists in database';
-          } else if (nameCounts[key] > 1) {
-            isValid = false;
-            reason = 'Duplicate KPI name in CSV file';
-          } else if (!kpi.category || !kpi.behavior) {
-            isValid = false;
-            reason = 'Missing required fields';
-          } else if (!categories.includes(kpi.category)) {
-            isValid = false;
-            reason = 'Invalid category';
-          } else if (!behaviors.includes(kpi.behavior)) {
-            isValid = false;
-            reason = 'Invalid behavior';
-          }
-
-          if (isValid) {
-            validKpis.push(kpi);
-          } else {
-            invalidKpis.push({ ...kpi, reason });
-          }
-        });
+        const { validKpis, invalidKpis } = processFileContent(text);
 
         setFile(file);
         setBulkKpis(validKpis);
         setInvalidKpis(invalidKpis);
-        setPreviewTab(invalidKpis.length > 0 ? 'invalid' : 'valid');
+        
+        // Show appropriate tab based on results
+        if (invalidKpis.length > 0) {
+          setPreviewTab('invalid');
+        } else if (validKpis.length > 0) {
+          setPreviewTab('valid');
+        }
+
+        // If no valid KPIs at all, show message
+        if (validKpis.length === 0 && invalidKpis.length === 0) {
+          setValidationMessage('No valid KPIs found in the file');
+          setShowValidationModal(true);
+          resetBulkUploadState();
+        }
       };
 
       reader.readAsText(file);
@@ -360,167 +356,226 @@ const KPIManagement = () => {
   };
 
   const processFileContent = (text) => {
-    try {
-      const rows = text.split('\n')
-        .filter(row => row.trim() !== '' && !row.startsWith(',,,'));
+      try {
+        const rows = text.split('\n')
+          .filter(row => row.trim() !== '' && !row.startsWith(',,,'));
 
-      const headers = rows[0].split(',').map(header => header.trim());
-      const structureValidation = validateCSVStructure(headers);
-      
-      if (!structureValidation.isValid) {
-        showAlert(structureValidation.errors.length > 0 ? structureValidation.errors : 'Invalid CSV structure.');
-        return [];
-      }
+        const headers = rows[0].split(',').map(header => header?.trim() || '');
+        const structureValidation = validateCSVStructure(headers);
+        
+        if (!structureValidation.isValid) {
+          showAlert(structureValidation.errors.length > 0 ? structureValidation.errors : 'Invalid CSV structure.');
+          return { validKpis: [], invalidKpis: [] };
+        }
 
-      const dataRows = rows.slice(1)
-        .filter(row => row.trim())
-        .map(row => {
+        const validKpis = [];
+        const invalidKpis = [];
+        
+        // Add null checks when creating existingNames Set
+        const existingNames = new Set(
+          kpis
+            .filter(kpi => kpi && kpi.dKPI_Name) // Filter out null/undefined KPIs and names
+            .map(kpi => kpi.dKPI_Name.toLowerCase().trim())
+        );
+        
+        const namesInCsv = new Map();
+
+        // First pass: collect names from CSV
+        rows.slice(1).forEach(row => {
+          if (!row) return; // Skip empty rows
           const columns = row.split(',');
-          if (columns[0]?.trim()) {
-            const name = columns[0]?.trim();
-            const category = columns[1]?.trim();
-            const behavior = columns[2]?.trim();
-            const description = columns[3]?.trim();
-
-            let isValid = true;
-            let reason = '';
-
-            // Case-insensitive category check
-            const categoryMatch = categories.find(
-              cat => cat.toLowerCase() === category.toLowerCase()
-            );
-            
-            // Case-insensitive behavior check
-            const behaviorMatch = behaviors.find(
-              beh => beh.toLowerCase() === behavior.toLowerCase()
-            );
-
-            if (!categoryMatch) {
-              isValid = false;
-              reason = 'Invalid category';
-            } else if (!behaviorMatch) {
-              isValid = false;
-              reason = 'Invalid behavior';
-            }
-
-            return {
-              name,
-              category: categoryMatch || category, // Use matched category if found
-              behavior: behaviorMatch || behavior, // Use matched behavior if found
-              description,
-              ...(isValid ? {} : { reason })
-            };
+          const name = columns[0]?.trim() || '';
+          if (name) {
+            namesInCsv.set(name.toLowerCase(), (namesInCsv.get(name.toLowerCase()) || 0) + 1);
           }
-          return null;
-        })
-        .filter(row => row !== null);
-
-      return dataRows;
-    } catch (error) {
-      console.error('Error processing CSV:', error);
-      showAlert('Error processing file. Please check the file format.');
-      return [];
-    }
-  };
-
-  // Add this function to validate CSV structure
-  const validateCSVStructure = (headers) => {
-    const requiredColumns = ['KPI Name', 'Category', 'Behavior', 'Description'];
-    const missingColumns = requiredColumns.filter(col => 
-      !headers.some(header => header.trim() === col)
-    );
-    const errors = [];
-    if (missingColumns.length > 0) {
-      errors.push(`Missing required columns: ${missingColumns.join(', ')}`);
-    }
-    // Add more checks and push to errors as needed
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  };
-
-  const handleAddKpi = async () => {
-    try {
-        const promises = individualPreview.map(async kpi => {
-            const kpiData = {
-                dKPI_Name: kpi.name.trim(),
-                dCategory: kpi.category,
-                dCalculationBehavior: kpi.behavior,
-                dDescription: kpi.description || '', // Ensure description is never null
-                dCreatedBy: '2505170018' // Add your actual user ID here
-            };
-
-            setRecentlyAdded(prev => [
-              {
-                name: kpiName,
-                category: category,
-                behavior: behavior,
-                description: description,
-                dKPI_ID: response.dKPI_ID
-              },
-              ...prev
-            ]);
-
-            console.log('Sending KPI data:', kpiData); // Add this for debugging
-
-            const response = await fetch(BASE_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(kpiData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Server response:', errorData); // Add this for debugging
-                throw new Error(errorData.message || `Server error: ${response.status}`);
-            }
-
-            return response.json();
         });
 
-        const responses = await Promise.all(promises);
+        // Second pass: validate and categorize
+        rows.slice(1).forEach(row => {
+          if (!row) return; // Skip empty rows
+          const columns = row.split(',');
+          const name = columns[0]?.trim() || '';
+          const category = columns[1]?.trim() || '';
+          const behavior = columns[2]?.trim() || '';
+          const description = columns[3]?.trim() || '';
+
+          const kpiData = {
+            name,
+            category,
+            behavior,
+            description
+          };
+
+          let isValid = true;
+          let reason = '';
+
+          // Validation checks with null safety
+          if (!name) {
+            isValid = false;
+            reason = 'Missing KPI name';
+          } else if (existingNames.has(name.toLowerCase())) {
+            isValid = false;
+            reason = 'KPI name already exists in database';
+          } else if (namesInCsv.get(name.toLowerCase()) > 1) {
+            isValid = false;
+            reason = 'Duplicate KPI name in CSV file';
+          } else if (!category) {
+            isValid = false;
+            reason = 'Missing category';
+          } else if (!categories.includes(category)) {
+            isValid = false;
+            reason = 'Invalid category';
+          } else if (!behavior) {
+            isValid = false;
+            reason = 'Missing behavior';
+          } else if (!behaviors.includes(behavior)) {
+            isValid = false;
+            reason = 'Invalid behavior';
+          }
+
+          if (isValid) {
+            validKpis.push(kpiData);
+          } else {
+            invalidKpis.push({
+              ...kpiData,
+              reason
+            });
+          }
+        });
+
+        setBulkKpis(validKpis);
+        setInvalidKpis(invalidKpis);
         
-        // Refresh KPI list
-        const refreshResponse = await fetch(BASE_URL);
-        if (!refreshResponse.ok) {
-            throw new Error('Failed to refresh KPI list');
+        if (invalidKpis.length > 0) {
+          setPreviewTab('invalid');
+        } else {
+          setPreviewTab('valid');
         }
-        const updatedKpis = await refreshResponse.json();
-        setKpis(updatedKpis);
 
-        resetForm();
-        setActiveTab('viewKPIs');
-        setSimpleSuccessMessage(
-          individualPreview.length === 1
-            ? `KPI "${kpiName}" added successfully!`
-            : `${individualPreview.length} KPIs added successfully!`
-        );
-    } catch (error) {
-        console.error('Error details:', error);
-        showAlert(`Failed to add KPIs: ${error.message}`);
-    }
-};
-
-  // Add useEffect for fetching KPIs
-  useEffect(() => {
-    const fetchKPIs = async () => {
-      try {
-        const response = await fetch(BASE_URL);
-        if (response.ok) {
-          const data = await response.json();
-          setKpis(data);
-        }
+        return { validKpis, invalidKpis };
       } catch (error) {
-        console.error('Error fetching KPIs:', error);
+        console.error('Error processing CSV:', error);
+        showAlert('Error processing file. Please check the file format.');
+        return { validKpis: [], invalidKpis: [] };
       }
     };
 
-    fetchKPIs();
-  }, []);
+    // Add this function to validate CSV structure
+    const validateCSVStructure = (headers) => {
+        const requiredColumns = ['KPI Name', 'Category', 'Behavior', 'Description'];
+        const missingColumns = requiredColumns.filter(col => 
+          !headers.some(header => (header || '').trim() === col)
+        );
+        const errors = [];
+        
+        if (missingColumns.length > 0) {
+          errors.push(`Missing required columns: ${missingColumns.join(', ')}`);
+        }
+        
+        return {
+          isValid: errors.length === 0,
+          errors
+        };
+      };
+
+  const handleAddKpi = async () => {
+      try {
+          const promises = individualPreview.map(async kpi => {
+              const kpiData = {
+                  dKPI_Name: kpi.name.trim(),
+                  dCategory: kpi.category,
+                  dCalculationBehavior: kpi.behavior,
+                  dDescription: kpi.description || '', 
+                  dCreatedBy: '2505170018'
+              };
+
+              console.log('Sending KPI data:', kpiData);
+
+              const response = await fetch(BASE_URL, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                  },
+                  body: JSON.stringify(kpiData)
+              });
+
+              if (!response.ok) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.message || `Server error: ${response.status}`);
+              }
+
+              const responseData = await response.json();
+              
+              // Update recently added after we have the response
+              setRecentlyAdded(prev => [{
+                  name: kpi.name,
+                  category: kpi.category,
+                  behavior: kpi.behavior,
+                  description: kpi.description,
+                  dKPI_ID: responseData.dKPI_ID
+              }, ...prev]);
+
+              return responseData;
+          });
+
+          const responses = await Promise.all(promises);
+          
+          // Refresh KPI list
+          const refreshResponse = await fetch(BASE_URL);
+          if (!refreshResponse.ok) {
+              throw new Error('Failed to refresh KPI list');
+          }
+          const updatedKpis = await refreshResponse.json();
+          setKpis(updatedKpis);
+
+          resetForm();
+          setActiveTab('viewKPIs');
+          setSimpleSuccessMessage(
+              individualPreview.length === 1
+                  ? `KPI "${kpiName}" added successfully!`
+                  : `${individualPreview.length} KPIs added successfully!`
+          );
+
+      } catch (error) {
+          console.error('Error details:', error);
+          showAlert(`Failed to add KPIs: ${error.message}`);
+      }
+  };
+
+    // Update the useEffect for fetching KPIs
+    useEffect(() => {
+      const fetchKPIs = async () => {
+        try {
+          const response = await fetch(BASE_URL);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          
+          // Map database columns to UI fields
+          const formattedKPIs = data.map(kpi => ({
+            dKPI_ID: kpi.dKPI_ID,
+            dKPI_Name: kpi.dKPI_Name,
+            dCategory: kpi.dCategory,
+            dDescription: kpi.dDescription,
+            dCalculationBehavior: kpi.dCalculationBehavior,
+            dStatus: kpi.dStatus || 'ACTIVE',
+            dCreatedBy: kpi.dCreatedBy,
+            tCreatedAt: kpi.tCreatedAt
+          }));
+
+          const validKPIs = formattedKPIs.filter(kpi => kpi && kpi.dKPI_ID);
+          console.log('Fetched KPIs:', validKPIs);
+          setKpis(validKPIs);
+        } catch (error) {
+          console.error('Error fetching KPIs:', error);
+          showAlert('Failed to load KPIs. Please try again.');
+        }
+      };
+
+      fetchKPIs();
+    }, []);
 
   // Add this useEffect to revalidate bulk KPIs whenever existing KPIs change
   useEffect(() => {
@@ -594,43 +649,67 @@ const KPIManagement = () => {
     }
   };
 
+  const generateNextKpiId = (existingKpis) => {
+    // Filter out any null/undefined KPI IDs and get only valid KPI IDs
+    const validKpiIds = existingKpis
+      .map(kpi => kpi.dKPI_ID)
+      .filter(id => id && id.startsWith('KPI'))
+      .map(id => parseInt(id.replace('KPI', ''), 10));
+
+    // If no existing KPIs, start with KPI0001
+    if (validKpiIds.length === 0) {
+      return 'KPI0001';
+    }
+
+    // Find the maximum number and add 1
+    const maxNumber = Math.max(...validKpiIds);
+    const nextNumber = maxNumber + 1;
+    
+    // Format the new ID with leading zeros
+    return `KPI${String(nextNumber).padStart(4, '0')}`;
+  };
+
   const handleUpdateKpi = async (updatedKpi) => {
-    const { dKPI_ID, dKPI_Name, dCategory, dDescription, dCalculationBehavior } = updatedKpi;
+    try {
+      const updateData = {
+        dKPI_Name: updatedKpi.name || updatedKpi.dKPI_Name,
+        dCategory: updatedKpi.category || updatedKpi.dCategory,
+        dCalculationBehavior: updatedKpi.behavior || updatedKpi.dCalculationBehavior,
+        dDescription: updatedKpi.description || updatedKpi.dDescription || ''
+      };
 
-    if (dKPI_Name?.trim() && dCategory && dCalculationBehavior) {
-      try {
-        const updateData = {
-          dKPI_Name,
-          dCategory: capitalizeFirstLetter(dCategory),
-          dDescription,
-          dCalculationBehavior: capitalizeFirstLetter(dCalculationBehavior),
-        };
+      const response = await fetch(`${BASE_URL}/${updatedKpi.dKPI_ID}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
 
-        const response = await fetch(`http://localhost:3000/api/kpis/${dKPI_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify(updateData),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          throw new Error(errorData?.message || `Server error: ${response.status}`);
-        }
-
-        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        const updatedKpis = await refreshResponse.json();
-        setKpis(updatedKpis);
-
-        // Success modal
-        setSimpleSuccessMessage('KPI updated successfully!');
-        setSuccessCount(0);
-      } catch (error) {
-        console.error('Error updating KPI:', error);
-        showAlert(`Failed to update KPI: ${error.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Server error: ${response.status}`);
       }
+
+      const updatedKpiData = await response.json();
+
+      // Update the KPIs state with correct field mapping
+      setKpis(prevKpis => prevKpis.map(kpi => 
+        kpi.dKPI_ID === updatedKpi.dKPI_ID ? {
+          ...kpi,
+          dKPI_Name: updatedKpiData.dKPI_Name,
+          dCategory: updatedKpiData.dCategory,
+          dCalculationBehavior: updatedKpiData.dCalculationBehavior,
+          dDescription: updatedKpiData.dDescription
+        } : kpi
+      ));
+
+      setSimpleSuccessMessage('KPI updated successfully!');
+      setShowSimpleSuccess(true);
+    } catch (error) {
+      console.error('Error updating KPI:', error);
+      showAlert(`Failed to update KPI: ${error.message}`);
     }
   };
 
@@ -702,85 +781,100 @@ const KPIManagement = () => {
     // Handle bulk upload submission
     const handleBulkUpload = async () => {
       try {
-        // Create array of promises for each valid KPI
-        const uploadPromises = bulkKpis.map(kpi => {
-          const kpiData = {
-            dKPI_Name: kpi.name,
-            dCategory: kpi.category,
-            dCalculationBehavior: kpi.behavior,
-            dDescription: kpi.description || '',
-            dCreatedBy: '2505170018'
-          };
-    
-          return fetch('http://localhost:3000/api/kpis', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(kpiData)
-          }).then(response => response.json()); // Parse each response
-        });
-    
-        const uploadedKpis = await Promise.all(uploadPromises);
+        // Array to store successfully uploaded KPIs
+        const uploadedKpis = [];
         
-        // Check if any uploads failed
-        const failedUploads = uploadedKpis.filter(response => !response || response.error);
-        if (failedUploads.length > 0) {
-          throw new Error(`Failed to add ${failedUploads.length} KPIs`);
+        // Process each KPI sequentially to avoid race conditions
+        for (const kpi of bulkKpis) {
+          try {
+            const nextKpiId = generateNextKpiId([...kpis, ...uploadedKpis]);
+            
+            const kpiData = {
+              dKPI_ID: nextKpiId,
+              dKPI_Name: kpi.name,
+              dCategory: kpi.category,
+              dCalculationBehavior: kpi.behavior,
+              dDescription: kpi.description || '',
+              dCreatedBy: '2505170018',
+              dStatus: 'ACTIVE'
+            };
+
+            const response = await fetch(BASE_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify(kpiData)
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to create KPI ${kpi.name}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            uploadedKpis.push(result);
+          } catch (error) {
+            console.error(`Error uploading KPI ${kpi.name}:`, error);
+            throw error;
+          }
         }
-    
-        // Fetch updated KPI list
-        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        if (!refreshResponse.ok) {
-          throw new Error('Failed to refresh KPI list');
+
+        if (uploadedKpis.length > 0) {
+          // Update recently added state
+          const newlyAddedKpis = uploadedKpis.map(kpi => ({
+            name: kpi.dKPI_Name,
+            category: kpi.dCategory,
+            behavior: kpi.dCalculationBehavior,
+            description: kpi.dDescription,
+            dKPI_ID: kpi.dKPI_ID
+          }));
+
+          setRecentlyAdded(prev => [...newlyAddedKpis, ...prev]);
+
+          // Update main table data
+          const newTableKpis = uploadedKpis.map(kpi => ({
+            dKPI_ID: kpi.dKPI_ID,
+            dKPI_Name: kpi.dKPI_Name,
+            dCategory: kpi.dCategory,
+            dDescription: kpi.dDescription,
+            dCalculationBehavior: kpi.dCalculationBehavior,
+            dStatus: 'ACTIVE',
+            dCreatedBy: '2505170018',
+            tCreatedAt: new Date().toISOString()
+          }));
+
+          setKpis(prevKpis => [...newTableKpis, ...prevKpis]);
+
+          // Show success message
+          setSimpleSuccessMessage(`${uploadedKpis.length} KPI${uploadedKpis.length > 1 ? 's' : ''} added successfully!`);
+          setShowSimpleSuccess(true);
+
+          // Reset states
+          resetBulkUploadState();
+          setActiveTab('viewKPIs');
         }
-        const updatedKpis = await refreshResponse.json();
-        setKpis(updatedKpis);
-    
-        // Update recently added with the new KPIs
-        const newlyAddedKpis = uploadedKpis.map(response => ({
-          name: response.dKPI_Name,
-          category: response.dCategory,
-          behavior: response.dCalculationBehavior,
-          description: response.dDescription,
-          dKPI_ID: response.dKPI_ID
-        }));
-    
-        setRecentlyAdded(prev => [...newlyAddedKpis, ...prev]); 
-    
-        // Set success message and count
-        setSimpleSuccessMessage(`${bulkKpis.length} KPI${bulkKpis.length > 1 ? 's' : ''} added successfully!`);
-        setSuccessCount(bulkKpis.length);
-        setShowSimpleSuccess(true);
-    
-        // Reset all bulk upload related states
-        resetBulkUploadState();
-        setActiveTab('viewKPIs');
-    
+
       } catch (error) {
         console.error('Bulk upload error:', error);
         showAlert(`Failed to upload KPIs: ${error.message}`);
       }
     };
 
+    // Add this function to reset bulk upload state
   const resetBulkUploadState = () => {
     setBulkKpis([]);
     setInvalidKpis([]);
     setFile(null);
     setPreviewTab('valid');
-    
-    // Reset the file input element
-    const fileInput = document.getElementById('file-upload');
-    if (fileInput) {
-        fileInput.value = '';
-    }
-};
-    
-const handleDeleteClick = (kpi) => {
-  setKpiToDelete(kpi);
-  setShowDeleteModal(true);
-};
+  };
+
+  // Add this function to handle delete click
+  const handleDeleteClick = (kpi) => {
+    setKpiToDelete(kpi);
+    setDeleteConfirmation('');
+    setShowDeleteModal(true);
+  };
 
 const handleDeleteConfirm = async () => {
   if (deleteConfirmation.trim() === 'CONFIRM') {
@@ -789,9 +883,11 @@ const handleDeleteConfirm = async () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+         body: JSON.stringify({
+          dCreatedBy: '2505170018' // Add this line
+        })
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -829,8 +925,11 @@ const handleDeleteConfirm = async () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-        }
-      });
+        },
+      body: JSON.stringify({
+        dCreatedBy: '2505170018' // Add this line
+      })
+    });
   
       if (!response.ok) {
         throw new Error('Failed to reactivate KPI');
@@ -896,7 +995,7 @@ const handleDeleteConfirm = async () => {
     setBehavior('');
     setDescription('');
     setCurrentKpi(null);
-    setEditingKpi(null); // Add this line
+    setEditingKpi(null);
     setIndividualPreview([]);
   };
   
@@ -1079,7 +1178,6 @@ const handleDeleteConfirm = async () => {
           
           // Show success modal
           setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} deactivated successfully!`);
-          setSuccessCount(selectedKPIs.length);
           setShowSimpleSuccess(true);
           
           // Reset states
@@ -1126,7 +1224,6 @@ const handleDeleteConfirm = async () => {
           
           // Show success message
           setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} reactivated successfully!`);
-          setSuccessCount(selectedKPIs.length);
           setShowSimpleSuccess(true);
           
           // Reset states
@@ -1142,19 +1239,58 @@ const handleDeleteConfirm = async () => {
       }
     };
 
-  const handleSelectKPI = (kpi) => {
-    if (selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)) {
-      setSelectedKPIs(selectedKPIs.filter(selected => selected.dKPI_ID !== kpi.dKPI_ID));
-    } else {
-      setSelectedKPIs([...selectedKPIs, kpi]);
-    }
-  };
+    // Then modify your handleSelectKPI function:
+    const handleSelectKPI = (kpi, event) => {
+      if (event && event.shiftKey && lastSelectedId) {
+        // Get all KPIs currently displayed
+        const currentKPIs = getSortedKPIs();
+        
+        // Find indexes for last selected and current KPI
+        const lastIndex = currentKPIs.findIndex(k => k.dKPI_ID === lastSelectedId);
+        const currentIndex = currentKPIs.findIndex(k => k.dKPI_ID === kpi.dKPI_ID);
+        
+        // Get the range of KPIs to select
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        
+        // Get KPIs in range
+        const kpisToSelect = currentKPIs.slice(start, end + 1);
+        
+        // Add all KPIs in range to selection if not already selected
+        const newSelection = [...selectedKPIs];
+        kpisToSelect.forEach(k => {
+          if (!newSelection.some(selected => selected.dKPI_ID === k.dKPI_ID)) {
+            newSelection.push(k);
+          }
+        });
+        
+        setSelectedKPIs(newSelection);
+      } else {
+        // Regular single selection logic
+        if (selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)) {
+          setSelectedKPIs(selectedKPIs.filter(selected => selected.dKPI_ID !== kpi.dKPI_ID));
+        } else {
+          setSelectedKPIs([...selectedKPIs, kpi]);
+        }
+        setLastSelectedId(kpi.dKPI_ID);
+      }
+    };
 
   const handleSelectAll = () => {
     if (selectedKPIs.length === getFilteredKPIs().length) {
+      // Deselect all
       setSelectedKPIs([]);
     } else {
-      setSelectedKPIs(getFilteredKPIs());
+      // Select all with same status as first selected KPI
+      const firstSelectedStatus = selectedKPIs[0]?.dStatus;
+      const filteredKPIs = getFilteredKPIs();
+      if (firstSelectedStatus) {
+        setSelectedKPIs(filteredKPIs.filter(kpi => kpi.dStatus === firstSelectedStatus));
+      } else {
+        // No current selection - select all with same status as first KPI
+        const firstKPIStatus = filteredKPIs[0]?.dStatus;
+        setSelectedKPIs(filteredKPIs.filter(kpi => kpi.dStatus === firstKPIStatus));
+      }
     }
   };
 
@@ -1180,23 +1316,37 @@ const handleDeleteConfirm = async () => {
   };
 
   const getSortedKPIs = () => {
-    const sorted = [...getFilteredKPIs()].filter(kpi => kpi && kpi.dKPI_ID); // Add null check
-    if (sortConfig.key) {
-      sorted.sort((a, b) => {
-        if (!a || !b) return 0; // Handle undefined objects
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        // For string comparison, ignore case
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-          aValue = aValue.toLowerCase();
-          bValue = bValue.toLowerCase();
-        }
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-    return sorted;
+    // Filter out any null/undefined KPIs first
+    const filtered = getFilteredKPIs().filter(kpi => kpi && kpi.dKPI_ID);
+    
+    if (!sortConfig.key) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      if (!a || !b) return 0;
+      
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      // For string comparison, ignore case
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      // For dates, convert to timestamp
+      if (sortConfig.key === 'tCreatedAt') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
   };
 
   const handleSaveRecentKpi = async (updatedKpi) => {
@@ -1323,10 +1473,12 @@ const handleDeleteConfirm = async () => {
           </div>
           <div className="modal-content">
             <div className="kpi-details">
-              <p><strong>Category:</strong> {selectedKpiDetails.dCategory}</p>
-              <p><strong>Behavior:</strong> {selectedKpiDetails.dCalculationBehavior}</p>
-              <p><strong>Description:</strong> {selectedKpiDetails.dDescription}</p>
-            </div>
+            <p><strong>KPI ID:</strong> {kpiToAdd.id}</p>
+            <p><strong>KPI Name:</strong> {kpiToAdd.name}</p>
+            <p><strong>Category:</strong> {kpiToAdd.category}</p>
+            <p><strong>Behavior:</strong> {kpiToAdd.behavior}</p>
+            <p><strong>Description:</strong> {kpiToAdd.description || '-'}</p>
+          </div>
           </div>
         </div>
       </div>
@@ -1488,24 +1640,28 @@ const handleDeleteConfirm = async () => {
 
                     <div
                       className={`drop-zone ${dragActive ? 'active' : ''}`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
                     >
                       <div className="drop-zone-content">
-                          <p>Upload your CSV file here</p>
-                          <p>File name format: kpi_upload_YYYYMMDD.csv</p>
-                          <p>Example: kpi_upload_20250520.csv</p>
-                          <p>Maximum file size: 5MB</p>
-                          <input
-                              type="file"
-                              id="file-upload"
-                              accept=".csv"
-                              onChange={handleFileChange}
-                              style={{ display: 'none' }}
-                          />
-                          <label htmlFor="file-upload" className="browse-files-btn">
-                              Browse Files
-                          </label>
-                      </div>
+                      <p>Upload your CSV file here</p>
+                      <p>File name format: kpi_upload_YYYYMMDD.csv</p>
+                      <p>Example: kpi_upload_20250520.csv</p>
+                      <p>Maximum file size: 5MB</p>
+                      <input
+                        type="file"
+                        id="file-upload"
+                        accept=".csv"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="file-upload" className="browse-files-btn">
+                        Browse Files
+                      </label>
                     </div>
+                  </div>
 
                     {file && (
                       <div className="file-preview">
@@ -1522,21 +1678,19 @@ const handleDeleteConfirm = async () => {
                           <button
                             className={`preview-tab ${previewTab === 'valid' ? 'active' : ''}`}
                             onClick={() => setPreviewTab('valid')}
-                            disabled={bulkKpis.length === 0}
                           >
                             Valid ({bulkKpis.length})
                           </button>
                           <button
                             className={`preview-tab ${previewTab === 'invalid' ? 'active' : ''}`}
                             onClick={() => setPreviewTab('invalid')}
-                            disabled={invalidKpis.length === 0}
                           >
                             Invalid ({invalidKpis.length})
                           </button>
                         </div>
 
                         <div className="preview-content">
-                          {previewTab === 'valid' && bulkKpis.length > 0 && (
+                          {previewTab === 'valid' && (
                             <div className="valid-kpis-table">
                               <table>
                                 <thead>
@@ -1556,13 +1710,18 @@ const handleDeleteConfirm = async () => {
                                       <td>{kpi.behavior}</td>
                                       <td>{kpi.description}</td>
                                       <td>
-                                        <button onClick={() => {
-                                          const updatedKpis = [...bulkKpis];
-                                          updatedKpis.splice(index, 1);
-                                          setBulkKpis(updatedKpis);
-                                        }} className="delete-btn">
-                                          <FaTrash size={12} /> Delete
-                                        </button>
+                                        <div className="action-buttons">
+                                          <button 
+                                            onClick={() => {
+                                              const updatedKpis = [...bulkKpis];
+                                              updatedKpis.splice(index, 1);
+                                              setBulkKpis(updatedKpis);
+                                            }} 
+                                            className="delete-btn"
+                                          >
+                                            <FaTrash size={12} /> Delete
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
                                   ))}
@@ -1571,12 +1730,12 @@ const handleDeleteConfirm = async () => {
                             </div>
                           )}
 
-                          {previewTab === 'invalid' && invalidKpis.length > 0 && (
+                          {previewTab === 'invalid' && (
                             <div className="invalid-kpis-table">
                               <table>
                                 <thead>
                                   <tr>
-                                    <th>Reason</th>
+                                    <th>Error Reason</th>
                                     <th>KPI Name</th>
                                     <th>Category</th>
                                     <th>Behavior</th>
@@ -1586,7 +1745,9 @@ const handleDeleteConfirm = async () => {
                                 <tbody>
                                   {invalidKpis.map((kpi, index) => (
                                     <tr key={`invalid-${index}`}>
-                                      <td className="reason-cell">{kpi.reason}</td>
+                                      <td className="reason-cell" style={{ color: 'red' }}>
+                                        {kpi.reason}
+                                      </td>
                                       <td>{kpi.name}</td>
                                       <td>{kpi.category}</td>
                                       <td>{kpi.behavior}</td>
@@ -1598,18 +1759,21 @@ const handleDeleteConfirm = async () => {
                             </div>
                           )}
                         </div>
+
+                        {bulkKpis.length > 0 && (
+                          <div className="modal-actions">
+                            <button
+                              onClick={handleBulkUpload}
+                              className="save-btn"
+                              disabled={bulkKpis.length === 0}
+                            >
+                              Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div className="modal-actions">
-                      <button
-                        onClick={handleBulkUpload}
-                        className="save-btn"
-                        disabled={!file || bulkKpis.length === 0}
-                      >
-                        Submit KPIs {bulkKpis.length > 0 && `(${bulkKpis.length})`}
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1630,7 +1794,14 @@ const handleDeleteConfirm = async () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentlyAdded.map((kpi, idx) => (
+                {recentlyAdded.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                      No recently added KPIs
+                    </td>
+                  </tr>
+                ) : (
+                  recentlyAdded.map((kpi, idx) => (
                     <tr key={idx}>
                       <td>{kpi.name}</td>
                       <td>{kpi.category}</td>
@@ -1649,7 +1820,8 @@ const handleDeleteConfirm = async () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
                 </tbody>
               </table>
             </div>
@@ -1668,14 +1840,20 @@ const handleDeleteConfirm = async () => {
                     <thead>
                       <tr>
                         <th>
-                          <input
-                            type="checkbox"
-                            checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
-                            onChange={handleSelectAll}
-                          />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedKPIs.length === getFilteredKPIs().length && getFilteredKPIs().length > 0}
+                              onChange={handleSelectAll}
+                              id="selectAll"
+                            />
+                            <label htmlFor="selectAll" style={{ fontSize: '13px', color: '#333', cursor: 'pointer' }}>
+                              Select All
+                            </label>
+                          </div>
                         </th>
                         <th onClick={() => handleSort('dKPI_ID')} style={{ cursor: 'pointer' }}>
-                          ID {sortConfig.key === 'dKPI_ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                          KPI ID {sortConfig.key === 'dKPI_ID' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
                         <th onClick={() => handleSort('dKPI_Name')} style={{ cursor: 'pointer' }}>
                           KPI Name {sortConfig.key === 'dKPI_Name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -1686,7 +1864,7 @@ const handleDeleteConfirm = async () => {
                         <th onClick={() => handleSort('dCalculationBehavior')} style={{ cursor: 'pointer' }}>
                           Calculation Behavior {sortConfig.key === 'dCalculationBehavior' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
-                        <th onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                        <th onClick={() => handleSort('dCalculationBehavior')} style={{ cursor: 'pointer' }}>
                           Status {sortConfig.key === 'dStatus' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                         </th>
                         <th onClick={() => handleSort('dDescription')} style={{ cursor: 'pointer' }}>
@@ -1702,50 +1880,72 @@ const handleDeleteConfirm = async () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {getSortedKPIs().map((kpi, index) => (
-                        <tr key={kpi.dKPI_ID}>
-                          <td data-label="Select">
-                            <input
-                              type="checkbox"
-                              checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
-                              onChange={() => handleSelectKPI(kpi)}
-                            />
-                          </td>
-                          <td data-label="ID">{kpi.dKPI_ID}</td>
-                          <td data-label="KPI Name">{kpi.dKPI_Name}</td>
-                          <td data-label="Category">{kpi.dCategory}</td>
-                          <td data-label="Calculation Behavior">{kpi.dCalculationBehavior}</td>
-                          <td data-label="Status">{kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}</td>
-                          <td data-label="Description">
-                            <div className="description-cell" title={kpi.dDescription}>
-                              {kpi.dDescription}
-                            </div>
-                          </td>
-                          <td data-label="Created By">{kpi.dCreatedBy || '-'}</td>
-                          <td data-label="Created At" className="created-at-cell" data-tooltip={kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}>
-                            {kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}
-                          </td>
-                          <td data-label="Actions">
-                            <div className="action-buttons">
-                              {kpi.dStatus === 'DEACTIVATED' ? (
-                                <button 
-                                  className="reactivate-btn"
-                                  onClick={() => handleReactivateClick(kpi)}
-                                >
-                                  <FaCheck size={12} /> Reactivate
-                                </button>
-                              ) : (
-                                <button 
-                                  className="deactivate-btn"
-                                  onClick={() => handleDeleteClick(kpi)}
-                                >
-                                  <FaBan size={12} /> Deactivate
-                                </button>
-                              )}
-                            </div>
+                      {getSortedKPIs().length === 0 ? (
+                        <tr>
+                          <td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>
+                            No KPIs found
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        getSortedKPIs().map((kpi, index) => (
+                           <tr 
+                              key={kpi.dKPI_ID || `kpi-${index}`}
+                              onClick={(e) => {
+                                if (e.target.closest('.action-buttons')) return;
+                                handleSelectKPI(kpi, e);
+                              }}
+                              style={{ cursor: 'pointer' }}
+                              className={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID) ? 'selected-row' : ''}
+                            >
+                            <td data-label="Select">
+                              <input
+                                type="checkbox"
+                                checked={selectedKPIs.some(selected => selected.dKPI_ID === kpi.dKPI_ID)}
+                                onChange={() => handleSelectKPI(kpi)}
+                              />
+                            </td>
+                            <td data-label="KPI ID" className="tooltip-cell" data-tooltip={kpi.dKPI_ID}>
+                              {kpi.dKPI_ID}
+                            </td>
+                            <td data-label="KPI Name" className="tooltip-cell" data-tooltip={kpi.dKPI_Name}>
+                              {kpi.dKPI_Name}
+                            </td>
+                            <td data-label="Category" className="tooltip-cell" data-tooltip={kpi.dCategory}>
+                              {kpi.dCategory}
+                            </td>
+                            <td data-label="Calculation Behavior" className="tooltip-cell" data-tooltip={kpi.dCalculationBehavior}>
+                              {kpi.dCalculationBehavior}
+                            </td>
+                            <td data-label="Status" className="tooltip-cell" data-tooltip={kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}>
+                              {kpi.dStatus === 'DEACTIVATED' ? 'Deactivated' : 'Active'}
+                            </td>
+                            <td data-label="Description" className="tooltip-cell" data-tooltip={kpi.dDescription || '-'}>
+                              <div className="description-cell">
+                                {kpi.dDescription || '-'}
+                              </div>
+                            </td>
+                            <td data-label="Created By" className="tooltip-cell" data-tooltip={kpi.dCreatedBy || '-'}>
+                              {kpi.dCreatedBy || '-'}
+                            </td>
+                            <td data-label="Created At" className="tooltip-cell" data-tooltip={kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}>
+                              {kpi.tCreatedAt ? new Date(kpi.tCreatedAt).toLocaleString() : '-'}
+                            </td>
+                            <td data-label="Actions">
+                              <div className="action-buttons">
+                                {kpi.dStatus === 'DEACTIVATED' ? (
+                                  <button className="reactivate-btn" onClick={() => handleReactivateClick(kpi)}>
+                                    <FaCheck size={12} /> Reactivate
+                                  </button>
+                                ) : (
+                                  <button className="deactivate-btn" onClick={() => handleDeleteClick(kpi)}>
+                                    <FaBan size={12} /> Deactivate
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1753,49 +1953,78 @@ const handleDeleteConfirm = async () => {
             </div>
               {selectedKPIs.length > 0 && (
                 <div className="bulk-actions">
-                  <button 
-                    className={selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                      ? 'bulk-disable-btn' 
-                      : 'bulk-reactivate-btn'}
-                    onClick={() => selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                      ? setShowBulkDisableModal(true) 
-                      : setShowBulkReactivateModal(true)}
-                  >
-                    {selectedKPIs.some(kpi => kpi.dStatus === 'ACTIVE') 
-                      ? <> Deactivate Selected KPIs</>
-                      : <> Reactivate Selected KPIs</>}
-                    <span className="count">{selectedKPIs.length}</span>
-                  </button>
+                  {areAllActive() && (
+                    <button 
+                      className="bulk-disable-btn"
+                      onClick={() => setShowBulkDisableModal(true)}
+                    >
+                      <FaBan /> Deactivate Selected KPIs
+                      <span className="count">{selectedKPIs.length}</span>
+                    </button>
+                  )}
+                  {areAllDeactivated() && (
+                    <button 
+                      className="bulk-reactivate-btn"
+                      onClick={() => setShowBulkReactivateModal(true)}
+                    >
+                      <FaRedo /> Reactivate Selected KPIs
+                      <span className="count">{selectedKPIs.length}</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </div>
-        {showConfirmModal && kpiToAdd && (
+       {showConfirmModal && kpiToAdd && (
         <div className="modal-overlay">
-        <div className="modal confirm-modal">
-          <div className="modal-header">
-            <h2>Confirm KPI Addition</h2>
-          </div>
+          <div className="modal confirm-modal">
+            <div className="modal-header">
+              <h2>Confirm KPI Addition</h2>
+            </div>
             
-              <p>Please confirm the details of the KPI to be added:</p>
-              <div className="kpi-details">
-                <p>Name:<strong>{kpiToAdd.name}</strong></p>
-                <p>Category:<strong>{kpiToAdd.category}</strong></p>
-                <p>Behavior:<strong>{kpiToAdd.behavior}</strong></p>
-                <p className="description-line">
-                  Description:
-                  <span className="description-text">
-                    {kpiToAdd.description || '-'}
-                  </span>
-                </p>
-              </div>
+            <div className="warning-message">
+              <p>Please type CONFIRM to add this KPI:</p>
+            </div>
+
+            <div className="kpi-details">
+                <p><strong>KPI ID:</strong> {kpiToAdd.id}</p>
+                <p><strong>KPI Name:</strong> {kpiToAdd.name}</p>
+                <p><strong>Category:</strong> {kpiToAdd.category}</p>
+                <p><strong>Behavior:</strong> {kpiToAdd.behavior}</p>
+                <p><strong>Description:</strong> {kpiToAdd.description || '-'}</p>
+            </div>
+
+            <div className="confirmation-input">
+              <input
+                type="text"
+                value={addConfirmation}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                  setAddConfirmation(value.toUpperCase());
+                }}
+                onPaste={(e) => e.preventDefault()}
+                placeholder="Type 'CONFIRM' to proceed"
+                maxLength="7"
+                className={addConfirmation && addConfirmation.trim() !== 'CONFIRM' ? 'error' : ''}
+              />
+            </div>
 
             <div className="modal-actions">
-              <button onClick={() => setShowConfirmModal(false)} className="cancel-btn">
+              <button 
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setAddConfirmation('');
+                }} 
+                className="cancel-btn"
+              >
                 Cancel
               </button>
-              <button onClick={handleConfirmAdd} className="save-btn">
-                Confirm Add
+              <button 
+                onClick={handleConfirmAdd}
+                className="save-btn"
+                disabled={addConfirmation.trim() !== 'CONFIRM'}
+              >
+                Add KPI
               </button>
             </div>
           </div>
@@ -1815,11 +2044,11 @@ const handleDeleteConfirm = async () => {
 
                 <div className="warning-message">
                   <FaTimesCircle className="warning-icon" />
-                  <p>These are the KPI details that are about to be deactivated. Please type "CONFIRM" to proceed.</p>
+                  <p>These are the KPI details that are about to be deactivated.</p>
                 </div>
                 
                 <div className="kpi-details">
-                  <p><strong>KPI Name:</strong> {kpiToDelete.dKPI_Name}</p>
+                                   <p><strong>KPI Name:</strong> {kpiToDelete.dKPI_Name}</p>
                   <p><strong>Category:</strong> {kpiToDelete.dCategory}</p>
                   <p><strong>Behavior:</strong> {kpiToDelete.dCalculationBehavior}</p>
                   <p className="description-line">
@@ -1839,7 +2068,7 @@ const handleDeleteConfirm = async () => {
                     setDeleteConfirmation(value.toUpperCase());
                   }}
                   onPaste={(e) => e.preventDefault()}
-                  placeholder="CONFIRM"
+                  placeholder="Please type CONFIRM to proceed."
                   maxLength="7"
                   className={deleteConfirmation && deleteConfirmation.trim() !== 'CONFIRM' ? 'error' : ''}
                 />
@@ -1881,7 +2110,7 @@ const handleDeleteConfirm = async () => {
               
                 <div className="warning-message">
                   <FaTimesCircle className="warning-icon" />
-                  <p>Please confirm the deactivation of <strong>{selectedKPIs.length}</strong> KPIs.</p>
+                  <p>Please confirm the deactivation of <strong>{selectedKPIs.length}</strong> KPI{selectedKPIs.length > 1 ? 's' : ''}</p>
                 </div>
                 
                 <div className="kpi-details">
@@ -1903,6 +2132,7 @@ const handleDeleteConfirm = async () => {
                     }}
                     onPaste={(e) => e.preventDefault()}
                     placeholder="Type 'DEACTIVATE' to confirm"
+                   
                     maxLength="10"
                     className={bulkDisableConfirmation && bulkDisableConfirmation.trim() !== 'DEACTIVATE' ? 'error' : ''}
                   />
@@ -1943,7 +2173,7 @@ const handleDeleteConfirm = async () => {
               </div>
               
 
-                  <p>Please confirm the Reactivation of <strong>{selectedKPIs.length}</strong> KPIs.</p>
+                 <p>Please confirm the deactivation of <strong>{selectedKPIs.length}</strong> KPI{selectedKPIs.length > 1 ? 's' : ''}</p>
 
                 
                 <div className="kpi-details">
@@ -2030,7 +2260,9 @@ const handleDeleteConfirm = async () => {
               </div>
 
               <div className={`warning-message ${validationMessage.includes('reactivated') ? 'success-message' : ''}`}>
-                <FaCheck className={validationMessage.includes('reactivated') ? 'success-icon' : 'warning-icon'} />
+                {validationMessage.includes('reactivated') ? (
+                  <FaCheck className="success-icon" />
+                ) : null}
                 <p>{validationMessage}</p>
               </div>
               <div className="modal-actions">
@@ -2123,100 +2355,105 @@ const handleDeleteConfirm = async () => {
   );
 };
 
-const EditKpiModal = ({ kpi, kpis, recentlyAdded, onSave, onCancel, validateInput }) => {
-  const categories = [
-    'Compliance', 'Customer Experience', 'Employee Performance', 'Finance',
-    'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'
-  ];
-  const behaviors = ['Lower the Better', 'Higher the Better', 'Hit or Miss'];
+  const EditKpiModal = ({ kpi, kpis, recentlyAdded, onSave, onCancel, validateInput }) => {
+    const categories = [
+      'Compliance', 'Customer Experience', 'Employee Performance', 'Finance',
+      'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'
+    ];
+    const behaviors = ['Lower the Better', 'Higher the Better', 'Hit or Miss'];
 
-  const [name, setName] = useState(kpi.name);
-  const [category, setCategory] = useState(kpi.category);
-  const [behavior, setBehavior] = useState(kpi.behavior);
-  const [description, setDescription] = useState(kpi.description);
-  const [error, setError] = useState('');
+    // Add state declarations
+    const [name, setName] = useState(kpi?.dKPI_Name || kpi?.name || '');
+    const [category, setCategory] = useState(kpi?.dCategory || kpi?.category || '');
+    const [behavior, setBehavior] = useState(kpi?.dCalculationBehavior || kpi?.behavior || '');
+    const [description, setDescription] = useState(kpi?.dDescription || kpi?.description || '');
+    const [error, setError] = useState('');
 
-  // Dynamic duplicate check
-  useEffect(() => {
-    const isDuplicate =
-      kpis.some(item =>
-        item.dKPI_Name.toLowerCase().trim() === name.toLowerCase().trim() &&
-        item.dKPI_ID !== kpi.dKPI_ID
-      ) ||
-      recentlyAdded.some((item, idx) =>
-        item.name.toLowerCase().trim() === name.toLowerCase().trim() &&
-        idx !== kpi.idx
-      );
+    useEffect(() => {
+      const isDuplicate =
+        kpis.some(item =>
+          item?.dKPI_Name?.toLowerCase?.()?.trim() === name?.toLowerCase?.()?.trim() &&
+          item.dKPI_ID !== kpi.dKPI_ID
+        ) ||
+        recentlyAdded.some((item, idx) =>
+          item?.name?.toLowerCase?.()?.trim() === name?.toLowerCase?.()?.trim() &&
+          idx !== kpi.idx
+        );
 
-    if (isDuplicate) {
-      setError('A KPI with this name already exists.');
-    } else {
-      setError('');
-    }
-  }, [name, kpis, recentlyAdded, kpi.dKPI_ID, kpi.idx]);
+      if (isDuplicate) {
+        setError('A KPI with this name already exists.');
+      } else {
+        setError('');
+      }
+    }, [name, kpis, recentlyAdded, kpi.dKPI_ID, kpi.idx]);
 
-  const handleSave = () => {
-    if (error) return; // Prevent save if error exists
-    onSave({
-      ...kpi,
-      name,
-      category,
-      behavior,
-      description,
-      idx: kpi.idx
-    });
-  };
+      // Add this handleSave function
+        const handleSave = () => {
+          if (error) return;
+          
+          onSave({
+            ...kpi,
+            name,
+            category,
+            behavior,
+            description
+          });
+        };
+
+    
 
   return (
     <div className="modal-overlay">
       <div className="modal edit-kpi-modal">
         <div className="modal-header">
           <h1><b>Edit KPI</b></h1>
-
         </div>
 
-          <div className="form-group">
-            <label>KPI Name</label>
-            <input 
-              value={name} 
-              onChange={e => setName(validateInput(e.target.value))}
-              maxLength={30}
-            />
-            {error && <span className="error-message">{error}</span>}
+        <div className="form-group">
+          <label>KPI Name</label>
+          <input 
+            value={name} 
+            onChange={e => setName(validateInput(e.target.value))}
+            maxLength={30}
+          />
+          {error && <span className="error-message">{error}</span>}
+        </div>
+        <div className="form-group">
+          <label>Category</label>
+          <select value={category} onChange={e => setCategory(e.target.value)}>
+            <option value="">Select category</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Calculation Behavior</label>
+          <select value={behavior} onChange={e => setBehavior(e.target.value)}>
+            <option value="">Select behavior</option>
+            {behaviors.map(beh => (
+              <option key={beh} value={beh}>{beh}</option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Description</label>
+          <textarea 
+            value={description} 
+            onChange={e => setDescription(validateInput(e.target.value))}
+            rows="3"
+            maxLength={150}
+            style={{
+              resize: 'none',
+              overflowY: 'auto',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          />
+          <div className="char-counter">
+            {description.length}/150
           </div>
-          <div className="form-group">
-            <label>Category</label>
-            <select value={category} onChange={e => setCategory(e.target.value)}>
-              <option value="">Select category</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Calculation Behavior</label>
-            <select value={behavior} onChange={e => setBehavior(e.target.value)}>
-              <option value="">Select behavior</option>
-              {behaviors.map(beh => (
-                <option key={beh} value={beh}>{beh}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Description</label>
-            <textarea 
-              value={description} 
-              onChange={e => setDescription(validateInput(e.target.value))}
-              rows="3"
-              maxLength={150}
-              style={{
-                resize: 'none',
-                overflowY: 'auto',
-                width: '100%',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+        </div>
 
         <div className="modal-actions">
           <button onClick={onCancel} className="cancel-btn">Cancel</button>

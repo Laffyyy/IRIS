@@ -294,7 +294,7 @@ const Otp = ({ onBack, onComplete }) => {
             // Finally, handle normal role-based navigation
             else if (userStatus === 'ACTIVE') {
                 if (roles.includes('admin')) {
-                  navigate('../admin/dasboard');
+                  navigate('../admin/dashboard');
                 } else if (roles.includes('HR')) {
                   navigate('../hr');
                 } else if (roles.includes('REPORTS')) {
