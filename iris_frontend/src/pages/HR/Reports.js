@@ -1,27 +1,34 @@
 import React, { useState } from 'react';
-import { FaSearch, FaTrash } from 'react-icons/fa';
-import './DataMGMT.css';
+import { FaSearch } from 'react-icons/fa';
+import './Reports.css';
 
-const DataManagement = () => {
+const Reports = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [dataType, setDataType] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTeam, setSelectedTeam] = useState('All Team');
+  const [selectedStatus, setSelectedStatus] = useState('All Status');
+  const [selectedMonthYear, setSelectedMonthYear] = useState('');
   const [selectedRows, setSelectedRows] = useState([]);
-  const [employeeData, setEmployeeData] = useState([
-    {
+  const [reports] = useState([
+    { 
       employeeId: 'E12345',
       employeeName: 'John Doe',
       type: 'Attrition',
       monthYear: 'Jan 2024',
       description: 'Left company due to relocation',
+      team: 'Team A',
+      lob: 'LOB 1',
+      subLob: 'Sub LOB A',
       timestamp: '2024-01-15 09:23 AM'
     },
     {
-      employeeId: '523456',
+      employeeId: 'E23456',
       employeeName: 'Jane Smith',
       type: 'DA',
       monthYear: 'Feb 2024',
       description: 'Disciplinary action for tardiness',
+      team: 'Team B',
+      lob: 'LOB 2',
+      subLob: 'Sub LOB B',
       timestamp: '2024-02-10 02:45 PM'
     },
     {
@@ -30,6 +37,9 @@ const DataManagement = () => {
       type: 'LOA',
       monthYear: 'Mar 2024',
       description: 'Leave of absence for medical reasons',
+      team: 'Team C',
+      lob: 'LOB 1',
+      subLob: 'Sub LOB C',
       timestamp: '2024-03-05 11:12 AM'
     },
     {
@@ -38,6 +48,9 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Apr 2024',
       description: 'Resigned for career change',
+      team: 'Team A',
+      lob: 'LOB 3',
+      subLob: 'Sub LOB C',
       timestamp: '2024-04-20 04:30 PM'
     },
     {
@@ -46,14 +59,20 @@ const DataManagement = () => {
       type: 'DA',
       monthYear: 'May 2024',
       description: 'Disciplinary action for policy violation',
+      team: 'Team B',
+      lob: 'LOB 1',
+      subLob: 'Sub LOB A',
       timestamp: '2024-05-18 01:05 PM'
     },
     {
       employeeId: 'E67890',
       employeeName: 'Olivia Wilson',
       type: 'LOA',
-      monthYear: 'Jun 2024',
+      monthYear: 'Jul 2024',
       description: 'Leave of absence for family reasons',
+      team: 'Team C',
+      lob: 'LOB 1',
+      subLob: 'Sub LOB A',
       timestamp: '2024-06-12 10:00 AM'
     },
     {
@@ -62,78 +81,12 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Jul 2024',
       description: 'Left company for higher education',
+      team: 'Team A',
+      lob: 'LOB 3',
+      subLob: 'Sub LOB C',
       timestamp: '2024-07-22 03:15 PM'
-    },
-    {
-      employeeId: 'E89012',
-      employeeName: 'Sophia Martinez',
-      type: 'DA',
-      monthYear: 'Aug 2024',
-      description: 'Disciplinary action for attendance',
-      timestamp: '2024-08-08 09:50 AM'
-    },
-    {
-      employeeId: 'E90123',
-      employeeName: 'Benjamin Anderson',
-      type: 'LOA',
-      monthYear: 'Sep 2024',
-      description: 'Leave of absence for personal reasons',
-      timestamp: '2024-09-14 08:40 AM'
-    },
-    {
-      employeeId: 'E01234',
-      employeeName: 'Mia Thomas',
-      type: 'Attrition',
-      monthYear: 'Oct 2024',
-      description: 'Resigned due to relocation',
-      timestamp: '2024-10-30 05:20 PM'
-    },
-    {
-      employeeId: 'E11235',
-      employeeName: 'Liam Harris',
-      type: 'DA',
-      monthYear: 'Nov 2024',
-      description: 'Disciplinary action for misconduct',
-      timestamp: '2024-11-11 12:00 PM'
-    },
-    {
-      employeeId: 'E22346',
-      employeeName: 'Emma Clark',
-      type: 'LOA',
-      monthYear: 'Dec 2024',
-      description: 'Leave of absence for maternity',
-      timestamp: '2024-12-01 08:00 AM'
-    },
-    {
-      employeeId: 'E33467',
-      employeeName: 'Noah Lewis',
-      type: 'Attrition',
-      monthYear: 'Jan 2025',
-      description: 'Left company for personal reasons',
-      timestamp: '2025-01-10 10:30 AM'
     }
   ]);
-
-  // Filter data based on search term and filters
-  const filteredData = employeeData.filter(employee => {
-    const matchesSearch = 
-      employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesType = !dataType || employee.type === dataType;
-    
-    // Convert selected date to format matching the data (MMM YYYY)
-    const matchesDate = !selectedDate || (() => {
-      if (!selectedDate) return true;
-      const [year, month] = selectedDate.split('-');
-      const date = new Date(year, month - 1);
-      const monthYear = date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-      return employee.monthYear.includes(monthYear);
-    })();
-    
-    return matchesSearch && matchesType && matchesDate;
-  });
 
   const handleRowSelect = (employeeId) => {
     setSelectedRows(prev => {
@@ -145,24 +98,66 @@ const DataManagement = () => {
     });
   };
 
-  const handleDelete = () => {
-    // Handle bulk delete
-    setEmployeeData(prev => prev.filter(emp => !selectedRows.includes(emp.employeeId)));
-    setSelectedRows([]);
+  const handleExport = () => {
+    // If there are selected rows, export only those from the filtered data
+    const dataToExport = selectedRows.length > 0 
+      ? filteredReports.filter(report => selectedRows.includes(report.employeeId))
+      : filteredReports; // If no rows selected, export all filtered data
+    
+    // Create CSV content
+    const headers = ['Employee ID', 'Employee Name', 'Type', 'Month/Year', 'Description', 'Team', 'LOB', 'Sub LOB', 'Timestamp'];
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(report => [
+        report.employeeId,
+        report.employeeName,
+        report.type,
+        report.monthYear,
+        `"${report.description}"`,
+        report.team,
+        report.lob,
+        report.subLob,
+        report.timestamp
+      ].join(','))
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'hr_reports.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleSingleDelete = (employeeId) => {
-    // Handle single row delete
-    setEmployeeData(prev => prev.filter(emp => emp.employeeId !== employeeId));
-    setSelectedRows(prev => prev.filter(id => id !== employeeId));
-  };
+  // Filter data based on search term and filters
+  const filteredReports = reports.filter(report => {
+    const matchesSearch = 
+      report.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesTeam = selectedTeam === 'All Team' || report.team === selectedTeam;
+    const matchesType = selectedStatus === 'All Status' || report.type === selectedStatus;
+    
+    const matchesDate = !selectedMonthYear || (() => {
+      if (!selectedMonthYear) return true;
+      const [year, month] = selectedMonthYear.split('-');
+      const date = new Date(year, month - 1);
+      const monthYear = date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+      return report.monthYear.includes(monthYear);
+    })();
+
+    return matchesSearch && matchesTeam && matchesType && matchesDate;
+  });
 
   return (
-    <div className="data-management-container">
+    <div className="reports-container">
       <div className="data-management-content">
-        <div className="data-management-header">
-          <h1>Data Management</h1>
-          <p className="subtitle">View, filter, and delete uploaded HR data by type, date, or employee ID.</p>
+        <div className="reports-header">
+          <h1>Reports</h1>
+          <p className="subtitle">View and manage employee reports with filters for team, type, and date.</p>
         </div>
 
         <div className="controls-section">
@@ -178,11 +173,22 @@ const DataManagement = () => {
 
           <div className="filters">
             <select
-              value={dataType}
-              onChange={(e) => setDataType(e.target.value)}
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
               className="data-type-filter"
             >
-              <option value="">Data Type</option>
+              <option value="All Team">All Teams</option>
+              <option value="Team A">Team A</option>
+              <option value="Team B">Team B</option>
+              <option value="Team C">Team C</option>
+            </select>
+
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="data-type-filter"
+            >
+              <option value="All Status">All Types</option>
               <option value="Attrition">Attrition</option>
               <option value="DA">DA</option>
               <option value="LOA">LOA</option>
@@ -190,9 +196,10 @@ const DataManagement = () => {
 
             <input
               type="month"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={selectedMonthYear}
+              onChange={(e) => setSelectedMonthYear(e.target.value)}
               className="month-filter"
+              placeholder="Month/Year"
             />
           </div>
         </div>
@@ -209,12 +216,12 @@ const DataManagement = () => {
                           type="checkbox"
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedRows(filteredData.map(emp => emp.employeeId));
+                              setSelectedRows(filteredReports.map(report => report.employeeId));
                             } else {
                               setSelectedRows([]);
                             }
                           }}
-                          checked={selectedRows.length === filteredData.length && filteredData.length > 0}
+                          checked={selectedRows.length === filteredReports.length && filteredReports.length > 0}
                         />
                       </th>
                       <th>Employee ID</th>
@@ -229,7 +236,7 @@ const DataManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredData.map((report) => (
+                    {filteredReports.map((report) => (
                       <tr key={report.employeeId}>
                         <td className="checkbox-column">
                           <input
@@ -255,17 +262,15 @@ const DataManagement = () => {
             </div>
           </div>
 
-          {selectedRows.length > 0 && (
-            <div className="action-bar">
-              <button className="delete-btn" onClick={handleDelete}>
-                <FaTrash /> Delete Selected ({selectedRows.length})
-              </button>
-            </div>
-          )}
+          <div className="action-bar">
+            <button className="export-btn" onClick={handleExport}>
+              Export
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default DataManagement;
+export default Reports;

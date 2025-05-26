@@ -7,6 +7,9 @@ import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
+import Score from './pages/Reports/Score';
+import Report from './pages/Reports/Report';
+import KPIMGMT from './pages/Reports/KPIMGMT';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';
@@ -15,6 +18,7 @@ import SecurityQuestions from './SecurityQuestions';
 import UpdatePassword from './UpdatePassword';
 import EmployeeData from './pages/HR/EmployeeData';
 import DataManagement from './pages/HR/DataMGMT';
+import Reports from './pages/HR/Reports';
 
 function App() {
   return (
@@ -42,11 +46,15 @@ function App() {
                   <Route path="admin/sites" element={<SiteManagement />} />
                   <Route path="admin/kpis" element={<KPIManagement />} />
                   <Route path="hr" element={<div>HR Page</div>} />
-                  <Route path="reports" element={<div>Reports Page</div>} />
-                  <Route path="compensation" element={<div>C&B Page</div>} />
-                  <Route path="faqs" element={<div>FAQs Page</div>} />
                   <Route path="hr/employee-data" element={<EmployeeData />} />
                   <Route path="hr/data-management" element={<DataManagement />} />
+                  <Route path="hr/reports" element={<Reports />} />
+                  {/* Reports section routes */}
+                  <Route path="reports/report" element={<Report />} />
+                  <Route path="reports/scoresheet" element={<Score />} />
+                  <Route path="reports/kpi-mgmt" element={<KPIMGMT />} />
+                  <Route path="compensation" element={<div>C&B Page</div>} />
+                  <Route path="faqs" element={<div>FAQs Page</div>} />
                 </Routes>
               </main>
             </div>
