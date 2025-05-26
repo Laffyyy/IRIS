@@ -750,120 +750,121 @@ const UserManagement = () => {
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Save user changes
+  // Update validateEditUser function to handle errors properly
+  const validateEditUser = async (user, originalUser) => {
+    const errors = {};
+    
+    // Basic validation
+    if (!user.dUser_ID) errors.dUser_ID = 'Employee ID is required.';
+    else if (!/^[0-9]{10}$/.test(user.dUser_ID)) errors.dUser_ID = 'Employee ID must be exactly 10 digits.';
+    
+    if (!user.dEmail) errors.dEmail = 'Email is required.';
+    else if (user.dEmail.length > 50) errors.dEmail = 'Email must be 50 characters or less.';
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user.dEmail)) errors.dEmail = 'Invalid email format.';
+    
+    if (!user.dName) errors.dName = 'Name is required.';
+    else if (user.dName.length > 50) errors.dName = 'Name must be 50 characters or less.';
+    
+    if (!user.dUser_Type) errors.dUser_Type = 'Role is required.';
+    
+    // Check for duplicates only if values changed
+    if (user.dUser_ID !== originalUser.dUser_ID || user.dEmail !== originalUser.dEmail) {
+      try {
+        const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employeeIds: [user.dUser_ID],
+            emails: [user.dEmail]
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to check for duplicates');
+        }
+        
+        const dbDuplicates = await response.json();
+        
+        if (dbDuplicates.some(u => u.dUser_ID === user.dUser_ID && u.dUser_ID !== originalUser.dUser_ID)) {
+          errors.dUser_ID = 'This Employee ID is already in use.';
+        }
+        if (dbDuplicates.some(u => u.dEmail === user.dEmail && u.dEmail !== originalUser.dEmail)) {
+          errors.dEmail = 'This email is already in use.';
+        }
+      } catch (error) {
+        console.error('Error checking duplicates:', error);
+        errors.general = 'Error checking for duplicates. Please try again.';
+      }
+    }
+    
+    return errors;
+  };
+
+  // Update handleSave function to handle errors and confirmation properly
   const handleSave = async (updatedUser) => {
-    let resultModalShown = false;
     try {
+      // Validate before proceeding
+      const validationErrors = await validateEditUser(updatedUser, originalUser);
+      if (Object.keys(validationErrors).length > 0) {
+        setEditUserErrors(validationErrors);
+        return;
+      }
+
       const changedFields = { dLogin_ID: updatedUser.dLogin_ID };
       const changes = [];
+
+      // Track changes
       if (originalUser.dUser_ID !== updatedUser.dUser_ID) {
-        changedFields.employeeId = updatedUser.dUser_ID;
+        changedFields.dUser_ID = updatedUser.dUser_ID;
         changes.push(`Employee ID changed from '${originalUser.dUser_ID}' to '${updatedUser.dUser_ID}'`);
       }
       if (originalUser.dName !== updatedUser.dName) {
-        changedFields.name = updatedUser.dName;
+        changedFields.dName = updatedUser.dName;
         changes.push(`Name changed from '${originalUser.dName}' to '${updatedUser.dName}'`);
       }
       if (originalUser.dEmail !== updatedUser.dEmail) {
-        changedFields.email = updatedUser.dEmail;
+        changedFields.dEmail = updatedUser.dEmail;
         changes.push(`Email changed from '${originalUser.dEmail}' to '${updatedUser.dEmail}'`);
       }
       if (originalUser.dUser_Type !== updatedUser.dUser_Type) {
-        changedFields.role = updatedUser.dUser_Type;
+        changedFields.dUser_Type = updatedUser.dUser_Type;
         changes.push(`Role changed from '${originalUser.dUser_Type}' to '${updatedUser.dUser_Type}'`);
       }
-      if (originalUser.dStatus !== updatedUser.dStatus) {
-        changedFields.status = updatedUser.dStatus;
-        changes.push(`Status changed from '${originalUser.dStatus}' to '${updatedUser.dStatus}'`);
-      }
-      if (showPasswordFields && passwordData.newPassword && passwordData.newPassword === passwordData.confirmPassword) {
-        changedFields.password = passwordData.newPassword;
-        changes.push('Password changed');
-      }
-      // Reset Account logic
-      if (resetConfirmed) {
-        changedFields.password = 'defaultPassword123'; // or your default password
-        changedFields.securityQuestions = [
-          { question: '', answer: '' },
-          { question: '', answer: '' },
-          { question: '', answer: '' }
-        ];
-        changes.push('Account reset: password set to default and security questions cleared');
-      }
-      // Check if security questions changed
-      let securityQuestionsChanged = false;
-      if (showSecurityQuestions) {
-        for (let i = 0; i < 3; i++) {
-          const origQ = originalUser[`dSecurity_Question${i+1}`] || '';
-          const origA = originalUser[`dAnswer_${i+1}`] || '';
-          const newQ = securityQuestionsData[i]?.question || '';
-          const newA = securityQuestionsData[i]?.answer || '';
-          if (origQ !== newQ || origA !== newA) {
-            changes.push(`Security Question ${i+1} changed`);
-            securityQuestionsChanged = true;
-          }
-        }
-        if (securityQuestionsChanged) {
-          await fetch(`http://localhost:3000/api/users/${updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID}/security-questions`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ questions: securityQuestionsData })
-          });
-        }
-      }
-      // If no user fields changed, but security questions did
-      if (Object.keys(changedFields).length === 1 && securityQuestionsChanged) {
+
+      // If no changes were made
+      if (Object.keys(changedFields).length <= 1) {
         setEditModalOpen(false);
-        setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
-        setEditResultSuccess(true);
-        setShowEditResultModal(true);
-        resultModalShown = true;
+        setShowNoChangesModal(true);
         return;
       }
-      // If nothing changed
-      if (Object.keys(changedFields).length === 1 && !securityQuestionsChanged) {
-        setEditResultSuccess(false);
-        setEditResultMessage('No changes were made.');
-        setShowEditResultModal(true);
-        resultModalShown = true;
-        return;
-      }
-      // Otherwise, update user fields
+
+      // Make the API call
       const id = updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID;
       const response = await fetch(`http://localhost:3000/api/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changedFields)
       });
-      let result = null;
-      try {
-        result = await response.json();
-      } catch (e) {}
+
+      const result = await response.json();
+
       if (!response.ok) {
-        setEditResultSuccess(false);
-        setEditResultMessage(result && (result.message || result.error) ? (result.message || result.error) : 'Failed to update user.');
-        setShowEditResultModal(true);
-        resultModalShown = true;
-        return;
+        throw new Error(result.message || 'Failed to update user');
       }
+
+      // Success case
       setEditModalOpen(false);
       setEditResultSuccess(true);
-      setEditResultMessage(`Changes Made<br><span style='display:block;margin-bottom:6px;'></span>${formatEditResultMessage(changes)}`);
+      setEditResultMessage(formatEditResultMessage(changes));
       setShowEditResultModal(true);
-      resultModalShown = true;
-      // Do NOT call setUsers here. Let fetchUsers update the table.
+      
+      // Refresh the users list
+      fetchUsers();
+
     } catch (error) {
       setEditResultSuccess(false);
       setEditResultMessage(error.message || 'Failed to update user');
       setShowEditResultModal(true);
-      resultModalShown = true;
-    } finally {
-      // Fallback: always show the result modal if not already shown
-      if (!resultModalShown) {
-        setEditResultSuccess(false);
-        setEditResultMessage('An unknown error occurred.');
-        setShowEditResultModal(true);
-      }
     }
   };
 
@@ -916,52 +917,6 @@ const UserManagement = () => {
 
   // Add validation state for edit modal
   const [editUserErrors, setEditUserErrors] = useState({});
-
-  // Add validation function for edit modal
-  const validateEditUser = async (user, originalUser) => {
-    const errors = {};
-    if (!user.employeeId) errors.employeeId = 'Employee ID is required.';
-    else if (!/^[0-9]{10}$/.test(user.employeeId)) errors.employeeId = 'Employee ID must be exactly 10 digits.';
-    if (!user.email) errors.email = 'Email is required.';
-    if (!user.name) errors.name = 'Name is required.';
-    if (!user.role) errors.role = 'Role is required.';
-    if (user.name && user.name.length > 50) errors.name = 'Name must be 50 characters or less.';
-    if (user.email && user.email.length > 50) errors.email = 'Email must be 50 characters or less.';
-    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-    if (user.email && !emailRegex.test(user.email)) errors.email = 'Invalid email format.';
-    
-    // Check for duplicates in recently added users instead of individualPreview
-    if (user.employeeId !== originalUser.employeeId && recentlyAddedUsers.some(u => u.employeeId === user.employeeId)) {
-      errors.employeeId = 'Duplicate Employee ID in recently added users.';
-    }
-    if (user.email !== originalUser.email && recentlyAddedUsers.some(u => u.email === user.email)) {
-      errors.email = 'Duplicate Email in recently added users.';
-    }
-    
-    if (Object.keys(errors).length > 0) return errors;
-    
-    // Check for duplicates in DB
-    try {
-      const response = await fetch('http://localhost:3000/api/users/check-duplicates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeIds: [user.employeeId],
-          emails: [user.email]
-        })
-      });
-      const dbDuplicates = await response.json();
-      if (dbDuplicates.some(u => u.dUser_ID === user.employeeId && u.dUser_ID !== originalUser.employeeId)) {
-        errors.employeeId = 'Duplicate Employee ID in database.';
-      }
-      if (dbDuplicates.some(u => u.dEmail === user.email && u.dEmail !== originalUser.email)) {
-        errors.email = 'Duplicate Email in database.';
-      }
-    } catch (e) {
-      errors.general = 'Error checking duplicates in database.';
-    }
-    return errors;
-  };
 
   // Watch for changes in currentUser in edit modal
   useEffect(() => {
@@ -3145,28 +3100,26 @@ const UserManagement = () => {
               <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
               <button
                 onClick={async () => {
-                  // 1. Check if any changes were made
-                  if (!isEditActionChanged()) {
+                  // Validate before showing confirmation
+                  const validationErrors = await validateEditUser(currentUser, originalUser);
+                  if (Object.keys(validationErrors).length > 0) {
+                    setEditUserErrors(validationErrors);
+                    return;
+                  }
+
+                  // Check if any changes were made
+                  if (!isUserChanged(currentUser, originalUser)) {
                     setShowNoChangesModal(true);
                     return;
                   }
-                  // Always trim before validation
-                  const trimmedUser = {
-                    ...currentUser,
-                    dEmail: currentUser.dEmail.replace(/ +$/, ''), // Remove trailing spaces
-                    dName: currentUser.dName.replace(/ +$/, ''),
-                    dUser_ID: currentUser.dUser_ID.trim()
-                  };
-                  const validationErrors = await validateEditUser(trimmedUser, originalUser);
-                  setEditUserErrors(validationErrors);
-                  // Only proceed if no validation errors
-                  if (Object.keys(validationErrors).length === 0) {
-                    setPendingEditUser(trimmedUser);
-                    setShowEditConfirmModal(true);
-                  }
+
+                  // Show confirmation modal
+                  setPendingEditUser(currentUser);
+                  setShowEditConfirmModal(true);
                 }}
                 className="save-btn"
                 id="save-changes-btn"
+                disabled={Object.keys(editUserErrors).length > 0}
               >
                 Save Changes
               </button>
