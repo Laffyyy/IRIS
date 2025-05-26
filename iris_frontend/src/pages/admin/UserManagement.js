@@ -42,6 +42,93 @@ function sanitizeBulkName(name) {
     .trim(); // Remove leading/trailing spaces
 }
 
+// Add sanitization utility
+const sanitizeUserData = (userData) => {
+  return {
+    ...userData,
+    dUser_ID: userData.dUser_ID ? userData.dUser_ID.trim().replace(/[^0-9]/g, '') : '',
+    dName: userData.dName ? userData.dName
+      .trim()
+      .replace(/[^A-Za-z0-9\-_. ,]/g, '')
+      .replace(/([\-_. ,])\1+/g, '$1')
+      .replace(/^[\-_. ,]+/, '') : '',
+    dEmail: userData.dEmail ? userData.dEmail.trim().toLowerCase() : '',
+    dUser_Type: userData.dUser_Type ? userData.dUser_Type.toUpperCase() : '',
+  };
+};
+
+// Add password validation utility
+const validatePassword = (password) => {
+  const errors = [];
+  
+  // Check length (15-20 characters)
+  if (!password || password.length < 15 || password.length > 20) {
+    errors.push('Password must be 15-20 characters long');
+    return errors;
+  }
+
+  // Check for required character types
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /[0-9]/.test(password);
+  const hasAllowedSymbols = /[.!@_]/.test(password);
+  const hasOnlyAllowedChars = /^[A-Za-z0-9.!@_]+$/.test(password);
+
+  if (!hasUpperCase) errors.push('Password must contain at least one uppercase letter');
+  if (!hasLowerCase) errors.push('Password must contain at least one lowercase letter');
+  if (!hasNumbers) errors.push('Password must contain at least one number');
+  if (!hasAllowedSymbols) errors.push('Password must contain at least one symbol (. _ ! @)');
+  if (!hasOnlyAllowedChars) errors.push('Password can only contain letters, numbers, and symbols (. _ ! @)');
+
+  return errors;
+};
+
+// Add password requirement check function
+const checkPasswordRequirements = (password) => {
+  return {
+    length: password && password.length >= 15 && password.length <= 20,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    symbol: /[.!@_]/.test(password)
+  };
+};
+
+// Add this before the PasswordRequirements component
+const areAllPasswordRequirementsMet = (password) => {
+  const requirements = checkPasswordRequirements(password);
+  return Object.values(requirements).every(requirement => requirement === true);
+};
+
+// Password Requirements Component
+const PasswordRequirements = ({ password }) => {
+  const requirements = checkPasswordRequirements(password);
+  
+  const requirementsList = [
+    { key: 'length', text: 'Be 15-20 characters long' },
+    { key: 'uppercase', text: 'Include at least one uppercase letter' },
+    { key: 'lowercase', text: 'Include at least one lowercase letter' },
+    { key: 'number', text: 'Include at least one number' },
+    { key: 'symbol', text: 'Include at least one allowed symbol (. _ ! @)' }
+  ];
+
+  return (
+    <div className="iris-password-requirements">
+      <h4 className="iris-requirements-title">Password Requirements:</h4>
+      <ul className="iris-requirements-list">
+        {requirementsList.map(({ key, text }) => (
+          <li key={key} className={`iris-requirement-item ${requirements[key] ? 'iris-requirement-met' : 'iris-requirement-unmet'}`}>
+            <span className="iris-requirement-icon">
+              {requirements[key] ? '✓' : '✕'}
+            </span>
+            {text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 const UserManagement = () => {
   // State declarations
   const [passwordData, setPasswordData] = useState({
@@ -721,51 +808,123 @@ const UserManagement = () => {
 
   // Edit user handler
   const handleEdit = (user) => {
-    setCurrentUser(user);
-    setOriginalUser(user);
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
-    setSecurityQuestionsData(user.securityQuestions || [
-      { question: '', answer: '' },
-      { question: '', answer: '' },
-      { question: '', answer: '' }
-    ]);
-    setShowPasswordFields(false);
-    setShowSecurityQuestions(false);
+    const sanitizedUser = sanitizeUserData(user);
+    // Make sure we preserve the entry IDs
+    sanitizedUser.dLoginEntry_ID = user.dLoginEntry_ID;
+    sanitizedUser.dAdminEntry_ID = user.dAdminEntry_ID;
+    setOriginalUser(sanitizedUser);
+    setCurrentUser(sanitizedUser);
+    setShowResetDropdown(false);
     setEditModalOpen(true);
+    setEmployeeIdEditable(false);
+    setEditUserErrors({});
+    setResetConfirmText('');
+    setResetConfirmed(false);
   };
 
   // Handle new user input changes
   const handleNewUserChange = (e) => {
     const { name, value } = e.target;
-    setNewUser(prev => ({ ...prev, [name]: value }));
+    const sanitizedData = sanitizeUserData({ [name]: value });
+    setNewUser(prev => ({ ...prev, [name]: sanitizedData[name] }));
   };
 
-  // Handle password changes
+  // Update handlePasswordChange to prevent invalid characters
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
+    
+    // Only allow valid characters (letters, numbers, and allowed symbols)
+    if (name === 'newPassword' || name === 'confirmPassword') {
+      const sanitizedValue = value.replace(/[^A-Za-z0-9.!@_]/g, '');
+      if (sanitizedValue !== value) {
+        e.target.value = sanitizedValue;
+        return; // Don't update state if invalid characters were prevented
+      }
+    }
+    
     setPasswordData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'newPassword') {
+      const requirements = checkPasswordRequirements(value);
+      const errors = [];
+      
+      // Only show errors if user has started typing
+      if (value.length > 0) {
+        if (!requirements.length) errors.push('Password must be 15-20 characters long');
+        if (!requirements.uppercase) errors.push('Password must contain at least one uppercase letter');
+        if (!requirements.lowercase) errors.push('Password must contain at least one lowercase letter');
+        if (!requirements.number) errors.push('Password must contain at least one number');
+        if (!requirements.symbol) errors.push('Password must contain at least one symbol (. _ ! @)');
+      }
+      
+      setEditUserErrors(prev => ({
+        ...prev,
+        password: errors.length > 0 ? errors : undefined
+      }));
+
+      // Also check confirmation match if confirmation was already entered
+      if (passwordData.confirmPassword) {
+        if (value !== passwordData.confirmPassword) {
+          setEditUserErrors(prev => ({
+            ...prev,
+            confirmPassword: ['Passwords do not match']
+          }));
+        } else {
+          setEditUserErrors(prev => {
+            const { confirmPassword, ...rest } = prev;
+            return rest;
+          });
+        }
+      }
+    }
+    
+    if (name === 'confirmPassword') {
+      if (value !== passwordData.newPassword) {
+        setEditUserErrors(prev => ({
+          ...prev,
+          confirmPassword: ['Passwords do not match']
+        }));
+      } else {
+        setEditUserErrors(prev => {
+          const { confirmPassword, ...rest } = prev;
+          return rest;
+        });
+      }
+    }
   };
 
   // Update validateEditUser function to handle errors properly
   const validateEditUser = async (user, originalUser) => {
     const errors = {};
     
-    // Basic validation
-    if (!user.dUser_ID) errors.dUser_ID = 'Employee ID is required.';
-    else if (!/^[0-9]{10}$/.test(user.dUser_ID)) errors.dUser_ID = 'Employee ID must be exactly 10 digits.';
+    // Basic validation with improved error messages
+    if (!user.dUser_ID) {
+      errors.dUser_ID = 'Employee ID is required.';
+    } else if (!/^[0-9]{10}$/.test(user.dUser_ID)) {
+      errors.dUser_ID = 'Employee ID must be exactly 10 digits.';
+    }
     
-    if (!user.dEmail) errors.dEmail = 'Email is required.';
-    else if (user.dEmail.length > 50) errors.dEmail = 'Email must be 50 characters or less.';
-    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user.dEmail)) errors.dEmail = 'Invalid email format.';
+    if (!user.dEmail) {
+      errors.dEmail = 'Email is required.';
+    } else if (user.dEmail.length > 50) {
+      errors.dEmail = 'Email must be 50 characters or less.';
+    } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user.dEmail)) {
+      errors.dEmail = 'Invalid email format.';
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(user.dEmail)) {
+      errors.dEmail = 'Email contains invalid characters.';
+    }
     
-    if (!user.dName) errors.dName = 'Name is required.';
-    else if (user.dName.length > 50) errors.dName = 'Name must be 50 characters or less.';
+    if (!user.dName) {
+      errors.dName = 'Name is required.';
+    } else if (user.dName.length > 50) {
+      errors.dName = 'Name must be 50 characters or less.';
+    } else if (!/^[A-Za-z0-9\-_. ,]+$/.test(user.dName)) {
+      errors.dName = 'Name contains invalid characters.';
+    }
     
-    if (!user.dUser_Type) errors.dUser_Type = 'Role is required.';
+    if (!user.dUser_Type) {
+      errors.dUser_Type = 'Role is required.';
+    }
     
     // Check for duplicates only if values changed
     if (user.dUser_ID !== originalUser.dUser_ID || user.dEmail !== originalUser.dEmail) {
@@ -775,7 +934,8 @@ const UserManagement = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             employeeIds: [user.dUser_ID],
-            emails: [user.dEmail]
+            emails: [user.dEmail],
+            excludeLoginId: originalUser.dLoginEntry_ID || originalUser.dAdminEntry_ID
           })
         });
         
@@ -800,56 +960,184 @@ const UserManagement = () => {
     return errors;
   };
 
-  // Update handleSave function to handle errors and confirmation properly
+  // Update handleSave to include password validation
   const handleSave = async (updatedUser) => {
+    const isAdmin = updatedUser.dUser_Type === 'ADMIN';
+    
     try {
       // Validate before proceeding
       const validationErrors = await validateEditUser(updatedUser, originalUser);
+      
+      // Add strict password validation if changing password
+      if (showPasswordFields && passwordData.newPassword) {
+        if (!areAllPasswordRequirementsMet(passwordData.newPassword)) {
+          setEditUserErrors(prev => ({
+            ...prev,
+            password: ['All password requirements must be met']
+          }));
+          return;
+        }
+        
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+          setEditUserErrors(prev => ({
+            ...prev,
+            confirmPassword: ['Passwords do not match']
+          }));
+          return;
+        }
+      }
+
       if (Object.keys(validationErrors).length > 0) {
+        console.log('Validation errors:', validationErrors);
         setEditUserErrors(validationErrors);
         return;
       }
 
-      const changedFields = { dLogin_ID: updatedUser.dLogin_ID };
+      // Track changes for display and logging
       const changes = [];
+      const auditLog = {
+        timestamp: new Date().toISOString(),
+        userId: updatedUser.dUser_ID,
+        changes: {}
+      };
 
-      // Track changes
       if (originalUser.dUser_ID !== updatedUser.dUser_ID) {
-        changedFields.dUser_ID = updatedUser.dUser_ID;
         changes.push(`Employee ID changed from '${originalUser.dUser_ID}' to '${updatedUser.dUser_ID}'`);
+        auditLog.changes.employeeId = {
+          from: originalUser.dUser_ID,
+          to: updatedUser.dUser_ID
+        };
       }
       if (originalUser.dName !== updatedUser.dName) {
-        changedFields.dName = updatedUser.dName;
         changes.push(`Name changed from '${originalUser.dName}' to '${updatedUser.dName}'`);
+        auditLog.changes.name = {
+          from: originalUser.dName,
+          to: updatedUser.dName
+        };
       }
       if (originalUser.dEmail !== updatedUser.dEmail) {
-        changedFields.dEmail = updatedUser.dEmail;
         changes.push(`Email changed from '${originalUser.dEmail}' to '${updatedUser.dEmail}'`);
+        auditLog.changes.email = {
+          from: originalUser.dEmail,
+          to: updatedUser.dEmail
+        };
       }
       if (originalUser.dUser_Type !== updatedUser.dUser_Type) {
-        changedFields.dUser_Type = updatedUser.dUser_Type;
         changes.push(`Role changed from '${originalUser.dUser_Type}' to '${updatedUser.dUser_Type}'`);
+        auditLog.changes.role = {
+          from: originalUser.dUser_Type,
+          to: updatedUser.dUser_Type
+        };
+      }
+      if (originalUser.dStatus !== updatedUser.dStatus) {
+        changes.push(`Status changed from '${originalUser.dStatus}' to '${updatedUser.dStatus}'`);
+        auditLog.changes.status = {
+          from: originalUser.dStatus,
+          to: updatedUser.dStatus
+        };
+      }
+      if (showPasswordFields && passwordData.newPassword) {
+        changes.push('Password changed');
+        auditLog.changes.passwordChanged = true;
+      }
+      if (resetConfirmed) {
+        changes.push('Account reset: password set to default and security questions cleared');
+        auditLog.changes.accountReset = true;
       }
 
       // If no changes were made
-      if (Object.keys(changedFields).length <= 1) {
-        setEditModalOpen(false);
+      if (changes.length === 0 && !resetConfirmed && 
+          !(showPasswordFields && passwordData.newPassword)) {
         setShowNoChangesModal(true);
         return;
       }
 
+      // Log the changes for audit
+      console.log('Audit log:', auditLog);
+
+      // Determine if user is admin and get correct ID
+      const isAdmin = updatedUser.dUser_Type === 'ADMIN';
+      let userId;
+      
+      // Use the correct entry ID field based on user type
+      if (isAdmin) {
+        userId = updatedUser.dAdminEntry_ID;
+        if (!userId) {
+          console.error('Missing admin entry ID:', updatedUser);
+          throw new Error('Invalid admin entry ID');
+        }
+      } else {
+        userId = updatedUser.dLoginEntry_ID;
+        if (!userId) {
+          console.error('Missing login entry ID:', updatedUser);
+          throw new Error('Invalid login entry ID');
+        }
+      }
+
+      // Create update payload based on user type
+      const updateData = {
+        employeeId: updatedUser.dUser_ID,
+        name: updatedUser.dName,
+        email: updatedUser.dEmail,
+        status: updatedUser.dStatus
+      };
+
+      // Add role only for non-admin users
+      if (!isAdmin) {
+        updateData.role = updatedUser.dUser_Type;
+      }
+
+      // Handle password changes
+      if (showPasswordFields && passwordData.newPassword && 
+          passwordData.newPassword === passwordData.confirmPassword) {
+        updateData.password = passwordData.newPassword;
+      }
+
+      // Handle account reset
+      if (resetConfirmed) {
+        if (!isAdmin) {
+          updateData.securityQuestions = [
+          { question: '', answer: '' },
+          { question: '', answer: '' },
+          { question: '', answer: '' }
+        ];
+          updateData.status = 'RESET-DONE';
+        }
+      }
+
       // Make the API call
-      const id = updatedUser.dUser_Type === 'ADMIN' && updatedUser.dAdmin_ID ? updatedUser.dAdmin_ID : updatedUser.dLogin_ID;
-      const response = await fetch(`http://localhost:3000/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(changedFields)
+      console.log('Updating user:', { 
+        userId, 
+        isAdmin, 
+        updateData,
+        entryId: isAdmin ? updatedUser.dAdminEntry_ID : updatedUser.dLoginEntry_ID 
       });
+
+      const response = await fetch(`http://localhost:3000/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Failed to update user');
+      }
 
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to update user');
+      // If security questions changed (only for non-admin users)
+      if (!isAdmin && showSecurityQuestions && securityQuestionsData.some((q, i) => {
+        const origQ = originalUser[`dSecurity_Question${i+1}`] || '';
+        const origA = originalUser[`dAnswer_${i+1}`] || '';
+        return q.question !== origQ || q.answer !== origA;
+      })) {
+        await fetch(`http://localhost:3000/api/users/${userId}/security-questions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questions: securityQuestionsData })
+        });
+        changes.push('Security questions updated');
       }
 
       // Success case
@@ -858,13 +1146,41 @@ const UserManagement = () => {
       setEditResultMessage(formatEditResultMessage(changes));
       setShowEditResultModal(true);
       
+      // Reset states
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setResetConfirmed(false);
+      setShowPasswordFields(false);
+      setShowSecurityQuestions(false);
+      
       // Refresh the users list
       fetchUsers();
 
     } catch (error) {
+      console.error('Error updating user:', {
+        error: error.message,
+        userId: updatedUser.dUser_ID,
+        entryId: isAdmin ? updatedUser.dAdminEntry_ID : updatedUser.dLoginEntry_ID,
+        timestamp: new Date().toISOString()
+      });
+      
+      let errorMessage = 'Failed to update user';
+      if (error.message.includes('duplicate')) {
+        errorMessage = 'This Employee ID or Email is already in use';
+      } else if (error.message.includes('validation')) {
+        errorMessage = 'Please check all fields and try again';
+      } else if (error.message.includes('Invalid admin entry ID')) {
+        errorMessage = 'Could not determine the correct admin ID. Please try again or contact support.';
+      } else if (error.message.includes('Invalid login entry ID')) {
+        errorMessage = 'Could not determine the correct user ID. Please try again or contact support.';
+      }
+      
       setEditResultSuccess(false);
-      setEditResultMessage(error.message || 'Failed to update user');
-      setShowEditResultModal(true);
+      setEditResultMessage(errorMessage);
+        setShowEditResultModal(true);
     }
   };
 
@@ -944,13 +1260,22 @@ const UserManagement = () => {
   // Add a function to check if there are changes between currentUser and originalUser
   function isUserChanged(current, original) {
     if (!current || !original) return false;
-    return (
+    
+    const isAdmin = current.dUser_Type === 'ADMIN';
+    
+    // Basic fields that both types have
+    const basicFieldsChanged = 
       current.dUser_ID !== original.dUser_ID ||
       current.dName !== original.dName ||
       current.dEmail !== original.dEmail ||
-      current.dUser_Type !== original.dUser_Type ||
-      current.dStatus !== original.dStatus
-    );
+      current.dStatus !== original.dStatus;
+
+    // For non-admin users, also check role
+    if (!isAdmin) {
+      return basicFieldsChanged || current.dUser_Type !== original.dUser_Type;
+    }
+
+    return basicFieldsChanged;
   }
 
   // Add a function to check if any edit action (fields, password, or reset) is changed
@@ -1100,6 +1425,9 @@ const UserManagement = () => {
   const [restoreResultMessage, setRestoreResultMessage] = useState('');
   const [restoreConfirmText, setRestoreConfirmText] = useState('');
 
+  // Add state to store restored default passwords
+  const [restoredDefaultPasswords, setRestoredDefaultPasswords] = useState([]);
+
   // Add restore handler
   const handleRestoreUsers = async () => {
     if (restoreConfirmText === 'RESTORE' && selectedUsers.length > 0) {
@@ -1109,30 +1437,34 @@ const UserManagement = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userIds: selectedUsers })
         });
-
         let result = null;
         try {
           result = await response.json();
         } catch (e) {}
-
         if (!response.ok) {
           setShowRestoreResultModal(true);
           setRestoreResultSuccess(false);
           setRestoreResultMessage(result && result.message ? result.message : 'Failed to restore users');
+          setRestoredDefaultPasswords([]);
           return;
         }
-
         setSelectedUsers([]);
         setShowRestoreModal(false);
         setRestoreConfirmText('');
         setShowRestoreResultModal(true);
         setRestoreResultSuccess(true);
         setRestoreResultMessage(selectedUsers.length === 1 ? 'User restored successfully!' : `Users (${selectedUsers.length}) restored successfully!`);
+        setRestoredDefaultPasswords(result && result.restoredPasswords ? result.restoredPasswords : []);
+        // Hide/clear reset UI
+        setShowResetDropdown(false);
+        setResetConfirmText('');
+        setResetConfirmed(false);
         // Do NOT call setUsers here. Let fetchUsers update the table.
       } catch (error) {
         setShowRestoreResultModal(true);
         setRestoreResultSuccess(false);
         setRestoreResultMessage('Restore error: ' + (error.message || 'Unknown error'));
+        setRestoredDefaultPasswords([]);
       }
     }
   };
@@ -1405,6 +1737,8 @@ const UserManagement = () => {
     setEmployeeIdEditable(false);
     // Remove this line
     // setIndividualPreview([]);
+    setResetConfirmText('');
+    setResetConfirmed(false);
   };
 
   // 1. Make the success message disappear after 3 seconds
@@ -1422,6 +1756,22 @@ const UserManagement = () => {
       return () => clearTimeout(timer);
     }
   }, [showAddUserErrorModal]);
+
+  // Add state for tracking touched fields and form submission in the Edit User modal
+  const [editFieldTouched, setEditFieldTouched] = useState({
+    dUser_ID: false,
+    dEmail: false,
+    dName: false,
+    dUser_Type: false,
+    dStatus: false
+  });
+  const [editFormSubmitted, setEditFormSubmitted] = useState(false);
+
+  // Add state for showing the no changes label in the edit modal
+  const [showNoChangesLabel, setShowNoChangesLabel] = useState(false);
+
+  // Add a ref to store the timeout for the no changes label
+  const noChangesTimeoutRef = useRef();
 
   return (
     <div className={styles['user-management-container']}>
@@ -2777,6 +3127,19 @@ const UserManagement = () => {
               <h2>{restoreResultSuccess ? 'Restoration Successful' : 'Restoration Failed'}</h2>
             </div>
             <p>{restoreResultMessage}</p>
+            {restoreResultSuccess && restoredDefaultPasswords.length > 0 && (
+              <div style={{ margin: '12px 0', color: '#0a7', fontWeight: 500, fontSize: 15 }}>
+                Default password(s) for restored user(s):
+                <ul style={{ margin: '8px 0 0 18px', color: '#333', fontWeight: 400, fontSize: 14 }}>
+                  {restoredDefaultPasswords.map((item, idx) => (
+                    <li key={item.userId || idx}>
+                      <b>{item.userId}:</b> <span style={{ fontFamily: 'monospace' }}>{item.defaultPassword}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ color: '#b00', fontSize: 13, marginTop: 6 }}><b>Note:</b> Remove this in production!</div>
+              </div>
+            )}
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="save-btn" ref={restoreResultOkBtnRef} onClick={() => setShowRestoreResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
@@ -2786,14 +3149,23 @@ const UserManagement = () => {
 
       {/* No Changes Modal */}
       {showNoChangesModal && (
-        <div className="modal-overlay">
+        <div className="modal-overlay no-changes-modal">
           <div className="modal" style={{ width: '400px' }}>
             <div className="modal-header">
               <h2>No Changes</h2>
             </div>
+            <div className="modal-content">
             <p>No changes were made.</p>
+            </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="save-btn" ref={noChangesOkBtnRef} onClick={() => setShowNoChangesModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
+              <button 
+                className="save-btn" 
+                ref={noChangesOkBtnRef} 
+                onClick={() => setShowNoChangesModal(false)} 
+                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
@@ -2841,11 +3213,12 @@ const UserManagement = () => {
                     onChange={(e) => {
                       const newValue = e.target.value.replace(/[^0-9]/g, '').slice(0, 10).trim();
                       setCurrentUser({ ...currentUser, dUser_ID: newValue });
-                      // Clear error when user types
+                      setEditFieldTouched(prev => ({ ...prev, dUser_ID: true }));
                       if (editUserErrors.dUser_ID) {
                         setEditUserErrors(prev => ({ ...prev, dUser_ID: undefined }));
                       }
                     }}
+                    onBlur={() => setEditFieldTouched(prev => ({ ...prev, dUser_ID: true }))}
                     readOnly={!employeeIdEditable}
                     className={`${!employeeIdEditable ? 'disabled-input' : ''} ${editUserErrors.dUser_ID ? 'error-input' : ''}`}
                     required
@@ -2860,7 +3233,7 @@ const UserManagement = () => {
                     }}
                     onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                   />
-                  {editUserErrors.dUser_ID && (
+                  {(editFormSubmitted || editFieldTouched.dUser_ID) && editUserErrors.dUser_ID && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
                       {editUserErrors.dUser_ID}
                     </div>
@@ -2898,17 +3271,19 @@ const UserManagement = () => {
                         .replace(/([@\-_. ,])\1+/g, '$1') // No consecutive special chars
                         .replace(/^[@\-_. ,]+/, ''); // No special char as first char
                       setCurrentUser({...currentUser, dEmail: value});
+                      setEditFieldTouched(prev => ({ ...prev, dEmail: true }));
                       if (editUserErrors.dEmail) {
                         setEditUserErrors(prev => ({ ...prev, dEmail: undefined }));
                       }
                     }}
+                    onBlur={() => setEditFieldTouched(prev => ({ ...prev, dEmail: true }))}
                     className={editUserErrors.dEmail ? 'error-input' : ''}
                     required
                     maxLength={50}
                     style={{ borderColor: editUserErrors.dEmail ? '#ff4444' : undefined }}
                     onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                   />
-                  {editUserErrors.dEmail && (
+                  {(editFormSubmitted || editFieldTouched.dEmail) && editUserErrors.dEmail && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
                       {editUserErrors.dEmail}
                     </div>
@@ -2926,17 +3301,19 @@ const UserManagement = () => {
                         .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
                         .replace(/^[\-_. ,]+/, ''); // No special char as first char
                       setCurrentUser({...currentUser, dName: value});
+                      setEditFieldTouched(prev => ({ ...prev, dName: true }));
                       if (editUserErrors.dName) {
                         setEditUserErrors(prev => ({ ...prev, dName: undefined }));
                       }
                     }}
+                    onBlur={() => setEditFieldTouched(prev => ({ ...prev, dName: true }))}
                     className={editUserErrors.dName ? 'error-input' : ''}
                     required
                     maxLength={50}
                     style={{ borderColor: editUserErrors.dName ? '#ff4444' : undefined }}
                     onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
                   />
-                  {editUserErrors.dName && (
+                  {(editFormSubmitted || editFieldTouched.dName) && editUserErrors.dName && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
                       {editUserErrors.dName}
                     </div>
@@ -2955,6 +3332,11 @@ const UserManagement = () => {
                     <option value="CNB">CNB</option>
                   </select>
                   {editUserErrors.dUser_Type && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_Type}</div>}
+                  {editFieldTouched.dUser_Type && editUserErrors.dUser_Type && (
+                    <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
+                      {editUserErrors.dUser_Type}
+                    </div>
+                  )}
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Status:</label>
@@ -2978,10 +3360,16 @@ const UserManagement = () => {
                     )}
                   </select>
                   {editUserErrors.dStatus && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dStatus}</div>}
+                  {editFieldTouched.dStatus && editUserErrors.dStatus && (
+                    <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
+                      {editUserErrors.dStatus}
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Right column: Password and Reset Account (stacked vertically) */}
               <div style={{ flex: 1, minWidth: 340, maxWidth: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 24 }}>
+                {/* Password section */}
                 <div className="password-change-section" style={{ marginBottom: 0, width: '100%' }}>
                   <h3 className="section-header">
                     <FaKey size={14} /> Password
@@ -2993,59 +3381,60 @@ const UserManagement = () => {
                     {showPasswordFields ? <FaChevronDown /> : <FaChevronRight />}
                     {showPasswordFields ? 'Hide Password Change' : 'Change Password'}
                   </button>
+                  
                   {showPasswordFields && (
-                    <div className="password-fields">
-                      <div className="form-group">
-                        <label>New Password</label>
-                        <div className="password-input-container">
+                    <div className="iris-password-section">
+                      <div className="iris-password-field">
+                        <label>New Password:</label>
+                        <div className="iris-password-input-wrapper">
                           <input
                             type={showNewPassword ? "text" : "password"}
                             name="newPassword"
                             value={passwordData.newPassword}
                             onChange={handlePasswordChange}
-                            placeholder="Enter new password"
-                            tabIndex={0}
-                            onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
+                            className={`iris-password-input ${editUserErrors.password ? 'iris-password-error' : ''}`}
+                            maxLength={20}
                           />
                           <button
-                            className="toggle-password-btn"
                             type="button"
-                            tabIndex={0}
-                            aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            className="iris-password-toggle"
                             onClick={() => setShowNewPassword(!showNewPassword)}
+                            tabIndex={-1}
                           >
-                            {showNewPassword ? <FaEye size={22} color="#888" /> : <FaEyeSlash size={22} color="#888" />}
+                            {showNewPassword ? <FaEyeSlash /> : <FaEye />}
                           </button>
                         </div>
                       </div>
-                      <div className="form-group">
-                        <label>Confirm New Password</label>
-                        <div className="password-input-container">
+
+                      <div className="iris-password-field">
+                        <label>Confirm Password:</label>
+                        <div className="iris-password-input-wrapper">
                           <input
                             type={showConfirmPassword ? "text" : "password"}
                             name="confirmPassword"
                             value={passwordData.confirmPassword}
                             onChange={handlePasswordChange}
-                            placeholder="Confirm new password"
-                            tabIndex={0}
-                            onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
+                            className={`iris-password-input ${editUserErrors.confirmPassword ? 'iris-password-error' : ''}`}
+                            maxLength={20}
                           />
                           <button
-                            className="toggle-password-btn"
                             type="button"
-                            tabIndex={0}
-                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            className="iris-password-toggle"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            tabIndex={-1}
                           >
-                            {showConfirmPassword ? <FaEye size={22} color="#888" /> : <FaEyeSlash size={22} color="#888" />}
+                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                           </button>
                         </div>
+                        {editUserErrors.confirmPassword && (
+                          <div className="iris-password-error-message" style={{ color: '#dc3545' }}>
+                            {editUserErrors.confirmPassword[0]}
                       </div>
-                      {passwordMismatch && (
-                        <p className="error-message" style={{ color: 'red' }}>Passwords do not match</p>
                       )}
+                      </div>
+
+                      {/* Password requirements below the input fields */}
+                      <PasswordRequirements password={passwordData.newPassword} />
                     </div>
                   )}
                 </div>
@@ -3094,32 +3483,55 @@ const UserManagement = () => {
                     </div>
                   )}
                 </div>
+                {showNoChangesLabel && (
+                  <div style={{ color: '#b00', fontWeight: 500, marginBottom: 0, background: '#fff5f5', border: '1px solid #f5c6cb', borderRadius: 6, padding: '8px 12px', textAlign: 'center' }}>
+                    No changes were made.
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
               <button
                 onClick={async () => {
-                  // Validate before showing confirmation
-                  const validationErrors = await validateEditUser(currentUser, originalUser);
-                  if (Object.keys(validationErrors).length > 0) {
-                    setEditUserErrors(validationErrors);
+                  setEditFormSubmitted(true);
+                  // If there are no validation errors, show the confirmation modal
+                  if (
+                    !(Object.values(editUserErrors).some(Boolean) ||
+                      ((passwordData.newPassword || passwordData.confirmPassword) &&
+                        (!areAllPasswordRequirementsMet(passwordData.newPassword) ||
+                         passwordData.newPassword !== passwordData.confirmPassword)))
+                  ) {
+                    // Check if any changes were made
+                    const hasChanges = isUserChanged(currentUser, originalUser) || 
+                      resetConfirmed || 
+                      (showPasswordFields && passwordData.newPassword && 
+                        passwordData.newPassword === passwordData.confirmPassword) ||
+                      (showSecurityQuestions && securityQuestionsData.some((q, i) => {
+                        const origQ = originalUser[`dSecurity_Question${i+1}`] || '';
+                        const origA = originalUser[`dAnswer_${i+1}`] || '';
+                        return q.question !== origQ || q.answer !== origA;
+                      }));
+                    if (!hasChanges) {
+                      setShowNoChangesLabel(true);
+                      if (noChangesTimeoutRef.current) clearTimeout(noChangesTimeoutRef.current);
+                      noChangesTimeoutRef.current = setTimeout(() => setShowNoChangesLabel(false), 2000);
                     return;
+                    } else {
+                      setShowNoChangesLabel(false);
+                      setPendingEditUser(currentUser);
+                    setShowEditConfirmModal(true);
+                    }
                   }
-
-                  // Check if any changes were made
-                  if (!isUserChanged(currentUser, originalUser)) {
-                    setShowNoChangesModal(true);
-                    return;
-                  }
-
-                  // Show confirmation modal
-                  setPendingEditUser(currentUser);
-                  setShowEditConfirmModal(true);
                 }}
                 className="save-btn"
                 id="save-changes-btn"
-                disabled={Object.keys(editUserErrors).length > 0}
+                disabled={
+                  Object.values(editUserErrors).some(Boolean) ||
+                  ((passwordData.newPassword || passwordData.confirmPassword) &&
+                    (!areAllPasswordRequirementsMet(passwordData.newPassword) ||
+                     passwordData.newPassword !== passwordData.confirmPassword))
+                }
               >
                 Save Changes
               </button>

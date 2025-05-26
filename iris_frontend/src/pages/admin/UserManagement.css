@@ -804,21 +804,22 @@ th, tr {
 .password-change-section,
 .security-questions-section {
   flex: 1;
-  padding: 15px;
+  padding: 20px;
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #f8fafc;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .section-header {
-  font-size: 14px;
+  font-size: 15px;
   color: #004D8D;
   margin-top: 0;
   margin-bottom: 15px;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .password-fields,
@@ -830,21 +831,44 @@ th, tr {
   position: relative;
   display: flex;
   align-items: center;
+  margin-bottom: 12px;
 }
 
 .password-input-container input {
   width: 100%;
-  padding-right: 40px;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+}
+
+.password-input-container input:focus {
+  outline: none;
+  border-color: #004D8D;
+  box-shadow: 0 0 0 3px rgba(0,77,141,0.1);
+}
+
+.password-input-container input.error-input {
+  border-color: #dc3545;
+  background-color: #fff;
 }
 
 .toggle-password-btn {
   position: absolute;
   right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
-  color: #999;
+  color: #666;
   cursor: pointer;
-  padding: 4px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
 }
 
 .toggle-password-btn:hover {
@@ -852,22 +876,78 @@ th, tr {
 }
 
 .error-message {
-  color: #d32f2f;
+  color: #dc3545;
   font-size: 12px;
   margin-top: 6px;
+  font-weight: 500;
 }
 
-/* Security questions styling */
-.security-question-group {
-  margin-bottom: 15px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e0e0e0;
+/* Password requirements styling */
+.password-requirements {
+  margin: 16px 0;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
 }
 
-.security-question-group:last-child {
+.password-requirements h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.password-requirements ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #666;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.requirement-item:last-child {
   margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
+}
+
+.requirement-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.requirement-item.unmet {
+  color: #dc3545;
+  background-color: #fff5f5;
+}
+
+.requirement-item.met {
+  color: #198754;
+  background-color: #f0fff4;
+}
+
+.requirement-item.unmet .requirement-icon {
+  color: #dc3545;
+}
+
+.requirement-item.met .requirement-icon {
+  color: #198754;
 }
 
 /* Toggle visibility button styles */
@@ -876,16 +956,20 @@ th, tr {
   border: none;
   color: #004D8D;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 8px 0;
   font-size: 13px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-top: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .visibility-toggle:hover {
-  text-decoration: underline;
+  color: #003d82;
+  text-decoration: none;
+  opacity: 0.9;
 }
 
 /* Responsive adjustments */
@@ -1540,4 +1624,132 @@ th, tr {
   color: #666;
   font-size: 15px;
   /* Adjust max-width as needed to match the form row width */
+}
+
+/* Password Change Section */
+.iris-password-field {
+  margin-bottom: 20px;
+}
+
+.iris-password-field label {
+  display: block;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 7px;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.iris-password-input-wrapper {
+  position: relative;
+}
+
+.iris-password-input {
+  width: 100%;
+  padding: 11px 42px 11px 13px;
+  border: 1.5px solid #cfd8dc;
+  border-radius: 7px;
+  font-size: 15px;
+  background: #f7fafc;
+  transition: border-color 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+.iris-password-input:focus {
+  border-color: #1976d2;
+  background: #fff;
+  outline: none;
+}
+
+.iris-password-input.iris-password-error {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.iris-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 19px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.iris-password-toggle:hover {
+  color: #1976d2;
+}
+
+/* Password Requirements */
+.iris-password-requirements {
+  margin-top: 10px;
+  padding: 16px 18px;
+  background: #f8fafd;
+  border: 1.5px solid #e3eaf2;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+.iris-password-requirements h4 {
+  margin: 0 0 10px 0;
+  color: #222;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.iris-requirements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.iris-requirement-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 7px;
+  font-size: 14px;
+  color: #888;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: color 0.2s;
+}
+
+.iris-requirement-item:last-child {
+  margin-bottom: 0;
+}
+
+.iris-requirement-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 9px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.iris-requirement-item.iris-requirement-met {
+  color: #198754;
+}
+
+.iris-requirement-item.iris-requirement-met .iris-requirement-icon {
+  color: #198754;
+}
+
+.iris-requirement-item.iris-requirement-unmet {
+  color: #dc3545;
+}
+
+.iris-requirement-item.iris-requirement-unmet .iris-requirement-icon {
+  color: #dc3545;
 }

@@ -170,13 +170,11 @@ exports.deleteUsers = async (req, res) => {
 exports.restoreUsers = async (req, res) => {
   try {
     const { userIds } = req.body;
-
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for restoration' });
     }
-
-    await userService.restoreUsers(userIds);
-    res.status(200).json({ message: 'Users restored successfully' });
+    const restoredPasswords = await userService.restoreUsers(userIds);
+    res.status(200).json({ message: 'Users restored successfully', restoredPasswords });
     broadcastUserUpdate();
   } catch (error) {
     console.error('Error restoring users:', error);
@@ -187,11 +185,11 @@ exports.restoreUsers = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    const allowedFields = ['employeeId', 'name', 'email', 'role', 'status', 'password', 'securityQuestions'];
+    const allowedFields = ['employeeId', 'name', 'email', 'role', 'status', 'password', 'securityQuestions', 'resetPassword'];
     const updateData = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
-        updateData[field] = req.body[field];
+         updateData[field] = req.body[field];
       }
     }
     if (Object.keys(updateData).length === 0) {
@@ -204,13 +202,23 @@ exports.updateUser = async (req, res) => {
       // Check if user exists in tbl_admin
       user = await userService.getAdminByLoginId(userId);
       if (!user) {
-        return res.status(404).json({ message: 'User not found.' });
+         return res.status(404).json({ message: 'User not found.' });
       }
       isAdmin = true;
     }
-    // If password is present, hash it
-    if (updateData.password) {
-      const bcrypt = require('bcrypt');
+    // If updateData.resetPassword is true, compute a default password (employeeID + MMDDYYYY) and hash it.
+    if (updateData.resetPassword) {
+      const employeeId = updateData.employeeId || user.dUser_ID;
+      const tCreatedAt = user.tCreatedAt ? new Date(user.tCreatedAt) : new Date();
+      const mm = String(tCreatedAt.getMonth() + 1).padStart(2, '0');
+      const dd = String(tCreatedAt.getDate()).padStart(2, '0');
+      const yyyy = String(tCreatedAt.getFullYear());
+      const dateStr = `${mm}${dd}${yyyy}`;
+      const defaultPassword = `${employeeId}${dateStr}`;
+      updateData.hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      delete updateData.resetPassword;
+    } else if (updateData.password) {
+      // If a new password is provided (and not reset), hash it.
       updateData.hashedPassword = await bcrypt.hash(updateData.password, 10);
       delete updateData.password;
     }
@@ -218,28 +226,27 @@ exports.updateUser = async (req, res) => {
     if (!isAdmin && Array.isArray(updateData.securityQuestions)) {
       const allEmpty = updateData.securityQuestions.every(q => !q.question && !q.answer);
       if (allEmpty) {
-        // Clear security questions in DB
-        await userService.updateUserSecurityQuestions(userId, [
-          { question: '', answer: '' },
-          { question: '', answer: '' },
-          { question: '', answer: '' }
-        ]);
-        updateData.status = 'RESET-DONE';
-        // Always set password to '1234' (hashed)
-        const bcrypt = require('bcrypt');
-        updateData.hashedPassword = await bcrypt.hash('1234', 10);
-        delete updateData.password;
-        delete updateData.securityQuestions;
+         // Clear security questions in DB
+         await userService.updateUserSecurityQuestions(userId, [
+           { question: '', answer: '' },
+           { question: '', answer: '' },
+           { question: '', answer: '' }
+         ]);
+         updateData.status = 'RESET-DONE';
+         // Always set password to '1234' (hashed)
+         updateData.hashedPassword = await bcrypt.hash('1234', 10);
+         delete updateData.password;
+         delete updateData.securityQuestions;
       }
     }
     let result;
     if (isAdmin) {
-      result = await userService.updateAdminUserDynamic(userId, updateData);
+       result = await userService.updateAdminUserDynamic(userId, updateData);
     } else {
-      result = await userService.updateUserDynamic(userId, updateData);
+       result = await userService.updateUserDynamic(userId, updateData);
     }
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'User not found or no changes made.' });
+       return res.status(404).json({ message: 'User not found or no changes made.' });
     }
     res.status(200).json({ message: 'User updated successfully' });
     broadcastUserUpdate();
