@@ -8,9 +8,13 @@ const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 
+// Middleware
+const userRoutes = require('./routes/userRoutes');
+require('./binlogListener');
 const app = express();
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -28,5 +32,8 @@ app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/sites', SiteManagementRoutes);
 app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
+
+// Mount routes
+app.use('/api/users', userRoutes);
 
 module.exports = app;
