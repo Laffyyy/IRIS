@@ -1450,8 +1450,9 @@ const SiteManagement = () => {
                     Created At {siteSortConfig.key === 'tCreatedAt' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
                   <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
-                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, marginLeft: 55 }}>
                     <div className="select-all-container">
+                    <p>Select All</p>
                       <input
                         type="checkbox"
                         checked={selectAllSites}
@@ -1806,8 +1807,9 @@ const SiteManagement = () => {
                   Created At {clientSiteSortConfig.key === 'tCreatedAt' && (clientSiteSortConfig.direction === 'ascending' ? '▲' : '▼')}
                 </th>
                 <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
-                <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
+                <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, marginLeft: 10 }}>
                   <div className="select-all-container">
+                    <p>Select All</p>
                     <input
                       type="checkbox"
                       checked={selectAllClientSites}
