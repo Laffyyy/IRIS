@@ -107,7 +107,8 @@ const CustomModal = ({ open, type, title, message, onConfirm, onCancel, confirmT
             {icon}
             <h2 style={{ fontSize: 20, color: headerColor, fontWeight: 700, margin: 0 }}>{headerText}</h2>
           </div>
-          <button onClick={onCancel} style={{ background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer', marginLeft: 8 }}><FaTimes /></button>
+          {/* Remove the X (close) button from the upper right corner */}
+          {/* <button onClick={onCancel} style={{ background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer', marginLeft: 8 }}><FaTimes /></button> */}
         </div>
         {/* Divider below the title */}
         <div style={{ borderTop: '1px solid #ececec', margin: '18px 0 0 0' }} />
