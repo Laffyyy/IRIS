@@ -1,5 +1,17 @@
 const db = require('../config/db');
 
+// Utility function to generate the next dClientLOB_ID
+async function getNextClientLOBId() {
+    const [rows] = await db.query("SELECT dClientLOB_ID FROM tbl_clientlob ORDER BY dClientLOBEntry_ID DESC LIMIT 1");
+    if (rows.length === 0 || !rows[0].dClientLOB_ID) {
+        return 'CLB1';
+    }
+    const lastId = rows[0].dClientLOB_ID;
+    const match = lastId.match(/CLB(\d+)/);
+    const nextNum = match ? parseInt(match[1], 10) + 1 : 1;
+    return `CLB${nextNum}`;
+}
+
 class ClientManagementService {
     async logAdminAction({ dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt }) {
         await db.query(
@@ -43,14 +55,12 @@ class ClientManagementService {
             
             for (const lob of LOBs) {
                 for (const subLOB of lob.subLOBs) {
-                    // Don't specify dClient_ID - let MySQL auto-increment it
+                    const dClientLOB_ID = await getNextClientLOBId();
                     const [result] = await db.query(
-                        'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt, dStatus) VALUES (?, ?, ?, ?, ?, ?)',
-                        [clientName, lob.name, subLOB, createdBy, currentDate, 'ACTIVE']
+                        'INSERT INTO tbl_clientlob (dClientLOB_ID, dClientName, dLOB, dSubLOB, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [dClientLOB_ID, clientName, lob.name, subLOB, 'ACTIVE', createdBy, currentDate]
                     );
-                    
-                    results.push(result.insertId);
-                    // Log creation for each row
+                    results.push({ entryId: result.insertId, dClientLOB_ID });
                     await this.logAdminAction({
                         dActionLocation_ID: result.insertId,
                         dActionLocation: 'CLIENT',
@@ -63,11 +73,11 @@ class ClientManagementService {
             
             // Get the client ID that was generated
             const [newClient] = await db.query(
-                'SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? LIMIT 1',
+                'SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? LIMIT 1',
                 [clientName]
             );
             
-            const clientId = newClient.length > 0 ? newClient[0].dClient_ID : null;
+            const clientId = newClient.length > 0 ? newClient[0].dClientLOBEntry_ID : null;
             
             return { clientId, clientName, insertedIds: results, createdBy };
         } catch (error) {
@@ -80,7 +90,8 @@ class ClientManagementService {
         try {
             const [rows] = await db.query(`
                 SELECT 
-                    cl.dClient_ID,
+                    cl.dClientLOBEntry_ID,
+                    cl.dClientLOB_ID,
                     cl.dClientName,
                     cl.dLOB,
                     cl.dSubLOB,
@@ -95,7 +106,7 @@ class ClientManagementService {
                     cl.dLOB = cs.dLOB AND 
                     cl.dSubLOB = cs.dSubLOB
                 WHERE cl.dStatus = ?
-                ORDER BY cl.dClient_ID DESC
+                ORDER BY cl.dClientLOBEntry_ID DESC
             `, [status]);
             
             // Get site information with LOB associations
@@ -140,11 +151,11 @@ class ClientManagementService {
             const clientsMap = new Map();
             
             rows.forEach(row => {
-                const clientId = row.dClient_ID;
+                const clientId = row.dClientLOBEntry_ID;
                 const clientName = row.dClientName;
                 const lob = row.dLOB;
                 const subLOB = row.dSubLOB;
-                const createdAt = row.tCreatedAt; // Make sure to include the timestamp
+                const createdAt = row.tCreatedAt;
                 
                 if (!clientsMap.has(clientName)) {
                     clientsMap.set(clientName, {
@@ -154,7 +165,7 @@ class ClientManagementService {
                         sites: clientSitesMap.get(clientName) ? 
                             Array.from(clientSitesMap.get(clientName).values()) : [],
                         createdBy: row.dCreatedBy,
-                        createdAt: row.tCreatedAt // Include createdAt at client level
+                        createdAt: row.tCreatedAt
                     });
                 }
                 
@@ -168,12 +179,11 @@ class ClientManagementService {
                     client.LOBs.set(lob, {
                         name: lob,
                         subLOBs: [],
-                        clientRowId: row.dClient_ID, // Include the unique row ID
-                        // Keep the other properties that are already there
+                        clientRowId: row.dClientLOBEntry_ID,
                         siteId: sitesInfo.length > 0 ? sitesInfo[0].siteId : null,
                         siteName: sitesInfo.length > 0 ? sitesInfo[0].siteName : null,
                         sites: sitesInfo,
-                        createdAt: row.tCreatedAt // Include createdAt at LOB level
+                        createdAt: row.tCreatedAt
                     });
                 }
                 
@@ -188,8 +198,8 @@ class ClientManagementService {
                         // Store SubLOB as an object with its own unique clientRowId and createdAt
                         client.LOBs.get(lob).subLOBs.push({
                             name: subLOB,
-                            clientRowId: row.dClient_ID,
-                            createdAt: row.tCreatedAt // Include createdAt at SubLOB level
+                            clientRowId: row.dClientLOBEntry_ID,
+                            createdAt: row.tCreatedAt
                         });
                     }
                 }
@@ -208,7 +218,7 @@ class ClientManagementService {
                     LOBs: lobsArray,
                     sites: client.sites,
                     createdBy: client.createdBy,
-                    createdAt: client.createdAt // Include createdAt in the final response
+                    createdAt: client.createdAt
                 });
             });
             
@@ -336,7 +346,7 @@ class ClientManagementService {
             
             // Check if the client exists and get its ID
             const [clientExists] = await db.query(
-                'SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? LIMIT 1',
+                'SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? LIMIT 1',
                 [clientName]
             );
             
@@ -344,7 +354,7 @@ class ClientManagementService {
                 throw new Error(`Client "${clientName}" does not exist`);
             }
             
-            const clientId = clientExists[0].dClient_ID;
+            const clientEntryId = clientExists[0].dClientLOBEntry_ID;
             
             // Check if the LOB already exists for this client
             const [lobExists] = await db.query(
@@ -363,9 +373,10 @@ class ClientManagementService {
             const actualSubLOB = subLOBName && subLOBName.trim() ? subLOBName.trim() : "__temp_placeholder__";
             
             // Add the LOB with the SubLOB
+            const dClientLOB_ID = await getNextClientLOBId();
             const [result] = await db.query(
-                'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt, dStatus) VALUES (?, ?, ?, ?, ?, ?)',
-                [clientName, lobName, actualSubLOB, userId, currentDate, 'ACTIVE']
+                'INSERT INTO tbl_clientlob (dClientLOB_ID, dClientName, dLOB, dSubLOB, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [dClientLOB_ID, clientName, lobName, actualSubLOB, 'ACTIVE', userId, currentDate]
             );
             await this.logAdminAction({
                 dActionLocation_ID: result.insertId,
@@ -391,8 +402,8 @@ class ClientManagementService {
                 
                 // Associate the LOB with the site, including the SubLOB, site name, and client ID
                 const [siteInsertResult] = await db.query(
-                    'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [clientId, clientName, lobName, actualSubLOB, siteId, siteName, userId, currentDate]
+                    'INSERT INTO tbl_clientsite (dClientSite_ID, dClientLOB_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [null, dClientLOB_ID, clientName, lobName, actualSubLOB, siteId, siteName, 'ACTIVE', userId, currentDate]
                 );
                 await this.logAdminAction({
                     dActionLocation_ID: siteInsertResult.insertId,
@@ -403,21 +414,23 @@ class ClientManagementService {
                 });
                 
                 return {
-                    clientId,
+                    clientEntryId,
                     clientName,
                     lobName,
                     subLOBName: actualSubLOB,
                     siteId,
                     siteName,
+                    dClientLOB_ID,
                     message: 'LOB added successfully with site association'
                 };
             }
             
             return {
-                clientId,
+                clientEntryId,
                 clientName,
                 lobName,
                 subLOBName: actualSubLOB,
+                dClientLOB_ID,
                 message: 'LOB added successfully without site association'
             };
         } catch (error) {
@@ -580,7 +593,7 @@ class ClientManagementService {
             
             // Check if the client and LOB exist and get client ID
             const [clientLobData] = await db.query(
-                'SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? LIMIT 1',
+                'SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? LIMIT 1',
                 [clientName, lobName]
             );
             
@@ -588,7 +601,7 @@ class ClientManagementService {
                 throw new Error(`LOB "${lobName}" does not exist for client "${clientName}"`);
             }
             
-            const clientId = clientLobData[0].dClient_ID;
+            const clientEntryId = clientLobData[0].dClientLOBEntry_ID;
             
             // Check if the placeholder entry exists and delete it
             await db.query(
@@ -610,9 +623,10 @@ class ClientManagementService {
             const currentDate = new Date();
             
             // Insert the new Sub LOB
+            const dClientLOB_ID = await getNextClientLOBId();
             const [result] = await db.query(
-                'INSERT INTO tbl_clientlob (dClientName, dLOB, dSubLOB, dCreatedBy, tCreatedAt, dStatus) VALUES (?, ?, ?, ?, ?, ?)',
-                [clientName, lobName, subLOBName, userId, currentDate, 'ACTIVE']
+                'INSERT INTO tbl_clientlob (dClientLOB_ID, dClientName, dLOB, dSubLOB, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [dClientLOB_ID, clientName, lobName, subLOBName, 'ACTIVE', userId, currentDate]
             );
             await this.logAdminAction({
                 dActionLocation_ID: result.insertId,
@@ -647,8 +661,8 @@ class ClientManagementService {
                     }
                     
                     const [siteInsertResult] = await db.query(
-                        'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                        [clientId, clientName, lobName, subLOBName, site.dSite_ID, site.dSiteName, userId, currentDate]
+                        'INSERT INTO tbl_clientsite (dClientSite_ID, dClientLOB_ID, dClientName, dLOB, dSubLOB, dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [null, dClientLOB_ID, clientName, lobName, subLOBName, site.dSite_ID, site.dSiteName, 'ACTIVE', userId, currentDate]
                     );
                     await this.logAdminAction({
                         dActionLocation_ID: siteInsertResult.insertId,
@@ -660,10 +674,11 @@ class ClientManagementService {
                 }
                 
                 return { 
-                    clientId,
+                    clientEntryId,
                     clientName, 
                     lobName, 
                     subLOBName,
+                    dClientLOB_ID,
                     insertId: result.insertId, 
                     createdBy: userId,
                     siteAssociationsUpdated: true,
@@ -672,10 +687,11 @@ class ClientManagementService {
             }
             
             return { 
-                clientId,
+                clientEntryId,
                 clientName, 
                 lobName, 
                 subLOBName,
+                dClientLOB_ID,
                 insertId: result.insertId, 
                 createdBy: userId,
                 siteAssociationsUpdated: false,
@@ -842,31 +858,24 @@ class ClientManagementService {
             if (!clientName) {
                 throw new Error('Client name is required');
             }
-
-            // Update dStatus in tbl_clientlob
             const [result] = await db.query(
                 'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ?',
                 ['DEACTIVATED', clientName]
             );
-
-            // Log for each affected row
-            const [affectedRows] = await db.query('SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ?', [clientName]);
+            const [affectedRows] = await db.query('SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ?', [clientName]);
             for (const row of affectedRows) {
                 await this.logAdminAction({
-                    dActionLocation_ID: row.dClient_ID,
+                    dActionLocation_ID: row.dClientLOBEntry_ID,
                     dActionLocation: 'CLIENT',
                     dActionType: 'MODIFIED',
                     dActionBy: userId,
                     tActionAt: new Date()
                 });
             }
-
-            // Update dStatus in tbl_clientsite
             await db.query(
                 'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ?',
                 ['DEACTIVATED', clientName]
             );
-
             return {
                 message: 'Client deactivated successfully',
                 clientName,
@@ -892,10 +901,10 @@ class ClientManagementService {
             );
 
             // Log for each affected row
-            const [affectedRows] = await db.query('SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?', [clientName, lobName]);
+            const [affectedRows] = await db.query('SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?', [clientName, lobName]);
             for (const row of affectedRows) {
                 await this.logAdminAction({
-                    dActionLocation_ID: row.dClient_ID,
+                    dActionLocation_ID: row.dClientLOBEntry_ID,
                     dActionLocation: 'CLIENT',
                     dActionType: 'MODIFIED',
                     dActionBy: userId,
@@ -935,10 +944,10 @@ class ClientManagementService {
             );
 
             // Log for each affected row
-            const [affectedRows] = await db.query('SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?', [clientName, lobName, subLOBName]);
+            const [affectedRows] = await db.query('SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?', [clientName, lobName, subLOBName]);
             for (const row of affectedRows) {
                 await this.logAdminAction({
-                    dActionLocation_ID: row.dClient_ID,
+                    dActionLocation_ID: row.dClientLOBEntry_ID,
                     dActionLocation: 'CLIENT',
                     dActionType: 'MODIFIED',
                     dActionBy: userId,
@@ -971,23 +980,20 @@ class ClientManagementService {
             if (!clientName) {
                 throw new Error('Client name is required');
             }
-            // Update dStatus in tbl_clientlob
             const [result] = await db.query(
                 'UPDATE tbl_clientlob SET dStatus = ? WHERE dClientName = ?',
                 ['ACTIVE', clientName]
             );
-            // Log for each affected row
-            const [affectedRows] = await db.query('SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ?', [clientName]);
+            const [affectedRows] = await db.query('SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ?', [clientName]);
             for (const row of affectedRows) {
                 await this.logAdminAction({
-                    dActionLocation_ID: row.dClient_ID,
+                    dActionLocation_ID: row.dClientLOBEntry_ID,
                     dActionLocation: 'CLIENT',
                     dActionType: 'MODIFIED',
                     dActionBy: userId,
                     tActionAt: new Date()
                 });
             }
-            // Update dStatus in tbl_clientsite
             await db.query(
                 'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientName = ?',
                 ['ACTIVE', clientName]
@@ -1015,10 +1021,10 @@ class ClientManagementService {
                 ['ACTIVE', clientName, lobName]
             );
             // Log for each affected row
-            const [affectedRows] = await db.query('SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?', [clientName, lobName]);
+            const [affectedRows] = await db.query('SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ?', [clientName, lobName]);
             for (const row of affectedRows) {
                 await this.logAdminAction({
-                    dActionLocation_ID: row.dClient_ID,
+                    dActionLocation_ID: row.dClientLOBEntry_ID,
                     dActionLocation: 'CLIENT',
                     dActionType: 'MODIFIED',
                     dActionBy: userId,
@@ -1054,10 +1060,10 @@ class ClientManagementService {
                 ['ACTIVE', clientName, lobName, subLOBName]
             );
             // Log for each affected row
-            const [affectedRows] = await db.query('SELECT dClient_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?', [clientName, lobName, subLOBName]);
+            const [affectedRows] = await db.query('SELECT dClientLOBEntry_ID FROM tbl_clientlob WHERE dClientName = ? AND dLOB = ? AND dSubLOB = ?', [clientName, lobName, subLOBName]);
             for (const row of affectedRows) {
                 await this.logAdminAction({
-                    dActionLocation_ID: row.dClient_ID,
+                    dActionLocation_ID: row.dClientLOBEntry_ID,
                     dActionLocation: 'CLIENT',
                     dActionType: 'MODIFIED',
                     dActionBy: userId,
