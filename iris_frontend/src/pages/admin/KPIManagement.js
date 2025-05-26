@@ -135,6 +135,14 @@ const KPIManagement = () => {
     setShowAlertModal(true);
   };
 
+  // Modify the modal close handler
+  const handleCloseConfirmModal = () => {
+    setShowConfirmModal(false);
+    setAddConfirmation(''); // Reset the confirmation text
+    setKpiToAdd(null);
+  };
+
+
 
   const handleFormSubmit = () => {
       if (!kpiName.trim()) {
@@ -2010,15 +2018,15 @@ const handleDeleteConfirm = async () => {
             </div>
 
             <div className="modal-actions">
-              <button 
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  setAddConfirmation('');
-                }} 
-                className="cancel-btn"
-              >
-                Cancel
-              </button>
+            <button 
+              onClick={() => {
+                setShowConfirmModal(false);
+                setAddConfirmation('');
+              }} 
+              className="cancel-btn"
+            >
+              Cancel
+            </button>
               <button 
                 onClick={handleConfirmAdd}
                 className="save-btn"
