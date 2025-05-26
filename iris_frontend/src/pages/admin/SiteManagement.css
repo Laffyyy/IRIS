@@ -3,6 +3,10 @@
   padding: 20px;
   font-family: 'Inter', sans-serif;
   position: relative;
+  height: calc(100vh - 40px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .white-card {
@@ -10,10 +14,19 @@
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.site-management-header {
+  text-align: center;
+  margin-bottom: 20px;
 }
 
 .site-management-header h1 {
-  font-size: 18px;
+  font-size: 40px;
   color: #004D8D;
   margin-bottom: 6px;
   font-weight: 600;
@@ -23,6 +36,7 @@
   font-size: 12px;
   color: #666;
   margin-bottom: 16px;
+  text-align: center; /* Ensure subtitle is also centered */
 }
 
 .tab-container {
@@ -48,10 +62,14 @@
 
 .tab-content {
   display: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tab-content.active {
   display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-row {
@@ -82,6 +100,11 @@
   font-size: 13px;
 }
 
+.input-invalid {
+  border-color: #e53e3e !important;
+  background-color: #fff5f5;
+}
+
 .add-button {
   background-color: #004D8D;
   color: white;
@@ -90,7 +113,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
-  margin-top: 10px;
+  margin-top: 15px;
 }
 
 .add-button:hover {
@@ -118,6 +141,265 @@
 }
 
 /* Table Styles */
+.table-wrapper {
+  margin-top: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 500px;
+  position: relative;
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.table-wrapper thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f8fafc;
+}
+
+.table-wrapper thead th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+  background-color: #f8fafc;
+}
+
+.table-wrapper tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.table-wrapper tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.table-wrapper tbody tr.selected-row {
+  background-color: #f1f5f9;
+}
+
+/* Separate table wrappers for each table */
+.site-management-card .table-wrapper:first-of-type {
+  margin-bottom: 24px;
+}
+
+.site-management-card .table-wrapper:last-of-type {
+  margin-top: 24px;
+}
+
+/* Ensure sticky headers work with horizontal scroll */
+.table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8fafc;
+  z-index: 1;
+}
+
+/* Add shadow to sticky headers */
+.table-wrapper thead th::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: #e2e8f0;
+}
+
+/* Ensure proper z-index stacking for sticky headers */
+.table-wrapper thead th {
+  z-index: 2;
+}
+
+.table-wrapper tbody tr {
+  z-index: 1;
+}
+
+/* Ensure proper spacing for the select column */
+.table-wrapper .select-col {
+  width: 60px;
+  text-align: center;
+}
+
+/* Ensure proper spacing for the actions column */
+.table-wrapper .actions-col {
+  width: 120px;
+  text-align: center;
+}
+
+/* Style for the select all container */
+.select-all-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.select-all-container input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Center align the checkbox in data cells */
+td.select-col {
+  text-align: center;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+td.select-col input[type="checkbox"] {
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Override any conflicting styles */
+.existing-sites td.select-col input[type="checkbox"],
+.existing-sites th.select-col input[type="checkbox"] {
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+  margin: 0;
+  display: inline-block;
+}
+
+/* Selected count styles */
+.selected-count {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Checkbox styles */
+input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Header checkbox specific styles */
+th:last-child input[type="checkbox"] {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 0;
+}
+
+/* Data row checkbox specific styles */
+td:last-child input[type="checkbox"] {
+  margin-left: auto;
+  display: block;
+}
+
+.edit-btn, .delete-btn {
+  padding: 5px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-btn {
+  background-color: #e6f2ff;
+  color: #004D8D;
+}
+
+.edit-btn:hover {
+  background-color: #cce5ff;
+}
+
+/* Reactivate button styles */
+.reactivate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #38a169; /* Green text color */
+}
+
+.reactivate-btn:hover {
+  background-color: #f0fff4; /* Light green background on hover */
+  transform: scale(1.05);
+}
+
+/* Remove the conflicting styles */
+.edit-btn.reactivate-btn,
+.edit-btn.reactivate-btn:hover {
+  background: none;
+  color: #38a169;
+}
+
+.bulk-reactivate-btn {
+  color: #38a169;
+  background: none;
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #f0fff4;
+}
+
+.delete-btn {
+  background-color: #ffe6e6;
+  color: #dc2626;
+}
+
+.delete-btn:hover {
+  background-color: #ffcccc;
+}
+
+.selected-row {
+  background-color: #f0f7ff;
+}
+
+/* Actions header */
+.actions-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.select-all-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .existing-sites table {
   width: 100%;
   border-collapse: collapse;
@@ -223,45 +505,6 @@
   }
 }
 
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
-}
-
-.edit-btn,
-.delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 5px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.edit-btn {
-  color: #4299e1;
-}
-
-.edit-btn:hover {
-  background-color: #ebf8ff;
-  transform: scale(1.05);
-}
-
-.delete-btn {
-  color: #e53e3e;
-}
-
-.delete-btn:hover {
-  background-color: #fff5f5;
-  transform: scale(1.05);
-}
-
 .button-group {
   display: flex;
   gap: 10px;
@@ -335,10 +578,1023 @@ td:last-child {
   color: #d32f2f;
 }
 
+.no-clients {
+  font-style: italic;
+  color: #666;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.existing-client-site-table,
+.existing-sites-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-size: 13px;
+}
+
+.existing-client-site-table th,
+.existing-sites-table th,
+.existing-client-site-table td,
+.existing-sites-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.existing-client-site-table th,
+.existing-sites-table th {
+  background-color: #004D8D;
+  color: white;
+  font-weight: 600;
+}
+
+.existing-client-site-table tr:nth-child(even),
+.existing-sites-table tr:nth-child(even) {
+  background-color: white;
+}
+
+.existing-client-site-table tr:nth-child(odd),
+.existing-sites-table tr:nth-child(odd) {
+  background-color: white;
+}
+
+.required-field {
+  color: #e53e3e;
+  margin-left: 3px;
+}
+
+.validation-error {
+  border: 1px solid #e53e3e !important;
+  background-color: #fff5f5;
+}
+
+.validation-warning {
+  border: 1px solid #ecc94b;
+  background-color: #fffff0;
+}
+
+.error-message {
+  color: #e53e3e;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Add this to your SiteManagement.css file */
+.modal-subtitle {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  color: #666;
+  font-size: 13px;
+}
+
+.modal-subtitle strong {
+  color: #004D8D;
+}
+
 .client-name-container label {
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
   font-size: 13px;
   text-align: left;
+}
+
+.bulk-delete-container {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.bulk-delete-btn,
+.bulk-reactivate-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.bulk-delete-btn {
+  background-color: #dc2626 !important; /* Solid red background */
+  color: white !important;
+  padding: 2px 6px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 28px;
+}
+
+.bulk-reactivate-btn {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.bulk-delete-btn:hover {
+  background-color: #b91c1c !important; /* Darker red on hover */
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #c8e6c9;
+}
+
+/* Ensure the icon inside the button is properly aligned */
+.bulk-delete-btn svg {
+  margin-right: 5px;
+}
+
+/* Add styling for checkboxes */
+.existing-sites-table input[type="checkbox"],
+.existing-client-site-table input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* Add a checkbox column width */
+.existing-sites-table th:first-child,
+.existing-sites-table td:first-child,
+.existing-client-site-table th:first-child,
+.existing-client-site-table td:first-child {
+  width: 80px;
+  text-align: center;
+  box-sizing: border-box; /* Add this to include padding in width calculation */
+}
+
+/* Bulk Add Modal Styles */
+.bulk-add-modal {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bulk-clients-list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.bulk-clients-header {
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.bulk-clients-container {
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.bulk-client-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  gap: 20px;
+}
+
+.bulk-client-item:last-child {
+  border-bottom: none;
+}
+
+.bulk-client-item input[type="checkbox"] {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.bulk-client-item span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  padding-right: 20px;
+}
+
+.loading-message,
+.no-clients-message {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.loading-message {
+  color: #004D8D;
+}
+
+.no-clients-message {
+  color: #666;
+}
+
+/* Add hover effect */
+.bulk-client-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* Style the checkbox container */
+.bulk-clients-header span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.bulk-clients-header input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.client-counts {
+  font-size: 0.85em;
+  color: #666;
+  margin-left: 8px;
+  font-style: italic;
+}
+
+/* React Select Styles */
+.react-select-container {
+  width: 100%;
+}
+
+.react-select__control {
+  min-height: 38px !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  font-size: 13px !important;
+}
+
+.react-select__control:hover {
+  border-color: #004D8D !important;
+}
+
+.react-select__control--is-focused {
+  border-color: #004D8D !important;
+  box-shadow: 0 0 0 1px #004D8D !important;
+}
+
+.react-select__menu {
+  font-size: 13px !important;
+  z-index: 2 !important;
+}
+
+.react-select__option {
+  padding: 8px 12px !important;
+}
+
+.react-select__option--is-focused {
+  background-color: #f0f7ff !important;
+  color: #004D8D !important;
+}
+
+.react-select__option--is-selected {
+  background-color: #004D8D !important;
+  color: white !important;
+}
+
+.react-select__input-container {
+  margin: 0 !important;
+}
+
+.react-select__value-container {
+  padding: 2px 8px !important;
+}
+
+.react-select__indicator {
+  padding: 4px !important;
+}
+
+.react-select__indicator-separator {
+  margin: 4px 0 !important;
+}
+
+.react-select__clear-indicator {
+  padding: 4px !important;
+}
+
+.react-select__dropdown-indicator {
+  padding: 4px !important;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background-color: #003d70;
+}
+
+.sortable-header::after {
+  display: inline-block;
+  margin-left: 5px;
+  color: white;
+}
+
+th.sortable-header {
+  position: relative;
+}
+
+.buttons-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.equal-width-button {
+  width: 180px;
+  min-height: 40px;
+  margin: 0 auto;
+  height: auto;
+  white-space: normal;
+  line-height: 1.2;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Two-column layout for site management */
+.site-management-two-column {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Cards for site management sections */
+.site-management-card {
+  flex: 1;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 10px;
+  min-height: 0;
+  max-height: calc(100vh - 180px); /* Add max-height to prevent overflow */
+}
+
+/* Left card for add site section */
+.site-management-card:first-child {
+  flex: 0 0 320px;
+  align-self: flex-start;
+}
+
+.site-management-card:first-child .form-row {
+  margin-bottom: 1px; /* Reduce from the default 20px */
+}
+
+/* Right card for existing sites table */
+.site-management-card:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 650px; /* Set fixed max-height */
+}
+
+.site-management-card h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.search-and-bulk-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+  min-height: 38px;
+  width: 100%;
+}
+
+.search-container {
+  position: relative;
+  flex: 0 0 400px; /* Increased from 300px */
+  max-width: 400px; /* Increased from 300px */
+  display: flex;
+  align-items: center;
+  height: 38px;
+  max-height: 38px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.search-box input {
+  width: 100%;
+  height: 100%;
+  padding: 8px 8px 8px 32px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 14px;
+  z-index: 1;
+}
+
+.bulk-delete-container {
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 160px; /* Use flex-basis instead of width */
+  max-width: 160px;
+  visibility: hidden;
+}
+
+.bulk-delete-container:not(:empty) {
+  visibility: visible; /* Show when has content */
+}
+
+.bulk-delete-btn,
+.bulk-reactivate-btn {
+  padding: 2px 6px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 28px;
+}
+
+.bulk-delete-btn {
+  background-color: #dc2626 !important; /* Solid red background */
+  color: white !important;
+  padding: 2px 6px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  height: 28px;
+}
+
+.bulk-reactivate-btn {
+  background-color: #38a169;
+  color: white;
+}
+
+.bulk-delete-btn:hover {
+  background-color: #b91c1c !important; /* Darker red on hover */
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #2f855a;
+}
+
+/* Two-column layout for Add Client to Site tab */
+.tab-content[class*="addClient"] .site-management-two-column {
+  display: flex;
+  gap: 50px;
+  margin-top: 10px;
+}
+
+/* Left card for client form */
+.tab-content[class*="addClient"] .client-form-card {
+  flex: 0 0 320px;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  align-self: flex-start;
+}
+
+/* Right card for client site assignments table */
+.tab-content[class*="addClient"] .client-table-card {
+  flex: 1;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-content[class*="addClient"] .client-table-card h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+/* Add a container for the client-site assignments table */
+.client-site-table-container {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-top: 0;
+  min-height: 0;
+}
+
+/* Make the table header sticky when scrolling */
+.existing-client-site-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #004D8D;
+}
+
+/* Add scrollbar styles consistent with your existing ones */
+.client-site-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.client-site-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.client-site-table-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.client-site-table-container::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+@keyframes slideInOut {
+  0% {
+    transform: translate(-50%, -100px);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  85% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -100px);
+    opacity: 0;
+  }
+}
+
+.success-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  animation: slideInOut 3s forwards;
+}
+
+.deactivate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: red; /* Orange color for deactivate */
+}
+
+.deactivate-btn:hover {
+  background-color: #fffaf0; /* Light orange background on hover */
+  transform: scale(1.05);
+}
+
+.site-status-tabs {
+  display: flex;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.site-status-tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.site-status-tab:hover {
+  background-color: #f7fafc;
+}
+
+.site-status-tab.active {
+  border-bottom: 2px solid #004D8D;
+  font-weight: 500;
+  color: #004D8D;
+}
+
+.site-status-tab.active .tab-count {
+  color: #004D8D;
+  background-color: #e6f2ff;
+}
+
+.tab-count {
+  font-size: 12px;
+  color: #666;
+  background-color: #f0f4f8;
+  padding: 2px 6px;
+  border-radius: 12px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.reactivate-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #38a169; /* Green text color */
+}
+
+.reactivate-btn:hover {
+  background-color: #f0fff4; /* Light green background on hover */
+  transform: scale(1.05);
+}
+
+/* Update the edit-btn class when it's used for reactivation */
+.edit-btn.reactivate-btn {
+  background-color: #38a169;
+  color: white;
+}
+
+.edit-btn.reactivate-btn:hover {
+  background-color: #2f855a;
+}
+
+.bulk-reactivate-btn {
+  color: white;
+  background-color: #38a169;
+}
+
+.bulk-reactivate-btn:hover {
+  background-color: #2f855a;
+}
+
+/* Reactivation Modal Styles */
+.modal.reactivate-confirmation-modal {
+  border-top: 4px solid #38a169;
+  max-width: 350px;
+}
+
+.modal.reactivate-confirmation-modal .modal-header {
+  color: #38a169;
+}
+
+.modal.reactivate-confirmation-modal .modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #38a169;
+  font-weight: 500;
+}
+
+.modal.reactivate-confirmation-modal .modal-actions .save-btn {
+  background-color: #38a169;
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.modal.reactivate-confirmation-modal .modal-actions .save-btn:hover {
+  background-color: #2f855a;
+}
+
+.modal.reactivate-confirmation-modal .modal-actions .save-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Different icon color for reactivation */
+.reactivation-icon {
+  color: #38a169;
+}
+
+/* Modified delete confirmation modal styling */
+.modal.delete-confirmation-modal {
+  border-top: 4px solid red;
+}
+
+.modal.delete-confirmation-modal .modal-header h2 {
+  color: red;
+}
+
+.modal.delete-confirmation-modal .modal-actions .delete-btn {
+  background-color: red;
+  color: white;
+  border: none;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.modal.delete-confirmation-modal .modal-actions .delete-btn:hover {
+  background-color: red;
+}
+
+.modal.delete-confirmation-modal .modal-actions .delete-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Different icon color for deactivation */
+.modal.delete-confirmation-modal .modal-header .deactivation-icon {
+  color: red;
+}
+
+/* Add this to handle the confirmation text input specifically */
+.confirmation-input input {
+  width: 120px; 
+  font-size: 14px;
+  padding: 8px 10px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-transform: none; /* Ensure no text transformation */
+}
+
+.confirmation-input input:focus {
+  border-color: #80bdff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* For reactivation modal */
+.modal.reactivate-confirmation-modal .confirmation-input input:focus {
+  border-color: #38a169;
+  box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.25);
+}
+
+/* For deactivation modal */
+.modal.delete-confirmation-modal .confirmation-input input:focus {
+  border-color: red;
+  box-shadow: 0 0 0 2px rgba(237, 137, 54, 0.25);
+}
+
+/* For proper spacing around modal content text */
+.modal-content {
+  padding: 20px;
+  margin-bottom: 0;
+}
+
+.modal-content p {
+  margin: 5px 0;
+}
+
+.table-wrapper tbody td:last-child {
+  text-align: center;
+  padding: 0 0 15px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border-bottom: 1px solid #e0e0e0;
+  box-sizing: border-box;
+  position: relative;
+  top: 15px;
+}
+
+.table-wrapper tbody td:last-child input[type="checkbox"] {
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Ensure consistent border alignment */
+.table-wrapper table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-wrapper td {
+  border-bottom: 1px solid #e0e0e0;
+  box-sizing: border-box;
+}
+
+.modal.edit-site-modal {
+  width: 300px;
+  max-width: 90vw;
+}
+
+.modal.edit-site-modal .form-row {
+  margin-bottom: -20px;
+}
+
+/* Column widths */
+.site-id-col { width: 10%; min-width: 80px; }
+.site-name-col { width: 25%; min-width: 200px; }
+.created-by-col { width: 15%; min-width: 120px; }
+.created-at-col { width: 20%; min-width: 150px; }
+.actions-col { width: 20%; min-width: 150px; }
+.select-col { width: 5%; min-width: 60px; }
+
+/* Center align columns for Client-Site Assignments table */
+.table-wrapper th:nth-child(1),
+.table-wrapper td:nth-child(1),
+.table-wrapper th:nth-child(2),
+.table-wrapper td:nth-child(2),
+.table-wrapper th:nth-child(3),
+.table-wrapper td:nth-child(3),
+.table-wrapper th:nth-child(4),
+.table-wrapper td:nth-child(4),
+.table-wrapper th:nth-child(5),
+.table-wrapper td:nth-child(5),
+.table-wrapper th:nth-child(6),
+.table-wrapper td:nth-child(6),
+.table-wrapper th:nth-child(7),
+.table-wrapper td:nth-child(7) {
+  text-align: center;
+}
+
+/* Actions column header */
+.actions-col {
+  text-align: center;
+  background-color: #f0f4f8;
+  font-weight: 500;
+  color: #004D8D;
+}
+
+/* Select column header */
+.select-col {
+  text-align: center;
+  background-color: #f8fafc;
+  font-weight: 500;
+  color: #004D8D;
+  position: sticky;
+  right: 0;
+  z-index: 11;
+  padding: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Center checkbox in header */
+th.select-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+th.select-col input[type="checkbox"] {
+  margin: 0;
+  position: static;
+  transform: none;
+}
+
+/* Center align the checkbox in the header */
+.select-all-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.select-all-container input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Center align the checkbox in data cells */
+td.select-col {
+  text-align: center;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+td.select-col input[type="checkbox"] {
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+
+/* Selected count styles */
+.selected-count {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Center align action buttons */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmation-input-field {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: center;
+  text-transform: none; /* Ensure no text transformation */
+}
+
+/* Fix dropdown overflow issue */
+.site-management-card {
+  overflow: visible !important; /* Allow dropdowns to extend outside the card */
+}
+
+/* Fix tab content overflow */
+.tab-content.active {
+  overflow: visible !important; /* Allow dropdowns to be visible */
+}
+
+/* Fix for site-management-two-column */
+.site-management-two-column {
+  overflow: visible !important; /* Allow dropdowns to be visible */
 }
