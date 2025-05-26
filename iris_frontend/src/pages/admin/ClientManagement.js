@@ -1102,212 +1102,126 @@ const fetchClientData = async (status = itemStatusTab) => {
 
   // Add LOB with confirmation
   const handleAddLob = async () => {
-    // Allow submission if at least one LOB card has both a LOB name and at least one Sub LOB name
-    const hasAtLeastOneValid = lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
-    if (selectedClientForLob && hasAtLeastOneValid) {
-      const client = clients.find(c => c.id === selectedClientForLob);
-      const site = sites.find(s => s.id === selectedSiteForLob);
+    try {
+      if (!selectedClientForLob) {
+        showToast('Please select a client', 'error');
+        return;
+      }
+
+      if (lobCardsForLob.length === 0) {
+        showToast('Please add at least one LOB', 'error');
+        return;
+      }
+
+      // Validate all LOB cards
+      const validLobCards = lobCardsForLob.filter(card => {
+        const lobName = card.lobName.trim();
+        const subLobNames = card.subLobNames.filter(name => name.trim());
+        return lobName && subLobNames.length > 0;
+      });
+
+      if (validLobCards.length === 0) {
+        showToast('Please fill in all LOB and Sub LOB fields', 'error');
+        return;
+      }
+
+      // Format confirmation message
+      const confirmationMessage = formatAddLobConfirmation(
+        clients.find(c => c.id === selectedClientForLob)?.name || '',
+        selectedSiteForLob ? sites.find(s => s.id === selectedSiteForLob)?.name : 'No Site',
+        validLobCards
+      );
+
+      // Show confirmation modal
       showConfirm(
-        <span>
-          Are you sure you want to add the following:
-          {formatAddLobConfirmation(
-            client ? client.name : '',
-            site ? site.name : (selectedSiteForLob ? '' : 'None'),
-            lobCardsForLob
-          )}
-        </span>,
+        confirmationMessage,
         async () => {
           try {
-            // ... validation logic ...
-            for (const card of lobCardsForLob) {
-              if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
-                showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
-                return;
-              }
-              for (const subLobName of card.subLobNames) {
-                if (subLobName.trim() && !isValidInput(subLobName.trim())) {
-                  showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
-                  return;
-                }
-              }
-            }
-            // Only check for duplicates among valid cards
-            const validLobCards = lobCardsForLob.filter(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()));
-            const lobNames = validLobCards.map(card => card.lobName.trim().toLowerCase()).filter(name => name);
-            const uniqueLobNames = new Set(lobNames);
-            if (lobNames.length !== uniqueLobNames.size) {
-              showToast('Error: Duplicate LOB names are not allowed.', 'error');
-              return;
-            }
-            const allSubLobNames = validLobCards.flatMap(card => card.subLobNames.map(name => name.trim().toLowerCase()).filter(name => name));
-            const uniqueSubLobNames = new Set(allSubLobNames);
-            if (allSubLobNames.length !== uniqueSubLobNames.size) {
-              showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
-              return;
-            }
-            const hasDuplicateSubLobs = validLobCards.some(card => {
-              const uniqueSubLobs = new Set();
-              return card.subLobNames.some(subLobName => {
-                const trimmedName = subLobName.trim().toLowerCase();
-                if (trimmedName && uniqueSubLobs.has(trimmedName)) {
-                  return true; // Found a duplicate
-                }
-                if (trimmedName) {
-                  uniqueSubLobs.add(trimmedName);
-                }
-                return false;
-              });
-            });
-            if (hasDuplicateSubLobs) {
-              showToast('Error: Duplicate Sub LOB names are not allowed within the same LOB.', 'error');
-              return;
-            }
+            const client = clients.find(c => c.id === selectedClientForLob);
             if (!client) {
-              showToast('Selected client not found', 'error');
+              showToast('Client not found', 'error');
               return;
             }
-            if (selectedSiteForLob) {
-              const clientLobs = lobs.filter(lob => lob.clientId === selectedClientForLob);
-              const siteExists = sites.some(site => {
-                if (site.id === selectedSiteForLob) {
-                  return clientLobs.some(lob => {
-                    if (lob.sites && lob.sites.length > 0) {
-                      return lob.sites.some(lobSite => lobSite.siteId === site.id);
-                    }
-                    return lob.siteId === site.id;
-                  });
-                }
-                return false;
-              });
-              if (!siteExists) {
-                showToast('Selected site is not valid for this client', 'error');
-                return;
-              }
-            }
-            // --- NEW LOGIC: Check if LOB exists, only add new sub LOBs if so ---
+
+            const lobs = client.lobs || [];
+            let allOperationsSuccessful = true;
+
             for (const card of validLobCards) {
               const lobName = card.lobName.trim();
               const subLobNames = card.subLobNames.filter(name => name.trim());
-              // Check if LOB already exists for this client
               const existingLob = lobs.find(lob => lob.clientId === client.id && lob.name === lobName);
+
               if (!existingLob) {
-                // LOB does not exist, add LOB with first sub LOB
-                const hasSubLobs = subLobNames.length > 0;
-                if (hasSubLobs) {
+                if (subLobNames.length > 0) {
                   const lobData = {
-                    clientId: client.id,
                     clientName: client.name,
                     lobName: lobName,
-                    ...(selectedSiteForLob && { siteId: selectedSiteForLob }),
+                    siteId: selectedSiteForLob ? selectedSiteForLob : null,
                     subLOBName: subLobNames[0]
                   };
-                  await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
-                  // Add additional sub LOBs (if any)
-                  for (const subLobName of subLobNames.slice(1)) {
+
+                  try {
+                    await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
+                  } catch (error) {
+                    showToast(error.response?.data?.error || 'Failed to add LOB', 'error');
+                    allOperationsSuccessful = false;
+                    break;
+                  }
+
+                  // Add remaining sub LOBs if any
+                  for (let i = 1; i < subLobNames.length; i++) {
                     const subLobData = {
-                      clientId: client.id,
+                      clientName: client.name,
+                      lobName: lobName,
+                      subLOBName: subLobNames[i]
+                    };
+
+                    try {
+                      await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
+                    } catch (error) {
+                      showToast(error.response?.data?.error || 'Failed to add Sub LOB', 'error');
+                      allOperationsSuccessful = false;
+                      break;
+                    }
+                  }
+                }
+              } else {
+                // Add only new sub LOBs to existing LOB
+                const existingSubLobs = existingLob.subLobs.map(sub => sub.name.toLowerCase());
+                for (const subLobName of subLobNames) {
+                  if (!existingSubLobs.includes(subLobName.trim().toLowerCase())) {
+                    const subLobData = {
                       clientName: client.name,
                       lobName: lobName,
                       subLOBName: subLobName
                     };
-                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
-                  }
-                }
-              } else {
-                // LOB exists, only add new sub LOBs that do not already exist
-                const existingSubLobs = subLobs.filter(sl => sl.lobId === existingLob.id).map(sl => sl.name.toLowerCase());
-                for (const subLobName of subLobNames) {
-                  if (!existingSubLobs.includes(subLobName.trim().toLowerCase())) {
-                    const subLobData = {
-                      clientId: client.id,
-                      clientName: client.name,
-                      lobName: lobName,
-                      subLOBName: subLobName.trim()
-                    };
-                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
+
+                    try {
+                      await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
+                    } catch (error) {
+                      showToast(error.response?.data?.error || 'Failed to add Sub LOB', 'error');
+                      allOperationsSuccessful = false;
+                      break;
+                    }
                   }
                 }
               }
             }
-            // --- END NEW LOGIC ---
-            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-            if (refreshResponse.data && refreshResponse.data.data) {
-              // ... transformation logic ...
-              const transformedClients = [];
-              const transformedLobs = [];
-              const transformedSubLobs = [];
-              const sitesMap = new Map();
-              let lobId = 0;
-              let subLobId = 0;
-              refreshResponse.data.data.forEach((client) => {
-                const clientId = client.clientId;
-                transformedClients.push({
-                  id: clientId,
-                  name: client.clientName,
-                  createdBy: client.createdBy || '-',
-                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-                });
-                if (client.LOBs && Array.isArray(client.LOBs)) {
-                  client.LOBs.forEach(lob => {
-                    lobId++;
-                    if (lob.sites && Array.isArray(lob.sites)) {
-                      lob.sites.forEach(site => {
-                        if (site.siteId && site.siteName) {
-                          sitesMap.set(site.siteId, {
-                            id: site.siteId,
-                            name: site.siteName
-                          });
-                        }
-                      });
-                    } else if (lob.siteId && lob.siteName) {
-                      sitesMap.set(lob.siteId, {
-                        id: lob.siteId,
-                        name: lob.siteName
-                      });
-                    }
-                    transformedLobs.push({
-                      id: lobId,
-                      name: lob.name,
-                      clientId: clientId, // Ensure we're using the correct client ID
-                      siteId: lob.siteId || null,
-                      siteName: lob.siteName || null,
-                      sites: lob.sites || []
-                    });
-                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                      lob.subLOBs.forEach(subLobName => {
-                        subLobId++;
-                        transformedSubLobs.push({
-                          id: subLobId,
-                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                          lobId: lobId,
-                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                        });
-                      });
-                    }
-                  });
-                }
-              });
-              setClients(transformedClients);
-              setLobs(transformedLobs);
-              setSubLobs(transformedSubLobs);
-              const transformedSites = Array.from(sitesMap.values());
-              if (transformedSites.length > 0) {
-                setSites(transformedSites);
-              }
+
+            if (allOperationsSuccessful) {
+              showToast('LOBs and Sub LOBs added successfully!');
+              setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
+              setSelectedClientForLob(null);
+              setSelectedSiteForLob(null);
+              fetchClientData();
             }
-            setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
-            setSelectedClientForLob(null);
-            setSelectedSiteForLob(null);
-            setClientSearchTerm('');
-            setSiteSearchTerm('');
-            showToast('LOBs and Sub LOBs added successfully!');
           } catch (error) {
-            console.error('Error adding LOB:', error);
-            showToast(`Failed to add LOB: ${error.response?.data?.error || error.message}`, 'error');
+            showToast(error.response?.data?.error || 'An error occurred', 'error');
           }
-        },
-        () => {} // onCancel
+        }
       );
+    } catch (error) {
+      showToast(error.response?.data?.error || 'An error occurred', 'error');
     }
   };
 
@@ -1361,137 +1275,141 @@ const fetchClientData = async (status = itemStatusTab) => {
 
   // Add Sub LOB with confirmation
   const handleAddSubLob = async () => {
-    if (!selectedLobForSubLob) {
-      showToast('Please select a LOB', 'error');
-      return;
-    }
-    // Validate all subLobNames
-    for (const name of subLobNames) {
-      if (name.trim() && !isValidInput(name.trim())) {
-        showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+    try {
+      if (!selectedLobForSubLob) {
+        showToast('Please select a LOB', 'error');
         return;
       }
-    }
-    const validSubLobs = subLobNames.filter(name => name.trim());
-    if (validSubLobs.length === 0) {
-      showToast('Please enter at least one valid Sub LOB name', 'error');
-      return;
-    }
-
-    // Check for duplicate Sub LOB names
-    const uniqueSubLobNames = new Set(validSubLobs.map(name => name.trim().toLowerCase()));
-    if (uniqueSubLobNames.size !== validSubLobs.length) {
-      showToast('Error: Duplicate Sub LOB names are not allowed.', 'error');
-      return;
-    }
-
-    const lob = lobs.find(l => l.id === selectedLobForSubLob);
-    const client = lob ? clients.find(c => c.id === lob.clientId) : null;
-    const site = lob && lob.siteId ? sites.find(s => s.id === lob.siteId) : null;
-    showConfirm(
-      <span>
-        Are you sure you want to add the following:
-        {formatAddSubLobConfirmation(
-          client ? client.name : '',
-          site ? site.name : (filterSiteForSubLob ? '' : 'None'),
-          lob ? lob.name : '',
-          subLobNames
-        )}
-      </span>,
-      async () => {
-        try {
-          // ... existing code ...
-          for (const subLobName of subLobNames) {
-            if (subLobName.trim()) {
-              try {
-                await axios.post('http://localhost:3000/api/clients/sublob/add', {
-                  clientName: client.name,
-                  lobName: lob.name,
-                  subLOBName: subLobName.trim()
-                });
-              } catch (error) {
-                showToast(`Failed to add Sub LOB "${subLobName.trim()}": ${error.response?.data?.error || error.message}`, 'error');
-                return;
-              }
-            }
-          }
-          // Refresh client data to get updated SubLOBs
-          try {
-            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-            if (refreshResponse.data && refreshResponse.data.data) {
-              // ... transformation logic ...
-              const transformedClients = [];
-              const transformedLobs = [];
-              const transformedSubLobs = [];
-              const sitesMap = new Map();
-              let lobId = 0;
-              let subLobId = 0;
-              refreshResponse.data.data.forEach((client) => {
-                const clientId = client.clientId;
-                transformedClients.push({
-                  id: clientId,
-                  name: client.clientName,
-                  createdBy: client.createdBy || '-',
-                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-                });
-                if (client.LOBs && Array.isArray(client.LOBs)) {
-                  client.LOBs.forEach(lob => {
-                    lobId++;
-                    if (lob.sites && Array.isArray(lob.sites)) {
-                      lob.sites.forEach(site => {
-                        if (site.siteId && site.siteName) {
-                          sitesMap.set(site.siteId, {
-                            id: site.siteId,
-                            name: site.siteName
-                          });
-                        }
-                      });
-                    }
-                    transformedLobs.push({
-                      id: lobId,
-                      name: lob.name,
-                      clientId: clientId,
-                      siteId: lob.siteId || 1,
-                      sites: lob.sites || []
-                    });
-                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                      lob.subLOBs.forEach(subLobName => {
-                        subLobId++;
-                        transformedSubLobs.push({
-                          id: subLobId,
-                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                          lobId: lobId,
-                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                        });
-                      });
-                    }
-                  });
-                }
-              });
-              setClients(transformedClients);
-              setLobs(transformedLobs);
-              setSubLobs(transformedSubLobs);
-              if (sitesMap.size > 0) {
-                setSites(Array.from(sitesMap.values()));
-              }
-            }
-            setSubLobNames(['']);
-            setSelectedLobForSubLob(null);
-            setFilterClientForSubLob(null);
-            setFilterSiteForSubLob(null);
-            setSubLobClientSearchTerm('');
-            setSubLobSiteSearchTerm('');
-            setSubLobLobSearchTerm('');
-            showToast('Sub LOBs added successfully!');
-          } catch (refreshError) {
-            console.error('Error refreshing data:', refreshError);
-          }
-        } catch (error) {
-          showToast(`Failed to add Sub LOB: ${error.response?.data?.error || error.message}`, 'error');
+      // Validate all subLobNames
+      for (const name of subLobNames) {
+        if (name.trim() && !isValidInput(name.trim())) {
+          showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+          return;
         }
-      },
-      () => {} // onCancel
-    );
+      }
+      const validSubLobs = subLobNames.filter(name => name.trim());
+      if (validSubLobs.length === 0) {
+        showToast('Please enter at least one valid Sub LOB name', 'error');
+        return;
+      }
+
+      // Check for duplicate Sub LOB names
+      const uniqueSubLobNames = new Set(validSubLobs.map(name => name.trim().toLowerCase()));
+      if (uniqueSubLobNames.size !== validSubLobs.length) {
+        showToast('Error: Duplicate Sub LOB names are not allowed.', 'error');
+        return;
+      }
+
+      const lob = lobs.find(l => l.id === selectedLobForSubLob);
+      const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+      const site = lob && lob.siteId ? sites.find(s => s.id === lob.siteId) : null;
+      showConfirm(
+        <span>
+          Are you sure you want to add the following:
+          {formatAddSubLobConfirmation(
+            client ? client.name : '',
+            site ? site.name : (filterSiteForSubLob ? '' : 'None'),
+            lob ? lob.name : '',
+            subLobNames
+          )}
+        </span>,
+        async () => {
+          try {
+            // ... existing code ...
+            for (const subLobName of subLobNames) {
+              if (subLobName.trim()) {
+                try {
+                  await axios.post('http://localhost:3000/api/clients/sublob/add', {
+                    clientName: client.name,
+                    lobName: lob.name,
+                    subLOBName: subLobName.trim()
+                  });
+                } catch (error) {
+                  showToast(`Failed to add Sub LOB "${subLobName.trim()}": ${error.response?.data?.error || error.message}`, 'error');
+                  return;
+                }
+              }
+            }
+            // Refresh client data to get updated SubLOBs
+            try {
+              const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
+              if (refreshResponse.data && refreshResponse.data.data) {
+                // ... transformation logic ...
+                const transformedClients = [];
+                const transformedLobs = [];
+                const transformedSubLobs = [];
+                const sitesMap = new Map();
+                let lobId = 0;
+                let subLobId = 0;
+                refreshResponse.data.data.forEach((client) => {
+                  const clientId = client.clientId;
+                  transformedClients.push({
+                    id: clientId,
+                    name: client.clientName,
+                    createdBy: client.createdBy || '-',
+                    createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
+                  });
+                  if (client.LOBs && Array.isArray(client.LOBs)) {
+                    client.LOBs.forEach(lob => {
+                      lobId++;
+                      if (lob.sites && Array.isArray(lob.sites)) {
+                        lob.sites.forEach(site => {
+                          if (site.siteId && site.siteName) {
+                            sitesMap.set(site.siteId, {
+                              id: site.siteId,
+                              name: site.siteName
+                            });
+                          }
+                        });
+                      }
+                      transformedLobs.push({
+                        id: lobId,
+                        name: lob.name,
+                        clientId: clientId,
+                        siteId: lob.siteId || 1,
+                        sites: lob.sites || []
+                      });
+                      if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+                        lob.subLOBs.forEach(subLobName => {
+                          subLobId++;
+                          transformedSubLobs.push({
+                            id: subLobId,
+                            name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                            lobId: lobId,
+                            clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                          });
+                        });
+                      }
+                    });
+                  }
+                });
+                setClients(transformedClients);
+                setLobs(transformedLobs);
+                setSubLobs(transformedSubLobs);
+                if (sitesMap.size > 0) {
+                  setSites(Array.from(sitesMap.values()));
+                }
+              }
+              setSubLobNames(['']);
+              setSelectedLobForSubLob(null);
+              setFilterClientForSubLob(null);
+              setFilterSiteForSubLob(null);
+              setSubLobClientSearchTerm('');
+              setSubLobSiteSearchTerm('');
+              setSubLobLobSearchTerm('');
+              showToast('Sub LOBs added successfully!');
+            } catch (refreshError) {
+              console.error('Error refreshing data:', refreshError);
+            }
+          } catch (error) {
+            showToast(`Failed to add Sub LOB: ${error.response?.data?.error || error.message}`, 'error');
+          }
+        },
+        () => {} // onCancel
+      );
+    } catch (error) {
+      showToast(error.response?.data?.error || 'An error occurred', 'error');
+    }
   };
 
   const handleAddAnotherLobCard = () => {
