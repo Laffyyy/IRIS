@@ -96,7 +96,7 @@ const Report = () => {
     <div className="report-container">
       <div className="white-card">
         <div className="report-header">
-          <h1>Reports</h1>
+          <h1>Report</h1>
           <p className="subtitle">Filter and export reports with eligibility, duration, payout, and status details.</p>
         </div>
 

@@ -122,12 +122,15 @@
 
 /* Table Section */
 .table-section {
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  margin-bottom: 0.1%;
 }
 
 .table-container {
   border: 1px solid #eee;
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: white;
   position: relative;
   height: 400px;
@@ -138,6 +141,8 @@
   position: relative;
   height: 100%;
   overflow: hidden;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .table-scroll {
@@ -193,6 +198,10 @@ tr:nth-child(even) {
   background-color: #f8fafc;
 }
 
+tr:last-child td {
+  border-bottom: none;
+}
+
 /* Column specific widths */
 .checkbox-column {
   width: 40px;
@@ -229,7 +238,8 @@ tr:nth-child(even) {
 .action-bar {
   display: flex;
   justify-content: flex-end;
-  padding-top: 20px;
+  margin-top: 1.5%;
+
 }
 
 .export-btn {
@@ -241,6 +251,7 @@ tr:nth-child(even) {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
+  margin-top: 1.5%;
 }
 
 .export-btn:hover {

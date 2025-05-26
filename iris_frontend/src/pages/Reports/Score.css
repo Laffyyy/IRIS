@@ -125,15 +125,26 @@
   background-color: #004D8D;
   color: white;
   border: none;
-  padding: 8px 24px;
+  height: 5%;
+  width: 10%;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .upload-btn:hover:not(:disabled) {
   background-color: #003366;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.upload-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .upload-btn:disabled {
