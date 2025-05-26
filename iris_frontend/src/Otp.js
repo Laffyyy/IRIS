@@ -54,8 +54,10 @@ const Otp = () => {
   useEffect(() => {
     if (location.state?.userEmail) {
       setUserEmail(location.state.userEmail);
+      localStorage.setItem('userEmail', location.state.userEmail);
     } else if (location.state?.userId) {
       setUserId(location.state.userId);
+      localStorage.setItem('userId', location.state.userId);
     } else {
       // Check localStorage for user data
       const storedUserId = localStorage.getItem('userId');
@@ -68,11 +70,7 @@ const Otp = () => {
 
   // Check credentials and redirect if missing
   useEffect(() => {
-    // For login flow (userId)
     const storedUserId = localStorage.getItem('userId');
-    const storedPassword = localStorage.getItem('password');
-    
-    // For forgot password flow (email)
     const storedUserEmail = localStorage.getItem('userEmail');
     
     if (!storedUserId && !storedUserEmail) {
@@ -91,11 +89,14 @@ const Otp = () => {
   // Timer effects
   useEffect(() => {
     if (expireTime > 0) {
-      const startTime = Date.now();
       const timer = setInterval(() => {
-        const currentTime = Date.now();
-        const timePassed = Math.floor((currentTime - startTime) / 1000);
-        setExpireTime(prev => Math.max(0, prev - timePassed));
+        setExpireTime(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
       return () => clearInterval(timer);
     }
@@ -103,16 +104,14 @@ const Otp = () => {
 
   useEffect(() => {
     if (resendTime > 0 && !canResend) {
-      const startTime = Date.now();
       const timer = setInterval(() => {
-        const currentTime = Date.now();
-        const timePassed = Math.floor((currentTime - startTime) / 1000);
         setResendTime(prev => {
-          const newTime = Math.max(0, prev - timePassed);
-          if (newTime === 0) {
+          if (prev <= 1) {
+            clearInterval(timer);
             setCanResend(true);
+            return 0;
           }
-          return newTime;
+          return prev - 1;
         });
       }, 1000);
       return () => clearInterval(timer);
@@ -171,10 +170,6 @@ const Otp = () => {
 
       setResendTime(90);
       setExpireTime(180);
-      localStorage.setItem('resendTime', '90');
-      localStorage.setItem('expireTime', '180');
-      localStorage.setItem('resendTimestamp', Date.now().toString());
-      localStorage.setItem('expireTimestamp', Date.now().toString());
       setCanResend(false);
       setOtpValues(Array(6).fill(''));
       inputsRef.current.forEach(input => {
@@ -212,10 +207,8 @@ const Otp = () => {
 
     if (value && index < 5) {
       inputsRef.current[index + 1].focus();
-      setIsComplete(true);
     } else if (value && index === 5) {
       // When the last input is filled, focus on the Continue button
-      setIsComplete(true);
       document.getElementById('otp-submit-button').focus();
     }
     setIsComplete(newOtpValues.every(val => val));
@@ -298,28 +291,17 @@ const Otp = () => {
           const { data } = response;
           const userStatus = data.data.user?.status;
           const token = data.data.token;
+          const isPasswordExpired = data.data.user?.isPasswordExpired;
           
           if (token) {
             localStorage.setItem('token', token);
           }
 
-        setAlertModal({
-          isOpen: true,
-          message: isPasswordExpired 
-          ? 'Verification Successful. Please Update your Password' 
-          : (data.message || 'Login successful'),
-          type: 'success',
-          onClose: () => {
-            // Decode token to get user roles
-            const decoded = jwtDecode(token);
-            const roles = decoded.roles
-              ? Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles]
-              : decoded.role
-                ? [decoded.role]
-                : [];
           setAlertModal({
             isOpen: true,
-            message: data.message || 'Login successful',
+            message: isPasswordExpired 
+              ? 'Verification Successful. Please Update your Password' 
+              : (data.message || 'Login successful'),
             type: 'success',
             onClose: () => {
               // Decode token to get user roles
@@ -331,18 +313,14 @@ const Otp = () => {
                   : [];
 
               if (isPasswordExpired) {
-              localStorage.removeItem('isPasswordExpired'); // Clear the flag
-              navigate('../update-password');
-            } 
-            // Then check for first-time login
-            else if (userStatus === 'FIRST-TIME') {
-                localStorage.removeItem('isFirstTimeLogin'); // Clear the flag
+                localStorage.removeItem('isPasswordExpired');
+                navigate('../update-password');
+              } else if (userStatus === 'FIRST-TIME') {
+                localStorage.removeItem('isFirstTimeLogin');
                 navigate('../change-password');
-              } 
-            // Finally, handle normal role-based navigation
-            else if (userStatus === 'ACTIVE') {
+              } else if (userStatus === 'ACTIVE') {
                 if (roles.includes('admin')) {
-                  navigate('../admin/dasboard');
+                  navigate('../admin/dashboard');
                 } else if (roles.includes('HR')) {
                   navigate('../hr');
                 } else if (roles.includes('REPORTS')) {
@@ -350,18 +328,18 @@ const Otp = () => {
                 } else if (roles.includes('CNB')) {
                   navigate('../compensation');
                 } else {
-                  navigate('/'); // fallback
+                  navigate('/');
                 }
               }
             }
-        });
+          });
+        }
       } else {
         setAlertModal({
           isOpen: true,
           message: 'User information not found. Please try again.',
           type: 'error'
         });
-        return;
       }
     } catch (error) {
       let errorMessage = 'An error occurred while verifying the OTP. Please try again.';
@@ -393,17 +371,17 @@ const Otp = () => {
   const handleBack = () => {
     clearOtpData();
     navigate('/');
-  }
+  };
 
   // Add cleanup effect for component unmount
   useEffect(() => {
     return () => {
       // Only clear timer data if we're not refreshing
       if (!window.performance.navigation.type === 1) {
-        localStorage.removeItem('expireTime');
-        localStorage.removeItem('expireTimestamp');
-        localStorage.removeItem('resendTime');
-        localStorage.removeItem('resendTimestamp');
+        localStorage.removeItem('otpExpireTime');
+        localStorage.removeItem('otpExpireTimestamp');
+        localStorage.removeItem('otpResendTime');
+        localStorage.removeItem('otpResendTimestamp');
       }
     };
   }, []);

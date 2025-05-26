@@ -216,15 +216,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
       if (response.ok) {
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
-        setAlertModal({
-          isOpen: true,
-          message: 'OTP has been sent to your registered email.',
-          type: 'success',
-          onClose: () => {
-            navigate('/otp', { state: { userId: employeeId } });
-          }
-        });
-        
+        // Remove AlertModal for userId login, just navigate directly to OTP page
+        navigate('/otp', { state: { userId: employeeId } });
+
         // Check for soon-to-expire password
         try {
           const expirationCheck = await fetch('http://localhost:3000/api/password-expiration/manage', {
