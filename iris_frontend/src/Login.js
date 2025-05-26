@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Login.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import ModalWarning from './components/ModalWarning';
+import ModalPasswordExpired from './components/ModalPasswordExpired';
 import AlertModal from './components/AlertModal';
 import axios from 'axios';
 
@@ -9,6 +11,13 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    // Allow alphanumeric characters and specific symbols: -._!@
+    const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
+    setEmail(filteredValue);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,12 +49,13 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
         <p className="modal-text">Please enter your registered email to receive an OTP code.</p>
         <form onSubmit={handleSubmit} className="modal-form">
           <input
-            type="email"
+            type="text"
             placeholder="Enter your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value.slice(0, 50))}
+            onChange={handleEmailChange}
             required
-            maxLength={50}
+            pattern="[a-zA-Z0-9\-._!@]+"
+            title="Email can contain letters, numbers, and -._!@ symbols"
           />
           <div className="modal-buttons">
             <button type="button" onClick={onClose}>Cancel</button>
@@ -74,12 +84,27 @@ const Login = ({ onContinue, onForgotPassword }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [nextImageIndex, setNextImageIndex] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
+  const [isTransitioning, setIsTransitioning] = useState(false); // Add this line
   const employeeIdRef = useRef(null);
   const navigate = useNavigate();
+  // Add new state for the password expiration modals
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(0);
+  const [otp, setOtp] = useState('');
+  const [userId, setUserId] = useState('');
+  const [passwords, setPasswords] = useState({
+  newPassword: '',
+  confirmPassword: ''
+});
 
   const carouselImages = [
+    '/assets/loginimage1.jpg',
+    '/assets/loginimage2.jpg',
+    '/assets/loginimage3.jpg',
     '/assets/loginimage1.jpg',
     '/assets/loginimage2.jpg',
     '/assets/loginimage3.jpg',
@@ -98,18 +123,86 @@ const Login = ({ onContinue, onForgotPassword }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Prevent form submission if alert modal is open
     if (alertModal.isOpen) {
       return;
     }
- 
-    const payload = {
-      userID: employeeId,
-      password: password
-    };
+
+    if (!employeeId || !password) {
+      setAlertModal({
+        isOpen: true,
+        message: 'Please enter both username and password.',
+        type: 'warning'
+      });
+      return;
+    }
 
     try {
+      // First check user status and verify credentials in one call
+      const verifyResponse = await fetch('http://localhost:3000/api/changepass/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          userID: employeeId, 
+          password: password 
+        })
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        // Authentication failed
+        setAlertModal({
+          isOpen: true,
+          message: verifyData.message || 'Invalid username or password.',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Authentication succeeded, now check status
+      if (verifyData.status === 'FIRST-TIME') {
+        // Store the credentials in localStorage for the change password page
+        localStorage.setItem('userId', employeeId);
+        localStorage.setItem('password', password);
+        localStorage.setItem('isFirstTimeLogin', 'true');
+        
+        // Generate OTP for first-time login user before redirecting
+        try {
+          const otpResponse = await fetch('http://localhost:3000/api/otp/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId: employeeId })
+          });
+          
+          if (!otpResponse.ok) {
+            throw new Error('Failed to generate OTP');
+          }
+          
+          // Now we can redirect to OTP page since an OTP has been sent
+          navigate('/otp');
+        } catch (otpError) {
+          console.error('Error generating OTP:', otpError);
+          setAlertModal({
+            isOpen: true,
+            message: 'Failed to send verification code. Please try again.',
+            type: 'error'
+          });
+        }
+        return;
+      }
+
+      // If we reach here, it's a normal login process
+      const payload = {
+        userID: employeeId,
+        password: password
+      };
+
       const response = await fetch('http://localhost:3000/api/login/', {
         method: 'POST',
         headers: {
@@ -117,9 +210,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
         },
         body: JSON.stringify(payload)
       });
-
+  
       const data = await response.json();
-
+  
       if (response.ok) {
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
@@ -131,7 +224,76 @@ const Login = ({ onContinue, onForgotPassword }) => {
             navigate('/otp', { state: { userId: employeeId } });
           }
         });
+        
+        // Check for soon-to-expire password
+        try {
+          const expirationCheck = await fetch('http://localhost:3000/api/password-expiration/manage', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              operation: 'check',
+              userId: employeeId 
+            })
+          });
+          
+          if (expirationCheck.ok) {
+            const expirationData = await expirationCheck.json();
+            
+            // Store expiration date for modals if available
+            if (expirationData.expirationDate) {
+              localStorage.setItem('expirationDate', expirationData.expirationDate);
+            }
+            
+            // First check if password is already expired
+            if (expirationData.isExpired) {
+              // Password is already expired - show expired modal
+              localStorage.setItem('isPasswordExpired', 'true');
+              setShowExpiredModal(true);
+              return; // Wait for user's action on the expired modal
+            } 
+            // Then check if password will expire soon (within 10 days)
+            else if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
+              // Calculate days remaining
+              setDaysRemaining(Math.ceil(expirationData.minutesLeft / (24 * 60)));
+              
+              // Show warning modal
+              setShowWarningModal(true);
+              return; // Wait for user to acknowledge the warning
+            } 
+            else {
+              // Password is not expired and not close to expiring - continue normal login flow
+              navigate('/otp');
+            }
+            if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
+              // Password will expire soon (10 days or less) - show warning
+              
+              // Calculate days remaining
+              setDaysRemaining(Math.ceil(expirationData.minutesLeft / (24 * 60)));
+              
+              // Store expiration date for the modal
+              if (expirationData.expirationDate) {
+                localStorage.setItem('expirationDate', expirationData.expirationDate);
+              }
+              
+              // Show the warning modal
+              setShowWarningModal(true);
+              return; // Wait for user to acknowledge the warning
+            } else {
+              // Password is fine, continue to OTP page
+              navigate('/otp');
+            }
+          } else {
+            // If the check fails, continue to OTP anyway
+            navigate('/otp');
+          }
+        } catch (expError) {
+          // If there's an error, continue to OTP
+          navigate('/otp');
+        }
       } else {
+        // Handle other login response errors as before
         if (data.message.includes('User not found')) {
           setAlertModal({
             isOpen: true,
@@ -180,6 +342,76 @@ const Login = ({ onContinue, onForgotPassword }) => {
     }
   };
 
+  // Handler for the expired password modal
+// Replace your handleChangePassword function with this:
+
+const handleChangePassword = async () => {
+  try {
+    // Check if employeeId is available
+    if (!employeeId) {
+      console.error('Employee ID is missing');
+      setAlertModal({
+        isOpen: true,
+        message: 'User ID is missing. Please try logging in again.',
+        type: 'error'
+      });
+      return;
+    }
+    
+    // First generate an OTP for verification
+    const otpResponse = await fetch('http://localhost:3000/api/otp/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        userId: employeeId
+      })
+    });
+
+    if (!otpResponse.ok) {
+      const errorData = await otpResponse.json();
+      throw new Error(errorData.message || 'Failed to send verification code');
+    }
+    
+    // Set flags in localStorage for the OTP page
+    localStorage.setItem('isPasswordExpired', 'true');
+    localStorage.setItem('userId', employeeId);
+    localStorage.setItem('password', password); // Also store password for OTP verification
+    
+    // Close the expired password modal 
+    setShowExpiredModal(false);
+    
+    // Create a custom navigation function
+    const navigateToOtpPage = () => {
+      navigate('/otp');
+    };
+    
+    // Show the success message with the navigation function attached
+    setAlertModal({
+      isOpen: true,
+      message: 'Verification code sent to your email',
+      type: 'success',
+      onClose: navigateToOtpPage // Attach custom close handler
+    });
+    
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    setAlertModal({
+      isOpen: true,
+      message: `Failed to send verification code: ${error.message}`,
+      type: 'error'
+    });
+  }
+};
+
+
+  // Handler for the warning modal
+  const handleCloseWarning = () => {
+    setShowWarningModal(false);
+    navigate('/otp'); // Continue the login flow after the warning is acknowledged
+  };
+
   const handlePasswordChange = (e) => {
     const value = e.target.value;
     const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
@@ -194,11 +426,20 @@ const Login = ({ onContinue, onForgotPassword }) => {
     setEmployeeId(truncatedValue);
   };
 
+  onContinue = (e) => {
+    navigate('/otp');
+  }
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1
-      );
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentImageIndex((prevIndex) => {
+          const next = prevIndex === carouselImages.length - 1 ? 0 : prevIndex + 1;
+          setNextImageIndex(next === carouselImages.length - 1 ? 0 : next + 1);
+          return next;
+        });
+        setIsTransitioning(false);
+      }, 100);
     }, 5000);
     return () => clearInterval(interval);
   }, [carouselImages.length]);
@@ -207,7 +448,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
     <div className="iris-wrapper">
       <div className="iris-login-box">
         <div className="iris-left">
-          <img src="/assets/logo.png" alt="IRIS Logo" className="iris-logo" />
+          <img src={`${process.env.PUBLIC_URL}/assets/logo.png`} alt="IRIS Logo" className="iris-logo" />
           <h2 className="iris-title">IRIS</h2>
           <p className="iris-subtitle">Incentive Reporting & Insight Solution</p>
 
@@ -215,7 +456,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
             <div className="iris-input-wrapper">
               <label className="iris-label">Username</label>
               <span className="iris-icon">
-                <img src="/assets/user-icon.png" alt="User Icon" />
+                <img src={`${process.env.PUBLIC_URL}/assets/user-icon.png`} alt="User Icon" />
               </span>
               <input
                 id="employee-id"
@@ -230,7 +471,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
             <div className="iris-input-wrapper">
               <label className="iris-label">Password</label>
               <span className="iris-icon password-icon">
-                <img src="/assets/lock-icon.png" alt="Lock Icon" />
+                <img src={`${process.env.PUBLIC_URL}/assets/lock-icon.png`} alt="Lock Icon" />
               </span>
               <div className="input-wrapper" style={{ position: 'relative' }}>
                 <input
@@ -276,22 +517,19 @@ const Login = ({ onContinue, onForgotPassword }) => {
         <div className="iris-right">
           <div className="carousel-container">
             <div
-              className="carousel-slide"
+              className="carousel-slide current"
               style={{
                 backgroundImage: `url(${carouselImages[currentImageIndex]})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
+                opacity: isTransitioning ? 0 : 1,
               }}
             />
-            <div className="carousel-indicators">
-              {carouselImages.map((_, index) => (
-                <span
-                  key={index}
-                  className={`indicator ${index === currentImageIndex ? 'active' : ''}`}
-                  onClick={() => setCurrentImageIndex(index)}
-                />
-              ))}
-            </div>
+            <div
+              className="carousel-slide next"
+              style={{
+                backgroundImage: `url(${carouselImages[nextImageIndex]})`,
+                opacity: isTransitioning ? 1 : 0,
+              }}
+            />
           </div>
         </div>
       </div>
@@ -310,17 +548,44 @@ const Login = ({ onContinue, onForgotPassword }) => {
         />
       )}
 
-      <AlertModal
-        isOpen={alertModal.isOpen}
-        message={alertModal.message}
-        type={alertModal.type}
-        onClose={() => {
-          if (alertModal.onClose) {
-            alertModal.onClose();
-          }
-          setAlertModal({ ...alertModal, isOpen: false });
-        }}
+      {/* Password Expiration Modals */}
+      <ModalPasswordExpired 
+        open={showExpiredModal} 
+        onClose={() => setShowExpiredModal(false)}
+        onChangePassword={handleChangePassword}
+        expirationDate={localStorage.getItem('expirationDate')}
       />
+
+        <ModalWarning
+          open={showWarningModal}
+          onClose={handleCloseWarning}
+          daysRemaining={daysRemaining}
+          expirationDate={localStorage.getItem('expirationDate')}
+        />
+
+<AlertModal
+  isOpen={alertModal.isOpen}
+  message={alertModal.message}
+  type={alertModal.type}
+  onClose={() => {
+    // Check if we have a custom onClose handler
+    if (alertModal.onClose) {
+      alertModal.onClose();
+    } else {
+      // Check if we need to navigate after closing using the flag method
+      const shouldNavigate = localStorage.getItem('navigateToOtp') === 'true';
+      
+      // If navigation flag is set, navigate and clear the flag
+      if (shouldNavigate) {
+        localStorage.removeItem('navigateToOtp');
+        navigate('/otp');
+      }
+    }
+    
+    // Close the modal
+    setAlertModal({ ...alertModal, isOpen: false });
+  }}
+/>
     </div>
   );
 };

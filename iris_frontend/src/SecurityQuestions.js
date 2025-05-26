@@ -67,6 +67,7 @@ const SecurityQuestions = () => {
 
   const handleCancel = () => {
     navigate('/');
+    navigate('/');
   };
 
   const handleSaveChanges = async (e) => {
@@ -175,8 +176,9 @@ const SecurityQuestions = () => {
               style={{ marginBottom: '1rem' }}
             />
             <input
+              id="answer"
               type="text"
-              placeholder="Your answer"
+              placeholder="Enter your answer"
               value={answer}
               onChange={handleAnswerChange}
               maxLength={30}
