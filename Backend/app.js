@@ -1,7 +1,8 @@
 const express = require('express');
+const cors = require('cors');
+const passwordExpirationRoutes = require('./routes/passwordExpirationRoutes');
 const loginRoutes = require('./routes/loginroutes');
 const helmet = require('helmet');
-const cors = require('cors');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const clientManagementRoutes = require('./routes/clientManagementRoutes');
 const changepassRoutes = require('./routes/changepasswordroutes');
@@ -22,6 +23,7 @@ app.use(cors({
 }));
 
 app.use('/api/login', loginRoutes);
+app.use('/api/password-expiration', passwordExpirationRoutes);
 app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
