@@ -8,17 +8,28 @@ import axios from 'axios';
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post('http://localhost:3000/api/fp/send-otp', { email });
-      alert(res.data.message); // OTP sent successfully
       localStorage.setItem('userEmail', email); // Store email in localStorage
-      onClose(); // Close the modal
-      navigate('/otp', { state: { userEmail: email } }); // Pass email via state
+      setAlertModal({
+        isOpen: true,
+        message: res.data.message || 'OTP sent successfully',
+        type: 'success',
+        onClose: () => {
+          onClose(); // Close the modal
+          navigate('/otp', { state: { userEmail: email } }); // Pass email via state
+        }
+      });
     } catch (err) {
-      alert(err.response.data.message);
+      setAlertModal({
+        isOpen: true,
+        message: err.response?.data?.message || 'Failed to send OTP. Please try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -42,6 +53,18 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
           </div>
         </form>
       </div>
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => {
+          if (alertModal.onClose) {
+            alertModal.onClose();
+          }
+          setAlertModal({ ...alertModal, isOpen: false });
+        }}
+      />
     </div>
   );
 };
@@ -100,7 +123,14 @@ const Login = ({ onContinue, onForgotPassword }) => {
       if (response.ok) {
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
-        navigate('/otp'); 
+        setAlertModal({
+          isOpen: true,
+          message: 'OTP has been sent to your registered email.',
+          type: 'success',
+          onClose: () => {
+            navigate('/otp', { state: { userId: employeeId } });
+          }
+        });
       } else {
         if (data.message.includes('User not found')) {
           setAlertModal({
@@ -284,7 +314,12 @@ const Login = ({ onContinue, onForgotPassword }) => {
         isOpen={alertModal.isOpen}
         message={alertModal.message}
         type={alertModal.type}
-        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        onClose={() => {
+          if (alertModal.onClose) {
+            alertModal.onClose();
+          }
+          setAlertModal({ ...alertModal, isOpen: false });
+        }}
       />
     </div>
   );

@@ -76,8 +76,6 @@ const UpdatePassword = () => {
     e.preventDefault();
     setError('');
 
-    const { newPassword, confirmPassword } = passwords;
-
     if (!userEmail) {
       setAlertModal({
         isOpen: true,
@@ -87,7 +85,7 @@ const UpdatePassword = () => {
       return;
     }
 
-    if (!newPassword || !confirmPassword) {
+    if (!passwords.newPassword || !passwords.confirmPassword) {
       setAlertModal({
         isOpen: true,
         message: 'Both password fields are required.',
@@ -97,7 +95,7 @@ const UpdatePassword = () => {
     }
 
     // Validate password
-    const passwordError = validatePassword(newPassword);
+    const passwordError = validatePassword(passwords.newPassword);
     if (passwordError) {
       setAlertModal({
         isOpen: true,
@@ -107,7 +105,7 @@ const UpdatePassword = () => {
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (passwords.newPassword !== passwords.confirmPassword) {
       setAlertModal({
         isOpen: true,
         message: 'Passwords do not match.',
@@ -120,7 +118,7 @@ const UpdatePassword = () => {
       setIsLoading(true);
       const response = await axios.post('http://localhost:3000/api/update-password/forgot', {
         email: userEmail,
-        newPassword: newPassword,
+        newPassword: passwords.newPassword,
       });
 
       if (response.data.success) {
@@ -128,7 +126,11 @@ const UpdatePassword = () => {
           isOpen: true,
           message: 'Password updated successfully.',
           type: 'success',
-          onClose: () => navigate('/')
+          onClose: () => {
+            // Clear any stored data
+            localStorage.removeItem('userEmail');
+            navigate('/');
+          }
         });
       } else {
         setAlertModal({
@@ -139,9 +141,13 @@ const UpdatePassword = () => {
       }
     } catch (err) {
       console.error('Update error:', err);
+      let errorMessage = 'New password cannot be the same as any of your last 3 passwords.';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
       setAlertModal({
         isOpen: true,
-        message: err.response?.data?.message || 'New password cannot be the same as any of your last 3 passwords.',
+        message: errorMessage,
         type: 'error'
       });
     } finally {

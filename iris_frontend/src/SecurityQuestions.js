@@ -129,12 +129,18 @@ const SecurityQuestions = () => {
           });
         }
       }
-    } catch (err) {
+    } catch (error) {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
+      
+      let errorMessage = 'An error occurred while verifying your answer.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       setAlertModal({
         isOpen: true,
-        message: `Incorrect Answer. ${MAX_ATTEMPTS - newAttempts} attempt(s) left.`,
+        message: `${errorMessage} ${MAX_ATTEMPTS - newAttempts} attempt(s) left.`,
         type: 'error'
       });
       

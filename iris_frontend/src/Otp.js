@@ -334,10 +334,28 @@ const Otp = () => {
         return;
       }
     } catch (error) {
+      let errorMessage = 'An error occurred while verifying the OTP. Please try again.';
+      let errorType = 'error';
+
+      if (error.response?.data?.message) {
+        const message = error.response.data.message;
+        if (message.includes('Account is locked') || message.includes('deactivated')) {
+          errorMessage = 'Account is locked or deactivated. Please contact an administrator.';
+        } else if (message.includes('security questions')) {
+          errorMessage = 'Please create security questions first before proceeding.';
+        } else if (message.includes('No Security Question')) {
+          errorMessage = 'No security questions found. Please contact an administrator.';
+        } else if (message.includes('Invalid or expired OTP')) {
+          errorMessage = 'Invalid or expired OTP. Please request a new one.';
+        } else {
+          errorMessage = message;
+        }
+      }
+
       setAlertModal({
         isOpen: true,
-        message: error.response?.data?.message || 'An error occurred while verifying the OTP. Please try again.',
-        type: 'error'
+        message: errorMessage,
+        type: errorType
       });
     }
   };
