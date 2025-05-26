@@ -411,7 +411,7 @@ const SiteManagement = () => {
       // Filter assignments for this client and site
       const clientAssignments = existingAssignments.filter(
         assignment => assignment.dClientName === clientName && 
-                      assignment.dSite_ID === parseInt(siteId)
+                      assignment.dSite_ID === siteId
       );
       
       // If no LOB is selected, check if client has ANY assignments at this site
@@ -529,8 +529,8 @@ const SiteManagement = () => {
       
       // If not already assigned, proceed with API call
       await manageSite('addClientToSite', {
-        clientId: parseInt(selectedClientId),
-        siteId: parseInt(selectedSite.dSite_ID),
+        clientId: selectedClientId.toString(), // REMOVE parseInt(), use toString() instead
+        siteId: selectedSite.dSite_ID.toString(), // REMOVE parseInt(), use toString() instead
         lobName: clientSiteConfirmDetails.lobName,
         subLobName: clientSiteConfirmDetails.subLobName
       });
@@ -678,38 +678,29 @@ const SiteManagement = () => {
   const getAvailableClients = async (siteId, editingClientId = null) => {
     if (!siteId) return clients;
     
-    // Get the list of clients already fully assigned to this site
     try {
       const response = await manageSite('getAvailableClients', { 
-        siteId: parseInt(siteId)
+        siteId: siteId.toString()  // Ensure siteId is a string
       });
       
-      // Extract the IDs of clients already assigned to this site
-      const assignedClientIds = new Set();
+      // Directly use the clients returned from the backend
+      const availableClients = response.clients || [];
       
-      existingAssignments.forEach(assignment => {
-        if (assignment.dSite_ID === parseInt(siteId)) {
-          // Get client ID from the assignment or lookup by name
-          const clientId = assignment.dClient_ID || 
-            clients.find(c => c.name === assignment.dClientName)?.id;
-            
-          if (clientId) {
-            assignedClientIds.add(clientId.toString());
-          }
+      // If we're editing a client, ensure it's included in the results
+      if (editingClientId) {
+        const editingClient = clients.find(c => 
+          c.id && c.id.toString() === editingClientId.toString()
+        );
+        
+        if (editingClient && !availableClients.some(c => c.id === editingClient.id)) {
+          availableClients.push(editingClient);
         }
-      });
+      }
       
-      // Return all clients except those fully assigned (unless we're editing)
-      return clients.filter(client => 
-        // Include the client we're editing
-        (editingClientId && client.id.toString() === editingClientId.toString()) ||
-        // Or include clients not fully assigned
-        !assignedClientIds.has(client.id.toString())
-      );
+      return availableClients;
     } catch (error) {
       console.error('Error determining available clients:', error);
-      // If there's an error, return all clients to be safe
-      return clients;
+      return [];
     }
   };
 
@@ -781,13 +772,16 @@ const SiteManagement = () => {
    */
   const fetchClientLobsAndSubLobs = async (clientId) => {
     try {
-      if (!clientId) {
+      if (!clientId || !selectedSite) {
         setClientLobs([]);
         setClientSubLobs([]);
         return;
       }
-  
-      const response = await manageSite('getClientLobs', { clientId });
+
+      const response = await manageSite('getClientLobs', { 
+        clientId: clientId.toString(),
+        siteId: selectedSite.dSite_ID.toString() // Add the siteId parameter
+      });
       const allLobs = response.lobs || [];
       
       // Get client name for comparison
@@ -970,7 +964,7 @@ const SiteManagement = () => {
       }
   
       const response = await manageSite('getExistingAssignments', { 
-        siteId: parseInt(siteId)
+        siteId: siteId
       });
   
       if (response && response.assignments) {
@@ -1015,13 +1009,19 @@ const SiteManagement = () => {
     const assignments = passedAssignments || existingAssignments;
     const availableClients = {};
     
+    // Only process clients with valid IDs
+    const validClients = clients.filter(client => client && client.id);
+
     for (const client of clients) {
       availableClients[client.id] = true;
     }
     
     for (const client of clients) {
       try {
-        const response = await manageSite('getClientLobs', { clientId: client.id });
+        if (!client.id) continue;
+        const response = await manageSite('getClientLobs', { 
+          clientId: client.id.toString() 
+        });
         const allLobs = response.lobs || [];
         const clientName = client.name;
         
@@ -1099,13 +1099,16 @@ const SiteManagement = () => {
    */
   const fetchClientLobsForEdit = async (clientId, initialLob = null, initialSubLob = null) => {
     try {
-      if (!clientId) {
+      if (!clientId || !editSelectedSiteId) {
         setEditClientLobs([]);
         setEditClientSubLobs([]);
         return;
       }
       
-      const response = await manageSite('getClientLobs', { clientId });
+      const response = await manageSite('getClientLobs', { 
+        clientId: clientId.toString(),
+        siteId: editSelectedSiteId.toString() // Add the siteId parameter
+      });
       const allLobs = response.lobs || [];
       
       // Get client name for comparison
@@ -1554,7 +1557,7 @@ const SiteManagement = () => {
                 if (site) {
                   const siteId = site.dSite_ID;
                   const response = await manageSite('getExistingAssignments', { 
-                    siteId: parseInt(siteId)
+                    siteId: siteId
                   });
                   
                   if (response && response.assignments) {
@@ -1592,11 +1595,17 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Client</label>
           <Select
-            value={selectedClientId ? { value: selectedClientId, label: clients.find(c => c.id === selectedClientId)?.name } : null}
+            value={selectedClientId ? { 
+              value: selectedClientId, 
+              label: availableClients.find(c => c.id.toString() === selectedClientId.toString())?.name || 
+                     clients.find(c => c.id.toString() === selectedClientId.toString())?.name
+            } : null}
             onChange={(selectedOption) => {
-              setSelectedClientId(selectedOption ? selectedOption.value : '');
-              if (selectedOption) {
-                fetchClientLobsAndSubLobs(selectedOption.value);
+              const clientId = selectedOption ? selectedOption.value : '';
+              setSelectedClientId(clientId);
+              
+              if (clientId) {
+                fetchClientLobsAndSubLobs(clientId);
               } else {
                 setClientLobs([]);
                 setClientSubLobs([]);
@@ -1954,7 +1963,7 @@ const SiteManagement = () => {
                     setEditClientSubLobs([]);
                     
                     if (newSiteId) {
-                      fetchExistingAssignments(parseInt(newSiteId));
+                      fetchExistingAssignments(newSiteId);
                     }
                   }}
                   onInputChange={(inputValue) => sanitizeInput(inputValue)}

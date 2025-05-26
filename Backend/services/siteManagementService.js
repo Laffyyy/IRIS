@@ -129,7 +129,7 @@ class SiteManagementService {
         try {
             // Get distinct client names from tbl_clientlob
             const [result] = await db.query(
-                'SELECT MIN(dClient_ID) as dClient_ID, dClientName FROM tbl_clientlob GROUP BY dClientName ORDER BY dClientName ASC'
+                'SELECT MIN(dClientLOB_ID) as dClientLOB_ID, dClientName FROM tbl_clientlob GROUP BY dClientName ORDER BY dClientName ASC'
             );
             
             return result;
@@ -140,119 +140,147 @@ class SiteManagementService {
     }
 
     async addClientToSite(clientId, siteId, lobName = null, subLobName = null, movingExisting = false) {
-        try {
-            // Get the site name for the selected site ID
-            const [siteResult] = await db.query(
-                'SELECT dSiteName FROM tbl_site WHERE dSite_ID = ?',
-                [siteId]
-            );
-            
-            if (siteResult.length === 0) {
-                throw new Error('Site not found');
-            }
-            
-            const siteName = siteResult[0].dSiteName;
-            const userId = 'SYSTEM';
-            const currentDate = new Date();
-            
-            // First get the client name
-            const [clientNameResult] = await db.query(
-                'SELECT dClientName FROM tbl_clientlob WHERE dClient_ID = ? LIMIT 1',
-                [clientId]
-            );
-            
-            if (clientNameResult.length === 0) {
-                throw new Error('Client not found in tbl_clientlob');
-            }
-            
-            const clientName = clientNameResult[0].dClientName;
-            
-            // If we're moving existing assignments, first remove them from their current site
-            if (movingExisting) {
-                let deleteQuery = 'DELETE FROM tbl_clientsite WHERE dClientName = ?';
-                let deleteParams = [clientName];
-                
-                if (lobName && subLobName) {
-                    deleteQuery += ' AND dLOB = ? AND dSubLOB = ?';
-                    deleteParams.push(lobName, subLobName);
-                } else if (lobName) {
-                    deleteQuery += ' AND dLOB = ?';
-                    deleteParams.push(lobName);
-                }
-                
-                await db.query(deleteQuery, deleteParams);
-            }
-            
-            // Build the query based on what's selected
-            let query = 'SELECT dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry FROM tbl_clientlob WHERE dClientName = ?';
-            let params = [clientName];
-            
-            // Case 1: LOB & Sub LOB provided - most specific
-            if (lobName && subLobName) {
-                query += ' AND dLOB = ? AND dSubLOB = ?';
-                params.push(lobName, subLobName);
-            } 
-            // Case 2: Only LOB provided - medium specificity
-            else if (lobName) {
-                query += ' AND dLOB = ?';
-                params.push(lobName);
-            }
-            
-            // Get the client instances based on the constructed query
-            const [clientInstances] = await db.query(query, params);
-            
-            if (clientInstances.length === 0) {
-                throw new Error('No instances of client found in tbl_clientlob matching the specified criteria');
-            }
-            
-            // Using a transaction to ensure all operations succeed or fail together
-            await db.query('START TRANSACTION');
-            
-            // Insert all instances with the new site information
-            for (const instance of clientInstances) {
-                // Check if this specific instance already exists for this site
-                const [existingInstance] = await db.query(
-                    'SELECT dClientSite_ID FROM tbl_clientsite WHERE dClient_ID = ? AND dLOB = ? AND dSubLOB = ? AND dSite_ID = ?',
-                    [instance.dClient_ID, instance.dLOB, instance.dSubLOB, siteId]
-                );
-                
-                // Only insert if this specific instance doesn't already exist for this site
-                if (existingInstance.length === 0) {
-                    const [insertResult] = await db.query(
-                      'INSERT INTO tbl_clientsite (dClient_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry, dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                      [
-                          instance.dClient_ID,
-                          instance.dClientName,
-                          instance.dLOB,
-                          instance.dSubLOB,
-                          instance.dChannel,
-                          instance.dIndustry,
-                          siteId,
-                          siteName,
-                          'ACTIVE',  // Set default status to ACTIVE
-                          userId,
-                          currentDate
-                      ]
-                    );
+      try {
+          // Get the site name for the selected site ID
+          const [siteResult] = await db.query(
+              'SELECT dSiteName FROM tbl_site WHERE dSite_ID = ?',
+              [siteId]
+          );
+          
+          if (siteResult.length === 0) {
+              throw new Error('Site not found');
+          }
+          
+          const siteName = siteResult[0].dSiteName;
+          const userId = 'SYSTEM';
+          const currentDate = new Date();
+          
+          // First get the client name
+          const [clientNameResult] = await db.query(
+              'SELECT dClientName FROM tbl_clientlob WHERE dClientLOB_ID = ? LIMIT 1',
+              [clientId]
+          );
+          
+          if (clientNameResult.length === 0) {
+              throw new Error('Client not found in tbl_clientlob');
+          }
+          
+          const clientName = clientNameResult[0].dClientName;
+          
+          // If we're moving existing assignments, first remove them from their current site
+          if (movingExisting) {
+              let deleteQuery = 'DELETE FROM tbl_clientsite WHERE dClientName = ?';
+              let deleteParams = [clientName];
+              
+              if (lobName && subLobName) {
+                  deleteQuery += ' AND dLOB = ? AND dSubLOB = ?';
+                  deleteParams.push(lobName, subLobName);
+              } else if (lobName) {
+                  deleteQuery += ' AND dLOB = ?';
+                  deleteParams.push(lobName);
+              }
+              
+              await db.query(deleteQuery, deleteParams);
+          }
+          
+          // Build the query based on what's selected
+          let query = 'SELECT dClientLOB_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry FROM tbl_clientlob WHERE dClientName = ?';
+          let params = [clientName];
+          
+          // Case 1: LOB & Sub LOB provided - most specific
+          if (lobName && subLobName) {
+              query += ' AND dLOB = ? AND dSubLOB = ?';
+              params.push(lobName, subLobName);
+          } 
+          // Case 2: Only LOB provided - medium specificity
+          else if (lobName) {
+              query += ' AND dLOB = ?';
+              params.push(lobName);
+          }
+          
+          // Get the client instances based on the constructed query
+          const [clientInstances] = await db.query(query, params);
+          
+          if (clientInstances.length === 0) {
+              throw new Error('No instances of client found in tbl_clientlob matching the specified criteria');
+          }
+          
+          // Using a transaction to ensure all operations succeed or fail together
+          await db.query('START TRANSACTION');
+          
+          // Insert all instances with the new site information
+          for (const instance of clientInstances) {
+              // Check if this specific instance already exists for this site
+              const [existingInstance] = await db.query(
+                  'SELECT dClientSite_ID FROM tbl_clientsite WHERE dClientLOB_ID = ? AND dLOB = ? AND dSubLOB = ? AND dSite_ID = ?',
+                  [instance.dClientLOB_ID, instance.dLOB, instance.dSubLOB, siteId]
+              );
+              
+              // Only insert if this specific instance doesn't already exist for this site
+              if (existingInstance.length === 0) {
+                  // Generate a unique client site ID (6 characters)
+                  // First 3 characters from client name + 3 random alphanumeric characters
+                  const prefix = clientName.substring(0, 3).toUpperCase();
+                  let clientSiteId;
+                  let isUnique = false;
+                  
+                  // Keep generating until we get a unique ID
+                  while (!isUnique) {
+                      // Generate 3 random alphanumeric characters
+                      let chars = '';
+                      const alphanumeric = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                      for (let i = 0; i < 3; i++) {
+                          chars += alphanumeric.charAt(Math.floor(Math.random() * alphanumeric.length));
+                      }
+                      
+                      clientSiteId = `${prefix}${chars}`;
+                      
+                      // Check if this ID already exists
+                      const [existingId] = await db.query(
+                          'SELECT dClientSite_ID FROM tbl_clientsite WHERE dClientSite_ID = ?',
+                          [clientSiteId]
+                      );
+                      
+                      isUnique = existingId.length === 0;
+                  }
+                  
+                  // Insert with our generated ID
+                  const [insertResult] = await db.query(
+                    'INSERT INTO tbl_clientsite (dClientSite_ID, dClientLOB_ID, dClientName, dLOB, dSubLOB, dChannel, dIndustry, dSite_ID, dSiteName, dStatus, dCreatedBy, tCreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [
+                        clientSiteId,
+                        instance.dClientLOB_ID,
+                        instance.dClientName,
+                        instance.dLOB,
+                        instance.dSubLOB,
+                        instance.dChannel,
+                        instance.dIndustry,
+                        siteId,
+                        siteName,
+                        'ACTIVE',  // Set default status to ACTIVE
+                        userId,
+                        currentDate
+                    ]
+                  );
 
-                    // Insert log entry for each new client-site assignment
-                    await db.query(
-                        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "CREATED", "SYSTEM", ?)',
-                        [insertResult.insertId, currentDate]
-                    );
-                }
-            }
-            
-            await db.query('COMMIT');
-            
-            return { affectedRows: clientInstances.length };
-        } catch (error) {
-            // Rollback the transaction if there was an error
-            await db.query('ROLLBACK');
-            console.error('Error in SiteManagementService.addClientToSite:', error);
-            throw error;
-        }
-    }
+                  // Insert log entry for each new client-site assignment
+                  await db.query(
+                    'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "CREATED", "SYSTEM", ?)',
+                    [clientSiteId, currentDate]
+                  );
+              }
+          }
+          
+          await db.query('COMMIT');
+          
+          return { affectedRows: clientInstances.length };
+      } catch (error) {
+          // Rollback the transaction if there was an error
+          await db.query('ROLLBACK');
+          console.error('Error in SiteManagementService.addClientToSite:', error);
+          throw error;
+      }
+  }
 
     async removeClientFromSite(clientSiteId) {
         try {
@@ -285,7 +313,7 @@ class SiteManagementService {
           
           // Get client name
           const [clientResult] = await db.query(
-            'SELECT dClientName FROM tbl_clientlob WHERE dClient_ID = ? LIMIT 1',
+            'SELECT dClientName FROM tbl_clientlob WHERE dClientLOB_ID = ? LIMIT 1',
             [clientId]
           );
           
@@ -296,7 +324,7 @@ class SiteManagementService {
           const clientName = clientResult[0].dClientName;
           
           // Update the client-site assignment
-          let query = 'UPDATE tbl_clientsite SET dClient_ID = ?, dClientName = ?, dSite_ID = ?, dSiteName = ?';
+          let query = 'UPDATE tbl_clientsite SET dClientLOB_ID = ?, dClientName = ?, dSite_ID = ?, dSiteName = ?';
           let params = [clientId, clientName, siteId, siteName];
           
           // Add LOB and Sub LOB if provided
@@ -328,12 +356,12 @@ class SiteManagementService {
           await db.query(`
             UPDATE tbl_clientsite cs
             JOIN (
-              SELECT DISTINCT dClient_ID, dClientName 
+              SELECT DISTINCT dClientLOB_ID, dClientName 
               FROM tbl_clientlob 
-              WHERE dClient_ID IS NOT NULL
+              WHERE dClientLOB_ID IS NOT NULL
             ) cl ON cs.dClientName = cl.dClientName
-            SET cs.dClient_ID = cl.dClient_ID
-            WHERE cs.dClient_ID IS NULL
+            SET cs.dClientLOB_ID = cl.dClientLOB_ID
+            WHERE cs.dClientLOB_ID IS NULL
           `);
           
           // Also update any rows with NULL dStatus to have 'ACTIVE'
@@ -345,7 +373,7 @@ class SiteManagementService {
           
           // Then retrieve all records with the updated data
           const [result] = await db.query(
-            'SELECT DISTINCT dClientSite_ID, dClient_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB, dStatus, dCreatedBy, tCreatedAt FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
+            'SELECT DISTINCT dClientSite_ID, dClientLOB_ID, dClientName, dSite_ID, dSiteName, dLOB, dSubLOB, dStatus, dCreatedBy, tCreatedAt FROM tbl_clientsite WHERE dSite_ID IS NOT NULL AND dSiteName IS NOT NULL'
           );
           
           return result;
@@ -370,11 +398,11 @@ class SiteManagementService {
         }
       }
 
-    async getClientLobs(clientId) {
+      async getClientLobs(clientId, siteId = null) {
         try {
             // First get the client name
             const [clientNameResult] = await db.query(
-                'SELECT dClientName FROM tbl_clientlob WHERE dClient_ID = ? LIMIT 1',
+                'SELECT dClientName FROM tbl_clientlob WHERE dClientLOB_ID = ? LIMIT 1',
                 [clientId]
             );
             
@@ -395,9 +423,28 @@ class SiteManagementService {
                 [clientName]
             );
             
-            // Group Sub LOBs by LOB
+            // Get already assigned subLOBs for this client and site (if a site ID was provided)
+            let assignedSubLobs = [];
+            if (siteId) {
+                const [assignments] = await db.query(
+                    `SELECT DISTINCT dLOB, dSubLOB 
+                    FROM tbl_clientsite 
+                    WHERE dClientName = ? AND dSite_ID = ? AND dStatus = 'ACTIVE'`,
+                    [clientName, siteId]
+                );
+                
+                // Create a set of "LOB|SubLOB" combinations for easy lookup
+                assignedSubLobs = assignments.map(a => `${a.dLOB}|${a.dSubLOB}`);
+            }
+            
+            // Group Sub LOBs by LOB, filtering out already assigned ones
             const lobMap = new Map();
             allLobs.forEach(row => {
+                // Skip this subLOB if it's already assigned to the site
+                if (siteId && assignedSubLobs.includes(`${row.dLOB}|${row.dSubLOB}`)) {
+                    return;
+                }
+                
                 if (!lobMap.has(row.dLOB)) {
                     lobMap.set(row.dLOB, {
                         id: `lob_${lobMap.size + 1}`,
@@ -414,7 +461,15 @@ class SiteManagementService {
                 });
             });
             
-            return Array.from(lobMap.values());
+            // Remove empty LOBs (where all subLOBs were filtered out)
+            const filteredLobMap = new Map();
+            for (const [lobName, lob] of lobMap.entries()) {
+                if (lob.subLobs.length > 0) {
+                    filteredLobMap.set(lobName, lob);
+                }
+            }
+            
+            return Array.from(filteredLobMap.values());
         } catch (error) {
             console.error('Error in SiteManagementService.getClientLobs:', error);
             return [];
@@ -533,7 +588,7 @@ class SiteManagementService {
       try {
         // Get distinct clients using MIN to handle ONLY_FULL_GROUP_BY mode
         const [allClients] = await db.query(
-          'SELECT MIN(dClient_ID) as dClient_ID, dClientName FROM tbl_clientlob GROUP BY dClientName'
+          'SELECT MIN(dClientLOB_ID) as dClientLOB_ID, dClientName FROM tbl_clientlob GROUP BY dClientName'
         );
 
         const availableClients = [];
@@ -554,7 +609,7 @@ class SiteManagementService {
             );
 
             availableClients.push({
-              id: client.dClient_ID,
+              id: client.dClientLOB_ID, // NOT client.dClient_ID
               name: client.dClientName,
               lobCount: counts[0].lobCount,
               subLobCount: counts[0].subLobCount
@@ -613,7 +668,7 @@ class SiteManagementService {
       // Insert log entry
       const timestamp = new Date();
       await db.query(
-        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
         [clientSiteId, timestamp]
       );
       
@@ -638,7 +693,7 @@ class SiteManagementService {
       // Insert log entry
       const timestamp = new Date();
       await db.query(
-        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
         [clientSiteId, timestamp]
       );
       
@@ -705,7 +760,7 @@ class SiteManagementService {
         const timestamp = new Date();
         for (const clientSiteId of clientSiteIds) {
             await db.query(
-                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
                 [clientSiteId, timestamp]
             );
         }
@@ -778,7 +833,7 @@ class SiteManagementService {
         const timestamp = new Date();
         for (const clientSiteId of clientSiteIds) {
             await db.query(
-                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT-SITE", "MODIFIED", "SYSTEM", ?)',
+                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
                 [clientSiteId, timestamp]
             );
         }

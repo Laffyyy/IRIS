@@ -237,13 +237,13 @@ class SiteManagementController {
     // Add to your SiteManagementController.js
     async getClientLobs(req, res) {
         try {
-        const { clientId } = req.body;
+        const { clientId, siteId } = req.body;
         
         if (!clientId) {
-            return res.status(400).json({ message: 'Client ID is required' });
+          return res.status(400).json({ message: 'Client ID is required' });
         }
         
-        const lobs = await this.SiteManagementService.getClientLobs(clientId);
+        const lobs = await this.SiteManagementService.getClientLobs(clientId, siteId);
         
         return res.status(200).json({
             message: 'Client LOBs retrieved successfully',
