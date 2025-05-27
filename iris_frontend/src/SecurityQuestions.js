@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SecurityQuestions.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -16,6 +16,7 @@ const SecurityQuestions = () => {
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
   const navigate = useNavigate();
   const location = useLocation();
+  const answerInputRef = useRef(null);
 
   // Get email from navigation state
   const userEmail = location.state?.userEmail || '';
@@ -126,10 +127,17 @@ const SecurityQuestions = () => {
       } else {
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
+        setAnswer(''); // Clear the answer field
         setAlertModal({
           isOpen: true,
           message: `Incorrect Answer. ${MAX_ATTEMPTS - newAttempts} attempt(s) left.`,
-          type: 'error'
+          type: 'error',
+          onClose: () => {
+            // Focus the answer input after modal closes
+            if (answerInputRef.current) {
+              answerInputRef.current.focus();
+            }
+          }
         });
         
         if (newAttempts >= MAX_ATTEMPTS) {
@@ -144,6 +152,7 @@ const SecurityQuestions = () => {
     } catch (error) {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
+      setAnswer(''); // Clear the answer field
       
       let errorMessage = 'An error occurred while verifying your answer.';
       if (error.response?.data?.message) {
@@ -153,7 +162,13 @@ const SecurityQuestions = () => {
       setAlertModal({
         isOpen: true,
         message: `${errorMessage} ${MAX_ATTEMPTS - newAttempts} attempt(s) left.`,
-        type: 'error'
+        type: 'error',
+        onClose: () => {
+          // Focus the answer input after modal closes
+          if (answerInputRef.current) {
+            answerInputRef.current.focus();
+          }
+        }
       });
       
       if (newAttempts >= MAX_ATTEMPTS) {
@@ -176,6 +191,7 @@ const SecurityQuestions = () => {
       <form className="security-questions-form" onSubmit={handleSaveChanges}>
         <div className="question-section">
           <label htmlFor="security-question" className="question-label">Security Question</label>
+          <label htmlFor="answer" className="answer-label">Your Question</label>
           <input
             id="security-question"
             type="text"
@@ -184,7 +200,9 @@ const SecurityQuestions = () => {
             className="static-question-input"
             style={{ marginBottom: '1rem' }}
           />
+          <label htmlFor="answer" className="answer-label">Your answer</label>
           <input
+            id="answer"
             type="text"
             placeholder="Your answer"
             value={answer}
@@ -193,6 +211,7 @@ const SecurityQuestions = () => {
             required
             disabled={isLoading}
             className="answer-input"
+            ref={answerInputRef}
           />
         </div>
         <div className="form-buttons">

@@ -55,9 +55,11 @@ const UpdatePassword = () => {
 
   const handlePasswordChange = (e, field) => {
     const value = e.target.value;
+    // Allow letters (a-z, A-Z), numbers (0-9), and specific special characters !/[_-.!@,
+    const sanitizedValue = value.replace(/[^a-zA-Z0-9!\/[_\-.@,]/g, '');
     setPasswords(prev => ({
       ...prev,
-      [field]: value
+      [field]: sanitizedValue
     }));
   };
 
