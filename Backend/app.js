@@ -7,7 +7,9 @@ const changepassRoutes = require('./routes/changepasswordroutes');
 const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
-
+const fpOtpRoutes = require('./routes/fpOtpRoutes');
+const securityQuestionsRoutes = require('./routes/securityQuestionsRoutes');
+const forgotPasswordRoutes = require('./routes/forgotPasswordRoutes');
 // Middleware
 const userRoutes = require('./routes/userRoutes');
 require('./binlogListener');
@@ -35,5 +37,7 @@ app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
 
 // Mount routes
 app.use('/api/users', userRoutes);
-
+app.use('/api/fp', fpOtpRoutes);
+app.use('/api/security-questions', securityQuestionsRoutes);
+app.use('/api/update-password', forgotPasswordRoutes);
 module.exports = app;
