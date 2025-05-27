@@ -6,6 +6,7 @@ import ModalWarning from './components/ModalWarning';
 import ModalPasswordExpired from './components/ModalPasswordExpired';
 import AlertModal from './components/AlertModal';
 import axios from 'axios';
+import { useUser } from './contexts/UserContext';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
@@ -83,6 +84,7 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
 };
 
 const Login = ({ onContinue, onForgotPassword }) => {
+  const { login } = useUser();
   const [showPassword, setShowPassword] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
@@ -103,6 +105,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
   newPassword: '',
   confirmPassword: ''
 });
+
 
   const carouselImages = [
     '/assets/loginimage1.jpg',
@@ -219,6 +222,15 @@ const Login = ({ onContinue, onForgotPassword }) => {
       if (response.ok) {
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
+        if (data.token) {
+          // The data structure matches exactly what loginService.js returns
+          login({
+            user: {
+              id: data.user.id,
+              status: data.user.status
+            }
+          });
+        }
         // Remove AlertModal for userId login, just navigate directly to OTP page
         navigate('/otp', { state: { userId: employeeId } });
 

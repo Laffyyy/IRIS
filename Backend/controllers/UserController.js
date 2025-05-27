@@ -158,11 +158,13 @@ exports.deleteUsers = async (req, res) => {
       return res.status(400).json({ message: 'No users selected for deletion' });
     }
 
+    // This will now handle both admin and normal users
     await userService.deactivateUsers(userIds);
+    
     res.status(200).json({ message: 'Users deactivated successfully' });
     broadcastUserUpdate();
   } catch (error) {
-    console.error('Error deleting users:', error);
+    console.error('Error deactivating users:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -263,6 +265,42 @@ exports.restoreUsers = async (req, res) => {
   }
 };
 
+exports.lockUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for locking' });
+    }
+
+    await userService.lockUsers(userIds);
+    
+    res.status(200).json({ message: 'Users locked successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error locking users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.unlockUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for unlocking' });
+    }
+
+    await userService.unlockUsers(userIds);
+    
+    res.status(200).json({ message: 'Users unlocked successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error unlocking users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -345,5 +383,30 @@ exports.updateUserSecurityQuestions = async (req, res) => {
     res.json({ message: 'Security questions updated successfully.' });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Failed to update security questions.' });
+  }
+};
+
+exports.deleteUsersPermanently = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for deletion' });
+    }
+
+    await userService.deleteUsersPermanently(userIds);
+    
+    res.status(200).json({ 
+      message: userIds.length === 1 
+        ? 'User permanently deleted successfully' 
+        : 'Users permanently deleted successfully'
+    });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error permanently deleting users:', error);
+    if (error.message === 'Only deactivated users can be permanently deleted') {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
