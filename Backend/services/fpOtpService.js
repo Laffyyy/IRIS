@@ -129,13 +129,20 @@ exports.verifyOtp = async ({ userId, email, otp }) => {
      WHERE dUser_ID = ? 
        AND dOTP = ? 
        AND dOTP_Status = 0 
-       AND tOTP_Expires > NOW()
      ORDER BY tOTP_Created DESC LIMIT 1`,
     [userId, otp]
   );
 
   if (rows.length === 0) {
-    throw new Error('Invalid or expired OTP');
+    throw new Error('Invalid OTP');
+  }
+
+  const otpRecord = rows[0];
+  const currentTime = new Date();
+
+  // Check if the OTP is expired
+  if (new Date(otpRecord.tOTP_Expires) < currentTime) {
+    throw new Error('OTP has expired. Please request a new one.');
   }
 
   // Mark OTP as used
