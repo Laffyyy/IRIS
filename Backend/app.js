@@ -9,12 +9,8 @@ const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const clientManagementRoutes = require('./routes/clientManagementRoutes');
 const changepassRoutes = require('./routes/changepasswordroutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
-const fpOtpRoutes = require('./routes/fpOtpRoutes');
-const securityQuestionsRoutes = require('./routes/securityQuestionsRoutes');
-const forgotPasswordRoutes = require('./routes/forgotPasswordRoutes');
-// Middleware
-const userRoutes = require('./routes/userRoutes');
-require('./binlogListener');
+const kpiRoutes = require('./routes/kpiManagementRoutes');
+
 const app = express();
 
 // Middleware
@@ -35,9 +31,9 @@ app.use('/api/password-expiration', passwordExpirationRoutes);
 app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/sites', SiteManagementRoutes);
-app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
+app.use('/api/kpis', kpiRoutes);
 app.use('/api/clients', clientManagementRoutes);
-
+app.use('/api/dev', devRoutes);
 // Mount routes
 app.use('/api/users', userRoutes);
 app.use('/api/fp', fpOtpRoutes);
