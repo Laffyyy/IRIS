@@ -794,6 +794,11 @@ const KPIManagement = () => {
         
         // Process each KPI sequentially to avoid race conditions
         for (const kpi of bulkKpis) {
+          if (!kpi.name || !kpi.category || !kpi.behavior) {
+            showAlert('KPI name, category, and behavior are required for all KPIs.');
+            return;
+          }
+          
           try {
             const nextKpiId = generateNextKpiId([...kpis, ...uploadedKpis]);
             
@@ -1165,7 +1170,10 @@ const handleDeleteConfirm = async () => {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
-              }
+              },
+              body: JSON.stringify({
+                dCreatedBy: '2505170018' // Add this line
+              })
             })
           );
     
@@ -1183,6 +1191,7 @@ const handleDeleteConfirm = async () => {
               : kpi
           );
           setKpis(updatedKpis);
+          setShowSimpleSuccess(false); // Reset first
           
           // Show success modal
           setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} deactivated successfully!`);
@@ -1211,7 +1220,10 @@ const handleDeleteConfirm = async () => {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
-              }
+              },
+              body: JSON.stringify({
+                dCreatedBy: '2505170018' // Add this line
+              })
             })
           );
     
@@ -1229,7 +1241,8 @@ const handleDeleteConfirm = async () => {
               : kpi
           );
           setKpis(updatedKpis);
-          
+          setShowSimpleSuccess(false); // Reset first
+
           // Show success message
           setSimpleSuccessMessage(`${selectedKPIs.length} KPI${selectedKPIs.length > 1 ? 's' : ''} reactivated successfully!`);
           setShowSimpleSuccess(true);
@@ -1358,84 +1371,74 @@ const handleDeleteConfirm = async () => {
   };
 
   const handleSaveRecentKpi = async (updatedKpi) => {
-    try {
-      if (updatedKpi.dKPI_ID) {
-        const originalKpi = kpis.find(k => k.dKPI_ID === updatedKpi.dKPI_ID);
-        const hasChanges = 
-          originalKpi.dKPI_Name !== updatedKpi.name ||
-          originalKpi.dCategory !== updatedKpi.category ||
-          originalKpi.dCalculationBehavior !== updatedKpi.behavior ||
-          originalKpi.dDescription !== updatedKpi.description;
+      try {
+          // Make sure we have a valid KPI ID
+          if (!updatedKpi.dKPI_ID) {
+              throw new Error('Invalid KPI ID');
+          }
 
-        if (!hasChanges) {
-          setTempKpiData(updatedKpi);
-          setShowNoChangesModal(true);
+          // Map the data to match the backend expectations
+          const updateData = {
+              dKPI_Name: updatedKpi.name,
+              dCategory: updatedKpi.category,
+              dCalculationBehavior: updatedKpi.behavior,
+              dDescription: updatedKpi.description || '',
+              dCreatedBy: '2505170018'
+          };
+
+          console.log('Sending update with data:', updateData);
+
+          const response = await fetch(`${BASE_URL}/${updatedKpi.dKPI_ID}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(updateData)
+          });
+
+          if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || 'Error updating KPI');
+          }
+
+          const result = await response.json();
+
+          // Update the kpis state
+          setKpis(prevKpis => prevKpis.map(kpi => 
+              kpi.dKPI_ID === updatedKpi.dKPI_ID 
+                  ? {
+                      ...kpi,
+                      dKPI_Name: result.dKPI_Name,
+                      dCategory: result.dCategory,
+                      dCalculationBehavior: result.dCalculationBehavior,
+                      dDescription: result.dDescription
+                  } 
+                  : kpi
+          ));
+
+          // Update the recentlyAdded state
+          setRecentlyAdded(prev => 
+              prev.map(kpi => 
+                  kpi.dKPI_ID === updatedKpi.dKPI_ID 
+                      ? {
+                          ...kpi,
+                          name: result.dKPI_Name,
+                          category: result.dCategory,
+                          behavior: result.dCalculationBehavior,
+                          description: result.dDescription
+                      }
+                      : kpi
+              )
+          );
+
           setEditRecentKpi(null);
-          return;
-        }
-        // Update in backend
-        const response = await fetch(`http://localhost:3000/api/kpis/${updatedKpi.dKPI_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            dKPI_Name: updatedKpi.name,
-            dCategory: updatedKpi.category,
-            dCalculationBehavior: updatedKpi.behavior,
-            dDescription: updatedKpi.description
-          })
-        });
+          setSimpleSuccessMessage(`KPI "${result.dKPI_Name}" has been updated successfully`);
+          setShowSimpleSuccess(true);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          throw new Error(errorData?.message || `Server error: ${response.status}`);
-        }
-
-        // Refresh main kpis list
-        const refreshResponse = await fetch('http://localhost:3000/api/kpis');
-        const updatedKpis = await refreshResponse.json();
-        setKpis(updatedKpis);
-
-        // Find the updated KPI from the refreshed list
-        const backendKpi = updatedKpis.find(k => k.dKPI_ID === updatedKpi.dKPI_ID);
-
-        // Update recentlyAdded state as well
-        setRecentlyAdded(prev =>
-          prev.map((k, i) =>
-            i === updatedKpi.idx
-              ? {
-                  ...k,
-                  ...backendKpi, // Use backend's latest data
-                  name: backendKpi.dKPI_Name,
-                  category: backendKpi.dCategory,
-                  behavior: backendKpi.dCalculationBehavior,
-                  description: backendKpi.dDescription
-                }
-              : k
-          )
-        );
-
-        setSimpleSuccessMessage(
-          updatedKpi.dKPI_ID 
-            ? `KPI "${updatedKpi.name}" updated successfully!`
-            : `KPI "${updatedKpi.name}" updated successfully!`
-        );
-        setShowSimpleSuccess(true);
-        setSuccessCount(0);
-      } else {
-        // Only in recentlyAdded, update local state
-        setRecentlyAdded(prev =>
-          prev.map((k, i) => i === updatedKpi.idx ? updatedKpi : k)
-        );
-        setSimpleSuccessMessage('KPI updated successfully!');
-        setSuccessCount(0);
+      } catch (error) {
+          console.error('Error updating KPI:', error);
+          showAlert(`Failed to update KPI: ${error.message}`);
       }
-      setEditRecentKpi(null);
-    } catch (error) {
-      showAlert(`Failed to update KPI: ${error.message}`);
-    }
   };
 
 

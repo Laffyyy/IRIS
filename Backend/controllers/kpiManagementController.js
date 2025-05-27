@@ -59,28 +59,23 @@ exports.createKPI = async (req, res) => {
 
 exports.updateKPI = async (req, res) => {
     try {
-
-         // Log the creation action
+        const result = await kpiService.updateKPI(req.params.id, req.body);
+        
+        // Log the update action
         await logService.logAdminAction({
-            dActionLocation_ID: result.dKPI_ID,
+            dActionLocation_ID: req.params.id,
             dActionLocation: 'KPI',
             dActionType: 'MODIFIED',
             dActionBy: req.body.dCreatedBy
         });
 
-        const updatedKpi = await kpiService.updateKPI(req.params.id, req.body);
-        res.json(updatedKpi);
+        res.json(result);
     } catch (error) {
-        if (error.message === 'KPI not found') {
-            res.status(404).json({ message: error.message });
-        } else if (error.message === 'Missing required fields') {
-            res.status(400).json({ message: error.message });
-        } else {
-            res.status(500).json({ 
-                message: "Error updating KPI", 
-                error: error.message 
-            });
-        }
+        console.error('Error updating KPI:', error);
+        res.status(500).json({ 
+            message: "Error updating KPI", 
+            error: error.message 
+        });
     }
 };
 
