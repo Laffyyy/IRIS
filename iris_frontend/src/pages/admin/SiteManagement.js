@@ -1453,7 +1453,7 @@ const SiteManagement = () => {
                     Created At {siteSortConfig.key === 'tCreatedAt' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
                   <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
-                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, marginLeft: 55 }}>
+                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1}}>
                     <div className="select-all-container">
                     <p>Select All</p>
                       <input
