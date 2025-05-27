@@ -306,7 +306,16 @@ const UserManagement = () => {
   // Filter users based on the active tab
   const tabFilteredUsers = React.useMemo(() => {
     if (activeTable === 'admin') {
-      return users.filter(user => user.dUser_Type === 'ADMIN' && (statusFilter === 'All' || user.dStatus === statusFilter));
+          // Only show ADMIN users that are not LOCKED or other ticket statuses
+    return users.filter(user => 
+      user.dUser_Type === 'ADMIN' && 
+      user.dStatus !== 'LOCKED' &&
+      user.dStatus !== 'NEED-RESET' &&
+      user.dStatus !== 'RESET-DONE' &&
+      user.dStatus !== 'DEACTIVATED' &&
+      (statusFilter === 'All' || user.dStatus === statusFilter)
+    );
+    
     } else if (activeTable === 'tickets') {
       return users.filter(user => (user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED') && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
     } else if (activeTable === 'deactivated') {
@@ -1079,7 +1088,8 @@ const UserManagement = () => {
         employeeId: updatedUser.dUser_ID,
         name: updatedUser.dName,
         email: updatedUser.dEmail,
-        status: updatedUser.dStatus
+        status: updatedUser.dStatus,
+        isAdmin: isAdmin,
       };
 
       // Add role only for non-admin users
@@ -1095,14 +1105,12 @@ const UserManagement = () => {
 
       // Handle account reset
       if (resetConfirmed) {
-        if (!isAdmin) {
           updateData.securityQuestions = [
           { question: '', answer: '' },
           { question: '', answer: '' },
           { question: '', answer: '' }
         ];
           updateData.status = 'RESET-DONE';
-        }
       }
 
       // Make the API call
@@ -1890,7 +1898,13 @@ const UserManagement = () => {
               onClick={() => setActiveTable('admin')}
             >
               <FaUserShield className={styles['nav-icon']} />
-              <span>Admin ({users.filter(user => user.dUser_Type === 'ADMIN').length})</span>
+              <span>Admin ({users.filter(user => 
+                user.dUser_Type === 'ADMIN' && 
+                user.dStatus !== 'LOCKED' &&
+                user.dStatus !== 'NEED-RESET' &&
+                user.dStatus !== 'RESET-DONE' &&
+                user.dStatus !== 'DEACTIVATED'
+              ).length})</span>
             </div>
             <div 
               className={`${styles['nav-item']} ${activeTable === 'tickets' ? styles['active'] : ''}`} 
@@ -2074,12 +2088,12 @@ const UserManagement = () => {
                 </table>
               )
             )}
-            {activeTable === 'admin' && (
-              getFilteredUsers().length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
-                  No users found.
-                </div>
-              ) : (
+              {activeTable === 'admin' && (
+                tabFilteredUsers.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                    No users found.
+                  </div>
+                ) : (
                 <table>
                   <thead>
                     <tr>

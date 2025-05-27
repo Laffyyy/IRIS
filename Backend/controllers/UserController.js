@@ -196,34 +196,25 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: 'No fields to update.' });
     }
     // Check if user exists in tbl_login
-    let user = await userService.getUserByLoginId(userId);
-    let isAdmin = false;
-    if (!user) {
-      // Check if user exists in tbl_admin
+    // Use the explicit isAdmin flag from the request
+    const isAdmin = !!req.body.isAdmin;
+    let user;
+    
+    if (isAdmin) {
+      // Get admin user directly
       user = await userService.getAdminByLoginId(userId);
       if (!user) {
-         return res.status(404).json({ message: 'User not found.' });
+        return res.status(404).json({ message: 'Admin user not found.' });
       }
-      isAdmin = true;
-    }
-    // If updateData.resetPassword is true, compute a default password (employeeID + MMDDYYYY) and hash it.
-    if (updateData.resetPassword) {
-      const employeeId = updateData.employeeId || user.dUser_ID;
-      const tCreatedAt = user.tCreatedAt ? new Date(user.tCreatedAt) : new Date();
-      const mm = String(tCreatedAt.getMonth() + 1).padStart(2, '0');
-      const dd = String(tCreatedAt.getDate()).padStart(2, '0');
-      const yyyy = String(tCreatedAt.getFullYear());
-      const dateStr = `${mm}${dd}${yyyy}`;
-      const defaultPassword = `${employeeId}${dateStr}`;
-      updateData.hashedPassword = await bcrypt.hash(defaultPassword, 10);
-      delete updateData.resetPassword;
-    } else if (updateData.password) {
-      // If a new password is provided (and not reset), hash it.
-      updateData.hashedPassword = await bcrypt.hash(updateData.password, 10);
-      delete updateData.password;
+    } else {
+      // Get regular user
+      user = await userService.getUserByLoginId(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
     }
     // If securityQuestions is present and is an array of empty questions/answers, clear them (only for tbl_login)
-    if (!isAdmin && Array.isArray(updateData.securityQuestions)) {
+    if (Array.isArray(updateData.securityQuestions)) {
       const allEmpty = updateData.securityQuestions.every(q => !q.question && !q.answer);
       if (allEmpty) {
          // Clear security questions in DB
@@ -233,8 +224,14 @@ exports.updateUser = async (req, res) => {
            { question: '', answer: '' }
          ]);
          updateData.status = 'RESET-DONE';
-         // Always set password to '1234' (hashed)
-         updateData.hashedPassword = await bcrypt.hash('1234', 10);
+         const employeeId = updateData.employeeId || user.dUser_ID;
+         const tCreatedAt = user.tCreatedAt ? new Date(user.tCreatedAt) : new Date();
+         const mm = String(tCreatedAt.getMonth() + 1).padStart(2, '0');
+         const dd = String(tCreatedAt.getDate()).padStart(2, '0');
+         const yyyy = String(tCreatedAt.getFullYear());
+         const dateStr = `${mm}${dd}${yyyy}`;
+         const defaultPassword = `${employeeId}${dateStr}`;
+         updateData.hashedPassword = await bcrypt.hash(defaultPassword, 10);
          delete updateData.password;
          delete updateData.securityQuestions;
       }
