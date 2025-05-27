@@ -14,7 +14,10 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Jan 2024',
       description: 'Left company due to relocation',
-      timestamp: '2024-01-15 09:23 AM'
+      timestamp: '2024-01-15 09:23 AM',
+      team: 'Customer Service',
+      lob: 'Operations',
+      subLob: 'Voice Support'
     },
     {
       employeeId: '523456',
@@ -22,7 +25,10 @@ const DataManagement = () => {
       type: 'DA',
       monthYear: 'Feb 2024',
       description: 'Disciplinary action for tardiness',
-      timestamp: '2024-02-10 02:45 PM'
+      timestamp: '2024-02-10 02:45 PM',
+      team: 'Technical Support',
+      lob: 'Technology',
+      subLob: 'IT Help Desk'
     },
     {
       employeeId: 'E34567',
@@ -30,7 +36,10 @@ const DataManagement = () => {
       type: 'LOA',
       monthYear: 'Mar 2024',
       description: 'Leave of absence for medical reasons',
-      timestamp: '2024-03-05 11:12 AM'
+      timestamp: '2024-03-05 11:12 AM',
+      team: 'Sales',
+      lob: 'Business Development',
+      subLob: 'Enterprise Sales'
     },
     {
       employeeId: 'E45678',
@@ -38,7 +47,10 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Apr 2024',
       description: 'Resigned for career change',
-      timestamp: '2024-04-20 04:30 PM'
+      timestamp: '2024-04-20 04:30 PM',
+      team: 'Marketing',
+      lob: 'Brand Management',
+      subLob: 'Digital Marketing'
     },
     {
       employeeId: 'E55789',
@@ -46,7 +58,10 @@ const DataManagement = () => {
       type: 'DA',
       monthYear: 'May 2024',
       description: 'Disciplinary action for policy violation',
-      timestamp: '2024-05-18 01:05 PM'
+      timestamp: '2024-05-18 01:05 PM',
+      team: 'Customer Service',
+      lob: 'Operations',
+      subLob: 'Chat Support'
     },
     {
       employeeId: 'E67890',
@@ -54,7 +69,10 @@ const DataManagement = () => {
       type: 'LOA',
       monthYear: 'Jun 2024',
       description: 'Leave of absence for family reasons',
-      timestamp: '2024-06-12 10:00 AM'
+      timestamp: '2024-06-12 10:00 AM',
+      team: 'Finance',
+      lob: 'Accounting',
+      subLob: 'Payroll'
     },
     {
       employeeId: 'E78901',
@@ -62,7 +80,10 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Jul 2024',
       description: 'Left company for higher education',
-      timestamp: '2024-07-22 03:15 PM'
+      timestamp: '2024-07-22 03:15 PM',
+      team: 'Technical Support',
+      lob: 'Technology',
+      subLob: 'Network Support'
     },
     {
       employeeId: 'E89012',
@@ -70,7 +91,10 @@ const DataManagement = () => {
       type: 'DA',
       monthYear: 'Aug 2024',
       description: 'Disciplinary action for attendance',
-      timestamp: '2024-08-08 09:50 AM'
+      timestamp: '2024-08-08 09:50 AM',
+      team: 'Sales',
+      lob: 'Business Development',
+      subLob: 'SMB Sales'
     },
     {
       employeeId: 'E90123',
@@ -78,7 +102,10 @@ const DataManagement = () => {
       type: 'LOA',
       monthYear: 'Sep 2024',
       description: 'Leave of absence for personal reasons',
-      timestamp: '2024-09-14 08:40 AM'
+      timestamp: '2024-09-14 08:40 AM',
+      team: 'Marketing',
+      lob: 'Brand Management',
+      subLob: 'Content Marketing'
     },
     {
       employeeId: 'E01234',
@@ -86,7 +113,10 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Oct 2024',
       description: 'Resigned due to relocation',
-      timestamp: '2024-10-30 05:20 PM'
+      timestamp: '2024-10-30 05:20 PM',
+      team: 'Customer Service',
+      lob: 'Operations',
+      subLob: 'Email Support'
     },
     {
       employeeId: 'E11235',
@@ -94,7 +124,10 @@ const DataManagement = () => {
       type: 'DA',
       monthYear: 'Nov 2024',
       description: 'Disciplinary action for misconduct',
-      timestamp: '2024-11-11 12:00 PM'
+      timestamp: '2024-11-11 12:00 PM',
+      team: 'Technical Support',
+      lob: 'Technology',
+      subLob: 'Desktop Support'
     },
     {
       employeeId: 'E22346',
@@ -102,7 +135,10 @@ const DataManagement = () => {
       type: 'LOA',
       monthYear: 'Dec 2024',
       description: 'Leave of absence for maternity',
-      timestamp: '2024-12-01 08:00 AM'
+      timestamp: '2024-12-01 08:00 AM',
+      team: 'Finance',
+      lob: 'Accounting',
+      subLob: 'Accounts Payable'
     },
     {
       employeeId: 'E33467',
@@ -110,7 +146,10 @@ const DataManagement = () => {
       type: 'Attrition',
       monthYear: 'Jan 2025',
       description: 'Left company for personal reasons',
-      timestamp: '2025-01-10 10:30 AM'
+      timestamp: '2025-01-10 10:30 AM',
+      team: 'Sales',
+      lob: 'Business Development',
+      subLob: 'Inside Sales'
     }
   ]);
 
