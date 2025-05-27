@@ -38,6 +38,17 @@ const EmployeeData = () => {
     }, 1000);
   };
 
+  const generateTemplate = () => {
+    const templateData = [
+      ['Employee ID', 'Full Name', 'Department', 'Position', 'Type', 'Month/Year', 'Description', 'Team', 'LOB', 'Sub LOB']
+    ];
+    
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(templateData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+    XLSX.writeFile(workbook, 'employee_data_template.xlsx');
+  };
+
   return (
     <div className="employee-data-container">
       <div className="white-card">
@@ -81,7 +92,7 @@ const EmployeeData = () => {
               disabled={isUploading}
             />
 
-            <button className="template-btn">
+            <button className="template-btn" onClick={generateTemplate}>
               <FaFileDownload /> Get Template
             </button>
           </div>

@@ -1,9 +1,9 @@
 .kpi-mgmt-container {
-    padding: 24px;
+    padding: 20px;
     font-family: 'Inter', sans-serif;
     background-color: #f8fafc;
     min-height: 100vh;
-    margin: 0 80px;
+    margin: 0 0.1%;
   }
   
   .white-card {
