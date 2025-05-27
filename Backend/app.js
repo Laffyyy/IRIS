@@ -10,6 +10,7 @@ const clientManagementRoutes = require('./routes/clientManagementRoutes');
 const changepassRoutes = require('./routes/changepasswordroutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 const kpiRoutes = require('./routes/kpiManagementRoutes');
+const processingMonthRoutes = require('./routes/processingMonthRoutes');
 
 const app = express();
 
@@ -39,4 +40,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/fp', fpOtpRoutes);
 app.use('/api/security-questions', securityQuestionsRoutes);
 app.use('/api/update-password', forgotPasswordRoutes);
+app.use('/api/processing-month', processingMonthRoutes);
+
 module.exports = app;
