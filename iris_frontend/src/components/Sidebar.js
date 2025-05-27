@@ -8,6 +8,7 @@ import adminIcon from '../assets/icons/admin-icon.png';
 import hrIcon from '../assets/icons/hr-icon.png';
 import reportsIcon from '../assets/icons/reports-icon.png';
 import cbIcon from '../assets/icons/cb-icon.png';
+import employeeIcon from '../assets/icons/employee-icon.png';
 import faqsIcon from '../assets/icons/faqs-icon.png';
 import logoutIcon from '../assets/icons/logout-icon.png';
 import userManagementIcon from '../assets/icons/users.png';
@@ -44,7 +45,8 @@ const Sidebar = () => {
         { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
         { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
         { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
-        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
+        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon },
+        { name: 'Employee Management', path: '/admin/employees', icon: employeeIcon },
       ]
     }
   ] : []),

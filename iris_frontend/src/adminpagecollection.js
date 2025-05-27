@@ -5,6 +5,7 @@ import AppManagement from './pages/admin/AppManagement';
 import ClientManagement from './pages/admin/ClientManagement';
 import SiteManagement from './pages/admin/SiteManagement';
 import KPIManagement from './pages/admin/KPIManagement';
+import EmployeeManagement from './pages/admin/EmployeeManagement';
 import Dashboard from './pages/Dashboard';
 
 const AdminPage = () => (
@@ -15,6 +16,7 @@ const AdminPage = () => (
     <Route path="clients" element={<ClientManagement />} />
     <Route path="sites" element={<SiteManagement />} />
     <Route path="kpis" element={<KPIManagement />} />
+    <Route path="employees" element={<EmployeeManagement />} />
   </Routes>
 );
 

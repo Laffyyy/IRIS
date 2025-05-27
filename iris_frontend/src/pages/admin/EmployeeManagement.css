@@ -1,0 +1,385 @@
+/* Consistent with admin pages */
+.employee-management-container {
+  padding: 20px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+}
+
+.white-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.page-title {
+  font-size: 18px;
+  color: #004D8D;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.tab-buttons, .tab-container {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
+  gap: 0;
+}
+.tab-buttons button, .tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  border-radius: 0;
+  margin-right: 10px;
+  transition: all 0.2s;
+}
+.tab-buttons button.active, .tab.active {
+  color: #004D8D;
+  border-bottom: 2px solid #004D8D;
+  background: none;
+}
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+
+.add-employees-section {
+  display: flex;
+  gap: 2rem;
+}
+.option {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  flex: 1 1 340px;
+  min-width: 340px;
+}
+.option-1 { margin-right: 1rem; }
+.option-2 { margin-left: 1rem; }
+.option h2 {
+  font-size: 1.1rem;
+  color: #004D8D;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.option-desc {
+  color: #666;
+  margin-bottom: 1.5rem;
+  font-size: 12px;
+}
+
+.per-sublob-form label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #004D8D;
+  font-weight: 500;
+  font-size: 13px;
+}
+.per-sublob-form select {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: #fff;
+  font-size: 13px;
+}
+
+.bulk-upload-form {
+  margin-top: 20px;
+}
+.bulk-upload-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.bulk-upload-actions h3 {
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.generate-template-btn {
+  background: none;
+  border: 1px solid #004D8D;
+  color: #004D8D;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.generate-template-btn:hover {
+  background-color: #f0f7ff;
+}
+.drop-zone {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  transition: all 0.2s ease;
+  background-color: #fafafa;
+  margin-bottom: 20px;
+}
+.drop-zone.active {
+  border-color: #004D8D;
+  background-color: #f0f7ff;
+}
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.drop-zone-content p {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+}
+.browse-files-btn {
+  background-color: #004D8D;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 10px;
+}
+.browse-files-btn:hover {
+  background-color: #003366;
+}
+.file-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+.remove-file-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.remove-file-btn:hover {
+  color: #e53e3e;
+}
+.upload-preview {
+  margin-top: 20px;
+}
+.preview-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+.preview-tab {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  transition: all 0.2s ease;
+}
+.preview-tab.active {
+  background-color: #004D8D;
+  color: white;
+  border-color: #004D8D;
+}
+.preview-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.valid-users-table, .invalid-users-table {
+  margin-top: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.valid-users-table table, .invalid-users-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.valid-users-table th, .invalid-users-table th, .valid-users-table td, .invalid-users-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+.valid-users-table th, .invalid-users-table th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+  color: #333;
+}
+.invalid-users-table .reason-cell {
+  color: #e53e3e;
+  font-weight: 500;
+}
+.upload-btn, .add-button {
+  background-color: #004D8D;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 10px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.upload-btn:hover, .add-button:hover {
+  background-color: #003366;
+}
+.upload-btn:disabled, .add-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+.template-fields {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+.template-fields h3 {
+  color: #004D8D;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.template-fields ul {
+  padding-left: 1.2rem;
+  color: #3949ab;
+  font-size: 0.98rem;
+}
+.employee-list-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  flex: 2 1 600px;
+  min-width: 400px;
+}
+.directory-title {
+  font-size: 1.1rem;
+  color: #004D8D;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+.directory-desc {
+  color: #666;
+  margin-bottom: 1.5rem;
+  font-size: 12px;
+}
+.search-filter-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.search-input {
+  flex: 1;
+  padding: 8px 8px 8px 30px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: #fff;
+  font-size: 13px;
+}
+.filter-btn {
+  background: #f0f0f0;
+  color: #004D8D;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 13px;
+}
+.filter-btn:hover {
+  background: #e0e0e0;
+}
+.employee-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.employee-table th, .employee-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 48px;
+  box-sizing: border-box;
+}
+.employee-table th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.employee-table tr:hover {
+  background-color: #f5f5f5;
+}
+.employee-table tr:last-child td {
+  border-bottom: none;
+}
+.badge {
+  display: inline-block;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.95em;
+  font-weight: 500;
+  color: inherit;
+  background: none;
+  border: none;
+}
+.badge.level2,
+.badge.level3,
+.badge.support {
+  background: none;
+  color: inherit;
+  border: none;
+}
+
+/* Make the Browse Files button white in Option 1 only */
+.option-1 .browse-files-btn {
+  background: #004D8D;
+  color: #fff;
+  border: none;
+}
+.option-1 .browse-files-btn:hover {
+  background: #003366;
+} 
