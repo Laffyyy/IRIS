@@ -1,4 +1,4 @@
-const otpService = require('../services/otpService'); // Import the OTP service
+const otpService = require('../services/otpservice'); // Import the OTP service
 
 class OtpController {
   constructor() {
