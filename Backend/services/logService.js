@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-exports.logAdminAction = async ({ dActionLocation_ID, dActionLocation, dActionType, dActionBy }) => {
+exports.logAdminAction = async ({ dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt }) => {
     try {
         console.log('Starting log admin action...');
         
@@ -12,10 +12,16 @@ exports.logAdminAction = async ({ dActionLocation_ID, dActionLocation, dActionTy
         const sql = `
             INSERT INTO tbl_logs_admin 
             (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt)
-            VALUES (?, ?, ?, ?, NOW())
+            VALUES (?, ?, ?, ?, ?)
         `;
         
-        const params = [dActionLocation_ID, dActionLocation, dActionType, dActionBy];
+        const params = [
+            dActionLocation_ID,
+            dActionLocation,
+            dActionType,
+            dActionBy,
+            tActionAt || new Date() // Use provided tActionAt or current timestamp if not provided
+        ];
         console.log('Executing query with params:', params);
 
         const [result] = await db.execute(sql, params);

@@ -36,7 +36,8 @@ exports.createKPI = async (req, res) => {
                 dActionLocation_ID: result.dKPI_ID,
                 dActionLocation: 'KPI',
                 dActionType: 'CREATED',
-                dActionBy: req.body.dCreatedBy || '2505170018'
+                dActionBy: req.body.dCreatedBy || 'system',
+                tActionAt: result.tCreatedAt
             };
             console.log('Attempting to log action with data:', logData);
             
@@ -66,7 +67,8 @@ exports.updateKPI = async (req, res) => {
             dActionLocation_ID: req.params.id,
             dActionLocation: 'KPI',
             dActionType: 'MODIFIED',
-            dActionBy: req.body.dCreatedBy
+            dActionBy: req.body.dCreatedBy || 'system',
+            tActionAt: result.tUpdatedAt
         });
 
         res.json(result);
@@ -98,12 +100,13 @@ exports.deactivateKPI = async (req, res) => {
     try {
         const result = await kpiService.deactivateKPI(req.params.id);
 
-         // Log the creation action
+        // Log the deactivation action
         await logService.logAdminAction({
             dActionLocation_ID: result.dKPI_ID,
             dActionLocation: 'KPI',
-            dActionType: 'DEACTIVATED',
-            dActionBy: req.body.dCreatedBy
+            dActionType: 'MODIFIED',
+            dActionBy: req.body.dCreatedBy || 'system',
+            tActionAt: result.tUpdatedAt
         });
 
         res.json(result);
@@ -123,12 +126,13 @@ exports.reactivateKPI = async (req, res) => {
     try {
         const result = await kpiService.reactivateKPI(req.params.id);
 
-         // Log the creation action
+        // Log the reactivation action
         await logService.logAdminAction({
             dActionLocation_ID: result.dKPI_ID,
             dActionLocation: 'KPI',
-            dActionType: 'ACTIVATED',
-            dActionBy: req.body.dCreatedBy
+            dActionType: 'MODIFIED',
+            dActionBy: req.body.dCreatedBy || 'system',
+            tActionAt: result.tUpdatedAt
         });
 
         res.json(result);
