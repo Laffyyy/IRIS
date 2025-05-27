@@ -193,7 +193,7 @@ exports.updateUserSecurityQuestions = async (loginId, questions) => {
   const a2 = questions[1]?.answer || '';
   const a3 = questions[2]?.answer || '';
   const [result] = await pool.query(
-    'UPDATE iris.tbl_login SET dSecurity_Question1=?, dSecurity_Question2=?, dSecurity_Question3=?, dAnswer_1=?, dAnswer_2=?, dAnswer_3=? WHERE dLogin_ID=?',
+    'UPDATE iris.tbl_login SET dSecurity_Question1=?, dSecurity_Question2=?, dSecurity_Question3=?, dAnswer_1=?, dAnswer_2=?, dAnswer_3=? WHERE dLoginEntry_ID=?',
     [q1, q2, q3, a1, a2, a3, loginId]
   );
   return result;
