@@ -12,23 +12,77 @@ body {
   max-width: 900px;
   margin: 30px auto;
   background: #ffffff;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  padding: 40px 30px 32px 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
 /* Headings */
 h2 {
-  font-size: 22px;
-  margin-bottom: 6px;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
   text-align: center;
 }
 
 .subtitle {
-  font-size: 14px;
+  font-size: 1rem;
   color: #6c757d;
-  margin-bottom: 25px;
+  margin-bottom: 2rem;
   text-align: center;
+}
+
+.section-header {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.question-section {
+  margin-bottom: 2rem;
+}
+
+.question-label {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  display: block;
+  text-align: left;
+  border-bottom: 1px solid #ced4da;
+  padding-bottom: 8px;
+}
+
+.static-question-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #f8f9fa;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.answer-label {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  display: block;
+  text-align: left;
+}
+
+.answer-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #fff;
+  margin-bottom: 0.5rem;
 }
 
 /* Form Layout */
@@ -95,21 +149,22 @@ select:focus {
 
 /* Buttons */
 .form-buttons {
-  margin-top: 30px;
+  margin-top: 2rem;
   display: flex;
-  flex-direction: row;
-  gap: 15px;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
 }
 
 .cancel-btn,
 .save-btn {
-  flex: 1;
-  padding: 12px 0;
-  border-radius: 6px;
+  width: 100%;
+  padding: 14px 0;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 1rem;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .cancel-btn {
@@ -120,6 +175,8 @@ select:focus {
 
 .cancel-btn:hover {
   background-color: #f0f0f0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .save-btn {
@@ -130,6 +187,15 @@ select:focus {
 
 .save-btn:hover {
   background-color: #003399;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.save-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Responsive Breakpoints */
@@ -141,6 +207,11 @@ select:focus {
 
   h2 {
     font-size: 24px;
+  }
+
+  .form-buttons {
+    flex-direction: row;
+    gap: 20px;
   }
 }
 
@@ -179,39 +250,16 @@ select:focus {
 }
 
 /* Small mobile adjustments */
-@media (max-width: 400px) {
+@media (max-width: 600px) {
   .security-questions-container {
-    padding: 20px 15px;
-    margin: 20px auto;
-    border-radius: 8px;
+    padding: 18px 6px;
+    margin: 10px auto;
+    border-radius: 10px;
   }
-
   h2 {
-    font-size: 20px;
+    font-size: 1.2rem;
   }
-
-  .form-section h3 {
-    font-size: 16px;
-    margin-bottom: 15px;
-    text-align: left;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #eaeaea;
-    color: #333;
-  }
-
-  .form-section label {
-    display: block;
-    margin-top: 12px;
-    margin-bottom: 8px;
-    font-weight: 500;
-    font-size: 14px;
-    color: #333;
-    text-align: left;
-  }
-
-  input,
-  select {
-    padding: 8px;
-    font-size: 13px;
+  .form-buttons {
+    gap: 10px;
   }
 }

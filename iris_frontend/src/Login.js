@@ -5,22 +5,43 @@ import { useNavigate } from 'react-router-dom';
 import ModalWarning from './components/ModalWarning';
 import ModalPasswordExpired from './components/ModalPasswordExpired';
 import AlertModal from './components/AlertModal';
+import axios from 'axios';
 
 const ForgotPasswordModal = ({ onClose, onSubmit }) => {
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
+  const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', type: 'info' });
 
   const handleEmailChange = (e) => {
     const value = e.target.value;
     // Allow alphanumeric characters and specific symbols: -._!@
     const filteredValue = value.replace(/[^a-zA-Z0-9\-._!@]/g, '');
-    setEmail(filteredValue);
+    // Limit to 30 characters
+    const truncatedValue = filteredValue.slice(0, 30);
+    setEmail(truncatedValue);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(email);
-    navigate('/otp');
+    try {
+      const res = await axios.post('http://localhost:3000/api/fp/send-otp', { email });
+      localStorage.setItem('userEmail', email); // Store email in localStorage
+      setAlertModal({
+        isOpen: true,
+        message: res.data.message || 'OTP sent successfully',
+        type: 'success',
+        onClose: () => {
+          onClose(); // Close the modal
+          navigate('/otp', { state: { userEmail: email } }); // Pass email via state
+        }
+      });
+    } catch (err) {
+      setAlertModal({
+        isOpen: true,
+        message: err.response?.data?.message || 'Failed to send OTP. Please try again.',
+        type: 'error'
+      });
+    }
   };
 
   return (
@@ -35,6 +56,7 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
             value={email}
             onChange={handleEmailChange}
             required
+            maxLength={30}
             pattern="[a-zA-Z0-9\-._!@]+"
             title="Email can contain letters, numbers, and -._!@ symbols"
           />
@@ -44,6 +66,18 @@ const ForgotPasswordModal = ({ onClose, onSubmit }) => {
           </div>
         </form>
       </div>
+
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => {
+          if (alertModal.onClose) {
+            alertModal.onClose();
+          }
+          setAlertModal({ ...alertModal, isOpen: false });
+        }}
+      />
     </div>
   );
 };
@@ -185,7 +219,9 @@ const Login = ({ onContinue, onForgotPassword }) => {
       if (response.ok) {
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
-        
+        // Remove AlertModal for userId login, just navigate directly to OTP page
+        navigate('/otp', { state: { userId: employeeId } });
+
         // Check for soon-to-expire password
         try {
           const expirationCheck = await fetch('http://localhost:3000/api/password-expiration/manage', {
