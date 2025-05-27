@@ -1452,8 +1452,8 @@ const SiteManagement = () => {
                   <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                     Created At {siteSortConfig.key === 'tCreatedAt' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
-                  <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
-                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, marginLeft: 55 }}>
+                  <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, width: 200 }}>Actions</th>
+                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, marginLeft: 73 }}>
                     <div className="select-all-container">
                     <p>Select All</p>
                       <input

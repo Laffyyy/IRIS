@@ -8,10 +8,13 @@ const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const clientManagementRoutes = require('./routes/clientManagementRoutes');
 const logsRoutes = require('./routes/logsRoutes');
-const changepassRoutes = require('./routes/changepasswordroutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 const kpiRoutes = require('./routes/kpiManagementRoutes');
 const processingMonthRoutes = require('./routes/processingMonthRoutes');
+const userRoutes = require('./routes/userRoutes');
+const fpOtpRoutes = require('./routes/fpOtpRoutes');
+const securityQuestionsRoutes = require('./routes/securityQuestionsRoutes');
+const forgotPasswordRoutes = require('./routes/forgotPasswordRoutes');
 
 const app = express();
 

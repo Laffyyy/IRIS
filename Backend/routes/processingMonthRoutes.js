@@ -6,7 +6,7 @@ const db = require('../config/db');
 router.get('/', async (req, res) => {
     try {
         const [rows] = await db.query(
-            'SELECT dYear, dMonth FROM tbl_processingmonth ORDER BY dProcessingMonthID DESC LIMIT 1'
+            'SELECT dYear, dMonth FROM tbl_processingmonth ORDER BY dProcessingMonth_ID DESC LIMIT 1'
         );
         
         if (!rows || rows.length === 0) {

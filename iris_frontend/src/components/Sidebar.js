@@ -44,7 +44,8 @@ const Sidebar = () => {
         { name: 'App Management', path: '/admin/apps', icon: appManagementIcon },
         { name: 'Site Management', path: '/admin/sites', icon: siteManagementIcon },
         { name: 'Client Management', path: '/admin/clients', icon: clientManagementIcon },
-        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon }
+        { name: 'KPI Management', path: '/admin/kpis', icon: kpiManagementIcon },
+        { name: 'Admin Logs', path: '/admin/logs', icon: logsIcon }
       ]
     }
   ] : []),
