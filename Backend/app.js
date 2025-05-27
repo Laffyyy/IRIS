@@ -6,6 +6,8 @@ const loginRoutes = require('./routes/loginroutes');
 const changepassRoutes = require('./routes/changepasswordroutes');
 const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
+const clientManagementRoutes = require('./routes/clientManagementRoutes');
+const changepassRoutes = require('./routes/changepasswordroutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
 const fpOtpRoutes = require('./routes/fpOtpRoutes');
 const securityQuestionsRoutes = require('./routes/securityQuestionsRoutes');
@@ -34,6 +36,7 @@ app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/sites', SiteManagementRoutes);
 app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
+app.use('/api/clients', clientManagementRoutes);
 
 // Mount routes
 app.use('/api/users', userRoutes);
