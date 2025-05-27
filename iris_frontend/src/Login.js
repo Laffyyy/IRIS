@@ -251,7 +251,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
               return; // Wait for user's action on the expired modal
             } 
             // Then check if password will expire soon (within 10 days)
-            else if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
+            else if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 10) {
               // Calculate days remaining
               setDaysRemaining(Math.ceil(expirationData.minutesLeft / (24 * 60)));
               
@@ -263,7 +263,7 @@ const Login = ({ onContinue, onForgotPassword }) => {
               // Password is not expired and not close to expiring - continue normal login flow
               navigate('/otp');
             }
-            if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 14400) {
+            if (expirationData.minutesLeft !== undefined && expirationData.minutesLeft <= 10) {
               // Password will expire soon (10 days or less) - show warning
               
               // Calculate days remaining
