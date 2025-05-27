@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const changepassRoutes = require('./routes/changepasswordroutes');
 const devRoutes = require('./routes/devroutes'); // Import the Dev routes
+const adminChatbotRoutes = require('./routes/adminChatbotRoutes');
 
 const app = express();
 
@@ -26,5 +27,6 @@ app.use('/api/password-expiration', passwordExpirationRoutes);
 app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
 app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
+app.use('/api/admin/chatbot', adminChatbotRoutes);
 
 module.exports = app;
