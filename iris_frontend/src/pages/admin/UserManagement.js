@@ -1657,10 +1657,13 @@ const UserManagement = () => {
     setAddUserMessage(null);
     try {
       // Delete user by Employee ID
-      const response = await fetch('http://localhost:3000/api/users/delete', {
+      const response = await fetch('http://localhost:3000/api/users/delete-one', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: [user.employeeId] })
+        body: JSON.stringify({ 
+          userId: user.employeeId,
+          userType: user.role  // Send the actual user type/role
+        })
       });
       if (!response.ok) {
         let msg = 'Failed to undo user.';
@@ -1684,10 +1687,15 @@ const UserManagement = () => {
     setAddUserMessage(null);
     if (recentlyAddedUsers.length === 0) return;
     try {
-      const response = await fetch('http://localhost:3000/api/users/delete', {
+      const response = await fetch('http://localhost:3000/api/users/delete-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: recentlyAddedUsers.map(user => user.employeeId) })
+        body: JSON.stringify({ 
+          users: recentlyAddedUsers.map(user => ({
+            userId: user.employeeId,
+            userType: user.role  // Send the actual user type/role
+          }))
+        })
       });
       if (!response.ok) {
         let msg = 'Failed to undo all users.';

@@ -16,6 +16,14 @@ async function computeDefaultPassword(employeeId, tCreatedAt) {
   return await bcrypt.hash(defaultPassword, 10);
 }
 
+exports.deleteUser = async (userId) => {
+  await pool.query('DELETE FROM iris.tbl_login WHERE dUser_ID = ?', [userId]);
+};
+
+exports.deleteAdminUser = async (userId) => {
+  await pool.query('DELETE FROM iris.tbl_admin WHERE dUser_ID = ?', [userId]);
+};
+
 exports.fetchAllUsers = async () => {
   const [rows] = await pool.query("SELECT * FROM iris.tbl_login ORDER BY tCreatedAt DESC");
   return rows;

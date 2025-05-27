@@ -10,5 +10,7 @@ router.post('/restore', userController.restoreUsers);
 router.post('/check-duplicates', userController.checkDuplicates);
 router.put('/:id', userController.updateUser);
 router.put('/:id/security-questions', userController.updateUserSecurityQuestions);
+router.post('/delete-one', userController.deleteOneUser);
+router.post('/delete-batch', userController.deleteBatchUsers);
 
 module.exports = router;

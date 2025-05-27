@@ -167,6 +167,87 @@ exports.deleteUsers = async (req, res) => {
   }
 };
 
+// Add these new functions to UserController.js
+
+exports.deleteOneUser = async (req, res) => {
+  try {
+    const { userId, userType } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+    
+    if (!userType) {
+      return res.status(400).json({ message: 'User type is required' });
+    }
+    
+    // Determine if admin based on user type
+    const isAdmin = userType === 'ADMIN';
+    
+    if (isAdmin) {
+      await userService.deleteAdminUser(userId);
+    } else {
+      await userService.deleteUser(userId);
+    }
+    
+    res.status(200).json({ message: 'User deleted successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.deleteBatchUsers = async (req, res) => {
+  try {
+    const { users } = req.body;
+    
+    if (!Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({ message: 'No users to delete' });
+    }
+    
+    // Process each user based on their type
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+    
+    for (const user of users) {
+      try {
+        if (!user.userId || !user.userType) {
+          results.failed++;
+          results.errors.push(`Missing information for user: ${JSON.stringify(user)}`);
+          continue;
+        }
+        
+        const isAdmin = user.userType === 'ADMIN';
+        
+        if (isAdmin) {
+          await userService.deleteAdminUser(user.userId);
+        } else {
+          await userService.deleteUser(user.userId);
+        }
+        
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`Failed to delete ${user.userId}: ${err.message}`);
+      }
+    }
+    
+    res.status(200).json({ 
+      message: `Users deleted: ${results.success}, Failed: ${results.failed}`,
+      results
+    });
+    
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error deleting users batch:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 exports.restoreUsers = async (req, res) => {
   try {
     const { userIds } = req.body;
