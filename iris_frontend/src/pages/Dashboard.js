@@ -1,25 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
+import { useUser } from '../contexts/UserContext';
+import { Navigate } from 'react-router-dom';
+
+
 
 const Dashboard = () => {
-  const mockUser = {
-    name: 'John Abide Abdul Doe',
-    role: 'Incentive Administrator',
-    responsibilities: ['User Management', 'Activity Logs Monitoring'],
-    lastLogin: 'Today at 8:45 AM',
-    status: 'Active'
-  };
+const { user, updateUserDetails } = useUser();
 
-  const [processingData, setProcessingData] = useState([
+    useEffect(() => {
+    // Fetch user details when component mounts and user exists
+    if (user?.employeeId) {
+      updateUserDetails(user.employeeId);
+    }
+  }, [user?.employeeId]);
+
+  let formattedLastLogin = 'N/A';
+  if (user?.lastLogin) {
+    const lastLoginDate = new Date(user.lastLogin);
+    // Get time parts
+    let [time, ampm] = lastLoginDate
+      .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      .split(' ');
+    // Combine without space between time and am/pm, and make am/pm lowercase
+    const formattedTime = `${time}${ampm.toLowerCase()}`;
+    const formattedDate = lastLoginDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    formattedLastLogin = `${formattedTime} ${formattedDate}`;
+  }
+
+    const [processingData, setProcessingData] = useState([
     { location: 'A', hrLog: true, hrDb: true, hrsApp: true, payroll: true, score: true, region: true },
     { location: 'B', hrLog: false, hrDb: false, hrsApp: false, payroll: true, score: true, region: false },
     { location: 'C', hrLog: true, hrDb: false, hrsApp: false, payroll: true, score: true, region: true },
   ]);
 
+    if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  const userInfo = {
+    name: user?.name || 'Unknown User',
+    role: user?.type === 'ADMIN' ? 'Incentive Administrator' : user?.type || 'User',
+    responsibilities: ['User Management', 'Activity Logs Monitoring'],
+    lastLogin: formattedLastLogin || 'N/A',
+    status: user.status || 'ACTIVE'
+  };
+
   const quickActions = [
     { id: 1, label: 'Manage KPIs' },
     { id: 2, label: 'Review Logs' },
   ];
+
+      if (!user) {
+    return <Navigate to="/" replace />;
+  }
 
   const toggleCellValue = (location, field) => {
     setProcessingData(prevData =>
@@ -41,13 +74,13 @@ const Dashboard = () => {
     <div className="dashboard-container">
       <div className="user-header">
         <div className="user-left">
-          <h2>{mockUser.name}</h2>
-          <span className="user-role">{mockUser.role}</span>
+          <h2>{userInfo.name}</h2>
+          <span className="user-role">{userInfo.role}</span>
         </div>
         <div className="user-center">
           <span className="labelr">Responsibilities</span>
           <div className="responsibility-pills">
-            {mockUser.responsibilities.map((item, idx) => (
+            {userInfo.responsibilities.map((item, idx) => (
               <span key={idx} className="pill">{item}</span>
             ))}
           </div>
@@ -55,8 +88,8 @@ const Dashboard = () => {
         <div className="user-right">
           <span className="label">Last Login</span>
           <div className="login-status">
-            <span>{mockUser.lastLogin}</span>
-            <span className="status-pill">{mockUser.status}</span>
+            <span>{userInfo.lastLogin}</span>
+            <span className="status-pill">{userInfo.status}</span>
           </div>
         </div>
       </div>

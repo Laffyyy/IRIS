@@ -36,7 +36,8 @@ exports.createKPI = async (req, res) => {
                 dActionLocation_ID: result.dKPI_ID,
                 dActionLocation: 'KPI',
                 dActionType: 'CREATED',
-                dActionBy: req.body.dCreatedBy || '2505170018'
+                dActionBy: req.body.dCreatedBy || 'system',
+                tActionAt: result.tCreatedAt
             };
             console.log('Attempting to log action with data:', logData);
             
@@ -59,28 +60,24 @@ exports.createKPI = async (req, res) => {
 
 exports.updateKPI = async (req, res) => {
     try {
-
-         // Log the creation action
+        const result = await kpiService.updateKPI(req.params.id, req.body);
+        
+        // Log the update action
         await logService.logAdminAction({
-            dActionLocation_ID: result.dKPI_ID,
+            dActionLocation_ID: req.params.id,
             dActionLocation: 'KPI',
             dActionType: 'MODIFIED',
-            dActionBy: req.body.dCreatedBy
+            dActionBy: req.body.dCreatedBy || 'system',
+            tActionAt: result.tUpdatedAt
         });
 
-        const updatedKpi = await kpiService.updateKPI(req.params.id, req.body);
-        res.json(updatedKpi);
+        res.json(result);
     } catch (error) {
-        if (error.message === 'KPI not found') {
-            res.status(404).json({ message: error.message });
-        } else if (error.message === 'Missing required fields') {
-            res.status(400).json({ message: error.message });
-        } else {
-            res.status(500).json({ 
-                message: "Error updating KPI", 
-                error: error.message 
-            });
-        }
+        console.error('Error updating KPI:', error);
+        res.status(500).json({ 
+            message: "Error updating KPI", 
+            error: error.message 
+        });
     }
 };
 
@@ -103,12 +100,13 @@ exports.deactivateKPI = async (req, res) => {
     try {
         const result = await kpiService.deactivateKPI(req.params.id);
 
-         // Log the creation action
+        // Log the deactivation action
         await logService.logAdminAction({
             dActionLocation_ID: result.dKPI_ID,
             dActionLocation: 'KPI',
-            dActionType: 'DEACTIVATED',
-            dActionBy: req.body.dCreatedBy
+            dActionType: 'MODIFIED',
+            dActionBy: req.body.dCreatedBy || 'system',
+            tActionAt: result.tUpdatedAt
         });
 
         res.json(result);
@@ -128,12 +126,13 @@ exports.reactivateKPI = async (req, res) => {
     try {
         const result = await kpiService.reactivateKPI(req.params.id);
 
-         // Log the creation action
+        // Log the reactivation action
         await logService.logAdminAction({
             dActionLocation_ID: result.dKPI_ID,
             dActionLocation: 'KPI',
-            dActionType: 'ACTIVATED',
-            dActionBy: req.body.dCreatedBy
+            dActionType: 'MODIFIED',
+            dActionBy: req.body.dCreatedBy || 'system',
+            tActionAt: result.tUpdatedAt
         });
 
         res.json(result);
