@@ -158,11 +158,94 @@ exports.deleteUsers = async (req, res) => {
       return res.status(400).json({ message: 'No users selected for deletion' });
     }
 
+    // This will now handle both admin and normal users
     await userService.deactivateUsers(userIds);
+    
     res.status(200).json({ message: 'Users deactivated successfully' });
     broadcastUserUpdate();
   } catch (error) {
-    console.error('Error deleting users:', error);
+    console.error('Error deactivating users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Add these new functions to UserController.js
+
+exports.deleteOneUser = async (req, res) => {
+  try {
+    const { userId, userType } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+    
+    if (!userType) {
+      return res.status(400).json({ message: 'User type is required' });
+    }
+    
+    // Determine if admin based on user type
+    const isAdmin = userType === 'ADMIN';
+    
+    if (isAdmin) {
+      await userService.deleteAdminUser(userId);
+    } else {
+      await userService.deleteUser(userId);
+    }
+    
+    res.status(200).json({ message: 'User deleted successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.deleteBatchUsers = async (req, res) => {
+  try {
+    const { users } = req.body;
+    
+    if (!Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({ message: 'No users to delete' });
+    }
+    
+    // Process each user based on their type
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+    
+    for (const user of users) {
+      try {
+        if (!user.userId || !user.userType) {
+          results.failed++;
+          results.errors.push(`Missing information for user: ${JSON.stringify(user)}`);
+          continue;
+        }
+        
+        const isAdmin = user.userType === 'ADMIN';
+        
+        if (isAdmin) {
+          await userService.deleteAdminUser(user.userId);
+        } else {
+          await userService.deleteUser(user.userId);
+        }
+        
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`Failed to delete ${user.userId}: ${err.message}`);
+      }
+    }
+    
+    res.status(200).json({ 
+      message: `Users deleted: ${results.success}, Failed: ${results.failed}`,
+      results
+    });
+    
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error deleting users batch:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -182,6 +265,42 @@ exports.restoreUsers = async (req, res) => {
   }
 };
 
+exports.lockUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for locking' });
+    }
+
+    await userService.lockUsers(userIds);
+    
+    res.status(200).json({ message: 'Users locked successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error locking users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.unlockUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for unlocking' });
+    }
+
+    await userService.unlockUsers(userIds);
+    
+    res.status(200).json({ message: 'Users unlocked successfully' });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error unlocking users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -196,34 +315,25 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: 'No fields to update.' });
     }
     // Check if user exists in tbl_login
-    let user = await userService.getUserByLoginId(userId);
-    let isAdmin = false;
-    if (!user) {
-      // Check if user exists in tbl_admin
+    // Use the explicit isAdmin flag from the request
+    const isAdmin = !!req.body.isAdmin;
+    let user;
+    
+    if (isAdmin) {
+      // Get admin user directly
       user = await userService.getAdminByLoginId(userId);
       if (!user) {
-         return res.status(404).json({ message: 'User not found.' });
+        return res.status(404).json({ message: 'Admin user not found.' });
       }
-      isAdmin = true;
-    }
-    // If updateData.resetPassword is true, compute a default password (employeeID + MMDDYYYY) and hash it.
-    if (updateData.resetPassword) {
-      const employeeId = updateData.employeeId || user.dUser_ID;
-      const tCreatedAt = user.tCreatedAt ? new Date(user.tCreatedAt) : new Date();
-      const mm = String(tCreatedAt.getMonth() + 1).padStart(2, '0');
-      const dd = String(tCreatedAt.getDate()).padStart(2, '0');
-      const yyyy = String(tCreatedAt.getFullYear());
-      const dateStr = `${mm}${dd}${yyyy}`;
-      const defaultPassword = `${employeeId}${dateStr}`;
-      updateData.hashedPassword = await bcrypt.hash(defaultPassword, 10);
-      delete updateData.resetPassword;
-    } else if (updateData.password) {
-      // If a new password is provided (and not reset), hash it.
-      updateData.hashedPassword = await bcrypt.hash(updateData.password, 10);
-      delete updateData.password;
+    } else {
+      // Get regular user
+      user = await userService.getUserByLoginId(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      }
     }
     // If securityQuestions is present and is an array of empty questions/answers, clear them (only for tbl_login)
-    if (!isAdmin && Array.isArray(updateData.securityQuestions)) {
+    if (Array.isArray(updateData.securityQuestions)) {
       const allEmpty = updateData.securityQuestions.every(q => !q.question && !q.answer);
       if (allEmpty) {
          // Clear security questions in DB
@@ -233,8 +343,14 @@ exports.updateUser = async (req, res) => {
            { question: '', answer: '' }
          ]);
          updateData.status = 'RESET-DONE';
-         // Always set password to '1234' (hashed)
-         updateData.hashedPassword = await bcrypt.hash('1234', 10);
+         const employeeId = updateData.employeeId || user.dUser_ID;
+         const tCreatedAt = user.tCreatedAt ? new Date(user.tCreatedAt) : new Date();
+         const mm = String(tCreatedAt.getMonth() + 1).padStart(2, '0');
+         const dd = String(tCreatedAt.getDate()).padStart(2, '0');
+         const yyyy = String(tCreatedAt.getFullYear());
+         const dateStr = `${mm}${dd}${yyyy}`;
+         const defaultPassword = `${employeeId}${dateStr}`;
+         updateData.hashedPassword = await bcrypt.hash(defaultPassword, 10);
          delete updateData.password;
          delete updateData.securityQuestions;
       }
@@ -267,5 +383,30 @@ exports.updateUserSecurityQuestions = async (req, res) => {
     res.json({ message: 'Security questions updated successfully.' });
   } catch (err) {
     res.status(500).json({ message: err.message || 'Failed to update security questions.' });
+  }
+};
+
+exports.deleteUsersPermanently = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: 'No users selected for deletion' });
+    }
+
+    await userService.deleteUsersPermanently(userIds);
+    
+    res.status(200).json({ 
+      message: userIds.length === 1 
+        ? 'User permanently deleted successfully' 
+        : 'Users permanently deleted successfully'
+    });
+    broadcastUserUpdate();
+  } catch (error) {
+    console.error('Error permanently deleting users:', error);
+    if (error.message === 'Only deactivated users can be permanently deleted') {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

@@ -16,6 +16,14 @@ async function computeDefaultPassword(employeeId, tCreatedAt) {
   return await bcrypt.hash(defaultPassword, 10);
 }
 
+exports.deleteUser = async (userId) => {
+  await pool.query('DELETE FROM iris.tbl_login WHERE dUser_ID = ?', [userId]);
+};
+
+exports.deleteAdminUser = async (userId) => {
+  await pool.query('DELETE FROM iris.tbl_admin WHERE dUser_ID = ?', [userId]);
+};
+
 exports.fetchAllUsers = async () => {
   const [rows] = await pool.query("SELECT * FROM iris.tbl_login ORDER BY tCreatedAt DESC");
   return rows;
@@ -193,7 +201,7 @@ exports.updateUserSecurityQuestions = async (loginId, questions) => {
   const a2 = questions[1]?.answer || '';
   const a3 = questions[2]?.answer || '';
   const [result] = await pool.query(
-    'UPDATE iris.tbl_login SET dSecurity_Question1=?, dSecurity_Question2=?, dSecurity_Question3=?, dAnswer_1=?, dAnswer_2=?, dAnswer_3=? WHERE dLogin_ID=?',
+    'UPDATE iris.tbl_login SET dSecurity_Question1=?, dSecurity_Question2=?, dSecurity_Question3=?, dAnswer_1=?, dAnswer_2=?, dAnswer_3=? WHERE dLoginEntry_ID=?',
     [q1, q2, q3, a1, a2, a3, loginId]
   );
   return result;
@@ -219,10 +227,18 @@ exports.fetchAllAdmins = async () => {
 exports.deactivateUsers = async (userIds) => {
   if (!Array.isArray(userIds) || userIds.length === 0) return;
   const placeholders = userIds.map(() => '?').join(', ');
-  await pool.query(
-    `UPDATE iris.tbl_login SET dStatus='DEACTIVATED' WHERE dUser_ID IN (${placeholders})`,
-    userIds
-  );
+  
+  // Update both tables - tbl_login and tbl_admin
+  await Promise.all([
+    pool.query(
+      `UPDATE iris.tbl_login SET dStatus='DEACTIVATED' WHERE dUser_ID IN (${placeholders})`,
+      userIds
+    ),
+    pool.query(
+      `UPDATE iris.tbl_admin SET dStatus='DEACTIVATED' WHERE dUser_ID IN (${placeholders})`,
+      userIds
+    )
+  ]);
 };
 
 exports.restoreUsers = async (userIds) => {
@@ -266,6 +282,40 @@ exports.restoreUsers = async (userIds) => {
   return restoredPasswords;
 };
 
+exports.lockUsers = async (userIds) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) return;
+  const placeholders = userIds.map(() => '?').join(', ');
+  
+  // Update both tables simultaneously
+  await Promise.all([
+    pool.query(
+      `UPDATE iris.tbl_login SET dStatus='LOCKED' WHERE dUser_ID IN (${placeholders})`,
+      userIds
+    ),
+    pool.query(
+      `UPDATE iris.tbl_admin SET dStatus='LOCKED' WHERE dUser_ID IN (${placeholders})`,
+      userIds
+    )
+  ]);
+};
+
+exports.unlockUsers = async (userIds) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) return;
+  const placeholders = userIds.map(() => '?').join(', ');
+  
+  // Update both tables simultaneously
+  await Promise.all([
+    pool.query(
+      `UPDATE iris.tbl_login SET dStatus='ACTIVE' WHERE dUser_ID IN (${placeholders})`,
+      userIds
+    ),
+    pool.query(
+      `UPDATE iris.tbl_admin SET dStatus='ACTIVE' WHERE dUser_ID IN (${placeholders})`,
+      userIds
+    )
+  ]);
+};
+
 exports.getAdminByLoginId = async (loginId) => {
   const [rows] = await pool.query('SELECT * FROM iris.tbl_admin WHERE dAdminEntry_ID=?', [loginId]);
   return rows[0] || null;
@@ -299,4 +349,54 @@ exports.updateAdminUserDynamic = async (userId, updateData) => {
   params.push(userId);
   const [result] = await pool.query(query, params);
   return result;
+};
+
+exports.deleteUsersPermanently = async (userIds) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) return;
+  
+  // Begin transaction
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  try {
+    // Check if all users are deactivated first
+    const [statusCheck] = await connection.query(
+      `SELECT dUser_ID, dStatus FROM 
+        (SELECT dUser_ID, dStatus FROM iris.tbl_login WHERE dUser_ID IN (?)
+         UNION ALL
+         SELECT dUser_ID, dStatus FROM iris.tbl_admin WHERE dUser_ID IN (?)) AS combined
+       WHERE dStatus != 'DEACTIVATED'`,
+      [userIds, userIds]
+    );
+
+    if (statusCheck.length > 0) {
+      throw new Error('Only deactivated users can be permanently deleted');
+    }
+
+    // Delete from all related tables
+    await Promise.all([
+      // Delete from login table
+      connection.query(
+        'DELETE FROM iris.tbl_login WHERE dUser_ID IN (?)',
+        [userIds]
+      ),
+      // Delete from admin table
+      connection.query(
+        'DELETE FROM iris.tbl_admin WHERE dUser_ID IN (?)',
+        [userIds]
+      ),
+      // Delete from security questions if exists
+      connection.query(
+        'DELETE FROM iris.security_questions WHERE dUser_ID IN (?)',
+        [userIds]
+      )
+    ]);
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };

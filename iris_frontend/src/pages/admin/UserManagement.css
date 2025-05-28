@@ -28,6 +28,22 @@
   font-weight: 600;
 }
 
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid #eee;
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
 .subtitle {
   color: #666;
   margin-top: 4px;

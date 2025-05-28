@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash, FaLock, FaUsers, FaUserShield, FaHistory, FaTicketAlt, FaUserSlash, FaKey, FaShieldAlt } from 'react-icons/fa';
+import { FaSearch, FaEdit, FaTrash, FaPlus, FaTimes, FaFileDownload, FaTimesCircle, FaUpload, FaEye, FaEyeSlash, FaLock, FaLockOpen, FaUsers, FaUserShield, FaHistory, FaTicketAlt, FaUserSlash, FaKey, FaShieldAlt } from 'react-icons/fa';
 import { FaChevronRight, FaChevronDown } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import './UserManagement.module.css';
 import styles from './UserManagement.module.css';
 import './UserManagement.css';
+import { useUser } from '../../contexts/UserContext';
 
 // Add this near the top, after imports and before the UserManagement component
 const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g;
@@ -220,9 +221,6 @@ const UserManagement = () => {
     "What was your childhood nickname?"
   ];
 
-  // In the Edit User Modal, add a checkbox to enable editing of Employee ID
-  const [employeeIdEditable, setEmployeeIdEditable] = useState(false);
-
   // Add a computed variable for password mismatch
   const passwordMismatch =
     (passwordData.newPassword || passwordData.confirmPassword) &&
@@ -263,9 +261,47 @@ const UserManagement = () => {
   const [bulkRoleFilter, setBulkRoleFilter] = useState('All');
   const [bulkStatusFilter, setBulkStatusFilter] = useState('All');
 
+  // Lock and Unlock
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [lockConfirmText, setLockConfirmText] = useState('');
+  const [unlockConfirmText, setUnlockConfirmText] = useState('');
+  const [showLockResultModal, setShowLockResultModal] = useState(false);
+  const [lockResultSuccess, setLockResultSuccess] = useState(false);
+  const [lockResultMessage, setLockResultMessage] = useState('');
+  const [lastLockCount, setLastLockCount] = useState(0);
+  const [showUnlockResultModal, setShowUnlockResultModal] = useState(false);
+  const [unlockResultSuccess, setUnlockResultSuccess] = useState(false);
+  const [unlockResultMessage, setUnlockResultMessage] = useState('');
+  const [lastUnlockCount, setLastUnlockCount] = useState(0);
+  const lockResultOkBtnRef = useRef();
+  const unlockResultOkBtnRef = useRef();
+
+
+  // Deactivate
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivateConfirmText, setDeactivateConfirmText] = useState('');
+  const [showDeactivateResultModal, setShowDeactivateResultModal] = useState(false);
+  const [deactivateResultSuccess, setDeactivateResultSuccess] = useState(false);
+  const [deactivateResultMessage, setDeactivateResultMessage] = useState('');
+  const [lastDeactivateCount, setLastDeactivateCount] = useState(0);
+  const deactivateConfirmInputRef = useRef();
+  const deactivateResultOkBtnRef = useRef();
+
+  const [showDeleteWarningModal, setShowDeleteWarningModal] = useState(false);
+
   // Debounced search terms
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [debouncedBulkSearchTerm, setDebouncedBulkSearchTerm] = useState(bulkSearchTerm);
+
+  const { user, updateUserDetails } = useUser();
+  
+      useEffect(() => {
+      // Fetch user details when component mounts and user exists
+      if (user?.employeeId) {
+        updateUserDetails(user.employeeId);
+      }
+    }, [user?.employeeId]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
@@ -276,6 +312,31 @@ const UserManagement = () => {
     const handler = setTimeout(() => setDebouncedBulkSearchTerm(bulkSearchTerm), 400);
     return () => clearTimeout(handler);
   }, [bulkSearchTerm]);
+
+  useEffect(() => {
+  if (showDeactivateModal && deactivateConfirmInputRef.current) {
+    deactivateConfirmInputRef.current.focus();
+    deactivateConfirmInputRef.current.select();
+  }
+}, [showDeactivateModal]);
+
+useEffect(() => {
+  if (showLockResultModal && lockResultOkBtnRef.current) {
+    lockResultOkBtnRef.current.focus();
+  }
+}, [showLockResultModal]);
+
+useEffect(() => {
+  if (showUnlockResultModal && unlockResultOkBtnRef.current) {
+    unlockResultOkBtnRef.current.focus();
+  }
+}, [showUnlockResultModal]);
+
+useEffect(() => { 
+  if (showDeactivateResultModal && deactivateResultOkBtnRef.current) {
+    deactivateResultOkBtnRef.current.focus(); 
+  }
+}, [showDeactivateResultModal]);
 
   // --- Sorting Handlers ---
   const handleSort = (key) => {
@@ -302,13 +363,105 @@ const UserManagement = () => {
     });
   };
 
+    console.log('Full user data:', user);
+
+  // Lock and Unlock handler functions
+const handleLockUsers = async () => {
+  try {
+    const response = await fetch('http://localhost:3000/api/users/lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: selectedUsers })
+    });
+    
+    if (!response.ok) {
+      const result = await response.json();
+      setShowLockResultModal(true);
+      setLockResultSuccess(false);
+      setLockResultMessage(result?.message || 'Failed to lock users');
+      setActionErrorMessage(result?.message || 'Failed to lock users');
+      setShowActionErrorModal(true);
+      return;
+    }
+
+    setSelectedUsers([]);
+    setShowLockModal(false);
+    setLockConfirmText('');
+    setShowLockResultModal(true);
+    setLockResultSuccess(true);
+    setLockResultMessage(
+      selectedUsers.length === 1 
+        ? 'User locked successfully!' 
+        : `Users (${selectedUsers.length}) locked successfully!`
+    );
+    
+    fetchUsers();
+  } catch (error) {
+    setShowLockResultModal(true);
+    setLockResultSuccess(false);
+    setLockResultMessage('Error locking users: ' + (error.message || 'Unknown error'));
+  }
+};
+
+const handleUnlockUsers = async () => {
+  try {
+    const response = await fetch('http://localhost:3000/api/users/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: selectedUsers })
+    });
+
+    if (!response.ok) {
+      const result = await response.json();
+      setShowUnlockResultModal(true);
+      setUnlockResultSuccess(false);
+      setUnlockResultMessage(result?.message || 'Failed to unlock users');
+      setActionErrorMessage(result?.message || 'Failed to unlock users');
+      setShowActionErrorModal(true);
+      return;
+    }
+
+    setSelectedUsers([]);
+    setShowUnlockModal(false);
+    setUnlockConfirmText('');
+    setShowUnlockResultModal(true);
+    setUnlockResultSuccess(true);
+    setUnlockResultMessage(
+      selectedUsers.length === 1 
+        ? 'User unlocked successfully!' 
+        : `Users (${selectedUsers.length}) unlocked successfully!`
+    );
+    
+    fetchUsers();
+  } catch (error) {
+    setShowUnlockResultModal(true);
+    setUnlockResultSuccess(false);
+    setUnlockResultMessage('Error unlocking users: ' + (error.message || 'Unknown error'));
+  }
+};
+
   // --- Filtering and Sorting Logic ---
   // Filter users based on the active tab
   const tabFilteredUsers = React.useMemo(() => {
     if (activeTable === 'admin') {
-      return users.filter(user => user.dUser_Type === 'ADMIN' && (statusFilter === 'All' || user.dStatus === statusFilter));
+          // Only show ADMIN users that are not LOCKED or other ticket statuses
+    return users.filter(user => 
+      user.dUser_Type === 'ADMIN' && 
+      user.dStatus !== 'LOCKED' &&
+      user.dStatus !== 'NEED-RESET' &&
+      user.dStatus !== 'RESET-DONE' &&
+      user.dStatus !== 'DEACTIVATED' &&
+      (statusFilter === 'All' || user.dStatus === statusFilter)
+    );
+    
     } else if (activeTable === 'tickets') {
-      return users.filter(user => (user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED') && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
+      return users.filter(user => (user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE') && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
+    } else if (activeTable === 'locked') {
+    // Only show LOCKED users with optional role filter
+    return users.filter(user => 
+      user.dStatus === 'LOCKED' && 
+      (roleFilter === 'All' || user.dUser_Type === roleFilter)
+    );
     } else if (activeTable === 'deactivated') {
       return users.filter(user => user.dStatus === 'DEACTIVATED' && (roleFilter === 'All' || user.dUser_Type === roleFilter));
     } else if (activeTable === 'users') {
@@ -767,44 +920,93 @@ const UserManagement = () => {
   };
 
   // Delete selected users
-  const handleDeleteUsers = async () => {
-    if (deleteConfirmText === 'DELETE' && selectedUsers.length > 0) {
-      try {
-        const response = await fetch('http://localhost:3000/api/users/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userIds: selectedUsers })
-        });
+  const handleDeleteUsers = () => {
+  if (deleteConfirmText === 'DELETE' && selectedUsers.length > 0) {
+    setShowDeleteModal(false);
+    setDeleteConfirmText('');
+    setShowDeleteWarningModal(true);
+  }
+};
 
-        let result = null;
-        try {
-          result = await response.json();
-        } catch (e) {}
+const handleConfirmPermanentDelete = async () => {
+  try {
+    const response = await fetch('http://localhost:3000/api/users/delete-permanent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: selectedUsers })
+    });
 
-        if (!response.ok) {
-          setShowDeleteResultModal(true);
-          setDeleteResultSuccess(false);
-          setDeleteResultMessage(result && result.message ? result.message : 'Failed to deactivate users');
-          // Also show unified error modal
-          setActionErrorMessage(result && result.message ? result.message : 'Failed to deactivate users');
-          setShowActionErrorModal(true);
-          return;
-        }
+    let result = null;
+    try {
+      result = await response.json();
+    } catch (e) {}
 
-        setSelectedUsers([]);
-        setShowDeleteModal(false);
-        setDeleteConfirmText('');
-        setShowDeleteResultModal(true);
-        setDeleteResultSuccess(true);
-        setDeleteResultMessage('User(s) deactivated successfully!');
-        // Do NOT call setUsers here. Let fetchUsers update the table.
-      } catch (error) {
-        setShowDeleteResultModal(true);
-        setDeleteResultSuccess(false);
-        setDeleteResultMessage('Delete error: ' + (error.message || 'Unknown error'));
-      }
+    if (!response.ok) {
+      setShowDeleteResultModal(true);
+      setDeleteResultSuccess(false);
+      setDeleteResultMessage(result?.message || 'Failed to delete users');
+      setActionErrorMessage(result?.message || 'Failed to delete users');
+      setShowActionErrorModal(true);
+      return;
     }
-  };
+
+    setSelectedUsers([]);
+    setShowDeleteWarningModal(false);
+    setShowDeleteResultModal(true);
+    setDeleteResultSuccess(true);
+    setDeleteResultMessage(
+      selectedUsers.length === 1 
+        ? 'User deleted successfully!' 
+        : `Users (${selectedUsers.length}) deleted successfully!`
+    );
+    
+    fetchUsers();
+  } catch (error) {
+    setShowDeleteResultModal(true);
+    setDeleteResultSuccess(false);
+    setDeleteResultMessage('Delete error: ' + (error.message || 'Unknown error'));
+  }
+};
+
+const handleDeactivateUsers = async () => {
+  if (deactivateConfirmText === 'DEACTIVATE' && selectedUsers.length > 0) {
+    try {
+      const response = await fetch('http://localhost:3000/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: selectedUsers })
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        setShowDeactivateResultModal(true);
+        setDeactivateResultSuccess(false);
+        setDeactivateResultMessage(result?.message || 'Failed to deactivate users');
+        setActionErrorMessage(result?.message || 'Failed to deactivate users');
+        setShowActionErrorModal(true);
+        return;
+      }
+
+      setSelectedUsers([]);
+      setShowDeactivateModal(false);
+      setDeactivateConfirmText('');
+      setShowDeactivateResultModal(true);
+      setDeactivateResultSuccess(true);
+      setDeactivateResultMessage(
+        selectedUsers.length === 1 
+          ? 'User deactivated successfully!' 
+          : `Users (${selectedUsers.length}) deactivated successfully!`
+      );
+      
+      // Refresh the users list
+      fetchUsers();
+    } catch (error) {
+      setShowDeactivateResultModal(true);
+      setDeactivateResultSuccess(false);
+      setDeactivateResultMessage('Error deactivating users: ' + (error.message || 'Unknown error'));
+    }
+  }
+};
 
   // Edit user handler
   const handleEdit = (user) => {
@@ -816,7 +1018,6 @@ const UserManagement = () => {
     setCurrentUser(sanitizedUser);
     setShowResetDropdown(false);
     setEditModalOpen(true);
-    setEmployeeIdEditable(false);
     setEditUserErrors({});
     setResetConfirmText('');
     setResetConfirmed(false);
@@ -1079,7 +1280,8 @@ const UserManagement = () => {
         employeeId: updatedUser.dUser_ID,
         name: updatedUser.dName,
         email: updatedUser.dEmail,
-        status: updatedUser.dStatus
+        status: updatedUser.dStatus,
+        isAdmin: isAdmin,
       };
 
       // Add role only for non-admin users
@@ -1095,14 +1297,12 @@ const UserManagement = () => {
 
       // Handle account reset
       if (resetConfirmed) {
-        if (!isAdmin) {
           updateData.securityQuestions = [
           { question: '', answer: '' },
           { question: '', answer: '' },
           { question: '', answer: '' }
         ];
           updateData.status = 'RESET-DONE';
-        }
       }
 
       // Make the API call
@@ -1353,11 +1553,15 @@ const UserManagement = () => {
       }
     } else if (activeTable === 'tickets') {
       filtered = filtered.filter(user => 
-        user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED'
-      );
+        user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE');
       if (roleFilter !== 'All') {
         filtered = filtered.filter(user => user.dUser_Type === roleFilter);
       }
+    } else if (activeTable === 'locked') {
+      filtered = filtered.filter(user => user.dStatus === 'LOCKED');
+      if (roleFilter !== 'All') {
+        filtered = filtered.filter(user => user.dUser_Type === roleFilter);
+      } 
     } else if (activeTable === 'deactivated') {
       filtered = filtered.filter(user => user.dStatus === 'DEACTIVATED');
       // Apply role filter for deactivated tab
@@ -1649,10 +1853,13 @@ const UserManagement = () => {
     setAddUserMessage(null);
     try {
       // Delete user by Employee ID
-      const response = await fetch('http://localhost:3000/api/users/delete', {
+      const response = await fetch('http://localhost:3000/api/users/delete-one', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: [user.employeeId] })
+        body: JSON.stringify({ 
+          userId: user.employeeId,
+          userType: user.role  // Send the actual user type/role
+        })
       });
       if (!response.ok) {
         let msg = 'Failed to undo user.';
@@ -1676,10 +1883,15 @@ const UserManagement = () => {
     setAddUserMessage(null);
     if (recentlyAddedUsers.length === 0) return;
     try {
-      const response = await fetch('http://localhost:3000/api/users/delete', {
+      const response = await fetch('http://localhost:3000/api/users/delete-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: recentlyAddedUsers.map(user => user.employeeId) })
+        body: JSON.stringify({ 
+          users: recentlyAddedUsers.map(user => ({
+            userId: user.employeeId,
+            userType: user.role  // Send the actual user type/role
+          }))
+        })
       });
       if (!response.ok) {
         let msg = 'Failed to undo all users.';
@@ -1734,7 +1946,6 @@ const UserManagement = () => {
       { question: '', answer: '' },
       { question: '', answer: '' }
     ]);
-    setEmployeeIdEditable(false);
     // Remove this line
     // setIndividualPreview([]);
     setResetConfirmText('');
@@ -1832,6 +2043,21 @@ const UserManagement = () => {
             </>
           )}
 
+          {activeTable === 'locked' && (
+            <>
+              <div className={styles['filter-container']}>
+                <label>Filter by Role:</label>
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                  <option value="All">All Roles</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="HR">HR</option>
+                  <option value="REPORTS">REPORTS</option>
+                  <option value="CNB">CNB</option>
+                </select>
+              </div>
+            </>
+          )}
+
           {activeTable === 'deactivated' && (
             <>
               <div className={styles['filter-container']}>
@@ -1890,14 +2116,27 @@ const UserManagement = () => {
               onClick={() => setActiveTable('admin')}
             >
               <FaUserShield className={styles['nav-icon']} />
-              <span>Admin ({users.filter(user => user.dUser_Type === 'ADMIN').length})</span>
+              <span>Admin ({users.filter(user => 
+                user.dUser_Type === 'ADMIN' && 
+                user.dStatus !== 'LOCKED' &&
+                user.dStatus !== 'NEED-RESET' &&
+                user.dStatus !== 'RESET-DONE' &&
+                user.dStatus !== 'DEACTIVATED'
+              ).length})</span>
             </div>
             <div 
               className={`${styles['nav-item']} ${activeTable === 'tickets' ? styles['active'] : ''}`} 
               onClick={() => setActiveTable('tickets')}
             >
               <FaTicketAlt className={styles['nav-icon']} />
-              <span>Tickets ({users.filter(user => user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE' || user.dStatus === 'LOCKED').length})</span>
+              <span>Tickets ({users.filter(user => user.dStatus === 'NEED-RESET' || user.dStatus === 'RESET-DONE').length})</span>
+            </div>
+            <div 
+              className={`${styles['nav-item']} ${activeTable === 'locked' ? styles['active'] : ''}`} 
+              onClick={() => setActiveTable('locked')}
+            >
+              <FaLock className={styles['nav-icon']} />
+              <span>Locked ({users.filter(user => user.dStatus === 'LOCKED').length})</span>
             </div>
             <div 
               className={`${styles['nav-item']} ${activeTable === 'deactivated' ? styles['active'] : ''}`} 
@@ -2037,15 +2276,25 @@ const UserManagement = () => {
                             <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
                               <FaEdit size={12} /> Edit
                             </button>
+                              <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowLockModal(true);
+                              }}
+                              className={styles['lock-btn']}
+                            >
+                              <FaLock size={12} /> Lock
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedUsers([String(user.dUser_ID)]);
-                                setShowDeleteModal(true);
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowDeactivateModal(true);
                               }}
-                              className={styles['delete-btn']}
+                              className={styles['deactivate-btn']}
                             >
-                              <FaTrash size={12} /> Delete
+                              <FaUserSlash size={12} /> Deactivate
                             </button>
                             <input
                               type="checkbox"
@@ -2074,12 +2323,12 @@ const UserManagement = () => {
                 </table>
               )
             )}
-            {activeTable === 'admin' && (
-              getFilteredUsers().length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
-                  No users found.
-                </div>
-              ) : (
+              {activeTable === 'admin' && (
+                tabFilteredUsers.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                    No users found.
+                  </div>
+                ) : (
                 <table>
                   <thead>
                     <tr>
@@ -2203,15 +2452,25 @@ const UserManagement = () => {
                             <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
                               <FaEdit size={12} /> Edit
                             </button>
+                              <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowLockModal(true);
+                              }}
+                              className={styles['lock-btn']}
+                            >
+                              <FaLock size={12} /> Lock
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedUsers([user.dUser_ID]);
-                                setShowDeleteModal(true);
+                                setShowDeactivateModal(true);
                               }}
-                              className={styles['delete-btn']}
+                              className={styles['deactivate-btn']}
                             >
-                              <FaTrash size={12} /> Delete
+                              <FaUserSlash size={12} /> Deactivate
                             </button>
                             <input
                               type="checkbox"
@@ -2369,22 +2628,194 @@ const UserManagement = () => {
                             <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
                               <FaEdit size={12} /> Edit
                             </button>
-                <button
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedUsers([user.dUser_ID]);
-                                setShowDeleteModal(true);
+                                setShowLockModal(true);
                               }}
-                              className={styles['delete-btn']}
-                >
-                              <FaTrash size={12} /> Delete
-                </button>
+                              className={styles['lock-btn']}
+                            >
+                              <FaLock size={12} /> Lock
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowDeactivateModal(true);
+                              }}
+                              className={styles['deactivate-btn']}
+                            >
+                              <FaUserSlash size={12} /> Deactivate
+                            </button>
                             <input
                               type="checkbox"
                               checked={selectedUsers.includes(user.dUser_ID)}
                               onClick={e => e.stopPropagation()}
                               onChange={e => {
                                 // Only handle checkbox toggle, prevent row click
+                                setSelectedUsers(prev =>
+                                  e.target.checked
+                                    ? [...prev, user.dUser_ID]
+                                    : prev.filter(id => id !== user.dUser_ID)
+                                );
+                                if (!e.target.checked && selectedUsers.length === 1) {
+                                  setAnchorSelectedIndex(null);
+                                } else if (e.target.checked && selectedUsers.length === 0) {
+                                  setAnchorSelectedIndex(index);
+                                }
+                                setLastSelectedIndex(index);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+            )}
+            {activeTable === 'locked' && (
+              getFilteredUsers().length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 20 }}>
+                  No locked users found.
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th className={styles['employee-id-col']} onClick={() => handleSort('dUser_ID')} style={{ cursor: 'pointer' }}>
+                        Employee ID {sortConfig.key === 'dUser_ID' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className={styles['name-col']} onClick={() => handleSort('dName')} style={{ cursor: 'pointer' }}>
+                        Name {sortConfig.key === 'dName' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className={styles['email-col']} onClick={() => handleSort('dEmail')} style={{ cursor: 'pointer' }}>
+                        Email {sortConfig.key === 'dEmail' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className={styles['role-col']} onClick={() => handleSort('dUser_Type')} style={{ cursor: 'pointer' }}>
+                        Role {sortConfig.key === 'dUser_Type' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className={styles['status-col']} onClick={() => handleSort('dStatus')} style={{ cursor: 'pointer' }}>
+                        Status {sortConfig.key === 'dStatus' ? (sortConfig.direction === 'asc' ? '▲' : sortConfig.direction === 'desc' ? '▼' : '') : ''}
+                      </th>
+                      <th className={styles['actions-col']}>
+                        <div className={styles['actions-header']}>
+                          Actions
+                          <div className={styles['select-all-container']}>
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.length > 0 && selectedUsers.length === sortedUsers.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUsers(sortedUsers.map(user => user.dUser_ID));
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
+                                } else {
+                                  setSelectedUsers([]);
+                                  setAnchorSelectedIndex(null);
+                                  setLastSelectedIndex(null);
+                                }
+                              }}
+                            />
+                            <span className={styles['selected-count']}>
+                              {selectedUsers.length > 0 ? `${selectedUsers.length}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedUsers.map((user, index) => (
+                      <tr
+                        key={user.dLogin_ID || user.dUser_ID}
+                        className={selectedUsers.includes(user.dUser_ID) ? 'selected-row' : ''}
+                        onMouseDown={e => {
+                          if (
+                            e.target.tagName === 'INPUT' && e.target.type === 'checkbox'
+                          ) return;
+                          if (
+                            e.target.tagName === 'BUTTON' ||
+                            e.target.tagName === 'svg' ||
+                            e.target.tagName === 'path'
+                          ) return;
+                          setIsDragging(true);
+                          setDragLastIndex(index);
+                          setDragToggled(new Set([index]));
+                          setSelectedUsers(prev => {
+                            if (prev.includes(user.dUser_ID)) {
+                              return prev.filter(id => id !== user.dUser_ID);
+                            } else {
+                              return [...prev, user.dUser_ID];
+                            }
+                          });
+                        }}
+                        onMouseEnter={() => {
+                          if (isDragging && dragLastIndex !== null && dragLastIndex !== index) {
+                            const start = Math.min(dragLastIndex, index);
+                            const end = Math.max(dragLastIndex, index);
+                            const indicesToToggle = [];
+                            for (let i = start; i <= end; i++) {
+                              if (!dragToggled.has(i)) {
+                                indicesToToggle.push(i);
+                              }
+                            }
+                            if (indicesToToggle.length > 0) {
+                              setSelectedUsers(prev => {
+                                let newSelected = [...prev];
+                                indicesToToggle.forEach(i => {
+                                  const rowUser = sortedUsers[i];
+                                  if (!rowUser) return;
+                                  if (newSelected.includes(rowUser.dUser_ID)) {
+                                    newSelected = newSelected.filter(id => id !== rowUser.dUser_ID);
+                                  } else {
+                                    newSelected.push(rowUser.dUser_ID);
+                                  }
+                                });
+                                return newSelected;
+                              });
+                              setDragToggled(prevSet => {
+                                const newSet = new Set(prevSet);
+                                indicesToToggle.forEach(i => newSet.add(i));
+                                return newSet;
+                              });
+                            }
+                            setDragLastIndex(index);
+                          }
+                        }}
+                        onMouseUp={() => {
+                          setIsDragging(false);
+                          setDragLastIndex(null);
+                          setDragToggled(new Set());
+                        }}
+                      >
+                        <td>{user.dUser_ID}</td>
+                        <td>{user.dName}</td>
+                        <td>{user.dEmail}</td>
+                        <td>{user.dUser_Type}</td>
+                        <td>{user.dStatus}</td>
+                        <td>
+                          <div className={styles['action-buttons']}>
+                            <button onClick={() => handleEdit(user)} className={styles['edit-btn']}>
+                              <FaEdit size={12} /> Edit
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUsers([user.dUser_ID]);
+                                  setShowUnlockModal(true);
+                                }}
+                                className={styles['unlock-btn']}
+                                style={{ backgroundColor: '#0a7', color: 'white' }}
+                              >
+                                <FaLockOpen size={12} /> Unlock
+                              </button>
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user.dUser_ID)}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
                                 setSelectedUsers(prev =>
                                   e.target.checked
                                     ? [...prev, user.dUser_ID]
@@ -2532,6 +2963,17 @@ const UserManagement = () => {
                         <td>{user.dStatus}</td>
                         <td>
                           <div className={styles['action-buttons']}>
+                              <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUsers([user.dUser_ID]);
+                                setShowDeleteModal(true);
+                              }}
+                              className={styles['delete-btn']}
+                              style={{ backgroundColor: '#dc3545', color: 'white' }}
+                            >
+                              <FaTrash size={12} /> Delete
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2572,33 +3014,309 @@ const UserManagement = () => {
             )}
           </div>
         </div>
-        {selectedUsers.length > 0 && activeTable !== 'deactivated' && (
-          <div className={styles['delete-all-container']}>
-            <button
-              className={styles['delete-all-btn']}
-              onClick={() => {
-                setShowDeleteModal(true);
-              }}
-            >
-              <FaTrash /> Delete Selected ({selectedUsers.length})
-            </button>
-          </div>
-        )}
+          {selectedUsers.length > 0 && activeTable !== 'deactivated' && activeTable !== 'locked' && (
+            <div className={styles['batch-actions-container']}>
+              <button
+                className={styles['lock-all-btn']}
+                onClick={() => setShowLockModal(true)}
+              >
+                <FaLock /> Lock Selected ({selectedUsers.length})
+              </button>
+              <button
+                className={styles['deactivate-all-btn']}
+                onClick={() => setShowDeactivateModal(true)}
+              >
+                <FaUserSlash /> Deactivate Selected ({selectedUsers.length})
+              </button>
+            </div>
+          )}
 
-        {selectedUsers.length > 0 && activeTable === 'deactivated' && (
-          <div className={styles['delete-all-container']}>
-            <button
-              className={styles['restore-all-btn']}
-              onClick={() => {
-                setShowRestoreModal(true);
+          {selectedUsers.length > 0 && activeTable === 'locked' && (
+            <div className={styles['batch-actions-container']}>
+              <button
+                className={styles['unlock-all-btn']}
+                onClick={() => setShowUnlockModal(true)}
+                style={{ backgroundColor: '#0a7', color: 'white' }}
+              >
+                <FaLockOpen /> Unlock Selected ({selectedUsers.length})
+              </button>
+            </div>
+          )}
+
+          {selectedUsers.length > 0 && activeTable === 'deactivated' && (
+            <div className={styles['batch-actions-container']}>
+              <button
+                className={styles['delete-all-btn']}
+                onClick={() => setShowDeleteModal(true)}
+                style={{ backgroundColor: '#dc3545', color: 'white' }}
+              >
+                <FaTrash /> Delete Selected ({selectedUsers.length})
+              </button>
+              <button
+                className={styles['restore-all-btn']}
+                onClick={() => setShowRestoreModal(true)}
+                style={{ backgroundColor: '#0a7', color: 'white' }}
+              >
+                <FaKey /> Restore Selected ({selectedUsers.length})
+              </button>
+            </div>
+          )}
+      </div>
+
+      {/* Lock Confirmation Modal */}
+      {showLockModal && (
+      <div className="modal-overlay">
+        <div className="modal lock-confirmation-modal">
+          <div className="modal-header">
+            <h2><FaLock /> Confirm Lock</h2>
+          </div>
+          <div className="modal-content">
+            <p>
+              You are about to <strong>LOCK</strong> {selectedUsers.length} user(s).
+              This will prevent them from logging in.
+            </p>
+            <div className="user-list">
+              {users
+                .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                .map(user => (
+                  <div key={user.dUser_ID} className="user-list-item">
+                    <div className="user-info">
+                      <div className="user-name">{user.dName}</div>
+                      <div className="user-email">{user.dEmail}</div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+            <input
+              type="text"
+              value={lockConfirmText}
+              onChange={(e) => setLockConfirmText(e.target.value.slice(0, 4))}
+              placeholder="Type LOCK to confirm"
+              className="lock-confirm-input"
+              maxLength={4}
+              onInput={e => {
+                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 4);
               }}
-              style={{ backgroundColor: '#0a7', color: 'white', minWidth: 180 }}
+            />
+          </div>
+          <div className="modal-actions">
+            <button 
+              className="cancel-btn" 
+              onClick={() => {
+                setShowLockModal(false);
+                setLockConfirmText('');
+              }}
             >
-              <FaKey /> Restore Selected ({selectedUsers.length})
+              Cancel
+            </button>
+              <button
+                className="user-lock-btn"
+                disabled={lockConfirmText !== 'LOCK'}
+                onClick={handleLockUsers}
+                style={{ backgroundColor: '#0a7', color: 'white' }}
+              >
+                <FaLock /> Lock Users
+              </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Lock Result Modal */}
+    {showLockResultModal && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '400px' }}>
+          <div className="modal-header">
+            <h2>{lockResultSuccess ? 'Lock Successful' : 'Lock Failed'}</h2>
+          </div>
+          <p>{lockResultMessage}</p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button 
+              className="save-btn" 
+              ref={lockResultOkBtnRef}
+              onClick={() => setShowLockResultModal(false)}
+              onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
+            >
+              OK
             </button>
           </div>
-        )}
+        </div>
       </div>
+    )}
+
+      {/* Unlock Confirmation Modal */}
+      {showUnlockModal && (
+        <div className="modal-overlay">
+          <div className="modal unlock-confirmation-modal">
+            <div className="modal-header">
+              <h2><FaLockOpen /> Confirm Unlock</h2>
+            </div>
+            <div className="modal-content">
+              <p>
+                You are about to <strong>UNLOCK</strong> {selectedUsers.length} user(s).
+                This will allow them to log in again.
+              </p>
+              <div className="user-list">
+                {users
+                  .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                  .map(user => (
+                    <div key={user.dUser_ID} className="user-list-item">
+                      <div className="user-info">
+                        <div className="user-name">{user.dName}</div>
+                        <div className="user-email">{user.dEmail}</div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <input
+                type="text"
+                value={unlockConfirmText}
+                onChange={(e) => setUnlockConfirmText(e.target.value.slice(0, 6))}
+                placeholder="Type UNLOCK to confirm"
+                className="unlock-confirm-input"
+                maxLength={6}
+                onInput={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 6);
+                }}
+              />
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn" 
+                onClick={() => {
+                  setShowUnlockModal(false);
+                  setUnlockConfirmText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="unlock-btn"
+                disabled={unlockConfirmText !== 'UNLOCK'}
+                onClick={handleUnlockUsers}
+                style={{ backgroundColor: '#0a7', color: 'white' }}
+              >
+                <FaLockOpen /> Unlock Users
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlock Result Modal */}
+      {showUnlockResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{unlockResultSuccess ? 'Unlock Successful' : 'Unlock Failed'}</h2>
+            </div>
+            <p>{unlockResultMessage}</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                className="save-btn" 
+                ref={unlockResultOkBtnRef}
+                onClick={() => setShowUnlockResultModal(false)}
+                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate Confirmation Modal */}
+      {showDeactivateModal && (
+        <div className="modal-overlay">
+          <div className="modal usermanagement-deactivate-confirmation-modal">
+            <div className="modal-header">
+              <h2><FaUserSlash /> Confirm Deactivation</h2>
+            </div>
+            <div className="modal-content">
+              <p>
+                You are about to <strong>DEACTIVATE</strong> {selectedUsers.length} user(s).
+              </p>
+              {selectedUsers.length > 0 && (
+                <div className="user-list">
+                  {users
+                    .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                    .map(user => (
+                      <div key={user.dUser_ID} className="user-list-item">
+                        <div className="user-info">
+                          <div className="user-name">{user.dName}</div>
+                          <div className="user-email">{user.dEmail}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              <input
+                type="text"
+                value={deactivateConfirmText}
+                onChange={(e) => setDeactivateConfirmText(e.target.value.slice(0, 10))}
+                placeholder="Type DEACTIVATE to confirm"
+                className="deactivate-confirm-input"
+                maxLength={10}
+                onInput={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 10);
+                }}
+                ref={deactivateConfirmInputRef}
+                onKeyDown={e => { if (e.key === 'Enter') document.getElementById('deactivate-btn')?.click(); }}
+              />
+            </div>
+            <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowDeactivateModal(false);
+                  setDeactivateConfirmText('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="deactivate-btn"
+                id="deactivate-btn"
+                disabled={deactivateConfirmText.trim() !== 'DEACTIVATE'}
+                onClick={() => {
+                  setLastDeactivateCount(selectedUsers.length);
+                  handleDeactivateUsers();
+                }}
+              >
+                <FaUserSlash /> Deactivate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate Result Modal */}
+      {showDeactivateResultModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h2>{deactivateResultSuccess ? 'Deactivation Successful' : 'Deactivation Failed'}</h2>
+            </div>
+            <p>{
+              deactivateResultSuccess
+                ? (lastDeactivateCount === 1
+                    ? 'User deactivated successfully!'
+                    : `Users (${lastDeactivateCount}) deactivated successfully!`)
+                : deactivateResultMessage
+            }</p>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                className="save-btn" 
+                ref={deactivateResultOkBtnRef} 
+                onClick={() => setShowDeactivateResultModal(false)} 
+                onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {addModalOpen && (
@@ -2979,7 +3697,7 @@ const UserManagement = () => {
             </div>
             <div className="modal-content">
               <p>
-                You are about to <strong>DELETE</strong> {selectedUsers.length} user(s).
+                You are about to <strong>DELETE</strong> {selectedUsers.length} user(s). 
               </p>
               {selectedUsers.length > 0 && (
                 <div className="user-list">
@@ -3029,6 +3747,64 @@ const UserManagement = () => {
                 }}
               >
                 <FaTrash /> Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Warning Modal */}
+      {showDeleteWarningModal && (
+        <div className="modal-overlay">
+          <div className="modal usermanagement-delete-warning-modal">
+            <div className="modal-header">
+              <h2><FaTrash /> Warning: Permanent Deletion</h2>
+            </div>
+            <div className="modal-content">
+              <div style={{ 
+                backgroundColor: '#fff5f5', 
+                border: '1px solid #dc3545', 
+                borderRadius: '4px', 
+                padding: '16px', 
+                marginBottom: '16px' 
+              }}>
+                <p style={{ color: '#dc3545', fontWeight: 'bold', marginBottom: '8px' }}>
+                  ⚠️ This action cannot be undone!
+                </p>
+                <p style={{ color: '#dc3545' }}>
+                  Continuing this action will permanently delete the selected user(s) from the system.
+                  All associated data will be permanently lost.
+                </p>
+              </div>
+              <div className="user-list">
+                {users
+                  .filter(user => selectedUsers.includes(String(user.dUser_ID)))
+                  .map(user => (
+                    <div key={user.dUser_ID} className="user-list-item">
+                      <div className="user-info">
+                        <div className="user-name">{user.dName}</div>
+                        <div className="user-email">{user.dEmail}</div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowDeleteWarningModal(false);
+                  setSelectedUsers([]);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="delete-btn"
+                onClick={handleConfirmPermanentDelete}
+                style={{ backgroundColor: '#dc3545', color: 'white' }}
+              >
+                <FaTrash /> Yes, Delete Permanently
               </button>
             </div>
           </div>
@@ -3200,56 +3976,26 @@ const UserManagement = () => {
                     <label htmlFor="employee-id-input">
                       Employee ID:
                     </label>
-                    {!employeeIdEditable && (
-                      <FaLock className="locked-indicator" title="Enable editing to change Employee ID" />
-                    )}
                   </div>
                   <input
-                    id="employee-id-input"
-                    type="text"
-                    name="employeeId"
-                    value={currentUser.dUser_ID}
-                    ref={editFirstInputRef}
-                    onChange={(e) => {
-                      const newValue = e.target.value.replace(/[^0-9]/g, '').slice(0, 10).trim();
-                      setCurrentUser({ ...currentUser, dUser_ID: newValue });
-                      setEditFieldTouched(prev => ({ ...prev, dUser_ID: true }));
-                      if (editUserErrors.dUser_ID) {
-                        setEditUserErrors(prev => ({ ...prev, dUser_ID: undefined }));
-                      }
-                    }}
-                    onBlur={() => setEditFieldTouched(prev => ({ ...prev, dUser_ID: true }))}
-                    readOnly={!employeeIdEditable}
-                    className={`${!employeeIdEditable ? 'disabled-input' : ''} ${editUserErrors.dUser_ID ? 'error-input' : ''}`}
-                    required
-                    maxLength={10}
-                    minLength={10}
-                    pattern="[0-9]{10}"
-                    style={{ 
-                      background: !employeeIdEditable ? '#f5f5f5' : undefined, 
-                      color: !employeeIdEditable ? '#aaa' : undefined, 
-                      cursor: !employeeIdEditable ? 'not-allowed' : undefined,
-                      borderColor: editUserErrors.dUser_ID ? '#ff4444' : undefined
-                    }}
-                    onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
-                  />
+                      id="employee-id-input"
+                      type="text"
+                      name="employeeId"
+                      value={currentUser.dUser_ID}
+                      ref={editFirstInputRef}
+                      readOnly={true}
+                      className="disabled-input"
+                      style={{ 
+                        background: '#f5f5f5',
+                        color: '#666',
+                        cursor: 'not-allowed'
+                      }}
+                    />
                   {(editFormSubmitted || editFieldTouched.dUser_ID) && editUserErrors.dUser_ID && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
                       {editUserErrors.dUser_ID}
                     </div>
                   )}
-                </div>
-                <div className="employee-id-checkbox-row" style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                    <input
-                      type="checkbox"
-                      id="edit-employee-id"
-                      checked={employeeIdEditable}
-                      onChange={() => setEmployeeIdEditable((v) => !v)}
-                      style={{ margin: 0 }}
-                    />
-                    Enable editing of Employee ID
-                  </label>
                 </div>
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label>Email:</label>
@@ -3339,32 +4085,21 @@ const UserManagement = () => {
                   )}
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Status:</label>
+                  <label>Status:
+                    <FaLock className="locked-indicator" title="Status cannot be changed" style={{ marginLeft: 8 }} />
+                  </label>
                   <select
                     name="status"
                     value={currentUser.dStatus}
-                    onChange={(e) => setCurrentUser({...currentUser, dStatus: e.target.value})}
+                    disabled={true}
+                    style={{ 
+                      background: '#f5f5f5',
+                      color: '#666',
+                      cursor: 'not-allowed'
+                    }}
                   >
-                    {currentUser.dStatus === 'RESET-DONE' ? (
-                      <>
-                        <option value="RESET-DONE">RESET-DONE</option>
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="LOCKED">LOCKED</option>
-                      </>
-                    ) : (
-                      <>
-                        {currentUser.dStatus === 'FIRST-TIME' && <option value="FIRST-TIME">FIRST-TIME</option>}
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="LOCKED">LOCKED</option>
-                      </>
-                    )}
+                    <option value={currentUser.dStatus}>{currentUser.dStatus}</option>
                   </select>
-                  {editUserErrors.dStatus && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dStatus}</div>}
-                  {editFieldTouched.dStatus && editUserErrors.dStatus && (
-                    <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
-                      {editUserErrors.dStatus}
-                    </div>
-                  )}
                 </div>
               </div>
               {/* Right column: Password and Reset Account (stacked vertically) */}
