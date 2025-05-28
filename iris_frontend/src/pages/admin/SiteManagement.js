@@ -87,6 +87,9 @@ const SiteManagement = () => {
   const [showDuplicateSiteModal, setShowDuplicateSiteModal] = useState(false);
   const [duplicateSiteName, setDuplicateSiteName] = useState('');
 
+  const [showSiteDeactivatedWarning, setShowSiteDeactivatedWarning] = useState(false);
+  const [deactivatedSiteName, setDeactivatedSiteName] = useState('');
+
   const [showAddClientSiteConfirmModal, setShowAddClientSiteConfirmModal] = useState(false);
   const [clientSiteConfirmDetails, setClientSiteConfirmDetails] = useState({
     clientName: '',
@@ -651,9 +654,20 @@ const SiteManagement = () => {
 
   const handleReactivateClientSite = async (clientSiteId) => {
     const clientSite = siteClients.find(sc => sc.dClientSite_ID === clientSiteId);
-    setDeleteType('reactivate-client-site');
-    setItemToDelete({ id: clientSiteId, name: clientSite?.dClientName || 'Unknown client' });
-    setShowDeleteModal(true);
+    
+    // Check if the parent site is active or deactivated
+    const siteIsDeactivated = deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+    
+    if (siteIsDeactivated) {
+      // Show the site deactivated warning
+      setDeactivatedSiteName(clientSite.dSiteName);
+      setShowSiteDeactivatedWarning(true);
+    } else {
+      // If site is active, proceed to normal confirmation
+      setDeleteType('reactivate-client-site');
+      setItemToDelete({ id: clientSiteId, name: clientSite?.dClientName || 'Unknown client' });
+      setShowDeleteModal(true);
+    }
   };
 
   const handleBulkDeactivateClientSites = async () => {
@@ -667,8 +681,20 @@ const SiteManagement = () => {
   const handleBulkReactivateClientSites = async () => {
     if (selectedClientSiteIds.length === 0) return;
     
+    // Filter out client-site IDs that belong to deactivated sites
+    const validClientSiteIds = selectedClientSiteIds.filter(csId => {
+      const clientSite = siteClients.find(cs => cs.dClientSite_ID === csId);
+      return clientSite && !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+    });
+    
+    if (validClientSiteIds.length === 0) {
+      setShowSiteDeactivatedWarning(true);
+      return;
+    }
+    
+    // Continue with valid IDs
     setDeleteType('bulk-reactivate-client-sites');
-    setItemToDelete({ count: selectedClientSiteIds.length });
+    setItemToDelete({ count: validClientSiteIds.length });
     setShowDeleteModal(true);
   };
 
@@ -734,6 +760,22 @@ const SiteManagement = () => {
    * Handles client-site row checkbox selection
    */
   const handleClientSiteSelection = (clientSiteId) => {
+    // Get the client site record
+    const clientSite = siteClients.find(cs => cs.dClientSite_ID === clientSiteId);
+    
+    // If we're in the DEACTIVATED tab and trying to select an item, check if its parent site is active
+    if (clientSiteStatusTab === 'DEACTIVATED') {
+      const siteIsDeactivated = deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+      
+      if (siteIsDeactivated) {
+        // Show the warning and prevent selection
+        setDeactivatedSiteName(clientSite.dSiteName);
+        setShowSiteDeactivatedWarning(true);
+        return; // Don't proceed with selection
+      }
+    }
+    
+    // Normal selection behavior
     setSelectedClientSiteIds(prev => {
       if (prev.includes(clientSiteId)) {
         return prev.filter(id => id !== clientSiteId);
@@ -751,7 +793,18 @@ const SiteManagement = () => {
       setSelectedClientSiteIds([]);
     } else {
       // Only select IDs of the filtered client-sites currently visible in the table
-      setSelectedClientSiteIds(filteredSiteClients.map(clientSite => clientSite.dClientSite_ID));
+      // AND skip any assignments belonging to deactivated sites
+      const selectableIds = filteredSiteClients
+        .filter(clientSite => {
+          // If we're in DEACTIVATED tab, check if parent site is also deactivated
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            return !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+          }
+          return true; // If in ACTIVE tab, all are selectable
+        })
+        .map(clientSite => clientSite.dClientSite_ID);
+      
+      setSelectedClientSiteIds(selectableIds);
     }
     setSelectAllClientSites(!selectAllClientSites);
   };
@@ -2516,6 +2569,30 @@ const SiteManagement = () => {
               }}
             >
               OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Site Deactivated Warning Modal */}
+    {showSiteDeactivatedWarning && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '450px' }}>
+          <div className="modal-header">
+            <h2>Site is Deactivated</h2>
+          </div>
+          <p>
+            {deactivatedSiteName ? 
+              `Site "${deactivatedSiteName}" is currently deactivated. Reactivate Site first to select.` : 
+              "The parent site is currently deactivated. You need to reactivate the site before reactivating client assignments."}
+          </p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              className="save-btn"
+              onClick={() => setShowSiteDeactivatedWarning(false)}
+            >
+              Close
             </button>
           </div>
         </div>

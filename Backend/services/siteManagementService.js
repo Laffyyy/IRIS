@@ -96,7 +96,7 @@ class SiteManagementService {
                 // 3. Insert log entry
                 const timestamp = new Date();
                 await db.query(
-                    'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                    'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "DEACTIVATED", "SYSTEM", ?)',
                     [siteId, timestamp]
                 );
                 
@@ -498,7 +498,7 @@ class SiteManagementService {
               const timestamp = new Date();
               for (const siteId of siteIds) {
                   await db.query(
-                      'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                      'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "DEACTIVATED", "SYSTEM", ?)',
                       [siteId, timestamp]
                   );
               }
@@ -668,7 +668,7 @@ class SiteManagementService {
       // Insert log entry
       const timestamp = new Date();
       await db.query(
-        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
+        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "DEACTIVATED", "SYSTEM", ?)',
         [clientSiteId, timestamp]
       );
       
@@ -683,8 +683,21 @@ class SiteManagementService {
   
   async reactivateClientSite(clientSiteId) {
     try {
+
+      const [siteCheck] = await db.query(
+        `SELECT s.dStatus 
+         FROM tbl_clientsite cs
+         JOIN tbl_site s ON cs.dSite_ID = s.dSite_ID
+         WHERE cs.dClientSite_ID = ?`,
+        [clientSiteId]
+      );
+
+      if (siteCheck.length === 0 || siteCheck[0].dStatus !== 'ACTIVE') {
+        throw new Error('Cannot reactivate client-site assignment for a deactivated site');
+      }
+
       await db.query('START TRANSACTION');
-      
+
       const [result] = await db.query(
         'UPDATE tbl_clientsite SET dStatus = ? WHERE dClientSite_ID = ?',
         ['ACTIVE', clientSiteId]
@@ -693,7 +706,7 @@ class SiteManagementService {
       // Insert log entry
       const timestamp = new Date();
       await db.query(
-        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
+        'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "ACTIVATED", "SYSTEM", ?)',
         [clientSiteId, timestamp]
       );
       
@@ -727,7 +740,7 @@ class SiteManagementService {
               // 3. Insert log entry
               const timestamp = new Date();
               await db.query(
-                  'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                  'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "ACTIVATED", "SYSTEM", ?)',
                   [siteId, timestamp]
               );
               
@@ -760,7 +773,7 @@ class SiteManagementService {
         const timestamp = new Date();
         for (const clientSiteId of clientSiteIds) {
             await db.query(
-                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
+                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "DEACTIVATED", "SYSTEM", ?)',
                 [clientSiteId, timestamp]
             );
         }
@@ -799,7 +812,7 @@ class SiteManagementService {
               const timestamp = new Date();
               for (const siteId of siteIds) {
                   await db.query(
-                      'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+                      'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "ACTIVATED", "SYSTEM", ?)',
                       [siteId, timestamp]
                   );
               }
@@ -833,7 +846,7 @@ class SiteManagementService {
         const timestamp = new Date();
         for (const clientSiteId of clientSiteIds) {
             await db.query(
-                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "MODIFIED", "SYSTEM", ?)',
+                'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "ACTIVATED", "SYSTEM", ?)',
                 [clientSiteId, timestamp]
             );
         }
