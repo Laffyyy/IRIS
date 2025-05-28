@@ -18,6 +18,8 @@ import ProtectedRoute from './utilities/ProtectedRoute';
 import Unauthorize from './utilities/Unautorize';
 import AdminPage from './adminpagecollection';
 import InactivityHandler from './components/InactivityHandler';
+import FloatingChatbot from './components/FloatingChatbot';
+import ChatHistory from './pages/ChatHistory';
 
 function App() {
   return (
@@ -95,7 +97,9 @@ function App() {
           />
           <Route path="/faqs" element={<div>FAQs Page</div>} />
           <Route path="/unauthorized" element={<Unauthorize />} />
+          <Route path="/chat-history" element={<ChatHistory />} />
         </Routes>
+        <FloatingChatbot />
       </div>
     </Router>
   );
