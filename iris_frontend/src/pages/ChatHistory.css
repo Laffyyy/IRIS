@@ -78,9 +78,9 @@
   border-radius: 50%;
 }
 
-.chat-header h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
+.chat-history-header h1 {
+  font-size: 1rem !important;
+  font-weight: 500 !important;
   margin: 0;
 }
 
@@ -245,20 +245,6 @@
   background: #fff;
   overflow-y: auto;
   position: relative;
-  scrollbar-width: thin;
-  scrollbar-color: #b6c6e3 #f8fafc;
-}
-
-/* For Webkit browsers */
-.messages-container::-webkit-scrollbar {
-  width: 8px;
-}
-.messages-container::-webkit-scrollbar-thumb {
-  background: #b6c6e3;
-  border-radius: 4px;
-}
-.messages-container::-webkit-scrollbar-track {
-  background: #f8fafc;
 }
 
 .welcome-message {

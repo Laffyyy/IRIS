@@ -223,7 +223,7 @@ const ChatHistory = () => {
           <div className="chat-history-header">
             <div className="header-content">
               <img src={airaLogo} alt="Aira Logo" className="logo" />
-              <h1>Chat History</h1>
+              <h1>History</h1>
             </div>
             <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
               <button className="new-chat-button" onClick={handleNewChat}>
@@ -297,7 +297,7 @@ const ChatHistory = () => {
               <div className="messages-container">
                 {messages.length === 0 ? (
                   <div className="welcome-message">
-                    <h2>Welcome to IRIS AI Assistant</h2>
+                    <h2> Welcome to AIRA</h2>
                     <p>How can I help you today?</p>
                     <div className="quick-replies">
                       {quickRepliesByRole[userRole]?.map((reply, idx) => (

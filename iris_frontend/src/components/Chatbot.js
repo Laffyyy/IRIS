@@ -192,7 +192,7 @@ const Chatbot = ({ onClose, onMinimize }) => {
           <div className="chatbot-chat-messages">
             {messages.length === 0 ? (
               <div className="welcome-message">
-                <h2>Welcome to IRIS AI Assistant</h2>
+                <h2>Welcome to AIRA</h2>
                 <p>How can I help you today?</p>
                 <div className="quick-replies">
                   {quickReplies[userRole]?.map((reply, index) => (
