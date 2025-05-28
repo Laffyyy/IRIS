@@ -192,86 +192,88 @@ const EmployeeManagement = () => {
                     <div className="preview-tabs">
                       <button
                         className={`preview-tab ${perSubLobPreviewTab === 'valid' ? 'active' : ''}`}
-                        onClick={() => setPerSubLobPreviewTab('valid')}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPerSubLobPreviewTab('valid');
+                        }}
                         disabled={perSubLobValidEmployees.length === 0}
                       >
                         Valid ({perSubLobValidEmployees.length})
                       </button>
                       <button
                         className={`preview-tab ${perSubLobPreviewTab === 'invalid' ? 'active' : ''}`}
-                        onClick={() => setPerSubLobPreviewTab('invalid')}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPerSubLobPreviewTab('invalid');
+                        }}
                         disabled={perSubLobInvalidEmployees.length === 0}
                       >
                         Invalid ({perSubLobInvalidEmployees.length})
                       </button>
                     </div>
                     <div className="preview-content">
-                      {perSubLobPreviewTab === 'valid' && perSubLobValidEmployees.length > 0 && (
-                        <div className="valid-users-table">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Employee ID</th>
-                                <th>Full Name</th>
-                                <th>Hire Date</th>
-                                <th>Classification</th>
-                                <th>Client</th>
-                                <th>LoB</th>
-                                <th>Sub-LoB</th>
-                                <th>Actions</th>
+                      <div className={`valid-users-table ${perSubLobPreviewTab === 'valid' ? 'active' : ''}`}>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Employee ID</th>
+                              <th>Full Name</th>
+                              <th>Hire Date</th>
+                              <th>Classification</th>
+                              <th>Client</th>
+                              <th>LoB</th>
+                              <th>Sub-LoB</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {perSubLobValidEmployees.map((emp, idx) => (
+                              <tr key={`valid-${idx}`}>
+                                <td data-full-text={emp.id}>{emp.id}</td>
+                                <td data-full-text={emp.name}>{emp.name}</td>
+                                <td data-full-text={emp.hireDate}>{emp.hireDate}</td>
+                                <td data-full-text={emp.classification}>{emp.classification}</td>
+                                <td data-full-text={emp.client}>{emp.client}</td>
+                                <td data-full-text={emp.lob}>{emp.lob}</td>
+                                <td data-full-text={emp.sublob}>{emp.sublob}</td>
+                                <td>
+                                  <button className="delete-btn" onClick={() => {}}><FaTrash size={12} /> Delete</button>
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {perSubLobValidEmployees.map((emp, idx) => (
-                                <tr key={`valid-${idx}`}>
-                                  <td>{emp.id}</td>
-                                  <td>{emp.name}</td>
-                                  <td>{emp.hireDate}</td>
-                                  <td>{emp.classification}</td>
-                                  <td>{emp.client}</td>
-                                  <td>{emp.lob}</td>
-                                  <td>{emp.sublob}</td>
-                                  <td>
-                                    <button className="delete-btn" onClick={() => {}}><FaTrash size={12} /> Delete</button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      {perSubLobPreviewTab === 'invalid' && perSubLobInvalidEmployees.length > 0 && (
-                        <div className="invalid-users-table">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Reason</th>
-                                <th>Employee ID</th>
-                                <th>Full Name</th>
-                                <th>Hire Date</th>
-                                <th>Classification</th>
-                                <th>Client</th>
-                                <th>LoB</th>
-                                <th>Sub-LoB</th>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className={`invalid-users-table ${perSubLobPreviewTab === 'invalid' ? 'active' : ''}`}>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Reason</th>
+                              <th>Employee ID</th>
+                              <th>Full Name</th>
+                              <th>Hire Date</th>
+                              <th>Classification</th>
+                              <th>Client</th>
+                              <th>LoB</th>
+                              <th>Sub-LoB</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {perSubLobInvalidEmployees.map((emp, idx) => (
+                              <tr key={`invalid-${idx}`}>
+                                <td className="reason-cell" data-full-text={emp.reason}>{emp.reason}</td>
+                                <td data-full-text={emp.id}>{emp.id}</td>
+                                <td data-full-text={emp.name}>{emp.name}</td>
+                                <td data-full-text={emp.hireDate}>{emp.hireDate}</td>
+                                <td data-full-text={emp.classification}>{emp.classification}</td>
+                                <td data-full-text={emp.client}>{emp.client}</td>
+                                <td data-full-text={emp.lob}>{emp.lob}</td>
+                                <td data-full-text={emp.sublob}>{emp.sublob}</td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {perSubLobInvalidEmployees.map((emp, idx) => (
-                                <tr key={`invalid-${idx}`}>
-                                  <td className="reason-cell">{emp.reason}</td>
-                                  <td>{emp.id}</td>
-                                  <td>{emp.name}</td>
-                                  <td>{emp.hireDate}</td>
-                                  <td>{emp.classification}</td>
-                                  <td>{emp.client}</td>
-                                  <td>{emp.lob}</td>
-                                  <td>{emp.sublob}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -282,38 +284,44 @@ const EmployeeManagement = () => {
             <div className="option option-2">
               <h2>Custom Add</h2>
               <p className="option-desc">Upload employees with complete organizational data</p>
-              <BulkUploadUI
-                requiredFields={["ID", "Full Name", "Hire Date", "Classification", "Client", "LoB", "Sub-LoB", "Supervisor ID", "Manager ID"]}
-                templateFields={["ID", "Full Name", "Hire Date", "Classification", "Client", "LoB", "Sub-LoB", "Supervisor ID", "Manager ID"]}
-                file={customAddFile}
-                setFile={setCustomAddFile}
-                dragActive={customAddDragActive}
-                setDragActive={setCustomAddDragActive}
-                handleFileChange={handleCustomAddFileChange}
-                handleDrag={handleCustomAddDrag}
-                handleDrop={handleCustomAddDrop}
-              />
-              {customAddFile && (customAddValidEmployees.length > 0 || customAddInvalidEmployees.length > 0) && (
-                <div className="upload-preview">
-                  <div className="preview-tabs">
-                    <button
-                      className={`preview-tab ${customAddPreviewTab === 'valid' ? 'active' : ''}`}
-                      onClick={() => setCustomAddPreviewTab('valid')}
-                      disabled={customAddValidEmployees.length === 0}
-                    >
-                      Valid ({customAddValidEmployees.length})
-                    </button>
-                    <button
-                      className={`preview-tab ${customAddPreviewTab === 'invalid' ? 'active' : ''}`}
-                      onClick={() => setCustomAddPreviewTab('invalid')}
-                      disabled={customAddInvalidEmployees.length === 0}
-                    >
-                      Invalid ({customAddInvalidEmployees.length})
-                    </button>
-                  </div>
-                  <div className="preview-content">
-                    {customAddPreviewTab === 'valid' && customAddValidEmployees.length > 0 && (
-                      <div className="valid-users-table">
+              <form className="per-sublob-form">
+                <BulkUploadUI
+                  requiredFields={["ID", "Full Name", "Hire Date", "Classification", "Client", "LoB", "Sub-LoB", "Supervisor ID", "Manager ID"]}
+                  templateFields={["ID", "Full Name", "Hire Date", "Classification", "Client", "LoB", "Sub-LoB", "Supervisor ID", "Manager ID"]}
+                  file={customAddFile}
+                  setFile={setCustomAddFile}
+                  dragActive={customAddDragActive}
+                  setDragActive={setCustomAddDragActive}
+                  handleFileChange={handleCustomAddFileChange}
+                  handleDrag={handleCustomAddDrag}
+                  handleDrop={handleCustomAddDrop}
+                />
+                {customAddFile && (customAddValidEmployees.length > 0 || customAddInvalidEmployees.length > 0) && (
+                  <div className="upload-preview">
+                    <div className="preview-tabs">
+                      <button
+                        className={`preview-tab ${customAddPreviewTab === 'valid' ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCustomAddPreviewTab('valid');
+                        }}
+                        disabled={customAddValidEmployees.length === 0}
+                      >
+                        Valid ({customAddValidEmployees.length})
+                      </button>
+                      <button
+                        className={`preview-tab ${customAddPreviewTab === 'invalid' ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCustomAddPreviewTab('invalid');
+                        }}
+                        disabled={customAddInvalidEmployees.length === 0}
+                      >
+                        Invalid ({customAddInvalidEmployees.length})
+                      </button>
+                    </div>
+                    <div className="preview-content">
+                      <div className={`valid-users-table ${customAddPreviewTab === 'valid' ? 'active' : ''}`}>
                         <table>
                           <thead>
                             <tr>
@@ -330,13 +338,13 @@ const EmployeeManagement = () => {
                           <tbody>
                             {customAddValidEmployees.map((emp, idx) => (
                               <tr key={`valid-${idx}`}>
-                                <td>{emp.id}</td>
-                                <td>{emp.name}</td>
-                                <td>{emp.hireDate}</td>
-                                <td>{emp.classification}</td>
-                                <td>{emp.client}</td>
-                                <td>{emp.lob}</td>
-                                <td>{emp.sublob}</td>
+                                <td data-full-text={emp.id}>{emp.id}</td>
+                                <td data-full-text={emp.name}>{emp.name}</td>
+                                <td data-full-text={emp.hireDate}>{emp.hireDate}</td>
+                                <td data-full-text={emp.classification}>{emp.classification}</td>
+                                <td data-full-text={emp.client}>{emp.client}</td>
+                                <td data-full-text={emp.lob}>{emp.lob}</td>
+                                <td data-full-text={emp.sublob}>{emp.sublob}</td>
                                 <td>
                                   <button className="delete-btn" onClick={() => {}}><FaTrash size={12} /> Delete</button>
                                 </td>
@@ -345,9 +353,7 @@ const EmployeeManagement = () => {
                           </tbody>
                         </table>
                       </div>
-                    )}
-                    {customAddPreviewTab === 'invalid' && customAddInvalidEmployees.length > 0 && (
-                      <div className="invalid-users-table">
+                      <div className={`invalid-users-table ${customAddPreviewTab === 'invalid' ? 'active' : ''}`}>
                         <table>
                           <thead>
                             <tr>
@@ -364,29 +370,29 @@ const EmployeeManagement = () => {
                           <tbody>
                             {customAddInvalidEmployees.map((emp, idx) => (
                               <tr key={`invalid-${idx}`}>
-                                <td className="reason-cell">{emp.reason}</td>
-                                <td>{emp.id}</td>
-                                <td>{emp.name}</td>
-                                <td>{emp.hireDate}</td>
-                                <td>{emp.classification}</td>
-                                <td>{emp.client}</td>
-                                <td>{emp.lob}</td>
-                                <td>{emp.sublob}</td>
+                                <td className="reason-cell" data-full-text={emp.reason}>{emp.reason}</td>
+                                <td data-full-text={emp.id}>{emp.id}</td>
+                                <td data-full-text={emp.name}>{emp.name}</td>
+                                <td data-full-text={emp.hireDate}>{emp.hireDate}</td>
+                                <td data-full-text={emp.classification}>{emp.classification}</td>
+                                <td data-full-text={emp.client}>{emp.client}</td>
+                                <td data-full-text={emp.lob}>{emp.lob}</td>
+                                <td data-full-text={emp.sublob}>{emp.sublob}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              )}
-              <button type="button" className="upload-btn" disabled={!customAddFile}>Upload Employees</button>
+                )}
+                <button type="button" className="upload-btn" disabled={!customAddFile}>Upload Employees</button>
+              </form>
             </div>
           )}
           {/* Right side: Employee List table always visible */}
           <div className="employee-list-section">
-            <h2 className="directory-title">Employee Directory</h2>
+            <h2 className="directory-title">Employee List</h2>
             <p className="directory-desc">View and manage all employees in the system</p>
             <div className="search-filter-row">
               <input type="text" placeholder="Search employees..." className="search-input" />
