@@ -19,50 +19,51 @@ router.post('/delete-permanent', userController.deleteUsersPermanently);
 router.get('/:employeeId', async (req, res) => {
   try {
     const { employeeId } = req.params;
-    
+
     // First try tbl_Admin
-    let [adminDetails] = await db.query(
-      'SELECT dUser_ID, dName, dEmail FROM tbl_Admin WHERE dUser_ID = ?',
+    const [adminRows] = await db.query(
+      'SELECT dUser_ID, dName, dEmail, tLast_Login FROM tbl_Admin WHERE dUser_ID = ?',
       [employeeId]
     );
+    const adminDetails = adminRows[0];
 
     if (adminDetails) {
-      // For admin users, set type as ADMIN
       return res.json({
         employeeId: adminDetails.dUser_ID,
         name: adminDetails.dName,
         email: adminDetails.dEmail,
+        lastLogin: adminDetails.tLast_Login,
         type: 'ADMIN',
-        status: adminDetails.dStatus
+        status: 'ACTIVE' // or set from another source if you have it
       });
     }
 
     // If not found in tbl_Admin, try tbl_Login
-    [adminDetails] = await db.query(
+    const [loginRows] = await db.query(
       'SELECT dUser_ID, dName, dEmail, dUser_Type, dStatus FROM tbl_Login WHERE dUser_ID = ?',
       [employeeId]
     );
+    const loginDetails = loginRows[0];
 
-    if (!adminDetails) {
-      return res.status(404).json({ 
-        message: 'User not found in either Admin or Login tables' 
+    if (!loginDetails) {
+      return res.status(404).json({
+        message: 'User not found in either Admin or Login tables'
       });
     }
 
-    // Return response for regular users
     res.json({
-      employeeId: adminDetails.dUser_ID,
-      name: adminDetails.dName,
-      email: adminDetails.dEmail,
-      type: adminDetails.dUser_Type,
-      status: adminDetails.dStatus
+      employeeId: loginDetails.dUser_ID,
+      name: loginDetails.dName,
+      email: loginDetails.dEmail,
+      type: loginDetails.dUser_Type,
+      status: loginDetails.dStatus
     });
 
   } catch (error) {
     console.error('Database error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error fetching user details',
-      error: error.message 
+      error: error.message
     });
   }
 });

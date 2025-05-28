@@ -15,6 +15,19 @@ const { user, updateUserDetails } = useUser();
     }
   }, [user?.employeeId]);
 
+  let formattedLastLogin = 'N/A';
+  if (user?.lastLogin) {
+    const lastLoginDate = new Date(user.lastLogin);
+    // Get time parts
+    let [time, ampm] = lastLoginDate
+      .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      .split(' ');
+    // Combine without space between time and am/pm, and make am/pm lowercase
+    const formattedTime = `${time}${ampm.toLowerCase()}`;
+    const formattedDate = lastLoginDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    formattedLastLogin = `${formattedTime} ${formattedDate}`;
+  }
+
     const [processingData, setProcessingData] = useState([
     { location: 'A', hrLog: true, hrDb: true, hrsApp: true, payroll: true, score: true, region: true },
     { location: 'B', hrLog: false, hrDb: false, hrsApp: false, payroll: true, score: true, region: false },
@@ -24,13 +37,11 @@ const { user, updateUserDetails } = useUser();
     if (!user) {
     return <Navigate to="/" replace />;
   }
-  console.log('Full user data:', user);
-  console.log('User details:', updateUserDetails); // Access user properties directly
   const userInfo = {
     name: user?.name || 'Unknown User',
     role: user?.type === 'ADMIN' ? 'Incentive Administrator' : user?.type || 'User',
     responsibilities: ['User Management', 'Activity Logs Monitoring'],
-    lastLogin: 'Today',
+    lastLogin: formattedLastLogin || 'N/A',
     status: user.status || 'ACTIVE'
   };
 
@@ -77,7 +88,7 @@ const { user, updateUserDetails } = useUser();
         <div className="user-right">
           <span className="label">Last Login</span>
           <div className="login-status">
-            <span>{userInfo.status}</span>
+            <span>{userInfo.lastLogin}</span>
             <span className="status-pill">{userInfo.status}</span>
           </div>
         </div>

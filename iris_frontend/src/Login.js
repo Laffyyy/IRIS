@@ -222,15 +222,15 @@ const Login = ({ onContinue, onForgotPassword }) => {
       if (response.ok) {
         localStorage.setItem('userId', employeeId);
         localStorage.setItem('password', password);
-        if (data.token) {
           // The data structure matches exactly what loginService.js returns
           login({
             user: {
-              id: data.user.id,
-              status: data.user.status
-            }
+              id: employeeId,
+              status: data.user?.status || 'ACTIVE'
+            },
+            token: data.token,
+            message: data.message
           });
-        }
         // Remove AlertModal for userId login, just navigate directly to OTP page
         navigate('/otp', { state: { userId: employeeId } });
 

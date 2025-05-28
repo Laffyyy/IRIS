@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 
 const UserContext = createContext(null);
 
@@ -8,6 +8,8 @@ export const UserProvider = ({ children }) => {
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
+  const wsRef = useRef(null);
+
   useEffect(() => {
     if (user) {
       localStorage.setItem('irisUser', JSON.stringify(user));
@@ -16,60 +18,71 @@ export const UserProvider = ({ children }) => {
     }
   }, [user]);
 
-  const login = async (loginResponse) => {
-    // Initially store just employeeId and status
-    const initialUserData = {
-      token: loginResponse.token,
-      message: loginResponse.message,
-      user: {
-        employeeId: loginResponse.user.id, // Store as employeeId
-        status: loginResponse.user.status
+  useEffect(() => {
+    // Only connect if user is logged in
+    if (!user?.employeeId) return;
+
+    // Connect to WebSocket
+    wsRef.current = new window.WebSocket('ws://localhost:3000');
+    wsRef.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'USER_UPDATE') {
+          // Re-fetch current user's details
+          updateUserDetails(user.employeeId);
+        }
+      } catch (e) {
+        // Ignore malformed messages
       }
     };
-    setUser(initialUserData);
 
-    // Fetch complete user details
-    try {
-      const response = await fetch(`http://localhost:3000/api/users/${loginResponse.user.id}`);
-      const userDetails = await response.json();
-      
-      if (response.ok) {
-        // Update with complete user details
-        setUser(prev => ({
-          ...prev,
-          user: {
-            ...prev.user,
-            name: userDetails.dName,
-            email: userDetails.dEmail,
-            type: userDetails.dUser_Type
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching user details:', error);
-    }
-  };
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+    // Only re-run if employeeId changes
+  }, [user?.employeeId]);
 
-  const updateUserDetails = async (employeeId) => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/users/${employeeId}`);
-      const userDetails = await response.json();
-      
-      if (response.ok) {
-        setUser(prev => ({
-          ...prev,
-          user: {
-            ...prev.user,
-            name: userDetails.dName,
-            email: userDetails.dEmail,
-            type: userDetails.dUser_Type
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Error updating user details:', error);
-    }
+const login = async (loginResponse) => {
+  // Store just employeeId and status initially
+  const initialUserData = {
+    employeeId: loginResponse.user.id,
+    status: loginResponse.user.status,
+    token: loginResponse.token,
+    message: loginResponse.message,
   };
+  setUser(initialUserData);
+
+  // Fetch complete user details and merge into user object
+  try {
+    const response = await fetch(`http://localhost:3000/api/users/${loginResponse.user.id}`);
+    const userDetails = await response.json();
+
+    if (response.ok) {
+      setUser(prev => ({
+        ...prev,
+        ...userDetails // Merge all returned fields (employeeId, name, email, type, status)
+      }));
+    }
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+  }
+};
+
+const updateUserDetails = async (employeeId) => {
+  try {
+    const response = await fetch(`http://localhost:3000/api/users/${employeeId}`);
+    const userDetails = await response.json();
+
+    if (response.ok) {
+      setUser(prev => ({
+        ...prev,
+        ...userDetails // Merge all returned fields
+      }));
+    }
+  } catch (error) {
+    console.error('Error updating user details:', error);
+  }
+};
 
   const logout = () => {
     setUser(null);
@@ -89,6 +102,7 @@ export const UserProvider = ({ children }) => {
     </UserContext.Provider>
   );
 };
+
 
 export const useUser = () => {
   const context = useContext(UserContext);

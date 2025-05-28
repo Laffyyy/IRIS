@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import './UserManagement.module.css';
 import styles from './UserManagement.module.css';
 import './UserManagement.css';
+import { useUser } from '../../contexts/UserContext';
 
 // Add this near the top, after imports and before the UserManagement component
 const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g;
@@ -287,12 +288,20 @@ const UserManagement = () => {
   const deactivateConfirmInputRef = useRef();
   const deactivateResultOkBtnRef = useRef();
 
-
   const [showDeleteWarningModal, setShowDeleteWarningModal] = useState(false);
 
   // Debounced search terms
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [debouncedBulkSearchTerm, setDebouncedBulkSearchTerm] = useState(bulkSearchTerm);
+
+  const { user, updateUserDetails } = useUser();
+  
+      useEffect(() => {
+      // Fetch user details when component mounts and user exists
+      if (user?.employeeId) {
+        updateUserDetails(user.employeeId);
+      }
+    }, [user?.employeeId]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
@@ -353,6 +362,8 @@ useEffect(() => {
       return { key, direction: 'asc' };
     });
   };
+
+    console.log('Full user data:', user);
 
   // Lock and Unlock handler functions
 const handleLockUsers = async () => {
