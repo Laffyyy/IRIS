@@ -1904,11 +1904,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           }
         }
       } else {
-      if (newSelected.has(rowKey)) {
-        newSelected.delete(rowKey);
-      } else {
-        newSelected.add(rowKey);
+        if (newSelected.has(rowKey)) {
+          newSelected.delete(rowKey);
+        } else {
+          newSelected.add(rowKey);
         }
+      }
+      // After toggling, if not all rows are selected, uncheck selectAll
+      const allRowKeys = getCurrentRowKeys();
+      if (newSelected.size !== allRowKeys.length) {
+        setSelectAll(false);
+      } else if (newSelected.size === allRowKeys.length && allRowKeys.length > 0) {
+        setSelectAll(true);
       }
       return newSelected;
     });
