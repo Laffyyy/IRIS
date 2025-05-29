@@ -876,20 +876,25 @@ const fetchClientData = async (status = itemStatusTab) => {
   
   // Add Client with confirmation
   const handleAddClient = async () => {
-    if (clientName.trim() && lobCards.some(card => card.lobName.trim())) {
+    const finalizedClientName = finalizeInput(clientName);
+    const finalizedLobCards = lobCards.map(card => ({
+      lobName: finalizeInput(card.lobName),
+      subLobNames: card.subLobNames.map(name => finalizeInput(name)),
+    }));
+    if (finalizedClientName.trim() && finalizedLobCards.some(card => card.lobName.trim())) {
       showConfirm(
         <span>
           Are you sure you want to add the following:
-          {formatAddClientConfirmation(clientName.trim(), lobCards)}
+          {formatAddClientConfirmation(finalizedClientName, finalizedLobCards)}
         </span>,
         async () => {
           try {
             // Validate all input fields
-            if (!isValidInput(clientName.trim())) {
+            if (!isValidInput(finalizedClientName)) {
               showToast('Invalid client name. Only letters, numbers, and single spaces between words are allowed.', 'error');
               return;
             }
-            for (const card of lobCards) {
+            for (const card of finalizedLobCards) {
               if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
                 showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
                 return;
@@ -903,26 +908,26 @@ const fetchClientData = async (status = itemStatusTab) => {
             }
 
             // Check for duplicate client name (case/space insensitive)
-            if (clients.some(c => normalizeName(c.name) === normalizeName(clientName))) {
+            if (clients.some(c => normalizeName(c.name) === normalizeName(finalizedClientName))) {
               showToast('Error: Client name already exists.', 'error');
               return;
             }
             // Check for duplicate LOB names (case-insensitive, trimmed, space-insensitive)
-            const lobNames = lobCards.map(card => normalizeName(card.lobName)).filter(name => name);
+            const lobNames = finalizedLobCards.map(card => normalizeName(card.lobName)).filter(name => name);
             const uniqueLobNames = new Set(lobNames);
             if (lobNames.length !== uniqueLobNames.size) {
               showToast('Error: Duplicate LOB names are not allowed.', 'error');
               return;
             }
             // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed, space-insensitive)
-            const allSubLobNames = lobCards.flatMap(card => card.subLobNames.map(name => normalizeName(name)).filter(name => name));
+            const allSubLobNames = finalizedLobCards.flatMap(card => card.subLobNames.map(name => normalizeName(name)).filter(name => name));
             const uniqueSubLobNames = new Set(allSubLobNames);
             if (allSubLobNames.length !== uniqueSubLobNames.size) {
               showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
               return;
             }
             // Check for duplicate Sub LOBs within each LOB (already present)
-            const hasDuplicateSubLobs = lobCards.some(card => {
+            const hasDuplicateSubLobs = finalizedLobCards.some(card => {
               const uniqueSubLobs = new Set();
               return card.subLobNames.some(subLobName => {
                 const norm = normalizeName(subLobName);
@@ -942,12 +947,12 @@ const fetchClientData = async (status = itemStatusTab) => {
 
             // Prepare data for API
             const clientData = {
-              clientName: clientName.trim(),
+              clientName: finalizedClientName,
               LOBs: []
             };
             
             // Add LOBs and SubLOBs
-            lobCards.forEach(card => {
+            finalizedLobCards.forEach(card => {
               if (card.lobName.trim()) {
                 const lob = {
                   name: card.lobName.trim(),
@@ -1106,19 +1111,23 @@ const fetchClientData = async (status = itemStatusTab) => {
 
   // Add LOB with confirmation
   const handleAddLob = async () => {
+    const finalizedLobCardsForLob = lobCardsForLob.map(card => ({
+      lobName: finalizeInput(card.lobName),
+      subLobNames: card.subLobNames.map(name => finalizeInput(name)),
+    }));
     try {
       if (!selectedClientForLob) {
         showToast('Please select a client', 'error');
                 return;
               }
 
-      if (lobCardsForLob.length === 0) {
+      if (finalizedLobCardsForLob.length === 0) {
         showToast('Please add at least one LOB', 'error');
                   return;
                 }
 
       // Validate all LOB cards
-      const validLobCards = lobCardsForLob.filter(card => {
+      const validLobCards = finalizedLobCardsForLob.filter(card => {
         const lobName = card.lobName.trim();
         const subLobNames = card.subLobNames.filter(name => name.trim());
         return lobName && subLobNames.length > 0;
@@ -1279,19 +1288,20 @@ const fetchClientData = async (status = itemStatusTab) => {
 
   // Add Sub LOB with confirmation
   const handleAddSubLob = async () => {
+    const finalizedSubLobNames = subLobNames.map(name => finalizeInput(name));
     try {
     if (!selectedLobForSubLob) {
       showToast('Please select a LOB', 'error');
       return;
     }
     // Validate all subLobNames
-    for (const name of subLobNames) {
+    for (const name of finalizedSubLobNames) {
       if (name.trim() && !isValidInput(name.trim())) {
         showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
         return;
       }
     }
-    const validSubLobs = subLobNames.filter(name => name.trim());
+    const validSubLobs = finalizedSubLobNames.filter(name => name.trim());
     if (validSubLobs.length === 0) {
       showToast('Please enter at least one valid Sub LOB name', 'error');
       return;
@@ -1314,13 +1324,13 @@ const fetchClientData = async (status = itemStatusTab) => {
           client ? client.name : '',
           site ? site.name : (filterSiteForSubLob ? '' : 'None'),
           lob ? lob.name : '',
-          subLobNames
+          finalizedSubLobNames
         )}
       </span>,
       async () => {
         try {
           // ... existing code ...
-          for (const subLobName of subLobNames) {
+          for (const subLobName of finalizedSubLobNames) {
             if (subLobName.trim()) {
               try {
                 await axios.post('http://localhost:3000/api/clients/sublob/add', {
@@ -2111,17 +2121,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
   // Replace the sanitizeInput function with this updated version
   const sanitizeInput = (value, maxLength = null) => {
-    // Remove leading/trailing spaces and collapse multiple spaces
-    let sanitized = value.replace(/\s+/g, ' ').trim();
-    // Convert to title case
-    sanitized = sanitized
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    // Apply maxLength if specified
+    // Allow only alphanumeric and spaces
+    let sanitized = value.replace(/[^a-zA-Z0-9 ]/g, '');
+    // Remove leading spaces and collapse multiple spaces (but allow trailing space for typing)
+    sanitized = sanitized.replace(/^ +/, '').replace(/ {2,}/g, ' ');
+    // Capitalize first letter of each word
+    sanitized = sanitized.replace(/\b\w/g, (char) => char.toUpperCase());
+    // If maxLength is set, apply it
     if (maxLength !== null) {
       sanitized = sanitized.slice(0, maxLength);
     }
+    return sanitized;
+  };
+
+  // Add a function to finalize input on submit (trims trailing spaces, collapses spaces, capitalizes)
+  const finalizeInput = (value) => {
+    // Remove leading/trailing spaces and collapse multiple spaces
+    let sanitized = value.replace(/[^a-zA-Z0-9 ]/g, '');
+    sanitized = sanitized.replace(/ +/g, ' ').trim();
+    // Capitalize first letter of each word
+    sanitized = sanitized.replace(/\b\w/g, (char) => char.toUpperCase());
     return sanitized;
   };
 
