@@ -139,7 +139,7 @@ class SiteManagementService {
         }
     }
 
-    async addClientToSite(clientId, siteId, lobName = null, subLobName = null, movingExisting = false) {
+    async addClientToSite(clientId, siteId, lobName = null, subLobName = null, movingExisting = false, userID) {
       try {
           // Get the site name for the selected site ID
           const [siteResult] = await db.query(
@@ -152,7 +152,6 @@ class SiteManagementService {
           }
           
           const siteName = siteResult[0].dSiteName;
-          const userId = 'SYSTEM';
           const currentDate = new Date();
           
           // First get the client name
@@ -258,15 +257,15 @@ class SiteManagementService {
                         siteId,
                         siteName,
                         'ACTIVE',  // Set default status to ACTIVE
-                        userId,
+                        userID,    // Use the user ID from the request
                         currentDate
                     ]
                   );
 
                   // Insert log entry for each new client-site assignment
                   await db.query(
-                    'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "CREATED", "SYSTEM", ?)',
-                    [clientSiteId, currentDate]
+                    'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "CLIENT_SITE", "CREATED", ?, ?)',
+                    [clientSiteId, userID, currentDate]
                   );
               }
           }

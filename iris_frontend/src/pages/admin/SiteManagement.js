@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SiteManagement.css';
 import { FaTrash, FaEdit, FaTimes, FaSearch, FaMinusCircle, FaPlusCircle } from 'react-icons/fa';
 import Select from 'react-select';
@@ -97,7 +97,73 @@ const SiteManagement = () => {
     subLobName: ''
   });
 
-  
+  // Add state for tracking last selected indices for shift-click functionality
+  const [lastSelectedSiteIndex, setLastSelectedSiteIndex] = useState(null);
+  const [lastSelectedClientSiteIndex, setLastSelectedClientSiteIndex] = useState(null);
+
+  // Add refs to track shift-click state
+  const shiftClickInProgress = useRef(false);
+  const clientSiteShiftClickInProgress = useRef(false);
+
+  // Refs for input fields
+  const addSiteInputRef = useRef(null);
+  const selectSiteRef = useRef(null);
+  const selectClientRef = useRef(null);
+  const selectLobRef = useRef(null);
+  const selectSubLobRef = useRef(null);
+  const deleteConfirmInputRef = useRef(null);
+  const editSiteInputRef = useRef(null);
+
+  // Focus management for Add New Site tab
+  useEffect(() => {
+    if (activeTab === 'addSite' && addSiteInputRef.current) {
+      addSiteInputRef.current.focus();
+    }
+  }, [activeTab]);
+
+  // Focus management for Add Client to Site tab
+  useEffect(() => {
+    if (activeTab === 'addClient' && selectSiteRef.current) {
+      selectSiteRef.current.focus();
+    }
+  }, [activeTab]);
+
+  // Focus management for modals
+  useEffect(() => {
+    if (showDeleteModal && deleteConfirmInputRef.current) {
+      deleteConfirmInputRef.current.focus();
+    }
+  }, [showDeleteModal]);
+
+  useEffect(() => {
+    if (showAddSiteConfirmModal && addSiteInputRef.current) {
+      addSiteInputRef.current.focus();
+    }
+  }, [showAddSiteConfirmModal]);
+
+  useEffect(() => {
+    if (editModalOpen && editSiteInputRef.current) {
+      editSiteInputRef.current.focus();
+    }
+  }, [editModalOpen]);
+
+  useEffect(() => {
+    if (selectedSite && selectClientRef.current) {
+      selectClientRef.current.focus();
+    }
+  }, [selectedSite]);
+
+  useEffect(() => {
+    if (selectedClientId && selectLobRef.current) {
+      selectLobRef.current.focus();
+    }
+  }, [selectedClientId]);
+
+  useEffect(() => {
+    if (selectedLobId && selectSubLobRef.current) {
+      selectSubLobRef.current.focus();
+    }
+  }, [selectedLobId]);
 
   const slideInOut = {
     position: 'fixed',
@@ -271,6 +337,7 @@ const SiteManagement = () => {
     // Reset selection when switching tabs
     setSelectedClientSiteIds([]);
     setSelectAllClientSites(false);
+    setLastSelectedClientSiteIndex(null);
   }, [clientSiteStatusTab, activeClientSites, deactivatedClientSites]);
 
   const sortData = (data, sortConfig) => {
@@ -532,10 +599,11 @@ const SiteManagement = () => {
       
       // If not already assigned, proceed with API call
       await manageSite('addClientToSite', {
-        clientId: selectedClientId.toString(), // REMOVE parseInt(), use toString() instead
-        siteId: selectedSite.dSite_ID.toString(), // REMOVE parseInt(), use toString() instead
+        clientId: selectedClientId.toString(),
+        siteId: selectedSite.dSite_ID.toString(),
         lobName: clientSiteConfirmDetails.lobName,
-        subLobName: clientSiteConfirmDetails.subLobName
+        subLobName: clientSiteConfirmDetails.subLobName,
+        userID: localStorage.getItem('userId') || '0001' // Pass the user ID
       });
       
       // Continue with the rest of the function...
@@ -731,16 +799,45 @@ const SiteManagement = () => {
   };
 
   /**
-   * Handles site row checkbox selection
+   * Handles site row checkbox selection with shift-click support
    */
-  const handleSiteSelection = (siteId) => {
-    setSelectedSiteIds(prev => {
-      if (prev.includes(siteId)) {
-        return prev.filter(id => id !== siteId);
-      } else {
-        return [...prev, siteId];
+  const handleSiteSelection = (siteId, index, event) => {
+    // If this is a shift-click that was already handled by onMouseDown, skip onChange
+    if (event?.shiftKey && event?.type === 'change' && shiftClickInProgress.current) {
+      shiftClickInProgress.current = false; // Reset the flag
+      return;
+    }
+
+    if (event?.shiftKey && lastSelectedSiteIndex !== null) {
+      // Shift-click: select range
+      const startIndex = Math.min(lastSelectedSiteIndex, index);
+      const endIndex = Math.max(lastSelectedSiteIndex, index);
+      
+      const rangeIds = [];
+      for (let i = startIndex; i <= endIndex; i++) {
+        if (filteredSites[i]) {
+          rangeIds.push(filteredSites[i].dSite_ID);
+        }
       }
-    });
+      
+      setSelectedSiteIds(prev => {
+        const newSelection = new Set(prev);
+        rangeIds.forEach(id => newSelection.add(id));
+        return Array.from(newSelection);
+      });
+    } else {
+      // Normal click: toggle single selection
+      setSelectedSiteIds(prev => {
+        if (prev.includes(siteId)) {
+          return prev.filter(id => id !== siteId);
+        } else {
+          return [...prev, siteId];
+        }
+      });
+    }
+    
+    // Update last selected index for future shift-clicks
+    setLastSelectedSiteIndex(index);
   };
 
   /**
@@ -749,17 +846,25 @@ const SiteManagement = () => {
   const handleSelectAllSites = () => {
     if (selectAllSites) {
       setSelectedSiteIds([]);
+      setLastSelectedSiteIndex(null);
     } else {
       // Only select IDs of the filtered sites currently visible in the table
       setSelectedSiteIds(filteredSites.map(site => site.dSite_ID));
+      setLastSelectedSiteIndex(null);
     }
     setSelectAllSites(!selectAllSites);
   };
 
   /**
-   * Handles client-site row checkbox selection
+   * Handles client-site row checkbox selection with shift-click support
    */
-  const handleClientSiteSelection = (clientSiteId) => {
+  const handleClientSiteSelection = (clientSiteId, index, event) => {
+    // If this is a shift-click that was already handled by onMouseDown, skip onChange
+    if (event?.shiftKey && event?.type === 'change' && clientSiteShiftClickInProgress.current) {
+      clientSiteShiftClickInProgress.current = false; // Reset the flag
+      return;
+    }
+
     // Get the client site record
     const clientSite = siteClients.find(cs => cs.dClientSite_ID === clientSiteId);
     
@@ -775,14 +880,47 @@ const SiteManagement = () => {
       }
     }
     
-    // Normal selection behavior
-    setSelectedClientSiteIds(prev => {
-      if (prev.includes(clientSiteId)) {
-        return prev.filter(id => id !== clientSiteId);
-      } else {
-        return [...prev, clientSiteId];
+    if (event?.shiftKey && lastSelectedClientSiteIndex !== null) {
+      // Shift-click: select range (only selectable items)
+      const startIndex = Math.min(lastSelectedClientSiteIndex, index);
+      const endIndex = Math.max(lastSelectedClientSiteIndex, index);
+      
+      const rangeIds = [];
+      for (let i = startIndex; i <= endIndex; i++) {
+        if (filteredSiteClients[i]) {
+          const currentClientSite = filteredSiteClients[i];
+          
+          // Check if this item is selectable (not belonging to deactivated site if in DEACTIVATED tab)
+          let isSelectable = true;
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            const siteIsDeactivated = deactivatedSites.some(site => site.dSite_ID === currentClientSite.dSite_ID);
+            isSelectable = !siteIsDeactivated;
+          }
+          
+          if (isSelectable) {
+            rangeIds.push(currentClientSite.dClientSite_ID);
+          }
+        }
       }
-    });
+      
+      setSelectedClientSiteIds(prev => {
+        const newSelection = new Set(prev);
+        rangeIds.forEach(id => newSelection.add(id));
+        return Array.from(newSelection);
+      });
+    } else {
+      // Normal click: toggle single selection
+      setSelectedClientSiteIds(prev => {
+        if (prev.includes(clientSiteId)) {
+          return prev.filter(id => id !== clientSiteId);
+        } else {
+          return [...prev, clientSiteId];
+        }
+      });
+    }
+    
+    // Update last selected index for future shift-clicks
+    setLastSelectedClientSiteIndex(index);
   };
 
   /**
@@ -791,6 +929,7 @@ const SiteManagement = () => {
   const handleSelectAllClientSites = () => {
     if (selectAllClientSites) {
       setSelectedClientSiteIds([]);
+      setLastSelectedClientSiteIndex(null);
     } else {
       // Only select IDs of the filtered client-sites currently visible in the table
       // AND skip any assignments belonging to deactivated sites
@@ -805,6 +944,7 @@ const SiteManagement = () => {
         .map(clientSite => clientSite.dClientSite_ID);
       
       setSelectedClientSiteIds(selectableIds);
+      setLastSelectedClientSiteIndex(null);
     }
     setSelectAllClientSites(!selectAllClientSites);
   };
@@ -1090,8 +1230,7 @@ const SiteManagement = () => {
           totalSubLobs += lob.subLobs.length;
           
           const matchingAssignments = assignments.filter(
-            assignment => assignment.dClientName === clientName && 
-                         assignment.dLOB === lob.name
+            assignment => assignment.dClientName === clientName && assignment.dLOB === lob.name
           );
           
           const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
@@ -1386,6 +1525,7 @@ const SiteManagement = () => {
     // Reset selection when switching tabs
     setSelectedSiteIds([]);
     setSelectAllSites(false);
+    setLastSelectedSiteIndex(null);
   }, [siteStatusTab, activeSites, deactivatedSites]);
 
   return (
@@ -1423,6 +1563,7 @@ const SiteManagement = () => {
           <label>Site Name</label>
           <input
             type="text"
+            ref={addSiteInputRef}
             value={newSiteName}
             onChange={(e) => setNewSiteName(sanitizeInput(e.target.value))}
             maxLength={30}
@@ -1522,11 +1663,7 @@ const SiteManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {sites
-                  .filter(site => 
-                    site.dSiteName.toLowerCase().includes(siteSearchTerm.toLowerCase())
-                  )
-                  .map((site) => (
+                {filteredSites.map((site, index) => (
                   <tr
                     key={site.dSite_ID}
                     className={selectedSiteIds.includes(site.dSite_ID) ? 'selected-row' : ''}
@@ -1552,7 +1689,7 @@ const SiteManagement = () => {
                             onClick={() => handleReactivateSite(site.dSite_ID)}
                             className="reactivate-btn"
                           >
-                            <FaEdit size={12} /> Reactivate
+                            <FaPlusCircle size={12} /> Reactivate
                           </button>
                         )}
                       </div>
@@ -1561,7 +1698,15 @@ const SiteManagement = () => {
                       <input
                         type="checkbox"
                         checked={selectedSiteIds.includes(site.dSite_ID)}
-                        onChange={() => handleSiteSelection(site.dSite_ID)}
+                        onChange={(event) => handleSiteSelection(site.dSite_ID, index, event)}
+                        onMouseDown={(event) => {
+                          // Capture the shift key state before the onChange event
+                          if (event.shiftKey) {
+                            event.preventDefault(); // Prevent default checkbox behavior
+                            shiftClickInProgress.current = true; // Set flag to indicate shift-click in progress
+                            handleSiteSelection(site.dSite_ID, index, event);
+                          }
+                        }}
                       />
                     </td>
                   </tr>
@@ -1583,6 +1728,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Site</label>
           <Select
+            ref={selectSiteRef}
             value={selectedSite ? { value: selectedSite.dSite_ID, label: selectedSite.dSiteName } : null}
             onChange={async (selectedOption) => {
               try {
@@ -1648,6 +1794,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Client</label>
           <Select
+            ref={selectClientRef}
             value={selectedClientId ? { 
               value: selectedClientId, 
               label: availableClients.find(c => c.id.toString() === selectedClientId.toString())?.name || 
@@ -1717,6 +1864,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select LOB</label>
           <Select
+            ref={selectLobRef}
             value={selectedLobId ? { value: selectedLobId, label: clientLobs.find(l => l.id === selectedLobId)?.name } : null}
             onChange={(selectedOption) => {
               const lobId = selectedOption ? selectedOption.value : '';
@@ -1756,6 +1904,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Sub LOB</label>
           <Select
+            ref={selectSubLobRef}
             value={selectedSubLobId ? { value: selectedSubLobId, label: clientSubLobs.find(s => s.id === selectedSubLobId)?.name } : null}
             onChange={(selectedOption) => {
               setSelectedSubLobId(selectedOption ? selectedOption.value : '');
@@ -1885,7 +2034,7 @@ const SiteManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredSiteClients.map(clientSite => (
+              {filteredSiteClients.map((clientSite, index) => (
                 <tr 
                   key={clientSite.dClientSite_ID}
                   className={selectedClientSiteIds.includes(clientSite.dClientSite_ID) ? 'selected-row' : ''}
@@ -1920,7 +2069,15 @@ const SiteManagement = () => {
                     <input
                       type="checkbox"
                       checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
-                      onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
+                      onChange={(event) => handleClientSiteSelection(clientSite.dClientSite_ID, index, event)}
+                      onMouseDown={(event) => {
+                        // Capture the shift key state before the onChange event
+                        if (event.shiftKey) {
+                          event.preventDefault(); // Prevent default checkbox behavior
+                          clientSiteShiftClickInProgress.current = true; // Set flag to indicate shift-click in progress
+                          handleClientSiteSelection(clientSite.dClientSite_ID, index, event);
+                        }
+                      }}
                     />
                   </td>
                 </tr>
@@ -1947,6 +2104,7 @@ const SiteManagement = () => {
                 <label>Site Name</label>
                 <input
                   type="text"
+                  ref={editSiteInputRef}
                   value={currentSite.name}
                   onChange={(e) => setCurrentSite({...currentSite, name: sanitizeInput(e.target.value)})}
                   required
@@ -2329,6 +2487,7 @@ const SiteManagement = () => {
               <p style={{ textAlign: "center", marginBottom: "15px" }}>Type <strong>CONFIRM</strong> to proceed:</p>
               <input
                 type="text"
+                ref={deleteConfirmInputRef}
                 value={deleteConfirmText}
                 onChange={(e) => {
                   // Allow normal text input without forcing uppercase

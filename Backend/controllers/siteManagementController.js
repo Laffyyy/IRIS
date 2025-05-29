@@ -136,17 +136,17 @@ class SiteManagementController {
     // In siteManagementController.js - update the addClientToSite method
     async addClientToSite(req, res) {
         try {
-            const { clientId, siteId, lobName, subLobName } = req.body;
+            const { clientId, siteId, lobName, subLobName, userID } = req.body;
 
             // Validate required input
-            if (!clientId || !siteId) {
+            if (!clientId || !siteId || !userID) {
                 return res.status(400).json({ 
-                    message: 'Client ID and Site ID are required' 
+                    message: 'Client ID, Site ID, and User ID are required' 
                 });
             }
             
             // Call the service to update the client's site
-            const result = await this.SiteManagementService.addClientToSite(clientId, siteId, lobName, subLobName);
+            const result = await this.SiteManagementService.addClientToSite(clientId, siteId, lobName, subLobName, false, userID);
             
             // Return success response
             res.status(200).json({ 
