@@ -177,13 +177,43 @@ const UserManagement = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragLastIndex, setDragLastIndex] = useState(null);
   const [dragToggled, setDragToggled] = useState(new Set());
-
+  const { user, updateUserDetails } = useUser();
   // Debounced new user fields
   const [debouncedNewUser, setDebouncedNewUser] = useState(newUser);
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedNewUser(newUser), 400);
     return () => clearTimeout(handler);
   }, [newUser]);
+
+  useEffect(() => {
+      // Fetch user details when component mounts and user exists
+      if (user?.employeeId) {
+        updateUserDetails(user.employeeId);
+      }
+    }, [user?.employeeId]);
+  
+    let formattedLastLogin = 'N/A';
+    if (user?.lastLogin) {
+      const lastLoginDate = new Date(user.lastLogin);
+      // Get time parts
+      let [time, ampm] = lastLoginDate
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+        .split(' ');
+      // Combine without space between time and am/pm, and make am/pm lowercase
+      const formattedTime = `${time}${ampm.toLowerCase()}`;
+      const formattedDate = lastLoginDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      formattedLastLogin = `${formattedTime} ${formattedDate}`;
+    }
+
+    const userInfo = {
+    name: user?.name || 'Unknown User',
+    role: user?.type === 'ADMIN' ? 'Incentive Administrator' : user?.type || 'User',
+    responsibilities: ['User Management', 'Activity Logs Monitoring'],
+    lastLogin: formattedLastLogin || 'N/A',
+    status: user.status || 'ACTIVE'
+  };
+
+  console.log('User Info:', userInfo);
 
   // Bulk upload state
   const [uploadMethod, setUploadMethod] = useState('individual');
@@ -293,8 +323,6 @@ const UserManagement = () => {
   // Debounced search terms
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [debouncedBulkSearchTerm, setDebouncedBulkSearchTerm] = useState(bulkSearchTerm);
-
-  const { user, updateUserDetails } = useUser();
   
       useEffect(() => {
       // Fetch user details when component mounts and user exists
@@ -880,7 +908,7 @@ const handleUnlockUsers = async () => {
           users: bulkUsers.map(user => ({
             ...user,
             password: 'password123',
-            createdBy: 'admin',
+            createdBy: user.employeeId,
             status: 'FIRST-TIME',
           }))
         })
@@ -1824,7 +1852,7 @@ const handleDeactivateUsers = async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          users: [{ employeeId, email, name, role, password: 'defaultPass123', createdBy: 'admin', status: 'FIRST-TIME' }]
+          users: [{ employeeId, email, name, role, password: 'defaultPass123', createdBy: user.employeeId, status: 'FIRST-TIME' }]
         })
       });
       if (!response.ok) {

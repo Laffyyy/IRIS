@@ -2,6 +2,16 @@ const userService = require('../services/userService');
 const bcrypt = require('bcrypt');
 const { broadcastUserUpdate } = require('../websocket');
 
+async function getUserTypeById(userId) {
+  // Try admin table first
+  const admin = await userService.getAdminByLoginId(userId);
+  if (admin) return 'ADMIN';
+  // Then try regular user table
+  const user = await userService.getUserByLoginId(userId);
+  if (user) return 'REGULAR';
+  return null;
+}
+
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await userService.fetchAllUsers();
@@ -23,7 +33,6 @@ exports.getAllUsers = async (req, res) => {
 exports.createUser = async (req, res) => {
   const { employeeId, email, name, password, role } = req.body;
   const status = 'FIRST-TIME';
-  const createdBy = 'admin'; // Assuming the creator is 'admin'
 
   if (!email || !name || !password || !role || !employeeId) {
     return res.status(400).json({ message: 'Missing required fields' });
@@ -47,6 +56,12 @@ exports.createUser = async (req, res) => {
           status,
           createdBy
         });
+        userId = await userService.logAdminAction({
+        actionLocation_ID: employeeId,
+        actionLocation: 'UADMIN',
+        actionType: 'CREATED',
+        actionBy: createdBy
+      });
       } else {
         userId = await userService.insertUser({
           employeeId,
@@ -57,7 +72,14 @@ exports.createUser = async (req, res) => {
           status,
           createdBy
         });
+        userId = await userService.logAdminAction({
+        actionLocation_ID: employeeId,
+        actionLocation: 'UREGULAR',
+        actionType: 'CREATED',
+        actionBy: createdBy
+      });
       }
+    
     res.status(201).json({ id: userId, message: 'User created successfully' });
     broadcastUserUpdate();
   } catch (error) {
@@ -138,9 +160,25 @@ exports.addUsersBulk = async (req, res) => {
     let insertedIds = [];
     if (normalUsers.length > 0) {
       insertedIds = insertedIds.concat(await userService.insertUsersBulk(normalUsers));
+      for (const user of normalUsers) {
+        await userService.logAdminAction({
+          actionLocation_ID: user.employeeId,
+          actionLocation: 'UREGULAR',
+          actionType: 'CREATED',
+          actionBy: user.createdBy || 'system'
+        });
+      }
     }
     if (adminUsers.length > 0) {
       insertedIds = insertedIds.concat(await userService.insertAdminUsersBulk(adminUsers));
+      for (const user of adminUsers) {
+        await userService.logAdminAction({
+          actionLocation_ID: user.employeeId,
+          actionLocation: 'UADMIN',
+          actionType: 'CREATED',
+          actionBy: user.createdBy || 'system'
+        });
+      }
     }
     res.status(201).json({ message: 'Users added successfully', users: insertedIds });
     broadcastUserUpdate();
@@ -160,6 +198,14 @@ exports.deleteUsers = async (req, res) => {
 
     // This will now handle both admin and normal users
     await userService.deactivateUsers(userIds);
+    for (const userId of userIds) {
+      await userService.logAdminAction({
+        actionLocation_ID: userId,
+        actionLocation: 'UREGULAR', // or 'UADMIN' if you know the type
+        actionType: 'DEACTIVATED',
+        actionBy: actionBy || 'system'
+      });
+    }
     
     res.status(200).json({ message: 'Users deactivated successfully' });
     broadcastUserUpdate();
@@ -257,6 +303,15 @@ exports.restoreUsers = async (req, res) => {
       return res.status(400).json({ message: 'No users selected for restoration' });
     }
     const restoredPasswords = await userService.restoreUsers(userIds);
+    for (const userId of userIds) {
+      const userType = await getUserTypeById(userId);
+      await userService.logAdminAction({
+        actionLocation_ID: userId,
+        actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
+        actionType: 'ACTIVATED', // or 'RESTORED', 'DEACTIVATED', etc.
+        actionBy: actionBy || 'system'
+      });
+    }
     res.status(200).json({ message: 'Users restored successfully', restoredPasswords });
     broadcastUserUpdate();
   } catch (error) {
@@ -267,14 +322,24 @@ exports.restoreUsers = async (req, res) => {
 
 exports.lockUsers = async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const { userIds, actionBy } = req.body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for locking' });
     }
 
     await userService.lockUsers(userIds);
-    
+
+    for (const userId of userIds) {
+      const userType = await getUserTypeById(userId);
+      await userService.logAdminAction({
+        actionLocation_ID: userId,
+        actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
+        actionType: 'LOCKED',
+        actionBy: actionBy || 'system'
+      });
+    }
+
     res.status(200).json({ message: 'Users locked successfully' });
     broadcastUserUpdate();
   } catch (error) {
@@ -292,6 +357,15 @@ exports.unlockUsers = async (req, res) => {
     }
 
     await userService.unlockUsers(userIds);
+    for (const userId of userIds) {
+    const userType = await getUserTypeById(userId);
+    await userService.logAdminAction({
+      actionLocation_ID: userId,
+      actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
+      actionType: 'UNLOCKED', // or 'RESTORED', 'DEACTIVATED', etc.
+      actionBy: actionBy || 'system'
+    });
+  }
     
     res.status(200).json({ message: 'Users unlocked successfully' });
     broadcastUserUpdate();
@@ -364,6 +438,12 @@ exports.updateUser = async (req, res) => {
     if (result.affectedRows === 0) {
        return res.status(404).json({ message: 'User not found or no changes made.' });
     }
+    await userService.logAdminAction({
+    actionLocation_ID: updateData.employeeId || user.dUser_ID,
+    actionLocation: isAdmin ? 'UADMIN' : 'UREGULAR',
+    actionType: 'MODIFIED',
+    actionBy: req.body.updatedBy || req.body.createdBy || 'system'
+  });
     res.status(200).json({ message: 'User updated successfully' });
     broadcastUserUpdate();
   } catch (error) {
@@ -395,6 +475,15 @@ exports.deleteUsersPermanently = async (req, res) => {
     }
 
     await userService.deleteUsersPermanently(userIds);
+    for (const userId of userIds) {
+    const userType = await getUserTypeById(userId);
+    await userService.logAdminAction({
+      actionLocation_ID: userId,
+      actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
+      actionType: 'DELETED', // or 'RESTORED', 'DEACTIVATED', etc.
+      actionBy: actionBy || 'system'
+    });
+  }
     
     res.status(200).json({ 
       message: userIds.length === 1 

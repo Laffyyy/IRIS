@@ -50,6 +50,14 @@ exports.insertUser = async ({ employeeId, name, email, role, status, createdBy, 
   return result.insertId;
 };
 
+exports.logAdminAction = async ({ actionLocation_ID, actionLocation, actionType, actionBy }) => {
+  await pool.query(
+    `INSERT INTO iris.tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy)
+     VALUES (?, ?, ?, ?)`,
+    [actionLocation_ID, actionLocation, actionType, actionBy]
+  );
+};
+
 exports.findExistingEmployeeIdsEmailsOrNames = async (employeeIds, emails, excludeLoginId) => {
   if (employeeIds.length === 0 && emails.length === 0) return [];
   let query = `SELECT dUser_ID, dEmail FROM iris.tbl_login WHERE (dUser_ID IN (?) OR dEmail IN (?))`;
