@@ -2587,7 +2587,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           <div className="tab-contents-wrapper">
             <div className={`tab-content ${activeTab === 'addClient' ? 'active' : ''}`}>
               <div className="client-name-container">
-                <label>Client Name</label>
+                <label>Client Name <span style={{ color: 'red' }}>*</span></label>
                 <input
                   ref={clientNameInputRef}
                   type="text"
@@ -2622,7 +2622,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     )}
                     
                     <div className="form-group inline-form-group">
-                      <label>LOB Name:</label>
+                      <label>
+                        LOB Name <span style={{ color: 'red' }}>*</span>
+                      </label>
                       <input
                         type="text"
                         value={card.lobName}
@@ -2633,32 +2635,43 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
                     <div className="sub-lobs-container">
                       {card.subLobNames.map((subLobName, subLobIndex) => (
-                        <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
-                          <label>Sub LOB {subLobIndex + 1}:</label>
-                          <div className="sub-lob-input-container">
-                            <input
-                              type="text"
-                              value={subLobName}
-                              onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
-                              maxLength={30}
-                            />
-                            {subLobIndex > 0 && (
-                              <button 
-                                className="remove-sub-lob-field-btn"
-                                onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
-                              >
-                                <FaTimes size={10} />
-                              </button>
-                            )}
+                        <React.Fragment key={`sub-lob-${lobCardIndex}-${subLobIndex}`}>
+                          <div className="form-group sub-lob-group inline-form-group">
+                            <label>
+                              {`Sub LOB ${subLobIndex + 1}`}
+                              {subLobIndex === 0 && <span style={{ color: 'red' }}>*</span>}
+                            </label>
+                            <div className="sub-lob-input-container">
+                              <input
+                                type="text"
+                                value={subLobName}
+                                onChange={(e) => handleSubLobNameChange(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
+                                maxLength={30}
+                              />
+                              {subLobIndex > 0 && (
+                                <button 
+                                  className="remove-sub-lob-field-btn"
+                                  onClick={() => handleRemoveSubLobField(lobCardIndex, subLobIndex)}
+                                >
+                                  <FaTimes size={10} />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                          {subLobIndex === 0 && (
+                            <div style={{ color: '#888', fontSize: 12, marginBottom: 2, marginTop: 2 }}>
+                              (Insert at least 1 Sub LOB)
+                            </div>
+                          )}
+                        </React.Fragment>
                       ))}
                     </div>
 
                     {card.subLobNames.length < 4 && (
                       <button 
-                        onClick={() => handleAddAnotherSubLob(lobCardIndex)} 
+                        onClick={() => handleAddAnotherSubLobForLob(lobCardIndex)} 
                         className="add-another-button"
+                        disabled={!validateClientSelection()}
                       >
                         + Add Sub LOB
                       </button>
@@ -2666,13 +2679,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   </div>
                 ))}
                 
-                {lobCards.length < 4 && (
+                {lobCardsForLob.length < 4 && (
                   <div className="add-lob-card-container">
                     <button 
-                      onClick={handleAddAnotherLobCard} 
+                      onClick={handleAddAnotherLobCardForLob} 
                       className="add-lob-card-button"
-                      disabled={!lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))}
-                      title={!lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ? 
+                      disabled={!lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))}
+                      title={!lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ? 
                         "Please fill in at least one LOB and Sub LOB before adding another" : 
                         "Add another LOB"}
                     >
@@ -2683,19 +2696,19 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               </div>
 
               <button 
-                onClick={handleAddClient} 
+                onClick={handleAddLob} 
                 className="submit-button"
                 disabled={
-                  !clientName.trim() || 
-                  !lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))
+                  !validateClientSelection() || 
+                  !lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))
                 }
               >
-                Submit Client
+                Submit LOB(s)
               </button>
             </div>
             <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
               <div className="client-name-container">
-                <label>Select Client</label>
+                <label>Select Client <span style={{ color: 'red' }}>*</span></label>
                 <div className={`searchable-dropdown ${isClientDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                   <input
                     ref={clientSearchInputRef}
@@ -2909,7 +2922,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     )}
                     
                     <div className="form-group inline-form-group">
-                      <label>LOB Name:</label>
+                      <label>
+                        LOB Name <span style={{ color: 'red' }}>*</span>
+                      </label>
                       <input
                         type="text"
                         value={card.lobName}
@@ -2921,26 +2936,36 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
                     <div className="sub-lobs-container">
                       {card.subLobNames.map((subLobName, subLobIndex) => (
-                        <div key={`sub-lob-${lobCardIndex}-${subLobIndex}`} className="form-group sub-lob-group inline-form-group">
-                          <label>Sub LOB {subLobIndex + 1}:</label>
-                          <div className="sub-lob-input-container">
-                            <input
-                              type="text"
-                              value={subLobName}
-                              onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
-                              maxLength={30}
-                              disabled={!validateClientSelection()}
-                            />
-                            {subLobIndex > 0 && (
-                              <button 
-                                className="remove-sub-lob-field-btn"
-                                onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
-                              >
-                                <FaTimes size={10} />
-                              </button>
-                            )}
+                        <React.Fragment key={`sub-lob-${lobCardIndex}-${subLobIndex}`}>
+                          <div className="form-group sub-lob-group inline-form-group">
+                            <label>
+                              {`Sub LOB ${subLobIndex + 1}`}
+                              {subLobIndex === 0 && <span style={{ color: 'red' }}>*</span>}
+                            </label>
+                            <div className="sub-lob-input-container">
+                              <input
+                                type="text"
+                                value={subLobName}
+                                onChange={(e) => handleSubLobNameChangeForLob(lobCardIndex, subLobIndex, sanitizeInput(e.target.value, 30))}
+                                maxLength={30}
+                                disabled={!validateClientSelection()}
+                              />
+                              {subLobIndex > 0 && (
+                                <button 
+                                  className="remove-sub-lob-field-btn"
+                                  onClick={() => handleRemoveSubLobFieldForLob(lobCardIndex, subLobIndex)}
+                                >
+                                  <FaTimes size={10} />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                          {subLobIndex === 0 && (
+                            <div style={{ color: '#888', fontSize: 12, marginBottom: 2, marginTop: 2 }}>
+                              (Insert at least 1 Sub LOB)
+                            </div>
+                          )}
+                        </React.Fragment>
                       ))}
                     </div>
 
@@ -2986,7 +3011,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             <div className={`tab-content ${activeTab === 'addSubLOB' ? 'active' : ''}`}>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Select Client</label>
+                  <label>Select Client <span style={{ color: 'red' }}>*</span></label>
                   <div className={`sublob-client-searchable-dropdown ${isSubLobClientDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                     <input
                       ref={subLobClientSearchInputRef}
@@ -3205,7 +3230,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Select LOB</label>
+                  <label>Select LOB <span style={{ color: 'red' }}>*</span></label>
                   <div className={`sublob-lob-searchable-dropdown ${isSubLobLobDropdownOpen ? 'active' : ''}`} style={{ position: 'relative' }}>
                     <input
                       type="text"
@@ -3295,7 +3320,15 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   <div className="sub-lob-name-fields-row" key={idx}>
                     <div className="sub-lob-name-field">
                       <div className="form-group" style={{ position: 'relative' }}>
-                        <label>{`Sub LOB Name${idx > 0 ? ` ${idx + 1}` : ''}`}</label>
+                        <label>
+                          {`Sub LOB Name${idx > 0 ? ` ${idx + 1}` : ''}`}
+                          {idx === 0 && <span style={{ color: 'red' }}>*</span>}
+                        </label>
+                        {idx === 0 && (
+                          <div style={{ color: '#888', fontSize: 12, marginBottom: 2, marginTop: -2 }}>
+                            (Insert at least 1 Sub LOB)
+                          </div>
+                        )}
                         <div className="sub-lob-input-container" style={{ display: 'flex', alignItems: 'center' }}>
                           <input
                             type="text"
