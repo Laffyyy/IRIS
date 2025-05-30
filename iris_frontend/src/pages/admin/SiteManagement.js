@@ -75,6 +75,12 @@ const SiteManagement = () => {
   const [showClientAlreadyAddedModal, setShowClientAlreadyAddedModal] = useState(false);
   const [alreadyAddedClientName, setAlreadyAddedClientName] = useState('');
 
+  const [showClientAddSuccessModal, setShowClientAddSuccessModal] = useState(false);
+  const [clientAddSuccessDetails, setClientAddSuccessDetails] = useState({
+    clientName: '',
+    siteName: ''
+  });
+
   const [showEditSiteConfirmModal, setShowEditSiteConfirmModal] = useState(false);
   const [siteBeingEdited, setSiteBeingEdited] = useState(null);
   const [showEditSuccessModal, setShowEditSuccessModal] = useState(false);
@@ -453,10 +459,7 @@ const SiteManagement = () => {
       setNewSiteName('');
       fetchSites();
       
-      // Auto-hide the success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 3000);
+      // Remove the setTimeout - modal will be closed manually
     } catch (error) {
       // Close the confirmation modal
       setShowAddSiteConfirmModal(false);
@@ -484,18 +487,65 @@ const SiteManagement = () => {
                       assignment.dSite_ID === siteId
       );
       
-      // If no LOB is selected, check if client has ANY assignments at this site
+      // If no LOB is selected, we need to check if ALL client's LOBs/SubLOBs are already assigned
       if (!clientSiteConfirmDetails.lobName) {
-        // Just check if the client exists at this site at all
-        // Don't require ALL LOBs/SubLOBs to be assigned
-        return clientAssignments.length > 0;
+        // Get all possible LOBs and SubLOBs for this client
+        try {
+          const response = await manageSite('getClientLobs', { 
+            clientId: selectedClientId.toString()
+            // Don't pass siteId here to get ALL LOBs/SubLOBs, not just available ones
+          });
+          const allClientLobs = response.lobs || [];
+          
+          // Count total possible SubLOBs for this client
+          const totalPossibleSubLobs = allClientLobs.reduce((total, lob) => {
+            return total + (lob.subLobs ? lob.subLobs.length : 0);
+          }, 0);
+          
+          // If no LOBs exist for this client, they can't be assigned
+          if (totalPossibleSubLobs === 0) {
+            return false;
+          }
+          
+          // Check if all possible LOB/SubLOB combinations are already assigned
+          let assignedCount = 0;
+          for (const lob of allClientLobs) {
+            for (const subLob of lob.subLobs) {
+              const isAssigned = clientAssignments.some(
+                assignment => assignment.dLOB === lob.name && assignment.dSubLOB === subLob.name
+              );
+              if (isAssigned) {
+                assignedCount++;
+              }
+            }
+          }
+          
+          // Client is fully assigned if all possible combinations are assigned
+          return assignedCount === totalPossibleSubLobs;
+        } catch (error) {
+          console.error('Error checking all client LOBs:', error);
+          return false;
+        }
       }
       
-      // If LOB is selected but no Sub LOB, check if THIS specific LOB has ANY assignments
+      // If LOB is selected but no Sub LOB, check if ALL SubLOBs for this LOB are assigned
       if (clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName) {
-        return clientAssignments.some(
-          assignment => assignment.dLOB === clientSiteConfirmDetails.lobName
+        // Get all SubLOBs for this specific LOB
+        const selectedLob = clientLobs.find(lob => lob.name === clientSiteConfirmDetails.lobName);
+        if (!selectedLob || !selectedLob.subLobs) {
+          return false;
+        }
+        
+        // Check if all SubLOBs for this LOB are assigned
+        const assignedSubLobs = clientAssignments
+          .filter(assignment => assignment.dLOB === clientSiteConfirmDetails.lobName)
+          .map(assignment => assignment.dSubLOB);
+        
+        const allSubLobsAssigned = selectedLob.subLobs.every(subLob => 
+          assignedSubLobs.includes(subLob.name)
         );
+        
+        return allSubLobsAssigned;
       }
       
       // If both LOB and Sub LOB are selected, check if that specific combination exists
@@ -574,15 +624,15 @@ const SiteManagement = () => {
 
   const confirmAddClient = async () => {
     try {
-      // Check if client is already assigned to this site
-      const clientName = clientSiteConfirmDetails.clientName;
+      // Get the client name directly from the clients array using selectedClientId
+      const clientName = clients.find(c => c.id == selectedClientId)?.name;
       
       console.log("Checking if client is already assigned:", clientName);
       console.log("Current assignments:", existingAssignments);
       console.log("Checking against LOB:", clientSiteConfirmDetails.lobName);
       console.log("Checking against Sub LOB:", clientSiteConfirmDetails.subLobName);
       
-      // THIS IS THE KEY FIX - add await here!
+      // Use the clientName we just retrieved instead of clientSiteConfirmDetails.clientName
       const isAlreadyAssigned = await isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
       
       console.log("Is client already assigned:", isAlreadyAssigned);
@@ -606,44 +656,48 @@ const SiteManagement = () => {
         userID: localStorage.getItem('userId') || '0001' // Pass the user ID
       });
       
-      // Continue with the rest of the function...
+      // Close confirmation modal
       setShowAddClientSiteConfirmModal(false);
-      setSuccessMessage(`Client "${clientSiteConfirmDetails.clientName}" successfully added to site "${selectedSite.dSiteName}"`);
-      setShowSuccessModal(true);
       
-      // Reset form
+      // Set success modal details and show it
+      setClientAddSuccessDetails({
+        clientName: clientName,
+        siteName: selectedSite.dSiteName
+      });
+      setShowClientAddSuccessModal(true);
+      
+      // Reset form - including clearing the site selection
+      setSelectedSite(null);
       setSelectedClientId('');
       setSelectedLobId('');
       setSelectedSubLobId('');
       setClientLobs([]);
       setClientSubLobs([]);
+      setAvailableClients([]);
+      setExistingAssignments([]);
       
       // Refresh data in the background
       fetchSiteClients();
       fetchSites();
-      fetchExistingAssignments(selectedSite.dSite_ID);
       
-      // Auto-hide the success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 3000);
     } catch (error) {
       console.error('Error adding client to site:', error);
-    setShowAddClientSiteConfirmModal(false);
-    
-    if (error.message && error.message.toLowerCase().includes('already assigned') || 
-        error.message && error.message.toLowerCase().includes('already added')) {
-      setAlreadyAddedClientName(clientSiteConfirmDetails.clientName);
-      setShowClientAlreadyAddedModal(true);
-    } else {
-      setErrorMessage(`Failed to add client: ${error.message}`);
-      setShowErrorModal(true);
-      setTimeout(() => {
-        setShowErrorModal(false);
-      }, 3000);
+      setShowAddClientSiteConfirmModal(false);
+      
+      if (error.message && error.message.toLowerCase().includes('already assigned') || 
+          error.message && error.message.toLowerCase().includes('already added')) {
+        const clientName = clients.find(c => c.id == selectedClientId)?.name;
+        setAlreadyAddedClientName(clientName);
+        setShowClientAlreadyAddedModal(true);
+      } else {
+        setErrorMessage(`Failed to add client: ${error.message}`);
+        setShowErrorModal(true);
+        setTimeout(() => {
+          setShowErrorModal(false);
+        }, 3000);
+      }
     }
-  }
-};
+  };
 
   /**
    * Removes a client from a site
@@ -690,8 +744,8 @@ const SiteManagement = () => {
         setShowEditErrorModal(true);
         return;
       }
-
-      await manageSite('edit', { 
+  
+      const response = await manageSite('edit', { 
         siteId: siteBeingEdited.id || siteBeingEdited.dSite_ID,
         siteName: siteBeingEdited.name,
         updateClientSiteTable: true,
@@ -699,6 +753,13 @@ const SiteManagement = () => {
   
       // Close the edit modal and confirmation modal
       setShowEditSiteConfirmModal(false);
+      
+      // Update the siteBeingEdited with the new site ID for the success modal
+      setSiteBeingEdited(prev => ({
+        ...prev,
+        newSiteId: response.newSiteId
+      }));
+      
       setShowEditSuccessModal(true);
       
       // Reset form and refresh data
@@ -1016,11 +1077,9 @@ const SiteManagement = () => {
           fetchSiteClients();
           setSuccessMessage(`Site "${itemToDelete.name}" successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'bulk-sites':
           await manageSite('bulkDeactivateSites', { siteIds: selectedSiteIds });
           
@@ -1032,58 +1091,48 @@ const SiteManagement = () => {
           
           setSuccessMessage(`${itemToDelete.count} sites successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
-        break;
-
+          // Remove the setTimeout - modal will be closed manually
+          break;
+  
         case 'reactivate-site':
-        await manageSite('reactivate', { siteId: itemToDelete.id });
-        fetchSites();
-        fetchSiteClients();
-        setSuccessMessage(`Site "${itemToDelete.name}" successfully reactivated`);
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-        }, 3000);
-        break;
-
-      case 'bulk-reactivate-sites':
-        await manageSite('bulkReactivateSites', { siteIds: selectedSiteIds });
-        
-        // Update state and reset selection
-        fetchSites();
-        fetchSiteClients();
-        setSelectedSiteIds([]);
-        setSelectAllSites(false);
-        
-        setSuccessMessage(`${itemToDelete.count} sites successfully reactivated`);
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-        }, 3000);
-        break;
+          await manageSite('reactivate', { siteId: itemToDelete.id });
+          fetchSites();
+          fetchSiteClients();
+          setSuccessMessage(`Site "${itemToDelete.name}" successfully reactivated`);
+          setShowSuccessModal(true);
+          // Remove the setTimeout - modal will be closed manually
+          break;
+  
+        case 'bulk-reactivate-sites':
+          await manageSite('bulkReactivateSites', { siteIds: selectedSiteIds });
+          
+          // Update state and reset selection
+          fetchSites();
+          fetchSiteClients();
+          setSelectedSiteIds([]);
+          setSelectAllSites(false);
+          
+          setSuccessMessage(`${itemToDelete.count} sites successfully reactivated`);
+          setShowSuccessModal(true);
+          // Remove the setTimeout - modal will be closed manually
+          break;
           
         case 'client-site':
           await manageSite('deactivateClientSite', { clientSiteId: itemToDelete.id });
           fetchSiteClients();
           setSuccessMessage(`Client "${itemToDelete.name}" assignment successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'reactivate-client-site':
           await manageSite('reactivateClientSite', { clientSiteId: itemToDelete.id });
           fetchSiteClients();
           setSuccessMessage(`Client "${itemToDelete.name}" assignment successfully reactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'bulk-deactivate-client-sites':
           await manageSite('bulkDeactivateClientSites', { clientSiteIds: selectedClientSiteIds });
           fetchSiteClients();
@@ -1091,11 +1140,9 @@ const SiteManagement = () => {
           setSelectAllClientSites(false);
           setSuccessMessage(`${itemToDelete.count} client-site assignments successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'bulk-reactivate-client-sites':
           await manageSite('bulkReactivateClientSites', { clientSiteIds: selectedClientSiteIds });
           fetchSiteClients();
@@ -1103,9 +1150,7 @@ const SiteManagement = () => {
           setSelectAllClientSites(false);
           setSuccessMessage(`${itemToDelete.count} client-site assignments successfully reactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
       }
     } catch (error) {
@@ -2315,36 +2360,37 @@ const SiteManagement = () => {
 
       {/* Edit Site Confirmation Modal */}
       {showEditSiteConfirmModal && siteBeingEdited && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '450px' }}>
-            <div className="modal-header">
-              <h2>Confirm Edit Site</h2>
-              <button onClick={() => setShowEditSiteConfirmModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="modal-content">
-              <p>Are you sure you want to update this site?</p>
-              <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
-                <li><strong>Original name:</strong> {siteBeingEdited.originalName}</li>
-                <li><strong>New name:</strong> {siteBeingEdited.name}</li>
-              </ul>
-              <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-                <strong>Note:</strong> This will update the site name in all associated client-site relationships.
-              </p>
-            </div>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => setShowEditSiteConfirmModal(false)}>Cancel</button>
-              <button
-                className="save-btn"
-                onClick={confirmSaveSite}
-              >
-                Confirm
-              </button>
-            </div>
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '450px' }}>
+          <div className="modal-header">
+            <h2>Confirm Edit Site</h2>
+            <button onClick={() => setShowEditSiteConfirmModal(false)} className="close-btn">
+              <FaTimes />
+            </button>
+          </div>
+          <div className="modal-content">
+            <p>Are you sure you want to update this site?</p>
+            <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+              <li><strong>Original name:</strong> {siteBeingEdited.originalName}</li>
+              <li><strong>New name:</strong> {siteBeingEdited.name}</li>
+            </ul>
+            <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+              <strong>Note:</strong> This will update the site name and generate a new site ID based on the new name. 
+              All associated client-site relationships will be updated accordingly.
+            </p>
+          </div>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="cancel-btn" onClick={() => setShowEditSiteConfirmModal(false)}>Cancel</button>
+            <button
+              className="save-btn"
+              onClick={confirmSaveSite}
+            >
+              Confirm
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
@@ -2613,18 +2659,25 @@ const SiteManagement = () => {
 
       {/* Success Message Modal */}
       {showSuccessModal && (
-      <div className="success-toast" style={slideInOut}>
-        <div style={{ padding: '16px 20px' }}>
-          <p style={{ 
-            color: '#2f855a', 
-            display: 'flex', 
-            alignItems: 'center',
-            fontSize: '14px',
-            margin: 0
-          }}>
-            <span style={{ marginRight: '10px', fontSize: '18px' }}>✓</span>
+      <div className="modal-overlay">
+        <div className="modal success-modal">
+          <div className="modal-header">
+            <h2>
+              <span className="success-icon">✓</span>
+              Operation Successful
+            </h2>
+          </div>
+          <p>
             {successMessage}
           </p>
+          <div className="modal-actions">
+            <button
+              className="save-btn"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              OK
+            </button>
+          </div>
         </div>
       </div>
     )}
@@ -2691,6 +2744,33 @@ const SiteManagement = () => {
       </div>
     )}
 
+        {/* Client Add Success Modal */}
+        {showClientAddSuccessModal && (
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '450px', borderTop: '4px solid #38a169' }}>
+          <div className="modal-header">
+            <h2 style={{ color: '#38a169', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>✓</span>
+              Client Added Successfully
+            </h2>
+          </div>
+          <p>
+            Client "<strong>{clientAddSuccessDetails.clientName}</strong>" has been added to 
+            site "<strong>{clientAddSuccessDetails.siteName}</strong>" successfully.
+          </p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className="save-btn"
+              style={{ backgroundColor: '#38a169' }}
+              onClick={() => setShowClientAddSuccessModal(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* Edit Site Error Modal */}
     {showEditErrorModal && (
       <div className="modal-overlay">
@@ -2713,26 +2793,37 @@ const SiteManagement = () => {
 
     {/* Edit Site Success Modal */}
     {showEditSuccessModal && (
-      <div className="modal-overlay">
-        <div className="modal" style={{ width: '400px' }}>
-          <div className="modal-header">
-            <h2>Edit Successful</h2>
-          </div>
-          <p>Site name has been changed from "{siteBeingEdited?.originalName}" to "{siteBeingEdited?.name}".</p>
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              className="save-btn"
-              onClick={() => {
-                setShowEditSuccessModal(false);
-                setEditModalOpen(false);
-              }}
-            >
-              OK
-            </button>
-          </div>
+    <div className="modal-overlay">
+      <div className="modal success-modal">
+        <div className="modal-header">
+          <h2>
+            <span className="success-icon">✓</span>
+            Site Updated Successfully
+          </h2>
+        </div>
+        <p>
+          Site has been successfully updated:
+        </p>
+        <ul style={{ marginLeft: '20px', marginBottom: '15px', textAlign: 'left' }}>
+          <li><strong>Name:</strong> "{siteBeingEdited?.originalName}" → "{siteBeingEdited?.name}"</li>
+          {siteBeingEdited?.newSiteId && siteBeingEdited?.newSiteId !== (siteBeingEdited?.id || siteBeingEdited?.dSite_ID) && (
+            <li><strong>Site ID:</strong> "{siteBeingEdited?.id || siteBeingEdited?.dSite_ID}" → "{siteBeingEdited?.newSiteId}"</li>
+          )}
+        </ul>
+        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            className="save-btn"
+            onClick={() => {
+              setShowEditSuccessModal(false);
+              setEditModalOpen(false);
+            }}
+          >
+            OK
+          </button>
         </div>
       </div>
-    )}
+    </div>
+  )}
 
     {/* Site Deactivated Warning Modal */}
     {showSiteDeactivatedWarning && (

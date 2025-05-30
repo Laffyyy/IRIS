@@ -38,42 +38,66 @@ class SiteManagementService {
     }
 
     async editSite(siteId, siteName, updateClientSiteTable = false) {
-        try {
-          // Start transaction
-          await db.query('START TRANSACTION');
+      try {
+        // Start transaction
+        await db.query('START TRANSACTION');
+        
+        // Generate new site ID: first 3 letters of site name (uppercase) + 3 random digits
+        const prefix = siteName.substring(0, 3).toUpperCase();
+        let newSiteId;
+        let isUnique = false;
+        
+        // Keep generating until we get a unique ID (that's different from the current one)
+        while (!isUnique) {
+          const randomNum = Math.floor(Math.random() * 900) + 100; // 3-digit number between 100-999
+          newSiteId = `${prefix}${randomNum}`;
           
-          // Update tbl_site
-          const [result] = await db.query(
-            'UPDATE tbl_site SET dSiteName = ? WHERE dSite_ID = ?',
-            [siteName, siteId]
+          // Check if this ID already exists and is different from current ID
+          const [existingId] = await db.query(
+            'SELECT dSite_ID FROM tbl_site WHERE dSite_ID = ?',
+            [newSiteId]
           );
           
-          // Also update tbl_clientsite if flag is true
-          if (updateClientSiteTable) {
-            await db.query(
-              'UPDATE tbl_clientsite SET dSiteName = ? WHERE dSite_ID = ?',
-              [siteName, siteId]
-            );
+          isUnique = existingId.length === 0 || newSiteId === siteId;
+          
+          // If the generated ID is the same as current ID, keep it
+          if (newSiteId === siteId) {
+            isUnique = true;
           }
-
-          // Insert log entry
-          const timestamp = new Date();
-          await db.query(
-            'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
-            [siteId, timestamp]
-          );
-          
-          // Commit transaction
-          await db.query('COMMIT');
-          
-          return result;
-        } catch (error) {
-          // Rollback transaction on error
-          await db.query('ROLLBACK');
-          console.error('Error in SiteManagementService.editSite:', error);
-          throw error;
         }
+        
+        // Update tbl_site with new site name and ID
+        const [result] = await db.query(
+          'UPDATE tbl_site SET dSite_ID = ?, dSiteName = ? WHERE dSite_ID = ?',
+          [newSiteId, siteName, siteId]
+        );
+        
+        // Also update tbl_clientsite if flag is true
+        if (updateClientSiteTable) {
+          await db.query(
+            'UPDATE tbl_clientsite SET dSite_ID = ?, dSiteName = ? WHERE dSite_ID = ?',
+            [newSiteId, siteName, siteId]
+          );
+        }
+    
+        // Insert log entry
+        const timestamp = new Date();
+        await db.query(
+          'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "MODIFIED", "SYSTEM", ?)',
+          [newSiteId, timestamp]
+        );
+        
+        // Commit transaction
+        await db.query('COMMIT');
+        
+        return { ...result, newSiteId };
+      } catch (error) {
+        // Rollback transaction on error
+        await db.query('ROLLBACK');
+        console.error('Error in SiteManagementService.editSite:', error);
+        throw error;
       }
+    }
 
       async deactivateSite(siteId) {
         try {
