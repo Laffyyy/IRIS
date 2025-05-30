@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FaFileDownload, FaTimesCircle, FaUpload, FaTrash } from 'react-icons/fa';
+import axios from 'axios';
 import './EmployeeManagement.css';
 
 const mockValidEmployees = [
@@ -77,6 +78,10 @@ function BulkUploadUI({ requiredFields, templateFields, file, setFile, dragActiv
 
 const EmployeeManagement = () => {
   const [activeOption, setActiveOption] = useState('option1');
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Per Sub-LoB state
   const [perSubLobFile, setPerSubLobFile] = useState(null);
@@ -91,6 +96,39 @@ const EmployeeManagement = () => {
   const [customAddPreviewTab, setCustomAddPreviewTab] = useState('valid');
   const [customAddValidEmployees, setCustomAddValidEmployees] = useState([]);
   const [customAddInvalidEmployees, setCustomAddInvalidEmployees] = useState([]);
+
+  // Fetch employees from the API
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('http://localhost:3000/api/employees');
+        if (response.data.success) {
+          setEmployees(response.data.data || []);
+        } else {
+          setEmployees([]);
+        }
+      } catch (err) {
+        setEmployees([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  // Filter employees based on search term
+  const filteredEmployees = employees.filter(employee => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      employee.dEmployee_ID.toLowerCase().includes(searchLower) ||
+      employee.dEmployee_Name.toLowerCase().includes(searchLower) ||
+      employee.dClientName.toLowerCase().includes(searchLower) ||
+      employee.dLOB.toLowerCase().includes(searchLower) ||
+      employee.dSubLOB.toLowerCase().includes(searchLower)
+    );
+  });
 
   // Handlers for Per Sub-LoB
   const handlePerSubLobDrag = useCallback((e) => {
@@ -390,56 +428,59 @@ const EmployeeManagement = () => {
               </form>
             </div>
           )}
-          {/* Right side: Employee List table always visible */}
+          {/* Right side: Employee List table */}
           <div className="employee-list-section">
             <h2 className="directory-title">Employee List</h2>
             <p className="directory-desc">View and manage all employees in the system</p>
             <div className="search-filter-row">
-              <input type="text" placeholder="Search employees..." className="search-input" />
+              <input 
+                type="text" 
+                placeholder="Search employees..." 
+                className="search-input"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
               <button className="filter-btn">Filter</button>
             </div>
-            <table className="employee-table">
-              <thead>
-                <tr>
-                  <th>Employee ID</th>
-                  <th>Full Name</th>
-                  <th>Hire Date</th>
-                  <th>Classification</th>
-                  <th>Client</th>
-                  <th>LoB</th>
-                  <th>Sub-LoB</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>EMP001</td>
-                  <td>John Doe</td>
-                  <td>2023-01-15</td>
-                  <td><span className="badge level2">Level 2</span></td>
-                  <td>Client 1</td>
-                  <td>LoB Alpha</td>
-                  <td>Sub-LoB 1</td>
-                </tr>
-                <tr>
-                  <td>EMP002</td>
-                  <td>Jane Smith</td>
-                  <td>2023-02-20</td>
-                  <td><span className="badge level3">Level 3</span></td>
-                  <td>Client 2</td>
-                  <td>LoB Beta</td>
-                  <td>Sub-LoB 2</td>
-                </tr>
-                <tr>
-                  <td>EMP003</td>
-                  <td>Mike Johnson</td>
-                  <td>2023-03-10</td>
-                  <td><span className="badge support">Support</span></td>
-                  <td>Client 1</td>
-                  <td>LoB Alpha</td>
-                  <td>Sub-LoB 1</td>
-                </tr>
-              </tbody>
-            </table>
+            {loading ? (
+              <div className="loading-message">Loading employees...</div>
+            ) : filteredEmployees.length === 0 ? (
+              <div className="no-data-message">
+                <p>No employee data available</p>
+                <p className="sub-message">Add employees using the upload options above</p>
+              </div>
+            ) : (
+              <table className="employee-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Full Name</th>
+                    <th>Hire Date</th>
+                    <th>Classification</th>
+                    <th>Client</th>
+                    <th>LoB</th>
+                    <th>Sub-LoB</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEmployees.map((employee) => (
+                    <tr key={employee.dEmployeeEntry_ID}>
+                      <td>{employee.dEmployee_ID}</td>
+                      <td>{employee.dEmployee_Name}</td>
+                      <td>{new Date(employee.dHire_Date).toLocaleDateString()}</td>
+                      <td>
+                        <span className={`badge ${employee.dClassification.toLowerCase().replace(/\s+/g, '')}`}>
+                          {employee.dClassification}
+                        </span>
+                      </td>
+                      <td>{employee.dClientName}</td>
+                      <td>{employee.dLOB}</td>
+                      <td>{employee.dSubLOB}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
