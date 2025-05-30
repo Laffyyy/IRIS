@@ -589,6 +589,8 @@ const ClientManagement = () => {
 const fetchClientData = async (status = itemStatusTab) => {
   try {
     setLoading(true);
+    setError(null);
+    
     const response = await axios.get(`http://localhost:3000/api/clients/getAll?status=${status}`);
     
     if (response.data && response.data.data) {
@@ -649,7 +651,7 @@ const fetchClientData = async (status = itemStatusTab) => {
               id: lobId,
               name: lob.name,
               clientId: clientId,
-              clientRowId: lob.clientRowId || clientId, // Store the unique row-specific clientId
+              clientRowId: lob.clientRowId || clientId,
               siteId: lob.siteId || null,
               siteName: lob.siteName || null,
               sites: lob.sites || []
@@ -711,6 +713,30 @@ const fetchClientData = async (status = itemStatusTab) => {
         setDeactivatedCount(rowCount);
       }
     }
+
+    // Always fetch and update both counts regardless of current status
+    if (status === 'ACTIVE') {
+      // Also fetch deactivated count
+      try {
+        const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+        // Calculate deactivated count using same logic
+        const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+        setDeactivatedCount(deactivatedCount);
+      } catch (err) {
+        console.error('Error fetching deactivated count:', err);
+      }
+    } else if (status === 'DEACTIVATED') {
+      // Also fetch active count
+      try {
+        const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+        // Calculate active count using same logic
+        const activeCount = calculateRowCount(activeResponse.data.data);
+        setActiveCount(activeCount);
+      } catch (err) {
+        console.error('Error fetching active count:', err);
+      }
+    }
+
   } catch (err) {
     console.error('Error fetching client data:', err);
     setError('Failed to load clients. Please try again later.');
@@ -726,8 +752,78 @@ const fetchClientData = async (status = itemStatusTab) => {
   // On mount, fetch both counts
   useEffect(() => {
     fetchClientData('ACTIVE');
-    fetchClientData('DEACTIVATED');
   }, []);
+
+  // Add helper function to calculate row count
+  const calculateRowCount = (data) => {
+    if (!data || !Array.isArray(data)) return 0;
+    
+    const transformedClients = [];
+    const transformedLobs = [];
+    const transformedSubLobs = [];
+    let lobId = 0;
+    let subLobId = 0;
+    
+    // Create unique clients map
+    const uniqueClients = new Map();
+    data.forEach((client) => {
+      const clientId = client.clientId;
+      if (!uniqueClients.has(clientId)) {
+        uniqueClients.set(clientId, {
+          id: clientId,
+          name: client.clientName,
+        });
+      }
+    });
+    
+    transformedClients.push(...uniqueClients.values());
+    
+    // Process LOBs and SubLOBs
+    data.forEach((client) => {
+      const clientId = client.clientId;
+      
+      if (client.LOBs && Array.isArray(client.LOBs)) {
+        client.LOBs.forEach(lob => {
+          lobId++;
+          transformedLobs.push({
+            id: lobId,
+            name: lob.name,
+            clientId: clientId,
+          });
+          
+          if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
+            lob.subLOBs.forEach(subLobName => {
+              subLobId++;
+              transformedSubLobs.push({
+                id: subLobId,
+                lobId: lobId,
+              });
+            });
+          }
+        });
+      }
+    });
+    
+    // Calculate row count
+    let rowCount = 0;
+    transformedClients.forEach(client => {
+      const clientLobs = transformedLobs.filter(lob => lob.clientId === client.id);
+      if (clientLobs.length === 0) {
+        rowCount++;
+      } else {
+        clientLobs.forEach(lob => {
+          const lobSubLobs = transformedSubLobs.filter(subLob => subLob.lobId === lob.id);
+          if (lobSubLobs.length === 0) {
+            rowCount++;
+          } else {
+            rowCount += lobSubLobs.length;
+          }
+        });
+      }
+    });
+    
+    return rowCount;
+  };
 
   const renderLobOptions = () => {
     const options = [];
@@ -1577,14 +1673,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             clientName: client.name
           });
           if (response.data) {
-            fetchClientData();
+            // Fetch both counts
+            await Promise.all([
+              fetchClientData('ACTIVE'),
+              fetchClientData('DEACTIVATED')
+            ]);
             showToast('Client deactivated successfully!');
           }
         },
-        () => {}, // onCancel
+        () => {},
         'Deactivate',
         'Cancel',
-        true // requireConfirmation
+        true
       );
     } catch (error) {
       console.error('Error deactivating client:', error);
@@ -1612,14 +1712,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             lobName: lob.name
           });
           if (response.data) {
-            fetchClientData();
+            // Fetch both counts
+            await Promise.all([
+              fetchClientData('ACTIVE'),
+              fetchClientData('DEACTIVATED')
+            ]);
             showToast('LOB deactivated successfully!');
           }
         },
-        () => {}, // onCancel
+        () => {},
         'Deactivate',
         'Cancel',
-        true // requireConfirmation
+        true
       );
     } catch (error) {
       console.error('Error deactivating LOB:', error);
@@ -1653,14 +1757,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             subLOBName: subLob.name
           });
           if (response.data) {
-            fetchClientData();
+            // Fetch both counts
+            await Promise.all([
+              fetchClientData('ACTIVE'),
+              fetchClientData('DEACTIVATED')
+            ]);
             showToast('Sub LOB deactivated successfully!');
           }
         },
-        () => {}, // onCancel
+        () => {},
         'Deactivate',
         'Cancel',
-        true // requireConfirmation
+        true
       );
     } catch (error) {
       console.error('Error deactivating Sub LOB:', error);
@@ -1737,14 +1845,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             clientName: client.name
           });
           if (response.data) {
-            fetchClientData('DEACTIVATED');
+            // Fetch both counts
+            await Promise.all([
+              fetchClientData('ACTIVE'),
+              fetchClientData('DEACTIVATED')
+            ]);
             showToast('Client reactivated successfully!');
           }
         },
-        () => {}, // onCancel
+        () => {},
         'Reactivate',
         'Cancel',
-        true // requireConfirmation
+        true
       );
     } catch (error) {
       console.error('Error reactivating client:', error);
@@ -1772,14 +1884,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             lobName: lob.name
           });
           if (response.data) {
-            fetchClientData('DEACTIVATED');
+            // Fetch both counts
+            await Promise.all([
+              fetchClientData('ACTIVE'),
+              fetchClientData('DEACTIVATED')
+            ]);
             showToast('LOB reactivated successfully!');
           }
         },
-        () => {}, // onCancel
+        () => {},
         'Reactivate',
         'Cancel',
-        true // requireConfirmation
+        true
       );
     } catch (error) {
       console.error('Error reactivating LOB:', error);
@@ -1813,14 +1929,18 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             subLOBName: subLob.name
           });
           if (response.data) {
-            fetchClientData('DEACTIVATED');
+            // Fetch both counts
+            await Promise.all([
+              fetchClientData('ACTIVE'),
+              fetchClientData('DEACTIVATED')
+            ]);
             showToast('Sub LOB reactivated successfully!');
           }
         },
-        () => {}, // onCancel
+        () => {},
         'Reactivate',
         'Cancel',
-        true // requireConfirmation
+        true
       );
     } catch (error) {
       console.error('Error reactivating Sub LOB:', error);
@@ -1969,8 +2089,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       showToast('Please select at least one item to deactivate', 'error');
       return;
     }
-
-    // Build details for each selected row
+  
     const selectedItemsArray = Array.from(selectedRows).map(rowKey => {
       const [type, ...parts] = rowKey.split('-');
       if (type === 'client') {
@@ -1985,7 +2104,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       }
       return { client: '', lob: '', subLob: '' };
     });
-
+  
     showConfirm(
       {
         type: 'bulk',
@@ -1995,37 +2114,39 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       async () => {
         try {
           const deactivationPromises = [];
-          selectedRows.forEach(rowKey => {
-            const [type, ...parts] = rowKey.split('-');
-            if (type === 'client') {
-              const clientName = parts.join('-');
+          selectedItemsArray.forEach(item => {
+            if (item.client && !item.lob && !item.subLob) {
               deactivationPromises.push(
                 axios.post('http://localhost:3000/api/clients/deactivate', {
-                  clientName: clientName
+                  clientName: item.client
                 })
               );
-            } else if (type === 'lob') {
-              const [clientName, lobName] = parts;
+            } else if (item.client && item.lob && !item.subLob) {
               deactivationPromises.push(
                 axios.post('http://localhost:3000/api/clients/lob/deactivate', {
-                  clientName: clientName,
-                  lobName: lobName
+                  clientName: item.client,
+                  lobName: item.lob
                 })
               );
-            } else if (type === 'sublob') {
-              const [clientName, lobName, subLobName] = parts;
+            } else if (item.client && item.lob && item.subLob) {
               deactivationPromises.push(
                 axios.post('http://localhost:3000/api/clients/sublob/deactivate', {
-                  clientName: clientName,
-                  lobName: lobName,
-                  subLOBName: subLobName
+                  clientName: item.client,
+                  lobName: item.lob,
+                  subLOBName: item.subLob
                 })
               );
             }
           });
-
+  
           await Promise.all(deactivationPromises);
-          fetchClientData();
+          
+          // Fetch both counts
+          await Promise.all([
+            fetchClientData('ACTIVE'),
+            fetchClientData('DEACTIVATED')
+          ]);
+          
           setSelectedRows(new Set());
           setSelectAll(false);
           showToast(`${selectedRows.size} item(s) deactivated successfully!`);
@@ -2034,10 +2155,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           showToast('Failed to deactivate some items: ' + error.message, 'error');
         }
       },
-      () => {}, // onCancel
+      () => {},
       'Deactivate',
       'Cancel',
-      true // requireConfirmation
+      true
     );
   };
 
@@ -2047,8 +2168,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       showToast('Please select at least one item to reactivate', 'error');
       return;
     }
-
-    // Build details for each selected row
+  
     const selectedItemsArray = Array.from(selectedRows).map(rowKey => {
       const [type, ...parts] = rowKey.split('-');
       if (type === 'client') {
@@ -2063,7 +2183,7 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       }
       return { client: '', lob: '', subLob: '' };
     });
-
+  
     showConfirm(
       {
         type: 'bulk',
@@ -2073,37 +2193,39 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
       async () => {
         try {
           const reactivationPromises = [];
-          selectedRows.forEach(rowKey => {
-            const [type, ...parts] = rowKey.split('-');
-            if (type === 'client') {
-              const clientName = parts.join('-');
+          selectedItemsArray.forEach(item => {
+            if (item.client && !item.lob && !item.subLob) {
               reactivationPromises.push(
                 axios.post('http://localhost:3000/api/clients/reactivate', {
-                  clientName: clientName
+                  clientName: item.client
                 })
               );
-            } else if (type === 'lob') {
-              const [clientName, lobName] = parts;
+            } else if (item.client && item.lob && !item.subLob) {
               reactivationPromises.push(
                 axios.post('http://localhost:3000/api/clients/lob/reactivate', {
-                  clientName: clientName,
-                  lobName: lobName
+                  clientName: item.client,
+                  lobName: item.lob
                 })
               );
-            } else if (type === 'sublob') {
-              const [clientName, lobName, subLobName] = parts;
+            } else if (item.client && item.lob && item.subLob) {
               reactivationPromises.push(
                 axios.post('http://localhost:3000/api/clients/sublob/reactivate', {
-                  clientName: clientName,
-                  lobName: lobName,
-                  subLOBName: subLobName
+                  clientName: item.client,
+                  lobName: item.lob,
+                  subLOBName: item.subLob
                 })
               );
             }
           });
-
+  
           await Promise.all(reactivationPromises);
-          fetchClientData('DEACTIVATED');
+          
+          // Fetch both counts
+          await Promise.all([
+            fetchClientData('ACTIVE'),
+            fetchClientData('DEACTIVATED')
+          ]);
+          
           setSelectedRows(new Set());
           setSelectAll(false);
           showToast(`${selectedRows.size} item(s) reactivated successfully!`);
@@ -2112,10 +2234,10 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
           showToast('Failed to reactivate some items: ' + error.message, 'error');
         }
       },
-      () => {}, // onCancel
+      () => {},
       'Reactivate',
       'Cancel',
-      true // requireConfirmation
+      true
     );
   };
 
@@ -2226,17 +2348,6 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
     }
     return count;
   };
-
-  // Update the counts whenever the table data changes
-  useEffect(() => {
-    if (itemStatusTab === 'ACTIVE') {
-      setActiveCount(countTableRows('ACTIVE'));
-    } else if (itemStatusTab === 'DEACTIVATED') {
-      setDeactivatedCount(countTableRows('DEACTIVATED'));
-    }
-    // eslint-disable-next-line
-  }, [clients, lobs, subLobs, activeTableTab, searchTerm, searchFilter, filterDate, filterClient, itemStatusTab]);
-  // ... existing code ...
 
   // Helper to get all row keys for current table view
   const getCurrentRowKeys = () => {
