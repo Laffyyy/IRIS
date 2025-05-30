@@ -78,7 +78,11 @@ const SiteManagement = () => {
   const [showClientAddSuccessModal, setShowClientAddSuccessModal] = useState(false);
   const [clientAddSuccessDetails, setClientAddSuccessDetails] = useState({
     clientName: '',
-    siteName: ''
+    siteName: '',
+    lobName: '',
+    subLobName: '',
+    addedAllLobs: false,
+    addedAllSubLobs: false
   });
 
   const [showEditSiteConfirmModal, setShowEditSiteConfirmModal] = useState(false);
@@ -590,15 +594,32 @@ const SiteManagement = () => {
   const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
       try {
-        const clientName = clients.find(c => c.id == selectedClientId)?.name;
+        // Get client name from the availableClients array first, then fall back to clients array
+        const clientName = availableClients.find(c => {
+          return c.id == selectedClientId;
+        })?.name || 
+        clients.find(c => {
+          return c.id == selectedClientId;
+        })?.name;
+        
+        if (!clientName) {
+          console.error('Client name not found for ID:', selectedClientId);
+          setErrorMessage('Client not found. Please try again.');
+          setShowErrorModal(true);
+          setTimeout(() => {
+            setShowErrorModal(false);
+          }, 3000);
+          return;
+        }
+  
         const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
         const lobName = selectedLob ? selectedLob.name : null;
         const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
         const subLobName = selectedSubLob ? selectedSubLob.name : null;
-    
-        // Set confirmation details
+  
+        // Set confirmation details with the client name
         setClientSiteConfirmDetails({
-          clientName,
+          clientName: clientName, // Make sure this is set correctly
           lobName,
           subLobName
         });
@@ -624,15 +645,15 @@ const SiteManagement = () => {
 
   const confirmAddClient = async () => {
     try {
-      // Get the client name directly from the clients array using selectedClientId
-      const clientName = clients.find(c => c.id == selectedClientId)?.name;
+      // Use the client name from clientSiteConfirmDetails instead of searching in clients array
+      const clientName = clientSiteConfirmDetails.clientName;
       
       console.log("Checking if client is already assigned:", clientName);
       console.log("Current assignments:", existingAssignments);
       console.log("Checking against LOB:", clientSiteConfirmDetails.lobName);
       console.log("Checking against Sub LOB:", clientSiteConfirmDetails.subLobName);
       
-      // Use the clientName we just retrieved instead of clientSiteConfirmDetails.clientName
+      // Use the clientName we already have from confirmation details
       const isAlreadyAssigned = await isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
       
       console.log("Is client already assigned:", isAlreadyAssigned);
@@ -659,10 +680,27 @@ const SiteManagement = () => {
       // Close confirmation modal
       setShowAddClientSiteConfirmModal(false);
       
-      // Set success modal details and show it
+      // Determine what was added based on selections
+      let addedAllLobs = false;
+      let addedAllSubLobs = false;
+      
+      if (!clientSiteConfirmDetails.lobName) {
+        // No LOB selected means all LOBs and SubLOBs were added
+        addedAllLobs = true;
+        addedAllSubLobs = true;
+      } else if (!clientSiteConfirmDetails.subLobName) {
+        // LOB selected but no SubLOB means all SubLOBs for that LOB were added
+        addedAllSubLobs = true;
+      }
+      
+      // Set success modal details with comprehensive information
       setClientAddSuccessDetails({
-        clientName: clientName,
-        siteName: selectedSite.dSiteName
+        clientName: clientName, // Use the clientName from confirmDetails
+        siteName: selectedSite.dSiteName,
+        lobName: clientSiteConfirmDetails.lobName || '',
+        subLobName: clientSiteConfirmDetails.subLobName || '',
+        addedAllLobs: addedAllLobs,
+        addedAllSubLobs: addedAllSubLobs
       });
       setShowClientAddSuccessModal(true);
       
@@ -686,7 +724,7 @@ const SiteManagement = () => {
       
       if (error.message && error.message.toLowerCase().includes('already assigned') || 
           error.message && error.message.toLowerCase().includes('already added')) {
-        const clientName = clients.find(c => c.id == selectedClientId)?.name;
+        const clientName = clientSiteConfirmDetails.clientName; // Use from confirmDetails
         setAlreadyAddedClientName(clientName);
         setShowClientAlreadyAddedModal(true);
       } else {
@@ -2617,45 +2655,51 @@ const SiteManagement = () => {
         </div>
       )}
 
-      {showAddClientSiteConfirmModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '450px' }}>
-            <div className="modal-header">
-              <h2>Confirm Add Client to Site</h2>
-            </div>
-              <p>Are you sure you want to add:</p>
-              <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
-                <li><strong>Client:</strong> {clientSiteConfirmDetails.clientName}</li>
-                {clientSiteConfirmDetails.lobName && (
-                  <li><strong>LOB:</strong> {clientSiteConfirmDetails.lobName}</li>
+        {showAddClientSiteConfirmModal && (
+          <div className="modal-overlay">
+            <div className="modal" style={{ width: '450px' }}>
+              <div className="modal-header">
+                <h2>Confirm Add Client to Site</h2>
+              </div>
+                <p>Are you sure you want to add:</p>
+                <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+                  <li><strong>Client:</strong> {clientSiteConfirmDetails.clientName || 'No client name found'}</li>
+                  {clientSiteConfirmDetails.lobName && (
+                    <li><strong>LOB:</strong> {clientSiteConfirmDetails.lobName}</li>
+                  )}
+                  {clientSiteConfirmDetails.subLobName && (
+                    <li><strong>Sub LOB:</strong> {clientSiteConfirmDetails.subLobName}</li>
+                  )}
+                  <li><strong>To site:</strong> {selectedSite?.dSiteName}</li>
+                </ul>
+                {/* Debug info - remove this after fixing */}
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
+                  Debug: selectedClientId = {selectedClientId}, 
+                  availableClients count = {availableClients.length},
+                  clients count = {clients.length}
+                </div>
+                {!clientSiteConfirmDetails.lobName && (
+                  <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                    <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
+                  </p>
                 )}
-                {clientSiteConfirmDetails.subLobName && (
-                  <li><strong>Sub LOB:</strong> {clientSiteConfirmDetails.subLobName}</li>
+                {clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName && (
+                  <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                    <strong>Note:</strong> All available Sub LOBs will be added to the site.
+                  </p>
                 )}
-                <li><strong>To site:</strong> {selectedSite?.dSiteName}</li>
-              </ul>
-              {!clientSiteConfirmDetails.lobName && (
-                <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-                  <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
-                </p>
-              )}
-              {clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName && (
-                <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-                  <strong>Note:</strong> All available Sub LOBs will be added to the site.
-                </p>
-              )}
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => setShowAddClientSiteConfirmModal(false)}>No</button>
-              <button
-                className="save-btn"
-                onClick={confirmAddClient}
-              >
-                Yes
-              </button>
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="cancel-btn" onClick={() => setShowAddClientSiteConfirmModal(false)}>No</button>
+                <button
+                  className="save-btn"
+                  onClick={confirmAddClient}
+                >
+                  Yes
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Success Message Modal */}
       {showSuccessModal && (
@@ -2746,30 +2790,50 @@ const SiteManagement = () => {
 
         {/* Client Add Success Modal */}
         {showClientAddSuccessModal && (
-      <div className="modal-overlay">
-        <div className="modal" style={{ width: '450px', borderTop: '4px solid #38a169' }}>
-          <div className="modal-header">
-            <h2 style={{ color: '#38a169', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '18px' }}>✓</span>
-              Client Added Successfully
-            </h2>
-          </div>
-          <p>
-            Client "<strong>{clientAddSuccessDetails.clientName}</strong>" has been added to 
-            site "<strong>{clientAddSuccessDetails.siteName}</strong>" successfully.
-          </p>
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              className="save-btn"
-              style={{ backgroundColor: '#38a169' }}
-              onClick={() => setShowClientAddSuccessModal(false)}
-            >
-              OK
-            </button>
+        <div className="modal-overlay">
+          <div className="modal success-modal">
+            <div className="modal-header">
+              <h2>
+                <span className="success-icon">✓</span>
+                Client Added Successfully
+              </h2>
+            </div>
+            <p>
+              Client "<strong>{clientAddSuccessDetails.clientName}</strong>" has been successfully added to 
+              site "<strong>{clientAddSuccessDetails.siteName}</strong>".
+            </p>
+            
+            <div style={{ backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '14px' }}>What was added:</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '13px', lineHeight: '1.6', textAlign: 'left' }}>
+                <li><strong>Client:</strong> {clientAddSuccessDetails.clientName}</li>
+                
+                {clientAddSuccessDetails.addedAllLobs ? (
+                  <li><strong>LOBs:</strong> All available LOBs and their Sub LOBs</li>
+                ) : (
+                  <>
+                    <li><strong>LOB:</strong> {clientAddSuccessDetails.lobName}</li>
+                    {clientAddSuccessDetails.addedAllSubLobs ? (
+                      <li><strong>Sub LOBs:</strong> All available Sub LOBs for "{clientAddSuccessDetails.lobName}"</li>
+                    ) : (
+                      <li><strong>Sub LOB:</strong> {clientAddSuccessDetails.subLobName}</li>
+                    )}
+                  </>
+                )}
+              </ul>
+            </div>
+            
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="save-btn"
+                onClick={() => setShowClientAddSuccessModal(false)}
+              >
+                OK
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
     {/* Edit Site Error Modal */}
     {showEditErrorModal && (
