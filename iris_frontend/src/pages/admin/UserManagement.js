@@ -73,13 +73,13 @@ const validatePassword = (password) => {
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /[0-9]/.test(password);
   const hasAllowedSymbols = /[.!@_]/.test(password);
-  const hasOnlyAllowedChars = /^[A-Za-z0-9.!@_]+$/.test(password);
+  const hasOnlyAllowedChars = /^[A-Za-z0-9.!@_-]+$/.test(password);
 
   if (!hasUpperCase) errors.push('Password must contain at least one uppercase letter');
   if (!hasLowerCase) errors.push('Password must contain at least one lowercase letter');
   if (!hasNumbers) errors.push('Password must contain at least one number');
-  if (!hasAllowedSymbols) errors.push('Password must contain at least one symbol (. _ ! @)');
-  if (!hasOnlyAllowedChars) errors.push('Password can only contain letters, numbers, and symbols (. _ ! @)');
+  if (!hasAllowedSymbols) errors.push('Password must contain at least one symbol (. _ ! @-)');
+  if (!hasOnlyAllowedChars) errors.push('Password can only contain letters, numbers, and symbols (. _ -! @-)');
 
   return errors;
 };
@@ -91,7 +91,7 @@ const checkPasswordRequirements = (password) => {
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
-    symbol: /[.!@_]/.test(password)
+    symbol: /[.!@_-]/.test(password)
   };
 };
 
@@ -110,7 +110,7 @@ const PasswordRequirements = ({ password }) => {
     { key: 'uppercase', text: 'Include at least one uppercase letter' },
     { key: 'lowercase', text: 'Include at least one lowercase letter' },
     { key: 'number', text: 'Include at least one number' },
-    { key: 'symbol', text: 'Include at least one allowed symbol (. _ ! @)' }
+    { key: 'symbol', text: 'Include at least one allowed symbol (. _ ! @-)' }
   ];
 
   return (
@@ -212,8 +212,6 @@ const UserManagement = () => {
     lastLogin: formattedLastLogin || 'N/A',
     status: user.status || 'ACTIVE'
   };
-
-  console.log('User Info:', userInfo);
 
   // Bulk upload state
   const [uploadMethod, setUploadMethod] = useState('individual');
@@ -390,8 +388,6 @@ useEffect(() => {
       return { key, direction: 'asc' };
     });
   };
-
-    console.log('Full user data:', user);
 
   // Lock and Unlock handler functions
 const handleLockUsers = async () => {
@@ -733,7 +729,7 @@ const handleUnlockUsers = async () => {
           parsedUsers.push({
             employeeId: employeeId || '',
             name: name || '',
-            email: email || '',
+            email: email || ''.toLowerCase(),
             role: roleStr || '',
             reasons,
             notEditable: reasons.some(r => r.includes('database'))
@@ -780,8 +776,6 @@ const handleUnlockUsers = async () => {
           body: JSON.stringify({
             employeeIds: parsedUsers.map(u => u.employeeId),
             emails: parsedUsers.map(u => u.email),
-            adminEmployeeIds,
-            adminEmails
           })
         });
         dbDuplicates = await response.json();
@@ -797,7 +791,7 @@ const handleUnlockUsers = async () => {
         const sanitizedUser = {
           employeeId: sanitizeInput(user.employeeId, 'employeeId'),
           name: sanitizeInput(user.name, 'name'),
-          email: sanitizeInput(user.email, 'email'),
+          email: sanitizeInput(user.email, 'email').toLowerCase(),
           role: sanitizeInput(user.role, 'role')
         };
 
@@ -1064,7 +1058,7 @@ const handleDeactivateUsers = async () => {
     
     // Only allow valid characters (letters, numbers, and allowed symbols)
     if (name === 'newPassword' || name === 'confirmPassword') {
-      const sanitizedValue = value.replace(/[^A-Za-z0-9.!@_]/g, '');
+      const sanitizedValue = value.replace(/[^A-Za-z0-9.!@_-]/g, '');
       if (sanitizedValue !== value) {
         e.target.value = sanitizedValue;
         return; // Don't update state if invalid characters were prevented
@@ -1801,7 +1795,7 @@ const handleDeactivateUsers = async () => {
     setAddUserMessage(null);
     // Sanitize all fields before validation
     const employeeId = sanitizeIndividualInput(employeeIdRef.current.value, 'employeeId');
-    const email = sanitizeIndividualInput(emailRef.current.value, 'email');
+    const email = sanitizeIndividualInput(emailRef.current.value, 'email').toLowerCase();
     const name = sanitizeIndividualInput(nameRef.current.value, 'name');
     const role = roleRef.current.value;
     const errors = {};
@@ -1855,13 +1849,17 @@ const handleDeactivateUsers = async () => {
           users: [{ employeeId, email, name, role, password: 'defaultPass123', createdBy: user.employeeId, status: 'FIRST-TIME' }]
         })
       });
+
+      const data = await response.json();
       if (!response.ok) {
-        let msg = 'Failed to add user.';
-        let detail = '';
-        try { const data = await response.json(); if (data && data.message) { msg = data.message; detail = data.message; } } catch {}
-        setAddUserMessage({ type: 'error', errors: { general: msg } });
-        setAddUserErrorDetail(detail || msg);
-        setShowAddUserErrorModal(true);
+        // If backend returns a field, show error under that field
+        if (data.field && data.message) {
+          setAddUserMessage({ type: 'error', errors: { [data.field]: data.message } });
+        } else if (data.message) {
+          setAddUserMessage({ type: 'error', errors: { general: data.message } });
+        } else {
+          setAddUserMessage({ type: 'error', errors: { general: 'Failed to add user.' } });
+        }
         return;
       }
       setAddUserMessage({ type: 'success', text: 'User added successfully!' });
@@ -3433,14 +3431,14 @@ const handleDeactivateUsers = async () => {
                       maxLength={50}
                       onInput={e => {
                         let v = e.target.value;
-                        v = v.replace(/[^A-Za-z0-9\-_. ,]/g, ''); // Only allowed chars
+                        v = v.replace(/[^A-Za-z\-_. ,]/g, ''); // Only allow letters and allowed special chars, NO numbers
                         v = v.replace(/^[ ]+/, ''); // No space at start
                         v = v.replace(/([\-_. ,])\1+/g, '$1'); // No consecutive special chars
                         v = v.replace(/ +/g, ' '); // Collapse multiple spaces
                         v = v.replace(/^[\-_. ,]+/, ''); // No special char at start
-                        // Allow a space after a valid char (not just in the middle)
+                        // Prevent consecutive spaces at end
                         if (v.length > 1 && v[v.length - 1] === ' ' && v[v.length - 2] === ' ') {
-                          v = v.slice(0, -1); // Prevent consecutive spaces
+                          v = v.slice(0, -1);
                         }
                         e.target.value = v;
                       }}
@@ -3931,19 +3929,6 @@ const handleDeactivateUsers = async () => {
               <h2>{restoreResultSuccess ? 'Restoration Successful' : 'Restoration Failed'}</h2>
             </div>
             <p>{restoreResultMessage}</p>
-            {restoreResultSuccess && restoredDefaultPasswords.length > 0 && (
-              <div style={{ margin: '12px 0', color: '#0a7', fontWeight: 500, fontSize: 15 }}>
-                Default password(s) for restored user(s):
-                <ul style={{ margin: '8px 0 0 18px', color: '#333', fontWeight: 400, fontSize: 14 }}>
-                  {restoredDefaultPasswords.map((item, idx) => (
-                    <li key={item.userId || idx}>
-                      <b>{item.userId}:</b> <span style={{ fontFamily: 'monospace' }}>{item.defaultPassword}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div style={{ color: '#b00', fontSize: 13, marginTop: 6 }}><b>Note:</b> Remove this in production!</div>
-              </div>
-            )}
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="save-btn" ref={restoreResultOkBtnRef} onClick={() => setShowRestoreResultModal(false)} onKeyDown={e => { if (e.key === 'Enter') e.target.click(); }}>OK</button>
             </div>
@@ -4003,6 +3988,7 @@ const handleDeactivateUsers = async () => {
                   <div className="employee-id-label-row">
                     <label htmlFor="employee-id-input">
                       Employee ID:
+                      <FaLock className="locked-indicator" title="Field cannot be changed" style={{ marginLeft: 8, color: '#888' }} />
                     </label>
                   </div>
                   <input
@@ -4032,19 +4018,17 @@ const handleDeactivateUsers = async () => {
                     name="email"
                     value={currentUser.dEmail}
                     onInput={e => {
-                      // Remove all whitespace, consecutive special chars, and special char as first char
-                      e.target.value = e.target.value
-                        .replace(/\s+/g, '')
-                        .replace(/([@\-_. ,])\1+/g, '$1')
-                        .replace(/^[@\-_. ,]+/, '');
+                      // Remove all whitespace immediately as user types
+                      e.target.value = e.target.value.replace(/\s+/g, '');
                     }}
-                    onChange={(e) => {
-                      let value = e.target.value
-                        .replace(/[^A-Za-z0-9@\-_. ,]/g, '') // Only allowed chars
-                        .replace(/\s+/g, '') // Remove all whitespace
-                        .replace(/([@\-_. ,])\1+/g, '$1') // No consecutive special chars
-                        .replace(/^[@\-_. ,]+/, ''); // No special char as first char
-                      setCurrentUser({...currentUser, dEmail: value});
+                    onChange={e => {
+                      const raw = e.target.value;
+                      // Remove all whitespace, collapse consecutive special chars, no special char at start
+                      let value = raw
+                        .replace(/\s+/g, '') // Remove all whitespace (no spaces allowed)
+                        .replace(/([@\-_.\,])\1+/g, '$1') // No consecutive special chars
+                        .replace(/^[@\-_.\,]+/, ''); // No special char as first char
+                      setCurrentUser({ ...currentUser, dEmail: value.toLowerCase() });
                       setEditFieldTouched(prev => ({ ...prev, dEmail: true }));
                       if (editUserErrors.dEmail) {
                         setEditUserErrors(prev => ({ ...prev, dEmail: undefined }));
@@ -4066,27 +4050,28 @@ const handleDeactivateUsers = async () => {
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label>Name:</label>
                   <input
-                    type="text"
-                    name="name"
-                    value={currentUser.dName}
-                    onChange={e => {
-                      let value = e.target.value
-                        .replace(/[^A-Za-z0-9\-_. ,]/g, '') // Only allowed chars (no @)
-                        .replace(/([\-_. ,])\1+/g, '$1') // No consecutive special chars
-                        .replace(/^[\-_. ,]+/, ''); // No special char as first char
-                      setCurrentUser({...currentUser, dName: value});
-                      setEditFieldTouched(prev => ({ ...prev, dName: true }));
-                      if (editUserErrors.dName) {
-                        setEditUserErrors(prev => ({ ...prev, dName: undefined }));
-                      }
-                    }}
-                    onBlur={() => setEditFieldTouched(prev => ({ ...prev, dName: true }))}
-                    className={editUserErrors.dName ? 'error-input' : ''}
-                    required
-                    maxLength={50}
-                    style={{ borderColor: editUserErrors.dName ? '#ff4444' : undefined }}
-                    onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
-                  />
+                  type="text"
+                  name="name"
+                  value={currentUser.dName}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    // Only allow letters and allowed special chars, NO numbers
+                    let value = raw.replace(/[^A-Za-z\-_. ,]/g, '');
+                    value = value.replace(/([\-_. ,])\1+/g, '$1');
+                    value = value.replace(/^[\-_. ,]+/, '');
+                    setCurrentUser({...currentUser, dName: value});
+                    setEditFieldTouched(prev => ({ ...prev, dName: true }));
+                    if (editUserErrors.dName) {
+                      setEditUserErrors(prev => ({ ...prev, dName: undefined }));
+                    }
+                  }}
+                  onBlur={() => setEditFieldTouched(prev => ({ ...prev, dName: true }))}
+                  className={editUserErrors.dName ? 'error-input' : ''}
+                  required
+                  maxLength={50}
+                  style={{ borderColor: editUserErrors.dName ? '#ff4444' : undefined }}
+                  onKeyDown={e => { if (e.key === 'Enter') document.getElementById('save-changes-btn')?.click(); }}
+                />
                   {(editFormSubmitted || editFieldTouched.dName) && editUserErrors.dName && (
                     <div className="error-message" style={{ color: '#ff4444', fontSize: '0.9em', marginTop: '4px' }}>
                       {editUserErrors.dName}
@@ -4094,16 +4079,33 @@ const handleDeactivateUsers = async () => {
                   )}
                 </div>
                 <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label>Role:</label>
+                  <label>
+                    Role:
+                    {activeTable === 'admin' && (
+                      <FaLock className="locked-indicator" title="Field cannot be changed" style={{ marginLeft: 8, color: '#888' }} />
+                    )}
+                  </label>
                   <select
                     name="role"
                     value={currentUser.dUser_Type}
                     onChange={(e) => setCurrentUser({...currentUser, dUser_Type: e.target.value})}
+                    disabled={activeTable === 'admin'}
+                    style={
+                      activeTable === 'admin'
+                        ? { background: '#f5f5f5', color: '#666', cursor: 'not-allowed' }
+                        : {}
+                    }
                   >
+                  {activeTable === 'users' && (
+                    <>
+                      <option value="HR">HR</option>
+                      <option value="REPORTS">REPORTS</option>
+                      <option value="CNB">CNB</option>
+                    </>
+                  )}
+                  {activeTable === 'admin' && (
                     <option value="ADMIN">ADMIN</option>
-                    <option value="HR">HR</option>
-                    <option value="REPORTS">REPORTS</option>
-                    <option value="CNB">CNB</option>
+                  )}
                   </select>
                   {editUserErrors.dUser_Type && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_Type}</div>}
                   {editFieldTouched.dUser_Type && editUserErrors.dUser_Type && (

@@ -63,7 +63,7 @@ exports.findExistingEmployeeIdsEmailsOrNames = async (employeeIds, emails, exclu
   let query = `SELECT dUser_ID, dEmail FROM iris.tbl_login WHERE (dUser_ID IN (?) OR dEmail IN (?))`;
   const params = [employeeIds, emails];
   if (excludeLoginId) {
-    query += ' AND dLogin_ID != ?';
+    query += ' AND dLoginEntry_ID != ?';
     params.push(excludeLoginId);
   }
   const [rows] = await pool.query(query, params);
@@ -219,10 +219,10 @@ exports.findExistingAdminEmployeeIdsEmails = async (employeeIds, emails, exclude
   if ((!employeeIds || employeeIds.length === 0) && (!emails || emails.length === 0)) return [];
   let query = `SELECT dUser_ID, dEmail FROM iris.tbl_admin WHERE (dUser_ID IN (?) OR dEmail IN (?))`;
   const params = [employeeIds.length ? employeeIds : [''], emails.length ? emails : ['']];
-  if (excludeLoginId) {
-    query += ' AND dAdmin_ID != ?';
-    params.push(excludeLoginId);
-  }
+    if (excludeLoginId) {
+      query += ' AND dAdminEntry_ID != ?'; // <-- Fix here
+      params.push(excludeLoginId);
+    }
   const [rows] = await pool.query(query, params);
   return rows;
 };
@@ -247,6 +247,7 @@ exports.deactivateUsers = async (userIds) => {
       userIds
     )
   ]);
+  
 };
 
 exports.restoreUsers = async (userIds) => {

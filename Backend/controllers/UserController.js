@@ -83,7 +83,15 @@ exports.createUser = async (req, res) => {
     res.status(201).json({ id: userId, message: 'User created successfully' });
     broadcastUserUpdate();
   } catch (error) {
-    console.error('Error creating user:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      if (error.message.includes('dEmail_UNIQUE')) {
+        return res.status(400).json({ field: 'email', message: 'Duplicate email in database.' });
+      }
+      if (error.message.includes('dUser_ID_UNIQUE')) {
+        return res.status(400).json({ field: 'employeeId', message: 'Duplicate Employee ID in database.' });
+      }
+      return res.status(400).json({ message: 'Duplicate entry in database.' });
+    }
     res.status(500).json({ message: 'Database error' });
   }
 };
@@ -103,7 +111,7 @@ exports.checkDuplicates = async (req, res) => {
     });
     res.json(allExisting);
   } catch (err) {
-    res.status(500).json({ message: err.sqlMessage || err.message || 'Internal Server Error' });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
@@ -184,13 +192,13 @@ exports.addUsersBulk = async (req, res) => {
     broadcastUserUpdate();
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: err.sqlMessage || err.message || 'Internal Server Error' });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
 exports.deleteUsers = async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const { userIds, userType, actionBy } = req.body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for deletion' });
@@ -298,7 +306,7 @@ exports.deleteBatchUsers = async (req, res) => {
 
 exports.restoreUsers = async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const { userIds, actionBy } = req.body;
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for restoration' });
     }
@@ -350,7 +358,7 @@ exports.lockUsers = async (req, res) => {
 
 exports.unlockUsers = async (req, res) => {
   try {
-    const { userIds } = req.body;
+    const { userIds, actionBy } = req.body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for unlocking' });
@@ -387,6 +395,11 @@ exports.updateUser = async (req, res) => {
     }
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No fields to update.' });
+    }
+
+    if (updateData.password) {
+      updateData.hashedPassword = await bcrypt.hash(updateData.password, 10);
+      delete updateData.password;
     }
     // Check if user exists in tbl_login
     // Use the explicit isAdmin flag from the request
