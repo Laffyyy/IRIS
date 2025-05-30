@@ -802,12 +802,12 @@ const SiteManagement = () => {
    * Handles site row checkbox selection with shift-click support
    */
   const handleSiteSelection = (siteId, index, event) => {
-    // If this is a shift-click that was already handled by onMouseDown, skip onChange
-    if (event?.shiftKey && event?.type === 'change' && shiftClickInProgress.current) {
+    // If this is the onChange event from a shift-click, skip processing
+    if (event?.type === 'change' && shiftClickInProgress.current) {
       shiftClickInProgress.current = false; // Reset the flag
       return;
     }
-
+  
     if (event?.shiftKey && lastSelectedSiteIndex !== null) {
       // Shift-click: select range
       const startIndex = Math.min(lastSelectedSiteIndex, index);
@@ -859,12 +859,12 @@ const SiteManagement = () => {
    * Handles client-site row checkbox selection with shift-click support
    */
   const handleClientSiteSelection = (clientSiteId, index, event) => {
-    // If this is a shift-click that was already handled by onMouseDown, skip onChange
-    if (event?.shiftKey && event?.type === 'change' && clientSiteShiftClickInProgress.current) {
+    // If this is the onChange event from a shift-click, skip processing
+    if (event?.type === 'change' && clientSiteShiftClickInProgress.current) {
       clientSiteShiftClickInProgress.current = false; // Reset the flag
       return;
     }
-
+  
     // Get the client site record
     const clientSite = siteClients.find(cs => cs.dClientSite_ID === clientSiteId);
     
