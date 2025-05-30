@@ -840,8 +840,17 @@ const SiteManagement = () => {
   const handleBulkDeactivateClientSites = async () => {
     if (selectedClientSiteIds.length === 0) return;
     
+    // Get the actual client-site objects for the selected IDs
+    const selectedClientSites = siteClients.filter(clientSite => 
+      selectedClientSiteIds.includes(clientSite.dClientSite_ID)
+    );
+    
     setDeleteType('bulk-deactivate-client-sites');
-    setItemToDelete({ count: selectedClientSiteIds.length });
+    setItemToDelete({ 
+      count: selectedClientSiteIds.length,
+      type: 'bulk-deactivate-client-sites',
+      items: selectedClientSites
+    });
     setShowDeleteModal(true);
   };
 
@@ -859,9 +868,17 @@ const SiteManagement = () => {
       return;
     }
     
-    // Continue with valid IDs
+    // Get the actual client-site objects for the valid IDs
+    const selectedClientSites = siteClients.filter(clientSite => 
+      validClientSiteIds.includes(clientSite.dClientSite_ID)
+    );
+    
     setDeleteType('bulk-reactivate-client-sites');
-    setItemToDelete({ count: validClientSiteIds.length });
+    setItemToDelete({ 
+      count: validClientSiteIds.length,
+      type: 'bulk-reactivate-client-sites',
+      items: selectedClientSites
+    });
     setShowDeleteModal(true);
   };
 
@@ -1054,8 +1071,15 @@ const SiteManagement = () => {
   const handleBulkDeactivateSites = async () => {
     if (selectedSiteIds.length === 0) return;
     
+    // Get the actual site objects for the selected IDs
+    const selectedSites = sites.filter(site => selectedSiteIds.includes(site.dSite_ID));
+    
     setDeleteType('bulk-sites');
-    setItemToDelete({ count: selectedSiteIds.length });
+    setItemToDelete({ 
+      count: selectedSiteIds.length,
+      type: 'sites',
+      items: selectedSites
+    });
     setShowDeleteModal(true);
   };
   
@@ -1579,8 +1603,15 @@ const SiteManagement = () => {
   const handleBulkReactivateSites = async () => {
     if (selectedSiteIds.length === 0) return;
     
+    // Get the actual site objects for the selected IDs
+    const selectedSites = sites.filter(site => selectedSiteIds.includes(site.dSite_ID));
+    
     setDeleteType('bulk-reactivate-sites');
-    setItemToDelete({ count: selectedSiteIds.length });
+    setItemToDelete({ 
+      count: selectedSiteIds.length,
+      type: 'sites',
+      items: selectedSites
+    });
     setShowDeleteModal(true);
   };
 
@@ -1610,6 +1641,72 @@ const SiteManagement = () => {
     setSelectAllSites(false);
     setLastSelectedSiteIndex(null);
   }, [siteStatusTab, activeSites, deactivatedSites]);
+
+  const renderSummaryBox = (message, selectedCount) => {
+    // If message contains items to be processed, show them in a table
+    if (message && typeof message === 'object' && message.items && Array.isArray(message.items)) {
+      return (
+        <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '13px'
+          }}>
+            <thead>
+              <tr style={{ 
+                backgroundColor: '#f8f9fa',
+                borderBottom: '1px solid #e2e8f0'
+              }}>
+                {/* Adjust headers based on the type of items */}
+                {message.type === 'sites' && (
+                  <>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Site ID</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Site Name</th>
+                  </>
+                )}
+                {(message.type === 'client-sites' || message.type === 'bulk-deactivate-client-sites' || message.type === 'bulk-reactivate-client-sites') && (
+                  <>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>ID</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Client</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>LOB</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Sub LOB</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Site</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {message.items.map((item, index) => (
+                <tr key={index} style={{ 
+                  borderBottom: index < message.items.length - 1 ? '1px solid #f0f0f0' : 'none',
+                  backgroundColor: index % 2 === 0 ? '#fff' : '#fafbfc'
+                }}>
+                  {message.type === 'sites' && (
+                    <>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dSite_ID}</td>
+                      <td style={{ padding: '8px 12px', color: '#333' }}>{item.dSiteName}</td>
+                    </>
+                  )}
+                  {(message.type === 'client-sites' || message.type === 'bulk-deactivate-client-sites' || message.type === 'bulk-reactivate-client-sites') && (
+                    <>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dClientSite_ID}</td>
+                      <td style={{ padding: '8px 12px', color: '#333' }}>{item.dClientName}</td>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dLOB || 'No LOB'}</td>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dSubLOB || 'No Sub LOB'}</td>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dSiteName}</td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    
+    // Fallback to text display for other message types
+    return message;
+  };
 
   return (
     <div className="site-management-container">
@@ -2467,17 +2564,11 @@ const SiteManagement = () => {
                   You are about to deactivate <strong>{itemToDelete?.count} selected sites</strong>.
                   <br />This will hide them from the sites list but preserve their data.
                 </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {sites
-                    .filter(site => selectedSiteIds.includes(site.dSite_ID))
-                    .map(site => (
-                      <div key={site.dSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">Site ID: {site.dSite_ID} | {site.dSiteName}</div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                {itemToDelete?.items && (
+                  <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                    {renderSummaryBox(itemToDelete)}
+                  </div>
+                )}
               </>
             )}
             {deleteType === 'bulk-clients' && (
@@ -2492,25 +2583,20 @@ const SiteManagement = () => {
                 <br />This will make it visible in the active sites list.
               </p>
             )}
+
             {deleteType === 'bulk-reactivate-sites' && (
-              <>
-                <p>
-                  You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
-                  <br />This will make them visible in the active sites list.
-                </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {sites
-                    .filter(site => selectedSiteIds.includes(site.dSite_ID))
-                    .map(site => (
-                      <div key={site.dSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">Site ID: {site.dSite_ID} | {site.dSiteName}</div>
-                        </div>
-                      </div>
-                    ))}
+            <>
+              <p>
+                You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
+                <br />This will make them visible in the active sites list.
+              </p>
+              {itemToDelete?.items && (
+                <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                  {renderSummaryBox(itemToDelete)}
                 </div>
-              </>
-            )}
+              )}
+            </>
+          )}
 
             {deleteType === 'client-site' && (
               <p>
@@ -2530,42 +2616,26 @@ const SiteManagement = () => {
                   You are about to deactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
                   <br />This will hide them from the active client-site assignments list but preserve their data.
                 </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {siteClients
-                    .filter(clientSite => selectedClientSiteIds.includes(clientSite.dClientSite_ID))
-                    .map(clientSite => (
-                      <div key={clientSite.dClientSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">
-                            ID: {clientSite.dClientSite_ID} | {clientSite.dClientName} | {clientSite.dLOB || 'No LOB'} | {clientSite.dSubLOB || 'No Sub LOB'} | {clientSite.dSiteName}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                {itemToDelete?.items && (
+                  <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                    {renderSummaryBox(itemToDelete)}
+                  </div>
+                )}
               </>
             )}
-            {deleteType === 'bulk-reactivate-client-sites' && (
-              <>
-                <p>
-                  You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
-                  <br />This will make them visible in the active client-site assignments list.
-                </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {siteClients
-                    .filter(clientSite => selectedClientSiteIds.includes(clientSite.dClientSite_ID))
-                    .map(clientSite => (
-                      <div key={clientSite.dClientSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">
-                            ID: {clientSite.dClientSite_ID} | {clientSite.dClientName} | {clientSite.dLOB || 'No LOB'} | {clientSite.dSubLOB || 'No Sub LOB'} | {clientSite.dSiteName}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </>
-            )}
+              {deleteType === 'bulk-reactivate-client-sites' && (
+                <>
+                  <p>
+                    You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                    <br />This will make them visible in the active client-site assignments list.
+                  </p>
+                  {itemToDelete?.items && (
+                    <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                      {renderSummaryBox(itemToDelete)}
+                    </div>
+                  )}
+                </>
+              )}
             
             <div className="confirmation-input" style={{ textAlign: "center" }}>
               <p style={{ textAlign: "center", marginBottom: "15px" }}>Type <strong>CONFIRM</strong> to proceed:</p>
