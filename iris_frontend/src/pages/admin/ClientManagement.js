@@ -1673,11 +1673,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             clientName: client.name
           });
           if (response.data) {
-            // Fetch both counts
-            await Promise.all([
-              fetchClientData('ACTIVE'),
-              fetchClientData('DEACTIVATED')
-            ]);
+            // Refresh current tab data AND update both counts
+            await fetchClientData(itemStatusTab);
+            // Also update the other tab's count
+            if (itemStatusTab === 'ACTIVE') {
+              try {
+                const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+                const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+                setDeactivatedCount(deactivatedCount);
+              } catch (err) {
+                console.error('Error fetching deactivated count:', err);
+              }
+            } else {
+              try {
+                const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+                const activeCount = calculateRowCount(activeResponse.data.data);
+                setActiveCount(activeCount);
+              } catch (err) {
+                console.error('Error fetching active count:', err);
+              }
+            }
             showToast('Client deactivated successfully!');
           }
         },
@@ -1712,11 +1727,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             lobName: lob.name
           });
           if (response.data) {
-            // Fetch both counts
-            await Promise.all([
-              fetchClientData('ACTIVE'),
-              fetchClientData('DEACTIVATED')
-            ]);
+            // Refresh current tab data AND update both counts
+            await fetchClientData(itemStatusTab);
+            // Also update the other tab's count
+            if (itemStatusTab === 'ACTIVE') {
+              try {
+                const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+                const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+                setDeactivatedCount(deactivatedCount);
+              } catch (err) {
+                console.error('Error fetching deactivated count:', err);
+              }
+            } else {
+              try {
+                const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+                const activeCount = calculateRowCount(activeResponse.data.data);
+                setActiveCount(activeCount);
+              } catch (err) {
+                console.error('Error fetching active count:', err);
+              }
+            }
             showToast('LOB deactivated successfully!');
           }
         },
@@ -1757,11 +1787,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             subLOBName: subLob.name
           });
           if (response.data) {
-            // Fetch both counts
-            await Promise.all([
-              fetchClientData('ACTIVE'),
-              fetchClientData('DEACTIVATED')
-            ]);
+            // Refresh current tab data AND update both counts
+            await fetchClientData(itemStatusTab);
+            // Also update the other tab's count
+            if (itemStatusTab === 'ACTIVE') {
+              try {
+                const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+                const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+                setDeactivatedCount(deactivatedCount);
+              } catch (err) {
+                console.error('Error fetching deactivated count:', err);
+              }
+            } else {
+              try {
+                const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+                const activeCount = calculateRowCount(activeResponse.data.data);
+                setActiveCount(activeCount);
+              } catch (err) {
+                console.error('Error fetching active count:', err);
+              }
+            }
             showToast('Sub LOB deactivated successfully!');
           }
         },
@@ -1845,11 +1890,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             clientName: client.name
           });
           if (response.data) {
-            // Fetch both counts
-            await Promise.all([
-              fetchClientData('ACTIVE'),
-              fetchClientData('DEACTIVATED')
-            ]);
+            // Refresh current tab data AND update both counts
+            await fetchClientData(itemStatusTab);
+            // Also update the other tab's count
+            if (itemStatusTab === 'ACTIVE') {
+              try {
+                const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+                const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+                setDeactivatedCount(deactivatedCount);
+              } catch (err) {
+                console.error('Error fetching deactivated count:', err);
+              }
+            } else {
+              try {
+                const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+                const activeCount = calculateRowCount(activeResponse.data.data);
+                setActiveCount(activeCount);
+              } catch (err) {
+                console.error('Error fetching active count:', err);
+              }
+            }
             showToast('Client reactivated successfully!');
           }
         },
@@ -1884,11 +1944,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             lobName: lob.name
           });
           if (response.data) {
-            // Fetch both counts
-            await Promise.all([
-              fetchClientData('ACTIVE'),
-              fetchClientData('DEACTIVATED')
-            ]);
+            // Refresh current tab data AND update both counts
+            await fetchClientData(itemStatusTab);
+            // Also update the other tab's count
+            if (itemStatusTab === 'ACTIVE') {
+              try {
+                const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+                const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+                setDeactivatedCount(deactivatedCount);
+              } catch (err) {
+                console.error('Error fetching deactivated count:', err);
+              }
+            } else {
+              try {
+                const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+                const activeCount = calculateRowCount(activeResponse.data.data);
+                setActiveCount(activeCount);
+              } catch (err) {
+                console.error('Error fetching active count:', err);
+              }
+            }
             showToast('LOB reactivated successfully!');
           }
         },
@@ -1929,11 +2004,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
             subLOBName: subLob.name
           });
           if (response.data) {
-            // Fetch both counts
-            await Promise.all([
-              fetchClientData('ACTIVE'),
-              fetchClientData('DEACTIVATED')
-            ]);
+            // Refresh current tab data AND update both counts
+            await fetchClientData(itemStatusTab);
+            // Also update the other tab's count
+            if (itemStatusTab === 'ACTIVE') {
+              try {
+                const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+                const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+                setDeactivatedCount(deactivatedCount);
+              } catch (err) {
+                console.error('Error fetching deactivated count:', err);
+              }
+            } else {
+              try {
+                const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+                const activeCount = calculateRowCount(activeResponse.data.data);
+                setActiveCount(activeCount);
+              } catch (err) {
+                console.error('Error fetching active count:', err);
+              }
+            }
             showToast('Sub LOB reactivated successfully!');
           }
         },
@@ -2141,11 +2231,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
   
           await Promise.all(deactivationPromises);
           
-          // Fetch both counts
-          await Promise.all([
-            fetchClientData('ACTIVE'),
-            fetchClientData('DEACTIVATED')
-          ]);
+          // Refresh current tab data AND update both counts
+          await fetchClientData(itemStatusTab);
+          // Also update the other tab's count
+          if (itemStatusTab === 'ACTIVE') {
+            try {
+              const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+              const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+              setDeactivatedCount(deactivatedCount);
+            } catch (err) {
+              console.error('Error fetching deactivated count:', err);
+            }
+          } else {
+            try {
+              const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+              const activeCount = calculateRowCount(activeResponse.data.data);
+              setActiveCount(activeCount);
+            } catch (err) {
+              console.error('Error fetching active count:', err);
+            }
+          }
           
           setSelectedRows(new Set());
           setSelectAll(false);
@@ -2220,11 +2325,26 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
   
           await Promise.all(reactivationPromises);
           
-          // Fetch both counts
-          await Promise.all([
-            fetchClientData('ACTIVE'),
-            fetchClientData('DEACTIVATED')
-          ]);
+          // Refresh current tab data AND update both counts
+          await fetchClientData(itemStatusTab);
+          // Also update the other tab's count
+          if (itemStatusTab === 'ACTIVE') {
+            try {
+              const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
+              const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
+              setDeactivatedCount(deactivatedCount);
+            } catch (err) {
+              console.error('Error fetching deactivated count:', err);
+            }
+          } else {
+            try {
+              const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
+              const activeCount = calculateRowCount(activeResponse.data.data);
+              setActiveCount(activeCount);
+            } catch (err) {
+              console.error('Error fetching active count:', err);
+            }
+          }
           
           setSelectedRows(new Set());
           setSelectAll(false);
