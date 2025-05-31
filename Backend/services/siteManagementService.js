@@ -21,8 +21,8 @@ class SiteManagementService {
           
           // Insert log entry
           await db.query(
-              'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "CREATED", "SYSTEM", ?)',
-              [siteId, timestamp]
+              'INSERT INTO tbl_logs_admin (dActionLocation_ID, dActionLocation, dActionType, dActionBy, tActionAt) VALUES (?, "SITE", "CREATED", ? , ?)',
+              [siteId, userID, timestamp]
           );
           
           // Commit transaction
