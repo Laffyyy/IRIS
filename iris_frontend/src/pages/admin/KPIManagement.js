@@ -3,11 +3,14 @@ import axios from 'axios';
 import React, { useState, useCallback, useEffect } from 'react';
 import './KPIManagement.css';
 import { FaTrash, FaPencilAlt, FaTimes, FaPlus, FaTimesCircle, FaUpload, FaFileDownload, FaSearch, FaCheckCircle, FaCheck, FaBan, FaRedo } from 'react-icons/fa';
+import * as XLSX from 'xlsx';
+import { useUser } from '../../contexts/UserContext';  
 
 const BASE_URL = 'http://localhost:3000/api/kpis';  // Change from /admin/kpis to /api/kpis
 
 const KPIManagement = () => {
 
+  const userId = localStorage.getItem('userId');
   const categories = ['Compliance', 'Customer Experience', 'Employee Performance', 'Finance', 'Healthcare', 'Logistics', 'Operational Efficiency', 'Sales', 'Tech'];
   const behaviors = ['Lower the Better', 'Higher the Better', 'Hit or Miss'];
 
@@ -77,7 +80,7 @@ const KPIManagement = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedKpi, setSelectedKpi] = useState(null);
   
-  const ALLOWED_FILE_PATTERN = /^kpi_upload_\d{8}\.csv$/;
+  const ALLOWED_FILE_PATTERN = /^kpi_upload_\d{8}\.(csv|xlsx)$/;
 
   const [isDuplicateName, setIsDuplicateName] = useState(false);
 
@@ -176,7 +179,7 @@ const KPIManagement = () => {
               dCategory: kpiToAdd.category,
               dDescription: kpiToAdd.description || '',
               dCalculationBehavior: kpiToAdd.behavior,
-              dCreatedBy: '2505170018'
+              dCreatedBy: userId 
           };
 
           const response = await fetch(BASE_URL, {
@@ -239,37 +242,37 @@ const KPIManagement = () => {
     };
 
   const handleDrop = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        const file = e.dataTransfer.files[0];
-        
-        // Validate file extension
-        if (!file.name.endsWith('.csv')) {
-          setValidationMessage('Please upload a CSV file');
-          setShowValidationModal(true);
-          return;
-        }
-
-        // Validate filename pattern
-        if (!ALLOWED_FILE_PATTERN.test(file.name)) {
-          setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
-          setShowValidationModal(true);
-          return;
-        }
-
-        // Validate file size (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          setValidationMessage('File size exceeds 5MB limit');
-          setShowValidationModal(true);
-          return;
-        }
-
-        handleFile(file);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      
+      // Validate file extension for both CSV and XLSX
+      if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
+        setValidationMessage('Please upload a CSV or XLSX file');
+        setShowValidationModal(true);
+        return;
       }
-    };
+
+      // Validate filename pattern
+      if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+        setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv or kpi_upload_YYYYMMDD.xlsx');
+        setShowValidationModal(true);
+        return;
+      }
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationMessage('File size exceeds 5MB limit');
+        setShowValidationModal(true);
+        return;
+      }
+
+      handleFile(file);
+    }
+  };
 
   const handleFileChange = (e) => {
       if (e.target.files && e.target.files[0]) {
@@ -289,46 +292,149 @@ const KPIManagement = () => {
     };
 
   const handleFile = async (file) => {
-    try {
-      if (!ALLOWED_FILE_PATTERN.test(file.name)) {
-        setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv');
-        setShowValidationModal(true);
-        resetBulkUploadState();
-        return;
-      }
+  try {
+    if (!ALLOWED_FILE_PATTERN.test(file.name)) {
+      setValidationMessage('Invalid filename format. Please use: kpi_upload_YYYYMMDD.csv or kpi_upload_YYYYMMDD.xlsx');
+      setShowValidationModal(true);
+      resetBulkUploadState();
+      return;
+    }
 
+    if (file.name.endsWith('.csv')) {
+      // Existing CSV handling
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
         const { validKpis, invalidKpis } = processFileContent(text);
-
-        setFile(file);
-        setBulkKpis(validKpis);
-        setInvalidKpis(invalidKpis);
-        
-        // Show appropriate tab based on results
-        if (invalidKpis.length > 0) {
-          setPreviewTab('invalid');
-        } else if (validKpis.length > 0) {
-          setPreviewTab('valid');
-        }
-
-        // If no valid KPIs at all, show message
-        if (validKpis.length === 0 && invalidKpis.length === 0) {
-          setValidationMessage('No valid KPIs found in the file');
-          setShowValidationModal(true);
-          resetBulkUploadState();
-        }
+        handleProcessedData(validKpis, invalidKpis, file);
       };
-
       reader.readAsText(file);
+    } else {
+      // New XLSX handling
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        
+        // Process Excel data
+        const { validKpis, invalidKpis } = processExcelContent(jsonData);
+        handleProcessedData(validKpis, invalidKpis, file);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  } catch (error) {
+    console.error('Error processing file:', error);
+    setValidationMessage('Error processing file. Please check the file format.');
+    setShowValidationModal(true);
+    resetBulkUploadState();
+  }
+};
+
+const processExcelContent = (jsonData) => {
+  try {
+    if (!jsonData || jsonData.length < 2) {
+      throw new Error('Invalid Excel structure');
+    }
+
+    const headers = jsonData[0].map(header => header?.trim() || '');
+    const structureValidation = validateCSVStructure(headers);
+    
+    if (!structureValidation.isValid) {
+      showAlert(structureValidation.errors.length > 0 ? structureValidation.errors : 'Invalid Excel structure.');
+      return { validKpis: [], invalidKpis: [] };
+    }
+
+    const validKpis = [];
+    const invalidKpis = [];
+    const existingNames = new Set(
+      kpis
+        .filter(kpi => kpi && kpi.dKPI_Name)
+        .map(kpi => kpi.dKPI_Name.toLowerCase().trim())
+    );
+    
+    const namesInFile = new Map();
+
+    // First pass: collect names
+    jsonData.slice(1).forEach(row => {
+      if (!row[0]) return;
+      const name = row[0]?.toString().trim() || '';
+      if (name) {
+        namesInFile.set(name.toLowerCase(), (namesInFile.get(name.toLowerCase()) || 0) + 1);
+      }
+    });
+
+    // Second pass: validate and categorize
+    jsonData.slice(1).forEach(row => {
+      if (!row[0]) return;
+      const name = row[0]?.toString().trim() || '';
+      const category = row[1]?.toString().trim() || '';
+      const behavior = row[2]?.toString().trim() || '';
+      const description = row[3]?.toString().trim() || '';
+
+      const kpiData = { name, category, behavior, description };
+      let isValid = true;
+      let reason = '';
+
+      // Validation checks
+      if (!name) {
+        isValid = false;
+        reason = 'Missing KPI name';
+      } else if (existingNames.has(name.toLowerCase())) {
+        isValid = false;
+        reason = 'KPI name already exists in database';
+      } else if (namesInFile.get(name.toLowerCase()) > 1) {
+        isValid = false;
+        reason = 'Duplicate KPI name in file';
+      } else if (!category) {
+        isValid = false;
+        reason = 'Missing category';
+      } else if (!categories.includes(category)) {
+        isValid = false;
+        reason = 'Invalid category';
+      } else if (!behavior) {
+        isValid = false;
+        reason = 'Missing behavior';
+      } else if (!behaviors.includes(behavior)) {
+        isValid = false;
+        reason = 'Invalid behavior';
+      }
+
+      if (isValid) {
+        validKpis.push(kpiData);
+      } else {
+        invalidKpis.push({ ...kpiData, reason });
+      }
+    });
+
+      return { validKpis, invalidKpis };
     } catch (error) {
-      console.error('Error processing file:', error);
-      setValidationMessage('Error processing file. Please check the file format.');
+      console.error('Error processing Excel:', error);
+      showAlert('Error processing file. Please check the file format.');
+      return { validKpis: [], invalidKpis: [] };
+    }
+  };
+
+  const handleProcessedData = (validKpis, invalidKpis, file) => {
+    setFile(file);
+    setBulkKpis(validKpis);
+    setInvalidKpis(invalidKpis);
+    
+    if (invalidKpis.length > 0) {
+      setPreviewTab('invalid');
+    } else if (validKpis.length > 0) {
+      setPreviewTab('valid');
+    }
+
+    if (validKpis.length === 0 && invalidKpis.length === 0) {
+      setValidationMessage('No valid KPIs found in the file');
       setShowValidationModal(true);
       resetBulkUploadState();
     }
   };
+
+
 
   // Remove uploaded file
   const removeFile = () => {
@@ -337,31 +443,26 @@ const KPIManagement = () => {
 
   // Generate template for bulk upload
   const generateTemplate = () => {
-    const csvHeader = "KPI Name,Category,Behavior,Description,,,Valid Input Reference";
-    const exampleData = [
-      "Revenue Growth,Financial,Higher the Better,Measures growth in total revenue,,,Valid Categories: Compliance, Customer Experience, Employee Performance, Finance, Healthcare, Logistics, Operational Efficiency, Sales, Tech",
-      "Customer Satisfaction,Customer Experience,Lower the Better,Measures overall customer satisfaction,,,Valid Behaviors: Lower the Better, Higher the Better, Hit or Miss",
-      "Employee Turnover,Employee Performance,Lower the Better,Tracks employee turnover rate"
-    ];
+  const data = [
+    ['KPI Name', 'Category', 'Behavior', 'Description', '', '', 'Valid Input Reference'],
+    ['Revenue Growth', 'Financial', 'Higher the Better', 'Measures growth in total revenue', '', '', 'Valid Categories: Compliance, Customer Experience, Employee Performance, Finance, Healthcare, Logistics, Operational Efficiency, Sales, Tech'],
+    ['Customer Satisfaction', 'Customer Experience', 'Lower the Better', 'Measures overall customer satisfaction', '', '', 'Valid Behaviors: Lower the Better, Higher the Better, Hit or Miss'],
+    ['Employee Turnover', 'Employee Performance', 'Lower the Better', 'Tracks employee turnover rate']
+  ];
 
-    // Combine header and data rows
-    const fileContent = [csvHeader, ...exampleData].join('\n');
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb, ws, 'KPI Template');
 
-    const today = new Date();
-    const dateString = today.getFullYear().toString() +
-        (today.getMonth() + 1).toString().padStart(2, '0') +
-        today.getDate().toString().padStart(2, '0');
-    
-    const filename = `kpi_upload_${dateString}.csv`;
+  const today = new Date();
+  const dateString = today.getFullYear().toString() +
+    (today.getMonth() + 1).toString().padStart(2, '0') +
+    today.getDate().toString().padStart(2, '0');
+  
+  const filename = `kpi_upload_${dateString}.xlsx`;
 
-    const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  XLSX.writeFile(wb, filename);
+};
 
   const processFileContent = (text) => {
       try {
@@ -808,7 +909,7 @@ const KPIManagement = () => {
               dCategory: kpi.category,
               dCalculationBehavior: kpi.behavior,
               dDescription: kpi.description || '',
-              dCreatedBy: '2505170018',
+              dCreatedBy: userId ,
               dStatus: 'ACTIVE'
             };
 
@@ -898,7 +999,7 @@ const handleDeleteConfirm = async () => {
           'Content-Type': 'application/json'
         },
          body: JSON.stringify({
-          dCreatedBy: '2505170018' // Add this line
+          ddCreatedBy: userId  // Add this line
         })
       });
       if (!response.ok) {
@@ -1172,7 +1273,7 @@ const handleDeleteConfirm = async () => {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                dCreatedBy: '2505170018' // Add this line
+                dCreatedBy: userId  // Add this line
               })
             })
           );
@@ -1222,7 +1323,7 @@ const handleDeleteConfirm = async () => {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                dCreatedBy: '2505170018' // Add this line
+                dCreatedBy: userId  // Add this line
               })
             })
           );
@@ -1657,14 +1758,14 @@ const handleDeleteConfirm = async () => {
                       onDrop={handleDrop}
                     >
                       <div className="drop-zone-content">
-                      <p>Upload your CSV file here</p>
+                      <p>Upload your CSV or EXCEL file here</p>
                       <p>File name format: kpi_upload_YYYYMMDD.csv</p>
                       <p>Example: kpi_upload_20250520.csv</p>
                       <p>Maximum file size: 5MB</p>
                       <input
                         type="file"
                         id="file-upload"
-                        accept=".csv"
+                        accept=".csv,.xlsx"
                         onChange={handleFileChange}
                         style={{ display: 'none' }}
                       />
