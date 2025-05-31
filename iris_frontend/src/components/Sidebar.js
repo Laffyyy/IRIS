@@ -16,6 +16,7 @@ import siteManagementIcon from '../assets/icons/sites.png';
 import clientManagementIcon from '../assets/icons/clients.png';
 import kpiManagementIcon from '../assets/icons/kpis.png';
 import logsIcon from '../assets/icons/logs.png';
+import airaLogo from '../assets/aira-logo.png';
 import { getUserRoles } from '../utilities/auth'; 
 
 
@@ -57,6 +58,7 @@ const Sidebar = () => {
   ...((userRoles.includes('CNB')|| userRoles.includes('admin')) ? [
     { name: 'C&B', path: '/compensation', icon: cbIcon }
   ] : []),
+  { name: 'AIRA', path: '/chat-history', icon: airaLogo },
   { name: 'FAQs', path: '/faqs', icon: faqsIcon }
 ];
 
