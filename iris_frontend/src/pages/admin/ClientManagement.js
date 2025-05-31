@@ -2926,9 +2926,9 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
 
                     {card.subLobNames.length < 4 && (
                       <button 
-                        onClick={() => handleAddAnotherSubLobForLob(lobCardIndex)} 
+                        onClick={() => handleAddAnotherSubLob(lobCardIndex)} 
                         className="add-another-button"
-                        disabled={!validateClientSelection()}
+                        disabled={!card.lobName.trim()} // Enable when LOB name has content
                       >
                         + Add Sub LOB
                       </button>
@@ -2936,13 +2936,16 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                   </div>
                 ))}
                 
-                {lobCardsForLob.length < 4 && (
+                {lobCards.length < 4 && (
                   <div className="add-lob-card-container">
                     <button 
-                      onClick={handleAddAnotherLobCardForLob} 
+                      onClick={handleAddAnotherLobCard} 
                       className="add-lob-card-button"
-                      disabled={!lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))}
-                      title={!lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ? 
+                      disabled={!lobCards.some(card => 
+                        card.lobName.trim() && 
+                        card.subLobNames.some(name => name.trim())
+                      )}
+                      title={!lobCards.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim())) ? 
                         "Please fill in at least one LOB and Sub LOB before adding another" : 
                         "Add another LOB"}
                     >
@@ -2953,14 +2956,17 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
               </div>
 
               <button 
-                onClick={handleAddLob} 
+                onClick={handleAddClient} 
                 className="submit-button"
                 disabled={
-                  !validateClientSelection() || 
-                  !lobCardsForLob.some(card => card.lobName.trim() && card.subLobNames.some(name => name.trim()))
+                  !clientName.trim() || 
+                  !lobCards.some(card => 
+                    card.lobName.trim() && 
+                    card.subLobNames.some(name => name.trim())
+                  )
                 }
               >
-                Submit LOB(s)
+                + Add Client
               </button>
             </div>
             <div className={`tab-content ${activeTab === 'addLOB' ? 'active' : ''}`}>
