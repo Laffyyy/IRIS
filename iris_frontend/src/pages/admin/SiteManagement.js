@@ -2750,12 +2750,6 @@ const SiteManagement = () => {
                   )}
                   <li><strong>To site:</strong> {selectedSite?.dSiteName}</li>
                 </ul>
-                {/* Debug info - remove this after fixing */}
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
-                  Debug: selectedClientId = {selectedClientId}, 
-                  availableClients count = {availableClients.length},
-                  clients count = {clients.length}
-                </div>
                 {!clientSiteConfirmDetails.lobName && (
                   <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
                     <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
