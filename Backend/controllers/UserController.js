@@ -117,6 +117,7 @@ exports.checkDuplicates = async (req, res) => {
 
 exports.addUsersBulk = async (req, res) => {
   try {
+    const createdBy = req.body.createdBy || 'system';
     const users = req.body.users;
     if (!Array.isArray(users) || users.length === 0) {
       return res.status(400).json({ message: 'No users to add' });
@@ -173,7 +174,7 @@ exports.addUsersBulk = async (req, res) => {
           actionLocation_ID: user.employeeId,
           actionLocation: 'UREGULAR',
           actionType: 'CREATED',
-          actionBy: user.createdBy || 'system'
+          actionBy: createdBy || 'system'
         });
       }
     }
@@ -184,7 +185,7 @@ exports.addUsersBulk = async (req, res) => {
           actionLocation_ID: user.employeeId,
           actionLocation: 'UADMIN',
           actionType: 'CREATED',
-          actionBy: user.createdBy || 'system'
+          actionBy: createdBy || 'system'
         });
       }
     }
@@ -198,7 +199,8 @@ exports.addUsersBulk = async (req, res) => {
 
 exports.deleteUsers = async (req, res) => {
   try {
-    const { userIds, userType, actionBy } = req.body;
+    const { userIds, userType } = req.body;
+    const actionBy = req.body.actionBy;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for deletion' });
@@ -211,7 +213,7 @@ exports.deleteUsers = async (req, res) => {
         actionLocation_ID: userId,
         actionLocation: 'UREGULAR', // or 'UADMIN' if you know the type
         actionType: 'DEACTIVATED',
-        actionBy: actionBy || 'system'
+        actionBy: actionBy
       });
     }
     
@@ -306,7 +308,8 @@ exports.deleteBatchUsers = async (req, res) => {
 
 exports.restoreUsers = async (req, res) => {
   try {
-    const { userIds, actionBy } = req.body;
+    const { userIds } = req.body;
+    const actionBy = req.body.actionBy;
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for restoration' });
     }
@@ -317,7 +320,7 @@ exports.restoreUsers = async (req, res) => {
         actionLocation_ID: userId,
         actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
         actionType: 'ACTIVATED', // or 'RESTORED', 'DEACTIVATED', etc.
-        actionBy: actionBy || 'system'
+        actionBy: actionBy
       });
     }
     res.status(200).json({ message: 'Users restored successfully', restoredPasswords });
@@ -330,7 +333,8 @@ exports.restoreUsers = async (req, res) => {
 
 exports.lockUsers = async (req, res) => {
   try {
-    const { userIds, actionBy } = req.body;
+    const { userIds } = req.body;
+    const actionBy = req.body.actionBy;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for locking' });
@@ -344,7 +348,7 @@ exports.lockUsers = async (req, res) => {
         actionLocation_ID: userId,
         actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
         actionType: 'LOCKED',
-        actionBy: actionBy || 'system'
+        actionBy: actionBy
       });
     }
 
@@ -358,7 +362,8 @@ exports.lockUsers = async (req, res) => {
 
 exports.unlockUsers = async (req, res) => {
   try {
-    const { userIds, actionBy } = req.body;
+    const { userIds } = req.body;
+    const actionBy = req.body.actionBy;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for unlocking' });
@@ -371,7 +376,7 @@ exports.unlockUsers = async (req, res) => {
       actionLocation_ID: userId,
       actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
       actionType: 'UNLOCKED', // or 'RESTORED', 'DEACTIVATED', etc.
-      actionBy: actionBy || 'system'
+      actionBy: actionBy
     });
   }
     
@@ -386,6 +391,8 @@ exports.unlockUsers = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
+    const { currentuserIds } = req.body;
+    const actionBy = req.body.actionBy;
     const allowedFields = ['employeeId', 'name', 'email', 'role', 'status', 'password', 'securityQuestions', 'resetPassword'];
     const updateData = {};
     for (const field of allowedFields) {
@@ -440,8 +447,14 @@ exports.updateUser = async (req, res) => {
          updateData.hashedPassword = await bcrypt.hash(defaultPassword, 10);
          delete updateData.password;
          delete updateData.securityQuestions;
+        await userService.logPasswordChange({
+        dUser_ID: updateData.employeeId || user.dUser_ID,
+        dModifiedBy: actionBy,
+        dChangeReason: 'RESET-RESOLVED'
+    });
       }
     }
+    const isResetResolved = Array.isArray(updateData.securityQuestions) && updateData.securityQuestions.every(q => !q.question && !q.answer);
     let result;
     if (isAdmin) {
        result = await userService.updateAdminUserDynamic(userId, updateData);
@@ -451,12 +464,16 @@ exports.updateUser = async (req, res) => {
     if (result.affectedRows === 0) {
        return res.status(404).json({ message: 'User not found or no changes made.' });
     }
-    await userService.logAdminAction({
-    actionLocation_ID: updateData.employeeId || user.dUser_ID,
-    actionLocation: isAdmin ? 'UADMIN' : 'UREGULAR',
-    actionType: 'MODIFIED',
-    actionBy: req.body.updatedBy || req.body.createdBy || 'system'
-  });
+    if (updateData.status === 'RESET-DONE') {
+      // Already logged RESET-RESOLVED above, do not log ADMIN-RESET
+    } else if (updateData.hashedPassword) {
+      // Log password change via password section
+      await userService.logPasswordChange({
+        dUser_ID: updateData.employeeId || user.dUser_ID,
+        dModifiedBy: actionBy,
+        dChangeReason: 'ADMIN-RESET'
+      });
+    }
     res.status(200).json({ message: 'User updated successfully' });
     broadcastUserUpdate();
   } catch (error) {
@@ -482,6 +499,7 @@ exports.updateUserSecurityQuestions = async (req, res) => {
 exports.deleteUsersPermanently = async (req, res) => {
   try {
     const { userIds } = req.body;
+    const actionBy = req.body.actionBy;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ message: 'No users selected for deletion' });
@@ -493,8 +511,8 @@ exports.deleteUsersPermanently = async (req, res) => {
     await userService.logAdminAction({
       actionLocation_ID: userId,
       actionLocation: userType === 'ADMIN' ? 'UADMIN' : 'UREGULAR',
-      actionType: 'DELETED', // or 'RESTORED', 'DEACTIVATED', etc.
-      actionBy: actionBy || 'system'
+      actionType: 'DELETED', 
+      actionBy: actionBy
     });
   }
     

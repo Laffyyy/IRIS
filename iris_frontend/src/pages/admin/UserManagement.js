@@ -395,7 +395,7 @@ const handleLockUsers = async () => {
     const response = await fetch('http://localhost:3000/api/users/lock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIds: selectedUsers })
+      body: JSON.stringify({ userIds: selectedUsers,  actionBy: user?.employeeId })
     });
     
     if (!response.ok) {
@@ -432,7 +432,7 @@ const handleUnlockUsers = async () => {
     const response = await fetch('http://localhost:3000/api/users/unlock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIds: selectedUsers })
+      body: JSON.stringify({ userIds: selectedUsers, actionBy: user?.employeeId })
     });
 
     if (!response.ok) {
@@ -902,9 +902,10 @@ const handleUnlockUsers = async () => {
           users: bulkUsers.map(user => ({
             ...user,
             password: 'password123',
-            createdBy: user.employeeId,
             status: 'FIRST-TIME',
-          }))
+            createdBy: user?.employeeId
+          })),
+          createdBy: user?.employeeId // <-- ADD THIS LINE OUTSIDE THE MAP
         })
       });
 
@@ -955,7 +956,7 @@ const handleConfirmPermanentDelete = async () => {
     const response = await fetch('http://localhost:3000/api/users/delete-permanent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIds: selectedUsers })
+      body: JSON.stringify({ userIds: selectedUsers, actionBy: user?.employeeId })
     });
 
     let result = null;
@@ -996,7 +997,7 @@ const handleDeactivateUsers = async () => {
       const response = await fetch('http://localhost:3000/api/users/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: selectedUsers })
+        body: JSON.stringify({ userIds: selectedUsers, actionBy: user?.employeeId})
       });
 
       if (!response.ok) {
@@ -1338,7 +1339,7 @@ const handleDeactivateUsers = async () => {
       const response = await fetch(`http://localhost:3000/api/users/${userId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
+        body: JSON.stringify({ ...updateData, actionBy: user?.employeeId })
       });
 
       if (!response.ok) {
@@ -1357,7 +1358,7 @@ const handleDeactivateUsers = async () => {
         await fetch(`http://localhost:3000/api/users/${userId}/security-questions`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ questions: securityQuestionsData })
+          body: JSON.stringify({ questions: securityQuestionsData, actionBy: user?.employeeId })
         });
         changes.push('Security questions updated');
       }
@@ -1590,6 +1591,17 @@ const handleDeactivateUsers = async () => {
       if (roleFilter !== 'All') {
         filtered = filtered.filter(user => user.dUser_Type === roleFilter);
       }
+
+        filtered = filtered.sort((a, b) => {
+        // Prefer deactivation timestamp if available, else fallback to entry ID
+        if (a.deactivatedAt && b.deactivatedAt) {
+          return new Date(b.deactivatedAt) - new Date(a.deactivatedAt);
+        }
+        // Fallback: sort by entry ID (assuming higher ID = newer)
+        const aId = a.dLoginEntry_ID || a.dAdminEntry_ID || 0;
+        const bId = b.dLoginEntry_ID || b.dAdminEntry_ID || 0;
+        return bId - aId;
+      });
     } else if (activeTable === 'users') {
       // Only show ACTIVE and FIRST-TIME users in users tab, and exclude ADMIN users
       filtered = filtered.filter(user => (user.dStatus === 'ACTIVE' || user.dStatus === 'FIRST-TIME') && user.dUser_Type !== 'ADMIN' && (roleFilter === 'All' || user.dUser_Type === roleFilter) && (statusFilter === 'All' || user.dStatus === statusFilter));
@@ -1661,7 +1673,7 @@ const handleDeactivateUsers = async () => {
         const response = await fetch('http://localhost:3000/api/users/restore', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userIds: selectedUsers })
+          body: JSON.stringify({ userIds: selectedUsers, actionBy: user?.employeeId })
         });
         let result = null;
         try {
@@ -1846,7 +1858,7 @@ const handleDeactivateUsers = async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          users: [{ employeeId, email, name, role, password: 'defaultPass123', createdBy: user.employeeId, status: 'FIRST-TIME' }]
+          users: [{ employeeId, email, name, role, password: 'defaultPass123', createdBy: user?.employeeId, status: 'FIRST-TIME' }]
         })
       });
 
@@ -1884,7 +1896,8 @@ const handleDeactivateUsers = async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId: user.employeeId,
-          userType: user.role  // Send the actual user type/role
+          userType: user.role, 
+          actionBy: user?.employeeId
         })
       });
       if (!response.ok) {
@@ -1915,7 +1928,8 @@ const handleDeactivateUsers = async () => {
         body: JSON.stringify({ 
           users: recentlyAddedUsers.map(user => ({
             userId: user.employeeId,
-            userType: user.role  // Send the actual user type/role
+            userType: user.role, 
+            actionBy: user?.employeeId
           }))
         })
       });
@@ -4081,7 +4095,7 @@ const handleDeactivateUsers = async () => {
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label>
                     Role:
-                    {activeTable === 'admin' && (
+                    {(currentUser.dUser_Type === 'ADMIN' || activeTable === 'admin' || activeTable === 'tickets' || activeTable === 'locked') && (
                       <FaLock className="locked-indicator" title="Field cannot be changed" style={{ marginLeft: 8, color: '#888' }} />
                     )}
                   </label>
@@ -4089,23 +4103,22 @@ const handleDeactivateUsers = async () => {
                     name="role"
                     value={currentUser.dUser_Type}
                     onChange={(e) => setCurrentUser({...currentUser, dUser_Type: e.target.value})}
-                    disabled={activeTable === 'admin'}
+                    disabled={currentUser.dUser_Type === 'ADMIN'}
                     style={
-                      activeTable === 'admin'
+                      currentUser.dUser_Type === 'ADMIN'
                         ? { background: '#f5f5f5', color: '#666', cursor: 'not-allowed' }
                         : {}
                     }
                   >
-                  {activeTable === 'users' && (
-                    <>
-                      <option value="HR">HR</option>
-                      <option value="REPORTS">REPORTS</option>
-                      <option value="CNB">CNB</option>
-                    </>
-                  )}
-                  {activeTable === 'admin' && (
-                    <option value="ADMIN">ADMIN</option>
-                  )}
+                    {currentUser.dUser_Type === 'ADMIN' ? (
+                      <option value="ADMIN">ADMIN</option>
+                    ) : (
+                      <>
+                        <option value="HR">HR</option>
+                        <option value="REPORTS">REPORTS</option>
+                        <option value="CNB">CNB</option>
+                      </>
+                    )}
                   </select>
                   {editUserErrors.dUser_Type && <div style={{ color: 'red', fontSize: '0.9em', margin: '2px 0 0 0' }}>{editUserErrors.dUser_Type}</div>}
                   {editFieldTouched.dUser_Type && editUserErrors.dUser_Type && (

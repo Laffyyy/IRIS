@@ -58,6 +58,14 @@ exports.logAdminAction = async ({ actionLocation_ID, actionLocation, actionType,
   );
 };
 
+exports.logPasswordChange = async ({ dUser_ID, dModifiedBy, dChangeReason }) => {
+  const query = `
+    INSERT INTO iris.tbl_logs_passwordchange (dUser_ID, dModifiedBy, dChangeReason)
+    VALUES (?, ?, ?)
+  `;
+  await pool.query(query, [dUser_ID, dModifiedBy, dChangeReason]);
+};
+
 exports.findExistingEmployeeIdsEmailsOrNames = async (employeeIds, emails, excludeLoginId) => {
   if (employeeIds.length === 0 && emails.length === 0) return [];
   let query = `SELECT dUser_ID, dEmail FROM iris.tbl_login WHERE (dUser_ID IN (?) OR dEmail IN (?))`;
@@ -394,11 +402,6 @@ exports.deleteUsersPermanently = async (userIds) => {
         'DELETE FROM iris.tbl_admin WHERE dUser_ID IN (?)',
         [userIds]
       ),
-      // Delete from security questions if exists
-      connection.query(
-        'DELETE FROM iris.security_questions WHERE dUser_ID IN (?)',
-        [userIds]
-      )
     ]);
 
     await connection.commit();
