@@ -1,5 +1,6 @@
 const app = require('./app');
 require('dotenv').config();
+const { setupWebSocket } = require('./websocket');
 
 const PORT = process.env.PORT || 3000;
 
@@ -23,6 +24,8 @@ const server = app.listen(PORT, () => {
     console.log('- POST /api/login/register');
     console.log('- POST /api/otp');
 });
+
+setupWebSocket(server);
 
 // Add error handling for the server
 server.on('error', (error) => {

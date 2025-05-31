@@ -11,6 +11,7 @@ import ProtectedRoute from './utilities/ProtectedRoute';
 import Unauthorize from './utilities/Unautorize';
 import AdminPage from './adminpagecollection';
 import InactivityHandler from './components/InactivityHandler';
+import { UserProvider } from './contexts/UserContext';
 import FloatingChatbot from './components/FloatingChatbot';
 import ChatHistory from './pages/ChatHistory';
 
@@ -23,6 +24,7 @@ function App() {
 
   return (
     <div className="App">
+    <UserProvider>
       <Routes>
         {/* Login routes */}
         <Route path="/" element={<Login />} />
@@ -98,6 +100,7 @@ function App() {
         <Route path="/chat-history" element={<ChatHistory />} />
       </Routes>
       {shouldShowChatbot && <FloatingChatbot />}
+      </UserProvider>
     </div>
   );
 }
