@@ -5,12 +5,13 @@ import airaLogo from '../assets/aira-logo.png';
 const MiniChatbot = ({ onViewHistory }) => {
   const [message, setMessage] = useState('');
   const [showSavePrompt, setShowSavePrompt] = useState(false);
-  const [userRole] = useState('HR POC'); // This should come from your auth system
+  const [userRole] = useState('HR POC');
   const [messages, setMessages] = useState([]);
   const [currentTitle, setCurrentTitle] = useState('');
   const textareaRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const inputContainerRef = useRef(null);
 
-  // Role-specific quick replies
   const quickReplies = {
     'HR POC': [
       "What are the most common Disciplinary Actions?",
@@ -42,7 +43,6 @@ const MiniChatbot = ({ onViewHistory }) => {
     ]
   };
 
-  // Auto-generate title from first message
   useEffect(() => {
     if (messages.length === 1 && messages[0].isUser) {
       const words = messages[0].text.split(' ');
@@ -55,16 +55,28 @@ const MiniChatbot = ({ onViewHistory }) => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      const newHeight = Math.min(textarea.scrollHeight, 120);
-      textarea.style.height = `${newHeight}px`;
-      
-      // Adjust container height
-      const container = textarea.closest('.message-input-container');
-      if (container) {
-        container.style.minHeight = `${newHeight + 32}px`;
-      }
+      const maxHeight = 120;
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = newHeight + 'px';
+      textarea.style.overflowY = newHeight >= maxHeight ? 'auto' : 'hidden';
+    }
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  useEffect(() => {
+    if (inputContainerRef.current && document.querySelector('.mini-chatbot-messages')) {
+      const inputHeight = inputContainerRef.current.offsetHeight;
+      document.querySelector('.mini-chatbot-messages').style.paddingBottom = `${inputHeight}px`;
+    }
+  }, [message]);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
@@ -83,9 +95,9 @@ const MiniChatbot = ({ onViewHistory }) => {
       setMessages([...messages, newMessage]);
       setMessage('');
       
-      // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = '44px';
+        textareaRef.current.style.overflowY = 'hidden';
         const container = textareaRef.current.closest('.message-input-container');
         if (container) {
           container.style.minHeight = '80px';
@@ -106,8 +118,7 @@ const MiniChatbot = ({ onViewHistory }) => {
 
   const handleSaveChat = (save) => {
     if (save) {
-      // TODO: Implement save chat functionality
-      // This should save to your backend with the currentTitle
+      // Save functionality would go here
     }
     setShowSavePrompt(false);
     setMessages([]);
@@ -115,15 +126,7 @@ const MiniChatbot = ({ onViewHistory }) => {
     setCurrentTitle('');
   };
 
-  const handleCopyMessage = (text) => {
-    navigator.clipboard.writeText(text);
-  };
 
-  const handleEditMessage = (messageId, newText) => {
-    setMessages(messages.map(msg => 
-      msg.id === messageId ? { ...msg, text: newText } : msg
-    ));
-  };
 
   return (
     <div className="mini-chatbot-container">
@@ -134,13 +137,13 @@ const MiniChatbot = ({ onViewHistory }) => {
         </div>
         <div className="header-actions">
           <button className="mini-new-chat-button" onClick={handleNewChat}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
             </svg>
             New Chat
           </button>
           <button className="view-history-button" onClick={onViewHistory}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             History
@@ -173,36 +176,14 @@ const MiniChatbot = ({ onViewHistory }) => {
                   <p>{msg.text}</p>
                   <span className="message-timestamp">{msg.timestamp}</span>
                 </div>
-                <div className="message-actions">
-                  <button
-                    onClick={() => handleCopyMessage(msg.text)}
-                    className="action-button"
-                    aria-label="Copy message"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M8 5H6C4.89543 5 4 5.89543 4 7V19C4 20.1046 4.89543 21 6 21H16C17.1046 21 18 20.1046 18 19V17M8 5C8 6.10457 8.89543 7 10 7H12C13.1046 7 14 6.10457 14 5M8 5C8 3.89543 8.89543 3 10 3H12C13.1046 3 14 3.89543 14 5M14 5H16C17.1046 5 18 5.89543 18 7V9" />
-                    </svg>
-                  </button>
-                  {msg.isUser && (
-                    <button
-                      onClick={() => handleEditMessage(msg.id, msg.text)}
-                      className="action-button"
-                      aria-label="Edit message"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" />
-                        <path d="M18.5 2.50001C18.8978 2.10219 19.4374 1.87869 20 1.87869C20.5626 1.87869 21.1022 2.10219 21.5 2.50001C21.8978 2.89784 22.1213 3.4374 22.1213 4.00001C22.1213 4.56262 21.8978 5.10219 21.5 5.50001L12 15L8 16L9 12L18.5 2.50001Z" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      <div className="message-input-container">
+      <div className="message-input-container" ref={inputContainerRef}>
         <form onSubmit={handleSendMessage}>
           <button type="button" className="attach-button" aria-label="Attach file">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -215,7 +196,11 @@ const MiniChatbot = ({ onViewHistory }) => {
             placeholder="Type your message..."
             value={message}
             onChange={handleMessageChange}
-            rows={1}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                handleSendMessage(e);
+              }
+            }}
           />
           <button type="submit" className="send-button" aria-label="Send message">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -242,4 +227,4 @@ const MiniChatbot = ({ onViewHistory }) => {
   );
 };
 
-export default MiniChatbot; 
+export default MiniChatbot;

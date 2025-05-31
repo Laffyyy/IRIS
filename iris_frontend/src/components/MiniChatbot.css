@@ -2,7 +2,7 @@
   position: fixed;
   bottom: 90px;
   right: 20px;
-  width: 400px;
+  width: 500px;
   height: 600px;
   background-color: white;
   border-radius: 12px;
@@ -15,13 +15,12 @@
 
 .mini-chatbot-header {
   background-color: #004D8D;
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.5rem;
   color: white;
   border-radius: 12px 12px 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 56px;
   min-height: 56px;
   max-height: 56px;
 }
@@ -29,7 +28,7 @@
 .header-content {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .header-content .logo {
@@ -39,7 +38,7 @@
 }
 
 .mini-chatbot-header h1 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -49,34 +48,12 @@
   gap: 0.5rem;
 }
 
-.mini-new-chat-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25rem 0.75rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  color: white;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  height: 28px;
-  min-width: 70px;
-  gap: 0.25rem;
-}
-
-.mini-new-chat-button svg {
-  width: 14px;
-  height: 14px;
-  margin-right: 0.25rem;
-}
-
+.mini-new-chat-button,
 .view-history-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.75rem;
   background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
@@ -89,29 +66,29 @@
   gap: 0.25rem;
 }
 
+.mini-new-chat-button svg,
 .view-history-button svg {
   width: 14px;
   height: 14px;
   margin-right: 0.25rem;
 }
 
-.maximize-button {
-  width: 28px;
-  padding: 0;
-}
-
 .mini-new-chat-button:hover,
-.view-history-button:hover,
-.maximize-button:hover {
+.view-history-button:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
 .mini-chatbot-messages {
+  flex: 1 1 0%;
   overflow-y: auto;
-  padding: 1rem 16px 1rem 1rem;
-  flex: 1;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  background: white;
   min-height: 0;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: height 0.2s;
 }
 
 .welcome-message {
@@ -119,35 +96,37 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem;
+  padding: 2rem 0;
 }
 
 .welcome-message h2 {
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .welcome-message p {
-  font-size: 12px;
+  font-size: 13px;
   color: #666;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .quick-replies {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
   width: 100%;
+  max-width: 350px;
+  margin: 0 auto;
 }
 
 .quick-reply-button {
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #333;
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -161,16 +140,21 @@
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.2rem;
+  padding-bottom: 0.2rem;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .message {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  max-width: 85%;
-  position: relative;
+  gap: 0.3rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 7px;
+  max-width: 99%;
+  word-break: break-word;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .user-message {
@@ -189,26 +173,23 @@
 
 .message-content p {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: #333;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .message-timestamp {
-  font-size: 10px;
+  font-size: 11px;
   color: #666;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
   display: block;
 }
 
 .message-actions {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.5rem;
   opacity: 0;
   transition: opacity 0.2s ease;
-  position: absolute;
-  right: 0.5rem;
-  top: 0.5rem;
 }
 
 .message:hover .message-actions {
@@ -231,13 +212,12 @@
 }
 
 .message-input-container {
-  padding: 1.25rem 2.5rem;
+  padding: 1.25rem 0.25rem;
   border-top: 1px solid #e2e8f0;
   background: white;
   min-height: 80px;
   flex-shrink: 0;
   position: relative;
-  z-index: 2;
 }
 
 .message-input-container form {
@@ -248,22 +228,24 @@
 }
 
 .message-input {
-  flex: 1;
-  padding: 0.85rem 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 13px;
-  outline: none;
-  color: #222;
-  background: #f8fafc;
-  box-shadow: none;
-  min-height: 44px;
+  width: calc(100% - 40px);
+  min-height: 36px;
   max-height: 120px;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   resize: none;
-  overflow-y: auto;
-  line-height: 1.5;
   font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: border-color 0.2s ease;
+  background-color: white;
+  color: #1e293b;
   margin: 0 2px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #f1f5f9;
 }
 
 .message-input::-webkit-scrollbar {
@@ -325,34 +307,34 @@
 
 .modal-content {
   background-color: white;
-  padding: 1.5rem;
+  padding: 2rem;
   border-radius: 12px;
-  width: 320px;
+  width: 350px;
   max-width: 90%;
 }
 
 .modal-content h3 {
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .modal-content p {
-  font-size: 12px;
+  font-size: 13px;
   color: #666;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .modal-buttons {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   justify-content: flex-end;
 }
 
 .modal-buttons button {
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.5rem;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -371,4 +353,4 @@
 
 .modal-buttons button:hover {
   opacity: 0.9;
-} 
+}
