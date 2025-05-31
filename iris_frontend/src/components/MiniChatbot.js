@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './MiniChatbot.css';
 import airaLogo from '../assets/aira-logo.png';
 
@@ -8,6 +8,7 @@ const MiniChatbot = ({ onViewHistory }) => {
   const [userRole] = useState('HR POC'); // This should come from your auth system
   const [messages, setMessages] = useState([]);
   const [currentTitle, setCurrentTitle] = useState('');
+  const textareaRef = useRef(null);
 
   // Role-specific quick replies
   const quickReplies = {
@@ -50,6 +51,26 @@ const MiniChatbot = ({ onViewHistory }) => {
     }
   }, [messages]);
 
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      const newHeight = Math.min(textarea.scrollHeight, 120);
+      textarea.style.height = `${newHeight}px`;
+      
+      // Adjust container height
+      const container = textarea.closest('.message-input-container');
+      if (container) {
+        container.style.minHeight = `${newHeight + 32}px`;
+      }
+    }
+  };
+
+  const handleMessageChange = (e) => {
+    setMessage(e.target.value);
+    adjustTextareaHeight();
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (message.trim()) {
@@ -61,6 +82,15 @@ const MiniChatbot = ({ onViewHistory }) => {
       };
       setMessages([...messages, newMessage]);
       setMessage('');
+      
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '44px';
+        const container = textareaRef.current.closest('.message-input-container');
+        if (container) {
+          container.style.minHeight = '80px';
+        }
+      }
     }
   };
 
@@ -179,12 +209,13 @@ const MiniChatbot = ({ onViewHistory }) => {
               <path d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59723 21.9983 8.005 21.9983C6.41277 21.9983 4.88584 21.3658 3.76 20.24C2.63416 19.1142 2.00166 17.5872 2.00166 15.995C2.00166 14.4028 2.63416 12.8758 3.76 11.75L12.33 3.18C13.0787 2.43128 14.0718 2.00244 15.1 2.00244C16.1282 2.00244 17.1213 2.43128 17.87 3.18C18.6187 3.92872 19.0476 4.92183 19.0476 5.95C19.0476 6.97817 18.6187 7.97128 17.87 8.72L9.41 17.18C9.03472 17.5553 8.52573 17.7636 7.995 17.7636C7.46427 17.7636 6.95528 17.5553 6.58 17.18C6.20472 16.8047 5.99636 16.2957 5.99636 15.765C5.99636 15.2343 6.20472 14.7253 6.58 14.35L15.07 5.86" />
             </svg>
           </button>
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
             className="message-input"
             placeholder="Type your message..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleMessageChange}
+            rows={1}
           />
           <button type="submit" className="send-button" aria-label="Send message">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

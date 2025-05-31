@@ -13,7 +13,8 @@ const initialHistory = [
     messages: [
       { id: 1, text: 'Can you analyze the monthly sales report for March?', isUser: true, timestamp: '2024-03-20 14:30' },
       { id: 2, text: 'Sure! Here is the analysis for March...', isUser: false, timestamp: '2024-03-20 14:31' }
-    ]
+    ],
+    isFavorite: false
   },
   {
     id: 2,
@@ -23,7 +24,8 @@ const initialHistory = [
     messages: [
       { id: 1, text: 'Help me process the client data for Q1.', isUser: true, timestamp: '2024-03-19 10:15' },
       { id: 2, text: 'Processing client data for Q1...', isUser: false, timestamp: '2024-03-19 10:16' }
-    ]
+    ],
+    isFavorite: false
   },
   {
     id: 3,
@@ -33,7 +35,8 @@ const initialHistory = [
     messages: [
       { id: 1, text: 'What are the current KPI metrics?', isUser: true, timestamp: '2024-03-18 16:45' },
       { id: 2, text: 'Here are the current KPI metrics...', isUser: false, timestamp: '2024-03-18 16:46' }
-    ]
+    ],
+    isFavorite: false
   }
 ];
 
@@ -79,6 +82,8 @@ const ChatHistory = () => {
   const [editingTitleId, setEditingTitleId] = useState(null);
   const [newTitle, setNewTitle] = useState('');
   const [pendingAction, setPendingAction] = useState(null); // { type: 'switch'|'new', id: chatId }
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const textareaRef = React.useRef(null);
 
   const selectedChat = history.find(h => h.id === selectedId);
   const messages = selectedChat ? selectedChat.messages : [];
@@ -86,7 +91,46 @@ const ChatHistory = () => {
   // Helper: check if current chat has unsaved messages
   const hasUnsaved = messages.length > 0;
 
-  // Handle sending a message
+  // Auto-resize textarea
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      const newHeight = textarea.scrollHeight;
+      textarea.style.height = `${newHeight}px`;
+      
+      // Adjust container height to match textarea, but not beyond max height
+      const container = textarea.closest('.message-input-container');
+      if (container) {
+        const maxContainerHeight = 200 + 32; // max-height + padding
+        const containerHeight = Math.min(newHeight + 32, maxContainerHeight);
+        container.style.minHeight = `${containerHeight}px`;
+
+        // Adjust messages container height
+        const messagesContainer = document.querySelector('.messages-container');
+        if (messagesContainer) {
+          const totalHeight = document.querySelector('.chat-messages').offsetHeight;
+          const newMessagesHeight = totalHeight - containerHeight;
+          messagesContainer.style.height = `${newMessagesHeight}px`;
+        }
+      }
+      
+      // Only show scrollbar if content exceeds max height
+      if (newHeight > 200) {
+        textarea.style.overflowY = 'auto';
+      } else {
+        textarea.style.overflowY = 'hidden';
+      }
+    }
+  };
+
+  // Handle message change with auto-resize
+  const handleMessageChange = (e) => {
+    setMessage(e.target.value);
+    adjustTextareaHeight();
+  };
+
+  // Reset textarea height when message is sent
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (message.trim() && selectedChat) {
@@ -108,6 +152,20 @@ const ChatHistory = () => {
       );
       setHistory(updatedHistory);
       setMessage('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '48px';
+        textareaRef.current.style.overflowY = 'hidden';
+        const container = textareaRef.current.closest('.message-input-container');
+        if (container) {
+          container.style.minHeight = '80px';
+          // Reset messages container height
+          const messagesContainer = document.querySelector('.messages-container');
+          if (messagesContainer) {
+            const totalHeight = document.querySelector('.chat-messages').offsetHeight;
+            messagesContainer.style.height = `${totalHeight - 80}px`;
+          }
+        }
+      }
     }
   };
 
@@ -141,7 +199,8 @@ const ChatHistory = () => {
       title: title || 'New Conversation',
       date: new Date().toISOString().slice(0, 16).replace('T', ' '),
       preview: '',
-      messages: []
+      messages: [],
+      isFavorite: false
     };
     setHistory([newChat, ...history]);
     setSelectedId(newId);
@@ -215,6 +274,32 @@ const ChatHistory = () => {
     // eslint-disable-next-line
   }, [selectedChat && selectedChat.messages.length]);
 
+  // Close menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activeMenuId && !event.target.closest('.menu-button') && !event.target.closest('.menu-dropdown')) {
+        setActiveMenuId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeMenuId]);
+
+  // Sort history to show favorites first
+  const sortedHistory = [...history].sort((a, b) => {
+    if (a.isFavorite && !b.isFavorite) return -1;
+    if (!a.isFavorite && b.isFavorite) return 1;
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  // Toggle favorite status
+  const toggleFavorite = (id) => {
+    setHistory(history.map(h =>
+      h.id === id ? { ...h, isFavorite: !h.isFavorite } : h
+    ));
+  };
+
   return (
     <div className="app-container">
       <Sidebar />
@@ -226,12 +311,6 @@ const ChatHistory = () => {
               <h1>History</h1>
             </div>
             <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-              <button className="new-chat-button" onClick={handleNewChat}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                New Chat
-              </button>
               <button className="back-button designed" onClick={() => navigate(-1)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -243,15 +322,22 @@ const ChatHistory = () => {
 
           <div className="chat-history-content">
             <div className="history-panel">
-              <div className="recent-chats-label">Recent Chats</div>
+              <div className="new-chat-container">
+                <button className="new-chat-button" onClick={handleNewChat}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  New Chat
+                </button>
+              </div>
               <div className="history-list">
                 {history.length === 0 ? (
                   <div className="no-history">No chat history available</div>
                 ) : (
-                  history.map((item) => (
+                  sortedHistory.map((item) => (
                     <div
                       key={item.id}
-                      className={`history-item${item.id === selectedId ? ' selected' : ''}`}
+                      className={`history-item${item.id === selectedId ? ' selected' : ''}${item.isFavorite ? ' favorite' : ''}`}
                       onClick={() => handleSelectChat(item.id)}
                     >
                       {editingTitleId === item.id ? (
@@ -265,23 +351,74 @@ const ChatHistory = () => {
                           />
                         </div>
                       ) : (
-                        <div className="history-item-title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <div className="history-item-title">{item.title}</div>
+                        <div className="history-item-title-row">
+                          <div className="history-item-title">
+                            {item.isFavorite && (
+                              <svg className="favorite-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                              </svg>
+                            )}
+                            {item.title}
+                          </div>
                           <div className="history-item-actions">
-                            <button className="edit-history-button" onClick={e => { e.stopPropagation(); handleEditTitle(item.id, item.title); }} title="Edit chat title">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 20h9" />
-                                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5z" />
+                            <button 
+                              className="menu-button" 
+                              onClick={e => {
+                                e.stopPropagation();
+                                setActiveMenuId(activeMenuId === item.id ? null : item.id);
+                              }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="1" />
+                                <circle cx="12" cy="5" r="1" />
+                                <circle cx="12" cy="19" r="1" />
                               </svg>
                             </button>
-                            <button className="delete-history-button" onClick={e => { e.stopPropagation(); handleDeleteChat(item.id); }} title="Delete chat">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                                <line x1="10" y1="11" x2="10" y2="17" />
-                                <line x1="14" y1="11" x2="14" y2="17" />
-                              </svg>
-                            </button>
+                            {activeMenuId === item.id && (
+                              <div className="menu-dropdown show">
+                                <div 
+                                  className="menu-item"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    toggleFavorite(item.id);
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill={item.isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                  </svg>
+                                  {item.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                                </div>
+                                <div 
+                                  className="menu-item"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleEditTitle(item.id, item.title);
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5z" />
+                                  </svg>
+                                  Rename
+                                </div>
+                                <div 
+                                  className="menu-item delete"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleDeleteChat(item.id);
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                  Delete
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -332,12 +469,13 @@ const ChatHistory = () => {
                       <path d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59723 21.9983 8.005 21.9983C6.41277 21.9983 4.88584 21.3658 3.76 20.24C2.63416 19.1142 2.00166 17.5872 2.00166 15.995C2.00166 14.4028 2.63416 12.8758 3.76 11.75L12.33 3.18C13.0787 2.43128 14.0718 2.00244 15.1 2.00244C16.1282 2.00244 17.1213 2.43128 17.87 3.18C18.6187 3.92872 19.0476 4.92183 19.0476 5.95C19.0476 6.97817 18.6187 7.97128 17.87 8.72L9.41 17.18C9.03472 17.5553 8.52573 17.7636 7.995 17.7636C7.46427 17.7636 6.95528 17.5553 6.58 17.18C6.20472 16.8047 5.99636 16.2957 5.99636 15.765C5.99636 15.2343 6.20472 14.7253 6.58 14.35L15.07 5.86" />
                     </svg>
                   </button>
-                  <input
-                    type="text"
+                  <textarea
+                    ref={textareaRef}
                     className="message-input"
                     placeholder="Type your message..."
                     value={message}
-                    onChange={e => setMessage(e.target.value)}
+                    onChange={handleMessageChange}
+                    rows={1}
                   />
                   <button type="submit" className="send-button" aria-label="Send message">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
