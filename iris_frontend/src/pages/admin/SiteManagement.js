@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SiteManagement.css';
 import { FaTrash, FaEdit, FaTimes, FaSearch, FaMinusCircle, FaPlusCircle } from 'react-icons/fa';
 import Select from 'react-select';
@@ -75,6 +75,16 @@ const SiteManagement = () => {
   const [showClientAlreadyAddedModal, setShowClientAlreadyAddedModal] = useState(false);
   const [alreadyAddedClientName, setAlreadyAddedClientName] = useState('');
 
+  const [showClientAddSuccessModal, setShowClientAddSuccessModal] = useState(false);
+  const [clientAddSuccessDetails, setClientAddSuccessDetails] = useState({
+    clientName: '',
+    siteName: '',
+    lobName: '',
+    subLobName: '',
+    addedAllLobs: false,
+    addedAllSubLobs: false
+  });
+
   const [showEditSiteConfirmModal, setShowEditSiteConfirmModal] = useState(false);
   const [siteBeingEdited, setSiteBeingEdited] = useState(null);
   const [showEditSuccessModal, setShowEditSuccessModal] = useState(false);
@@ -87,6 +97,9 @@ const SiteManagement = () => {
   const [showDuplicateSiteModal, setShowDuplicateSiteModal] = useState(false);
   const [duplicateSiteName, setDuplicateSiteName] = useState('');
 
+  const [showSiteDeactivatedWarning, setShowSiteDeactivatedWarning] = useState(false);
+  const [deactivatedSiteName, setDeactivatedSiteName] = useState('');
+
   const [showAddClientSiteConfirmModal, setShowAddClientSiteConfirmModal] = useState(false);
   const [clientSiteConfirmDetails, setClientSiteConfirmDetails] = useState({
     clientName: '',
@@ -94,7 +107,73 @@ const SiteManagement = () => {
     subLobName: ''
   });
 
-  
+  // Add state for tracking last selected indices for shift-click functionality
+  const [lastSelectedSiteIndex, setLastSelectedSiteIndex] = useState(null);
+  const [lastSelectedClientSiteIndex, setLastSelectedClientSiteIndex] = useState(null);
+
+  // Add refs to track shift-click state
+  const shiftClickInProgress = useRef(false);
+  const clientSiteShiftClickInProgress = useRef(false);
+
+  // Refs for input fields
+  const addSiteInputRef = useRef(null);
+  const selectSiteRef = useRef(null);
+  const selectClientRef = useRef(null);
+  const selectLobRef = useRef(null);
+  const selectSubLobRef = useRef(null);
+  const deleteConfirmInputRef = useRef(null);
+  const editSiteInputRef = useRef(null);
+
+  // Focus management for Add New Site tab
+  useEffect(() => {
+    if (activeTab === 'addSite' && addSiteInputRef.current) {
+      addSiteInputRef.current.focus();
+    }
+  }, [activeTab]);
+
+  // Focus management for Add Client to Site tab
+  useEffect(() => {
+    if (activeTab === 'addClient' && selectSiteRef.current) {
+      selectSiteRef.current.focus();
+    }
+  }, [activeTab]);
+
+  // Focus management for modals
+  useEffect(() => {
+    if (showDeleteModal && deleteConfirmInputRef.current) {
+      deleteConfirmInputRef.current.focus();
+    }
+  }, [showDeleteModal]);
+
+  useEffect(() => {
+    if (showAddSiteConfirmModal && addSiteInputRef.current) {
+      addSiteInputRef.current.focus();
+    }
+  }, [showAddSiteConfirmModal]);
+
+  useEffect(() => {
+    if (editModalOpen && editSiteInputRef.current) {
+      editSiteInputRef.current.focus();
+    }
+  }, [editModalOpen]);
+
+  useEffect(() => {
+    if (selectedSite && selectClientRef.current) {
+      selectClientRef.current.focus();
+    }
+  }, [selectedSite]);
+
+  useEffect(() => {
+    if (selectedClientId && selectLobRef.current) {
+      selectLobRef.current.focus();
+    }
+  }, [selectedClientId]);
+
+  useEffect(() => {
+    if (selectedLobId && selectSubLobRef.current) {
+      selectSubLobRef.current.focus();
+    }
+  }, [selectedLobId]);
 
   const slideInOut = {
     position: 'fixed',
@@ -268,6 +347,7 @@ const SiteManagement = () => {
     // Reset selection when switching tabs
     setSelectedClientSiteIds([]);
     setSelectAllClientSites(false);
+    setLastSelectedClientSiteIndex(null);
   }, [clientSiteStatusTab, activeClientSites, deactivatedClientSites]);
 
   const sortData = (data, sortConfig) => {
@@ -383,10 +463,7 @@ const SiteManagement = () => {
       setNewSiteName('');
       fetchSites();
       
-      // Auto-hide the success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 3000);
+      // Remove the setTimeout - modal will be closed manually
     } catch (error) {
       // Close the confirmation modal
       setShowAddSiteConfirmModal(false);
@@ -414,18 +491,65 @@ const SiteManagement = () => {
                       assignment.dSite_ID === siteId
       );
       
-      // If no LOB is selected, check if client has ANY assignments at this site
+      // If no LOB is selected, we need to check if ALL client's LOBs/SubLOBs are already assigned
       if (!clientSiteConfirmDetails.lobName) {
-        // Just check if the client exists at this site at all
-        // Don't require ALL LOBs/SubLOBs to be assigned
-        return clientAssignments.length > 0;
+        // Get all possible LOBs and SubLOBs for this client
+        try {
+          const response = await manageSite('getClientLobs', { 
+            clientId: selectedClientId.toString()
+            // Don't pass siteId here to get ALL LOBs/SubLOBs, not just available ones
+          });
+          const allClientLobs = response.lobs || [];
+          
+          // Count total possible SubLOBs for this client
+          const totalPossibleSubLobs = allClientLobs.reduce((total, lob) => {
+            return total + (lob.subLobs ? lob.subLobs.length : 0);
+          }, 0);
+          
+          // If no LOBs exist for this client, they can't be assigned
+          if (totalPossibleSubLobs === 0) {
+            return false;
+          }
+          
+          // Check if all possible LOB/SubLOB combinations are already assigned
+          let assignedCount = 0;
+          for (const lob of allClientLobs) {
+            for (const subLob of lob.subLobs) {
+              const isAssigned = clientAssignments.some(
+                assignment => assignment.dLOB === lob.name && assignment.dSubLOB === subLob.name
+              );
+              if (isAssigned) {
+                assignedCount++;
+              }
+            }
+          }
+          
+          // Client is fully assigned if all possible combinations are assigned
+          return assignedCount === totalPossibleSubLobs;
+        } catch (error) {
+          console.error('Error checking all client LOBs:', error);
+          return false;
+        }
       }
       
-      // If LOB is selected but no Sub LOB, check if THIS specific LOB has ANY assignments
+      // If LOB is selected but no Sub LOB, check if ALL SubLOBs for this LOB are assigned
       if (clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName) {
-        return clientAssignments.some(
-          assignment => assignment.dLOB === clientSiteConfirmDetails.lobName
+        // Get all SubLOBs for this specific LOB
+        const selectedLob = clientLobs.find(lob => lob.name === clientSiteConfirmDetails.lobName);
+        if (!selectedLob || !selectedLob.subLobs) {
+          return false;
+        }
+        
+        // Check if all SubLOBs for this LOB are assigned
+        const assignedSubLobs = clientAssignments
+          .filter(assignment => assignment.dLOB === clientSiteConfirmDetails.lobName)
+          .map(assignment => assignment.dSubLOB);
+        
+        const allSubLobsAssigned = selectedLob.subLobs.every(subLob => 
+          assignedSubLobs.includes(subLob.name)
         );
+        
+        return allSubLobsAssigned;
       }
       
       // If both LOB and Sub LOB are selected, check if that specific combination exists
@@ -470,15 +594,32 @@ const SiteManagement = () => {
   const handleAddClient = async () => {
     if (selectedSite && selectedClientId) {
       try {
-        const clientName = clients.find(c => c.id == selectedClientId)?.name;
+        // Get client name from the availableClients array first, then fall back to clients array
+        const clientName = availableClients.find(c => {
+          return c.id == selectedClientId;
+        })?.name || 
+        clients.find(c => {
+          return c.id == selectedClientId;
+        })?.name;
+        
+        if (!clientName) {
+          console.error('Client name not found for ID:', selectedClientId);
+          setErrorMessage('Client not found. Please try again.');
+          setShowErrorModal(true);
+          setTimeout(() => {
+            setShowErrorModal(false);
+          }, 3000);
+          return;
+        }
+  
         const selectedLob = clientLobs.find(lob => lob.id === selectedLobId);
         const lobName = selectedLob ? selectedLob.name : null;
         const selectedSubLob = clientSubLobs.find(subLob => subLob.id === selectedSubLobId);
         const subLobName = selectedSubLob ? selectedSubLob.name : null;
-    
-        // Set confirmation details
+  
+        // Set confirmation details with the client name
         setClientSiteConfirmDetails({
-          clientName,
+          clientName: clientName, // Make sure this is set correctly
           lobName,
           subLobName
         });
@@ -504,7 +645,7 @@ const SiteManagement = () => {
 
   const confirmAddClient = async () => {
     try {
-      // Check if client is already assigned to this site
+      // Use the client name from clientSiteConfirmDetails instead of searching in clients array
       const clientName = clientSiteConfirmDetails.clientName;
       
       console.log("Checking if client is already assigned:", clientName);
@@ -512,7 +653,7 @@ const SiteManagement = () => {
       console.log("Checking against LOB:", clientSiteConfirmDetails.lobName);
       console.log("Checking against Sub LOB:", clientSiteConfirmDetails.subLobName);
       
-      // THIS IS THE KEY FIX - add await here!
+      // Use the clientName we already have from confirmation details
       const isAlreadyAssigned = await isClientFullyAssignedToSite(clientName, selectedSite.dSite_ID);
       
       console.log("Is client already assigned:", isAlreadyAssigned);
@@ -529,50 +670,72 @@ const SiteManagement = () => {
       
       // If not already assigned, proceed with API call
       await manageSite('addClientToSite', {
-        clientId: selectedClientId.toString(), // REMOVE parseInt(), use toString() instead
-        siteId: selectedSite.dSite_ID.toString(), // REMOVE parseInt(), use toString() instead
+        clientId: selectedClientId.toString(),
+        siteId: selectedSite.dSite_ID.toString(),
         lobName: clientSiteConfirmDetails.lobName,
-        subLobName: clientSiteConfirmDetails.subLobName
+        subLobName: clientSiteConfirmDetails.subLobName,
+        userID: localStorage.getItem('userId') || '0001' // Pass the user ID
       });
       
-      // Continue with the rest of the function...
+      // Close confirmation modal
       setShowAddClientSiteConfirmModal(false);
-      setSuccessMessage(`Client "${clientSiteConfirmDetails.clientName}" successfully added to site "${selectedSite.dSiteName}"`);
-      setShowSuccessModal(true);
       
-      // Reset form
+      // Determine what was added based on selections
+      let addedAllLobs = false;
+      let addedAllSubLobs = false;
+      
+      if (!clientSiteConfirmDetails.lobName) {
+        // No LOB selected means all LOBs and SubLOBs were added
+        addedAllLobs = true;
+        addedAllSubLobs = true;
+      } else if (!clientSiteConfirmDetails.subLobName) {
+        // LOB selected but no SubLOB means all SubLOBs for that LOB were added
+        addedAllSubLobs = true;
+      }
+      
+      // Set success modal details with comprehensive information
+      setClientAddSuccessDetails({
+        clientName: clientName, // Use the clientName from confirmDetails
+        siteName: selectedSite.dSiteName,
+        lobName: clientSiteConfirmDetails.lobName || '',
+        subLobName: clientSiteConfirmDetails.subLobName || '',
+        addedAllLobs: addedAllLobs,
+        addedAllSubLobs: addedAllSubLobs
+      });
+      setShowClientAddSuccessModal(true);
+      
+      // Reset form - including clearing the site selection
+      setSelectedSite(null);
       setSelectedClientId('');
       setSelectedLobId('');
       setSelectedSubLobId('');
       setClientLobs([]);
       setClientSubLobs([]);
+      setAvailableClients([]);
+      setExistingAssignments([]);
       
       // Refresh data in the background
       fetchSiteClients();
       fetchSites();
-      fetchExistingAssignments(selectedSite.dSite_ID);
       
-      // Auto-hide the success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 3000);
     } catch (error) {
       console.error('Error adding client to site:', error);
-    setShowAddClientSiteConfirmModal(false);
-    
-    if (error.message && error.message.toLowerCase().includes('already assigned') || 
-        error.message && error.message.toLowerCase().includes('already added')) {
-      setAlreadyAddedClientName(clientSiteConfirmDetails.clientName);
-      setShowClientAlreadyAddedModal(true);
-    } else {
-      setErrorMessage(`Failed to add client: ${error.message}`);
-      setShowErrorModal(true);
-      setTimeout(() => {
-        setShowErrorModal(false);
-      }, 3000);
+      setShowAddClientSiteConfirmModal(false);
+      
+      if (error.message && error.message.toLowerCase().includes('already assigned') || 
+          error.message && error.message.toLowerCase().includes('already added')) {
+        const clientName = clientSiteConfirmDetails.clientName; // Use from confirmDetails
+        setAlreadyAddedClientName(clientName);
+        setShowClientAlreadyAddedModal(true);
+      } else {
+        setErrorMessage(`Failed to add client: ${error.message}`);
+        setShowErrorModal(true);
+        setTimeout(() => {
+          setShowErrorModal(false);
+        }, 3000);
+      }
     }
-  }
-};
+  };
 
   /**
    * Removes a client from a site
@@ -619,8 +782,8 @@ const SiteManagement = () => {
         setShowEditErrorModal(true);
         return;
       }
-
-      await manageSite('edit', { 
+  
+      const response = await manageSite('edit', { 
         siteId: siteBeingEdited.id || siteBeingEdited.dSite_ID,
         siteName: siteBeingEdited.name,
         updateClientSiteTable: true,
@@ -628,6 +791,13 @@ const SiteManagement = () => {
   
       // Close the edit modal and confirmation modal
       setShowEditSiteConfirmModal(false);
+      
+      // Update the siteBeingEdited with the new site ID for the success modal
+      setSiteBeingEdited(prev => ({
+        ...prev,
+        newSiteId: response.newSiteId
+      }));
+      
       setShowEditSuccessModal(true);
       
       // Reset form and refresh data
@@ -651,24 +821,64 @@ const SiteManagement = () => {
 
   const handleReactivateClientSite = async (clientSiteId) => {
     const clientSite = siteClients.find(sc => sc.dClientSite_ID === clientSiteId);
-    setDeleteType('reactivate-client-site');
-    setItemToDelete({ id: clientSiteId, name: clientSite?.dClientName || 'Unknown client' });
-    setShowDeleteModal(true);
+    
+    // Check if the parent site is active or deactivated
+    const siteIsDeactivated = deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+    
+    if (siteIsDeactivated) {
+      // Show the site deactivated warning
+      setDeactivatedSiteName(clientSite.dSiteName);
+      setShowSiteDeactivatedWarning(true);
+    } else {
+      // If site is active, proceed to normal confirmation
+      setDeleteType('reactivate-client-site');
+      setItemToDelete({ id: clientSiteId, name: clientSite?.dClientName || 'Unknown client' });
+      setShowDeleteModal(true);
+    }
   };
 
   const handleBulkDeactivateClientSites = async () => {
     if (selectedClientSiteIds.length === 0) return;
     
+    // Get the actual client-site objects for the selected IDs
+    const selectedClientSites = siteClients.filter(clientSite => 
+      selectedClientSiteIds.includes(clientSite.dClientSite_ID)
+    );
+    
     setDeleteType('bulk-deactivate-client-sites');
-    setItemToDelete({ count: selectedClientSiteIds.length });
+    setItemToDelete({ 
+      count: selectedClientSiteIds.length,
+      type: 'bulk-deactivate-client-sites',
+      items: selectedClientSites
+    });
     setShowDeleteModal(true);
   };
 
   const handleBulkReactivateClientSites = async () => {
     if (selectedClientSiteIds.length === 0) return;
     
+    // Filter out client-site IDs that belong to deactivated sites
+    const validClientSiteIds = selectedClientSiteIds.filter(csId => {
+      const clientSite = siteClients.find(cs => cs.dClientSite_ID === csId);
+      return clientSite && !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+    });
+    
+    if (validClientSiteIds.length === 0) {
+      setShowSiteDeactivatedWarning(true);
+      return;
+    }
+    
+    // Get the actual client-site objects for the valid IDs
+    const selectedClientSites = siteClients.filter(clientSite => 
+      validClientSiteIds.includes(clientSite.dClientSite_ID)
+    );
+    
     setDeleteType('bulk-reactivate-client-sites');
-    setItemToDelete({ count: selectedClientSiteIds.length });
+    setItemToDelete({ 
+      count: validClientSiteIds.length,
+      type: 'bulk-reactivate-client-sites',
+      items: selectedClientSites
+    });
     setShowDeleteModal(true);
   };
 
@@ -705,16 +915,53 @@ const SiteManagement = () => {
   };
 
   /**
-   * Handles site row checkbox selection
+   * Handles site row checkbox selection with shift-click support
    */
-  const handleSiteSelection = (siteId) => {
-    setSelectedSiteIds(prev => {
-      if (prev.includes(siteId)) {
-        return prev.filter(id => id !== siteId);
-      } else {
-        return [...prev, siteId];
+  const handleSiteSelection = (siteId, index, event) => {
+    // If this is the onChange event from a shift-click, skip processing
+    if (event?.type === 'change' && shiftClickInProgress.current) {
+      shiftClickInProgress.current = false; // Reset the flag
+      return;
+    }
+  
+    if (event?.shiftKey && lastSelectedSiteIndex !== null) {
+      // Shift-click: select range
+      const startIndex = Math.min(lastSelectedSiteIndex, index);
+      const endIndex = Math.max(lastSelectedSiteIndex, index);
+      
+      const rangeIds = [];
+      for (let i = startIndex; i <= endIndex; i++) {
+        if (filteredSites[i]) {
+          rangeIds.push(filteredSites[i].dSite_ID);
+        }
       }
-    });
+      
+      setSelectedSiteIds(prev => {
+        const newSelection = new Set(prev);
+        rangeIds.forEach(id => newSelection.add(id));
+        const newSelectionArray = Array.from(newSelection);
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllSites(newSelectionArray.length === filteredSites.length);
+        
+        return newSelectionArray;
+      });
+    } else {
+      // Normal click: toggle single selection
+      setSelectedSiteIds(prev => {
+        const newSelection = prev.includes(siteId) 
+          ? prev.filter(id => id !== siteId)
+          : [...prev, siteId];
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllSites(newSelection.length === filteredSites.length);
+        
+        return newSelection;
+      });
+    }
+    
+    // Update last selected index for future shift-clicks
+    setLastSelectedSiteIndex(index);
   };
 
   /**
@@ -723,24 +970,105 @@ const SiteManagement = () => {
   const handleSelectAllSites = () => {
     if (selectAllSites) {
       setSelectedSiteIds([]);
+      setLastSelectedSiteIndex(null);
     } else {
       // Only select IDs of the filtered sites currently visible in the table
       setSelectedSiteIds(filteredSites.map(site => site.dSite_ID));
+      setLastSelectedSiteIndex(null);
     }
     setSelectAllSites(!selectAllSites);
   };
 
   /**
-   * Handles client-site row checkbox selection
+   * Handles client-site row checkbox selection with shift-click support
    */
-  const handleClientSiteSelection = (clientSiteId) => {
-    setSelectedClientSiteIds(prev => {
-      if (prev.includes(clientSiteId)) {
-        return prev.filter(id => id !== clientSiteId);
-      } else {
-        return [...prev, clientSiteId];
+  const handleClientSiteSelection = (clientSiteId, index, event) => {
+    // If this is the onChange event from a shift-click, skip processing
+    if (event?.type === 'change' && clientSiteShiftClickInProgress.current) {
+      clientSiteShiftClickInProgress.current = false; // Reset the flag
+      return;
+    }
+  
+    // Get the client site record
+    const clientSite = siteClients.find(cs => cs.dClientSite_ID === clientSiteId);
+    
+    // If we're in the DEACTIVATED tab and trying to select an item, check if its parent site is active
+    if (clientSiteStatusTab === 'DEACTIVATED') {
+      const siteIsDeactivated = deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+      
+      if (siteIsDeactivated) {
+        // Show the warning and prevent selection
+        setDeactivatedSiteName(clientSite.dSiteName);
+        setShowSiteDeactivatedWarning(true);
+        return; // Don't proceed with selection
       }
-    });
+    }
+    
+    if (event?.shiftKey && lastSelectedClientSiteIndex !== null) {
+      // Shift-click: select range (only selectable items)
+      const startIndex = Math.min(lastSelectedClientSiteIndex, index);
+      const endIndex = Math.max(lastSelectedClientSiteIndex, index);
+      
+      const rangeIds = [];
+      for (let i = startIndex; i <= endIndex; i++) {
+        if (filteredSiteClients[i]) {
+          const currentClientSite = filteredSiteClients[i];
+          
+          // Check if this item is selectable (not belonging to deactivated site if in DEACTIVATED tab)
+          let isSelectable = true;
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            const siteIsDeactivated = deactivatedSites.some(site => site.dSite_ID === currentClientSite.dSite_ID);
+            isSelectable = !siteIsDeactivated;
+          }
+          
+          if (isSelectable) {
+            rangeIds.push(currentClientSite.dClientSite_ID);
+          }
+        }
+      }
+      
+      setSelectedClientSiteIds(prev => {
+        const newSelection = new Set(prev);
+        rangeIds.forEach(id => newSelection.add(id));
+        const newSelectionArray = Array.from(newSelection);
+        
+        // Get count of selectable items for comparison
+        const selectableItems = filteredSiteClients.filter(clientSite => {
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            return !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+          }
+          return true;
+        });
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllClientSites(newSelectionArray.length === selectableItems.length);
+        
+        return newSelectionArray;
+      });
+    } else {
+      // Normal click: toggle single selection
+      setSelectedClientSiteIds(prev => {
+        const newSelection = prev.includes(clientSiteId)
+          ? prev.filter(id => id !== clientSiteId)
+          : [...prev, clientSiteId];
+        
+        // Get count of selectable items for comparison
+        const selectableItems = filteredSiteClients.filter(clientSite => {
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            return !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+          }
+          return true;
+        });
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllClientSites(newSelection.length === selectableItems.length);
+        
+        return newSelection;
+      });
+    }
+    
+    // Update last selected index for future shift-clicks
+    setLastSelectedClientSiteIndex(index);
   };
 
   /**
@@ -749,9 +1077,22 @@ const SiteManagement = () => {
   const handleSelectAllClientSites = () => {
     if (selectAllClientSites) {
       setSelectedClientSiteIds([]);
+      setLastSelectedClientSiteIndex(null);
     } else {
       // Only select IDs of the filtered client-sites currently visible in the table
-      setSelectedClientSiteIds(filteredSiteClients.map(clientSite => clientSite.dClientSite_ID));
+      // AND skip any assignments belonging to deactivated sites
+      const selectableIds = filteredSiteClients
+        .filter(clientSite => {
+          // If we're in DEACTIVATED tab, check if parent site is also deactivated
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            return !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+          }
+          return true; // If in ACTIVE tab, all are selectable
+        })
+        .map(clientSite => clientSite.dClientSite_ID);
+      
+      setSelectedClientSiteIds(selectableIds);
+      setLastSelectedClientSiteIndex(null);
     }
     setSelectAllClientSites(!selectAllClientSites);
   };
@@ -762,8 +1103,15 @@ const SiteManagement = () => {
   const handleBulkDeactivateSites = async () => {
     if (selectedSiteIds.length === 0) return;
     
+    // Get the actual site objects for the selected IDs
+    const selectedSites = sites.filter(site => selectedSiteIds.includes(site.dSite_ID));
+    
     setDeleteType('bulk-sites');
-    setItemToDelete({ count: selectedSiteIds.length });
+    setItemToDelete({ 
+      count: selectedSiteIds.length,
+      type: 'sites',
+      items: selectedSites
+    });
     setShowDeleteModal(true);
   };
   
@@ -823,11 +1171,9 @@ const SiteManagement = () => {
           fetchSiteClients();
           setSuccessMessage(`Site "${itemToDelete.name}" successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'bulk-sites':
           await manageSite('bulkDeactivateSites', { siteIds: selectedSiteIds });
           
@@ -839,58 +1185,48 @@ const SiteManagement = () => {
           
           setSuccessMessage(`${itemToDelete.count} sites successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
-        break;
-
+          // Remove the setTimeout - modal will be closed manually
+          break;
+  
         case 'reactivate-site':
-        await manageSite('reactivate', { siteId: itemToDelete.id });
-        fetchSites();
-        fetchSiteClients();
-        setSuccessMessage(`Site "${itemToDelete.name}" successfully reactivated`);
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-        }, 3000);
-        break;
-
-      case 'bulk-reactivate-sites':
-        await manageSite('bulkReactivateSites', { siteIds: selectedSiteIds });
-        
-        // Update state and reset selection
-        fetchSites();
-        fetchSiteClients();
-        setSelectedSiteIds([]);
-        setSelectAllSites(false);
-        
-        setSuccessMessage(`${itemToDelete.count} sites successfully reactivated`);
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-        }, 3000);
-        break;
+          await manageSite('reactivate', { siteId: itemToDelete.id });
+          fetchSites();
+          fetchSiteClients();
+          setSuccessMessage(`Site "${itemToDelete.name}" successfully reactivated`);
+          setShowSuccessModal(true);
+          // Remove the setTimeout - modal will be closed manually
+          break;
+  
+        case 'bulk-reactivate-sites':
+          await manageSite('bulkReactivateSites', { siteIds: selectedSiteIds });
+          
+          // Update state and reset selection
+          fetchSites();
+          fetchSiteClients();
+          setSelectedSiteIds([]);
+          setSelectAllSites(false);
+          
+          setSuccessMessage(`${itemToDelete.count} sites successfully reactivated`);
+          setShowSuccessModal(true);
+          // Remove the setTimeout - modal will be closed manually
+          break;
           
         case 'client-site':
           await manageSite('deactivateClientSite', { clientSiteId: itemToDelete.id });
           fetchSiteClients();
           setSuccessMessage(`Client "${itemToDelete.name}" assignment successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'reactivate-client-site':
           await manageSite('reactivateClientSite', { clientSiteId: itemToDelete.id });
           fetchSiteClients();
           setSuccessMessage(`Client "${itemToDelete.name}" assignment successfully reactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'bulk-deactivate-client-sites':
           await manageSite('bulkDeactivateClientSites', { clientSiteIds: selectedClientSiteIds });
           fetchSiteClients();
@@ -898,11 +1234,9 @@ const SiteManagement = () => {
           setSelectAllClientSites(false);
           setSuccessMessage(`${itemToDelete.count} client-site assignments successfully deactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
-
+  
         case 'bulk-reactivate-client-sites':
           await manageSite('bulkReactivateClientSites', { clientSiteIds: selectedClientSiteIds });
           fetchSiteClients();
@@ -910,9 +1244,7 @@ const SiteManagement = () => {
           setSelectAllClientSites(false);
           setSuccessMessage(`${itemToDelete.count} client-site assignments successfully reactivated`);
           setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 3000);
+          // Remove the setTimeout - modal will be closed manually
           break;
       }
     } catch (error) {
@@ -1037,8 +1369,7 @@ const SiteManagement = () => {
           totalSubLobs += lob.subLobs.length;
           
           const matchingAssignments = assignments.filter(
-            assignment => assignment.dClientName === clientName && 
-                         assignment.dLOB === lob.name
+            assignment => assignment.dClientName === clientName && assignment.dLOB === lob.name
           );
           
           const existingSubLobs = matchingAssignments.map(assignment => assignment.dSubLOB);
@@ -1304,8 +1635,15 @@ const SiteManagement = () => {
   const handleBulkReactivateSites = async () => {
     if (selectedSiteIds.length === 0) return;
     
+    // Get the actual site objects for the selected IDs
+    const selectedSites = sites.filter(site => selectedSiteIds.includes(site.dSite_ID));
+    
     setDeleteType('bulk-reactivate-sites');
-    setItemToDelete({ count: selectedSiteIds.length });
+    setItemToDelete({ 
+      count: selectedSiteIds.length,
+      type: 'sites',
+      items: selectedSites
+    });
     setShowDeleteModal(true);
   };
 
@@ -1333,7 +1671,74 @@ const SiteManagement = () => {
     // Reset selection when switching tabs
     setSelectedSiteIds([]);
     setSelectAllSites(false);
+    setLastSelectedSiteIndex(null);
   }, [siteStatusTab, activeSites, deactivatedSites]);
+
+  const renderSummaryBox = (message, selectedCount) => {
+    // If message contains items to be processed, show them in a table
+    if (message && typeof message === 'object' && message.items && Array.isArray(message.items)) {
+      return (
+        <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '13px'
+          }}>
+            <thead>
+              <tr style={{ 
+                backgroundColor: '#f8f9fa',
+                borderBottom: '1px solid #e2e8f0'
+              }}>
+                {/* Adjust headers based on the type of items */}
+                {message.type === 'sites' && (
+                  <>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Site ID</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Site Name</th>
+                  </>
+                )}
+                {(message.type === 'client-sites' || message.type === 'bulk-deactivate-client-sites' || message.type === 'bulk-reactivate-client-sites') && (
+                  <>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>ID</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Client</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>LOB</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Sub LOB</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Site</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {message.items.map((item, index) => (
+                <tr key={index} style={{ 
+                  borderBottom: index < message.items.length - 1 ? '1px solid #f0f0f0' : 'none',
+                  backgroundColor: index % 2 === 0 ? '#fff' : '#fafbfc'
+                }}>
+                  {message.type === 'sites' && (
+                    <>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dSite_ID}</td>
+                      <td style={{ padding: '8px 12px', color: '#333' }}>{item.dSiteName}</td>
+                    </>
+                  )}
+                  {(message.type === 'client-sites' || message.type === 'bulk-deactivate-client-sites' || message.type === 'bulk-reactivate-client-sites') && (
+                    <>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dClientSite_ID}</td>
+                      <td style={{ padding: '8px 12px', color: '#333' }}>{item.dClientName}</td>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dLOB || 'No LOB'}</td>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dSubLOB || 'No Sub LOB'}</td>
+                      <td style={{ padding: '8px 12px', color: '#666' }}>{item.dSiteName}</td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    
+    // Fallback to text display for other message types
+    return message;
+  };
 
   return (
     <div className="site-management-container">
@@ -1344,10 +1749,15 @@ const SiteManagement = () => {
         </div>
 
         <div className="tab-container">
-          <div 
-            className={`tab ${activeTab === 'addSite' ? 'active' : ''}`}
-            onClick={() => setActiveTab('addSite')}
-          >
+        <div 
+          className={`tab ${activeTab === 'addSite' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('addSite');
+            // Reset to ACTIVE tab when switching to Add New Site
+            setSiteStatusTab('ACTIVE');
+            setClientSiteStatusTab('ACTIVE');
+          }}
+        >
             Add New Site
           </div>
           <div 
@@ -1355,6 +1765,9 @@ const SiteManagement = () => {
             onClick={() => {
               setActiveTab('addClient');
               setCurrentSite(null);
+              // Reset to ACTIVE tab when switching to Add Client to Site
+              setSiteStatusTab('ACTIVE');
+              setClientSiteStatusTab('ACTIVE');
             }}
           >
             Add Client to Site
@@ -1370,6 +1783,7 @@ const SiteManagement = () => {
           <label>Site Name</label>
           <input
             type="text"
+            ref={addSiteInputRef}
             value={newSiteName}
             onChange={(e) => setNewSiteName(sanitizeInput(e.target.value))}
             maxLength={30}
@@ -1452,8 +1866,8 @@ const SiteManagement = () => {
                   <th onClick={() => handleSiteSort('tCreatedAt')} className="sortable-header" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                     Created At {siteSortConfig.key === 'tCreatedAt' ? (siteSortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                   </th>
-                  <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, width: 200 }}>Actions</th>
-                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1, marginLeft: 73 }}>
+                  <th className="actions-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Actions</th>
+                  <th className="select-col" style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1}}>
                     <div className="select-all-container">
                     <p>Select All</p>
                       <input
@@ -1469,11 +1883,7 @@ const SiteManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {sites
-                  .filter(site => 
-                    site.dSiteName.toLowerCase().includes(siteSearchTerm.toLowerCase())
-                  )
-                  .map((site) => (
+                {filteredSites.map((site, index) => (
                   <tr
                     key={site.dSite_ID}
                     className={selectedSiteIds.includes(site.dSite_ID) ? 'selected-row' : ''}
@@ -1499,7 +1909,7 @@ const SiteManagement = () => {
                             onClick={() => handleReactivateSite(site.dSite_ID)}
                             className="reactivate-btn"
                           >
-                            <FaEdit size={12} /> Reactivate
+                            <FaPlusCircle size={12} /> Reactivate
                           </button>
                         )}
                       </div>
@@ -1508,7 +1918,15 @@ const SiteManagement = () => {
                       <input
                         type="checkbox"
                         checked={selectedSiteIds.includes(site.dSite_ID)}
-                        onChange={() => handleSiteSelection(site.dSite_ID)}
+                        onChange={(event) => handleSiteSelection(site.dSite_ID, index, event)}
+                        onMouseDown={(event) => {
+                          // Capture the shift key state before the onChange event
+                          if (event.shiftKey) {
+                            event.preventDefault(); // Prevent default checkbox behavior
+                            shiftClickInProgress.current = true; // Set flag to indicate shift-click in progress
+                            handleSiteSelection(site.dSite_ID, index, event);
+                          }
+                        }}
                       />
                     </td>
                   </tr>
@@ -1530,6 +1948,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Site</label>
           <Select
+            ref={selectSiteRef}
             value={selectedSite ? { value: selectedSite.dSite_ID, label: selectedSite.dSiteName } : null}
             onChange={async (selectedOption) => {
               try {
@@ -1595,6 +2014,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Client</label>
           <Select
+            ref={selectClientRef}
             value={selectedClientId ? { 
               value: selectedClientId, 
               label: availableClients.find(c => c.id.toString() === selectedClientId.toString())?.name || 
@@ -1664,6 +2084,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select LOB</label>
           <Select
+            ref={selectLobRef}
             value={selectedLobId ? { value: selectedLobId, label: clientLobs.find(l => l.id === selectedLobId)?.name } : null}
             onChange={(selectedOption) => {
               const lobId = selectedOption ? selectedOption.value : '';
@@ -1703,6 +2124,7 @@ const SiteManagement = () => {
         <div className="form-group">
           <label>Select Sub LOB</label>
           <Select
+            ref={selectSubLobRef}
             value={selectedSubLobId ? { value: selectedSubLobId, label: clientSubLobs.find(s => s.id === selectedSubLobId)?.name } : null}
             onChange={(selectedOption) => {
               setSelectedSubLobId(selectedOption ? selectedOption.value : '');
@@ -1832,7 +2254,7 @@ const SiteManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredSiteClients.map(clientSite => (
+              {filteredSiteClients.map((clientSite, index) => (
                 <tr 
                   key={clientSite.dClientSite_ID}
                   className={selectedClientSiteIds.includes(clientSite.dClientSite_ID) ? 'selected-row' : ''}
@@ -1867,7 +2289,15 @@ const SiteManagement = () => {
                     <input
                       type="checkbox"
                       checked={selectedClientSiteIds.includes(clientSite.dClientSite_ID)}
-                      onChange={() => handleClientSiteSelection(clientSite.dClientSite_ID)}
+                      onChange={(event) => handleClientSiteSelection(clientSite.dClientSite_ID, index, event)}
+                      onMouseDown={(event) => {
+                        // Capture the shift key state before the onChange event
+                        if (event.shiftKey) {
+                          event.preventDefault(); // Prevent default checkbox behavior
+                          clientSiteShiftClickInProgress.current = true; // Set flag to indicate shift-click in progress
+                          handleClientSiteSelection(clientSite.dClientSite_ID, index, event);
+                        }
+                      }}
                     />
                   </td>
                 </tr>
@@ -1894,6 +2324,7 @@ const SiteManagement = () => {
                 <label>Site Name</label>
                 <input
                   type="text"
+                  ref={editSiteInputRef}
                   value={currentSite.name}
                   onChange={(e) => setCurrentSite({...currentSite, name: sanitizeInput(e.target.value)})}
                   required
@@ -2104,36 +2535,37 @@ const SiteManagement = () => {
 
       {/* Edit Site Confirmation Modal */}
       {showEditSiteConfirmModal && siteBeingEdited && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '450px' }}>
-            <div className="modal-header">
-              <h2>Confirm Edit Site</h2>
-              <button onClick={() => setShowEditSiteConfirmModal(false)} className="close-btn">
-                <FaTimes />
-              </button>
-            </div>
-            <div className="modal-content">
-              <p>Are you sure you want to update this site?</p>
-              <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
-                <li><strong>Original name:</strong> {siteBeingEdited.originalName}</li>
-                <li><strong>New name:</strong> {siteBeingEdited.name}</li>
-              </ul>
-              <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-                <strong>Note:</strong> This will update the site name in all associated client-site relationships.
-              </p>
-            </div>
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => setShowEditSiteConfirmModal(false)}>Cancel</button>
-              <button
-                className="save-btn"
-                onClick={confirmSaveSite}
-              >
-                Confirm
-              </button>
-            </div>
+      <div className="modal-overlay">
+        <div className="modal" style={{ width: '450px' }}>
+          <div className="modal-header">
+            <h2>Confirm Edit Site</h2>
+            <button onClick={() => setShowEditSiteConfirmModal(false)} className="close-btn">
+              <FaTimes />
+            </button>
+          </div>
+          <div className="modal-content">
+            <p>Are you sure you want to update this site?</p>
+            <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+              <li><strong>Original name:</strong> {siteBeingEdited.originalName}</li>
+              <li><strong>New name:</strong> {siteBeingEdited.name}</li>
+            </ul>
+            <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+              <strong>Note:</strong> This will update the site name and generate a new site ID based on the new name. 
+              All associated client-site relationships will be updated accordingly.
+            </p>
+          </div>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="cancel-btn" onClick={() => setShowEditSiteConfirmModal(false)}>Cancel</button>
+            <button
+              className="save-btn"
+              onClick={confirmSaveSite}
+            >
+              Confirm
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
@@ -2172,17 +2604,11 @@ const SiteManagement = () => {
                   You are about to deactivate <strong>{itemToDelete?.count} selected sites</strong>.
                   <br />This will hide them from the sites list but preserve their data.
                 </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {sites
-                    .filter(site => selectedSiteIds.includes(site.dSite_ID))
-                    .map(site => (
-                      <div key={site.dSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">Site ID: {site.dSite_ID} | {site.dSiteName}</div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                {itemToDelete?.items && (
+                  <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                    {renderSummaryBox(itemToDelete)}
+                  </div>
+                )}
               </>
             )}
             {deleteType === 'bulk-clients' && (
@@ -2197,25 +2623,20 @@ const SiteManagement = () => {
                 <br />This will make it visible in the active sites list.
               </p>
             )}
+
             {deleteType === 'bulk-reactivate-sites' && (
-              <>
-                <p>
-                  You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
-                  <br />This will make them visible in the active sites list.
-                </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {sites
-                    .filter(site => selectedSiteIds.includes(site.dSite_ID))
-                    .map(site => (
-                      <div key={site.dSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">Site ID: {site.dSite_ID} | {site.dSiteName}</div>
-                        </div>
-                      </div>
-                    ))}
+            <>
+              <p>
+                You are about to reactivate <strong>{itemToDelete?.count} selected sites</strong>.
+                <br />This will make them visible in the active sites list.
+              </p>
+              {itemToDelete?.items && (
+                <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                  {renderSummaryBox(itemToDelete)}
                 </div>
-              </>
-            )}
+              )}
+            </>
+          )}
 
             {deleteType === 'client-site' && (
               <p>
@@ -2235,47 +2656,32 @@ const SiteManagement = () => {
                   You are about to deactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
                   <br />This will hide them from the active client-site assignments list but preserve their data.
                 </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {siteClients
-                    .filter(clientSite => selectedClientSiteIds.includes(clientSite.dClientSite_ID))
-                    .map(clientSite => (
-                      <div key={clientSite.dClientSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">
-                            ID: {clientSite.dClientSite_ID} | {clientSite.dClientName} | {clientSite.dLOB || 'No LOB'} | {clientSite.dSubLOB || 'No Sub LOB'} | {clientSite.dSiteName}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                {itemToDelete?.items && (
+                  <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                    {renderSummaryBox(itemToDelete)}
+                  </div>
+                )}
               </>
             )}
-            {deleteType === 'bulk-reactivate-client-sites' && (
-              <>
-                <p>
-                  You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
-                  <br />This will make them visible in the active client-site assignments list.
-                </p>
-                <div className="user-list" style={{ maxHeight: "150px", overflowY: "auto", marginBottom: "20px" }}>
-                  {siteClients
-                    .filter(clientSite => selectedClientSiteIds.includes(clientSite.dClientSite_ID))
-                    .map(clientSite => (
-                      <div key={clientSite.dClientSite_ID} className="user-list-item">
-                        <div className="user-info">
-                          <div className="user-name">
-                            ID: {clientSite.dClientSite_ID} | {clientSite.dClientName} | {clientSite.dLOB || 'No LOB'} | {clientSite.dSubLOB || 'No Sub LOB'} | {clientSite.dSiteName}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </>
-            )}
+              {deleteType === 'bulk-reactivate-client-sites' && (
+                <>
+                  <p>
+                    You are about to reactivate <strong>{itemToDelete?.count} selected client-site assignments</strong>.
+                    <br />This will make them visible in the active client-site assignments list.
+                  </p>
+                  {itemToDelete?.items && (
+                    <div style={{ background: '#fafbfc', border: '1px solid #e2e8f0', borderRadius: 7, padding: '13px 14px', fontSize: 14, color: '#333', marginBottom: 16 }}>
+                      {renderSummaryBox(itemToDelete)}
+                    </div>
+                  )}
+                </>
+              )}
             
             <div className="confirmation-input" style={{ textAlign: "center" }}>
               <p style={{ textAlign: "center", marginBottom: "15px" }}>Type <strong>CONFIRM</strong> to proceed:</p>
               <input
                 type="text"
+                ref={deleteConfirmInputRef}
                 value={deleteConfirmText}
                 onChange={(e) => {
                   // Allow normal text input without forcing uppercase
@@ -2359,60 +2765,67 @@ const SiteManagement = () => {
         </div>
       )}
 
-      {showAddClientSiteConfirmModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: '450px' }}>
-            <div className="modal-header">
-              <h2>Confirm Add Client to Site</h2>
-            </div>
-              <p>Are you sure you want to add:</p>
-              <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
-                <li><strong>Client:</strong> {clientSiteConfirmDetails.clientName}</li>
-                {clientSiteConfirmDetails.lobName && (
-                  <li><strong>LOB:</strong> {clientSiteConfirmDetails.lobName}</li>
+        {showAddClientSiteConfirmModal && (
+          <div className="modal-overlay">
+            <div className="modal" style={{ width: '450px' }}>
+              <div className="modal-header">
+                <h2>Confirm Add Client to Site</h2>
+              </div>
+                <p>Are you sure you want to add:</p>
+                <ul style={{ marginLeft: '20px', marginBottom: '15px' }}>
+                  <li><strong>Client:</strong> {clientSiteConfirmDetails.clientName || 'No client name found'}</li>
+                  {clientSiteConfirmDetails.lobName && (
+                    <li><strong>LOB:</strong> {clientSiteConfirmDetails.lobName}</li>
+                  )}
+                  {clientSiteConfirmDetails.subLobName && (
+                    <li><strong>Sub LOB:</strong> {clientSiteConfirmDetails.subLobName}</li>
+                  )}
+                  <li><strong>To site:</strong> {selectedSite?.dSiteName}</li>
+                </ul>
+                {!clientSiteConfirmDetails.lobName && (
+                  <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                    <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
+                  </p>
                 )}
-                {clientSiteConfirmDetails.subLobName && (
-                  <li><strong>Sub LOB:</strong> {clientSiteConfirmDetails.subLobName}</li>
+                {clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName && (
+                  <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
+                    <strong>Note:</strong> All available Sub LOBs will be added to the site.
+                  </p>
                 )}
-                <li><strong>To site:</strong> {selectedSite?.dSiteName}</li>
-              </ul>
-              {!clientSiteConfirmDetails.lobName && (
-                <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-                  <strong>Note:</strong> All available LOBs and Sub LOBs will be added to the site.
-                </p>
-              )}
-              {clientSiteConfirmDetails.lobName && !clientSiteConfirmDetails.subLobName && (
-                <p className="warning-text" style={{ color: '#e53e3e', fontSize: '13px', marginBottom: '15px' }}>
-                  <strong>Note:</strong> All available Sub LOBs will be added to the site.
-                </p>
-              )}
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="cancel-btn" onClick={() => setShowAddClientSiteConfirmModal(false)}>No</button>
-              <button
-                className="save-btn"
-                onClick={confirmAddClient}
-              >
-                Yes
-              </button>
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="cancel-btn" onClick={() => setShowAddClientSiteConfirmModal(false)}>No</button>
+                <button
+                  className="save-btn"
+                  onClick={confirmAddClient}
+                >
+                  Yes
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Success Message Modal */}
       {showSuccessModal && (
-      <div className="success-toast" style={slideInOut}>
-        <div style={{ padding: '16px 20px' }}>
-          <p style={{ 
-            color: '#2f855a', 
-            display: 'flex', 
-            alignItems: 'center',
-            fontSize: '14px',
-            margin: 0
-          }}>
-            <span style={{ marginRight: '10px', fontSize: '18px' }}>✓</span>
+      <div className="modal-overlay">
+        <div className="modal success-modal">
+          <div className="modal-header">
+            <h2>
+              <span className="success-icon">✓</span>
+              Operation Successful
+            </h2>
+          </div>
+          <p>
             {successMessage}
           </p>
+          <div className="modal-actions">
+            <button
+              className="save-btn"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              OK
+            </button>
+          </div>
         </div>
       </div>
     )}
@@ -2479,6 +2892,53 @@ const SiteManagement = () => {
       </div>
     )}
 
+        {/* Client Add Success Modal */}
+        {showClientAddSuccessModal && (
+        <div className="modal-overlay">
+          <div className="modal success-modal">
+            <div className="modal-header">
+              <h2>
+                <span className="success-icon">✓</span>
+                Client Added Successfully
+              </h2>
+            </div>
+            <p>
+              Client "<strong>{clientAddSuccessDetails.clientName}</strong>" has been successfully added to 
+              site "<strong>{clientAddSuccessDetails.siteName}</strong>".
+            </p>
+            
+            <div style={{ backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '6px', marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '14px' }}>What was added:</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '13px', lineHeight: '1.6', textAlign: 'left' }}>
+                <li><strong>Client:</strong> {clientAddSuccessDetails.clientName}</li>
+                
+                {clientAddSuccessDetails.addedAllLobs ? (
+                  <li><strong>LOBs:</strong> All available LOBs and their Sub LOBs</li>
+                ) : (
+                  <>
+                    <li><strong>LOB:</strong> {clientAddSuccessDetails.lobName}</li>
+                    {clientAddSuccessDetails.addedAllSubLobs ? (
+                      <li><strong>Sub LOBs:</strong> All available Sub LOBs for "{clientAddSuccessDetails.lobName}"</li>
+                    ) : (
+                      <li><strong>Sub LOB:</strong> {clientAddSuccessDetails.subLobName}</li>
+                    )}
+                  </>
+                )}
+              </ul>
+            </div>
+            
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="save-btn"
+                onClick={() => setShowClientAddSuccessModal(false)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     {/* Edit Site Error Modal */}
     {showEditErrorModal && (
       <div className="modal-overlay">
@@ -2501,21 +2961,56 @@ const SiteManagement = () => {
 
     {/* Edit Site Success Modal */}
     {showEditSuccessModal && (
+    <div className="modal-overlay">
+      <div className="modal success-modal">
+        <div className="modal-header">
+          <h2>
+            <span className="success-icon">✓</span>
+            Site Updated Successfully
+          </h2>
+        </div>
+        <p>
+          Site has been successfully updated:
+        </p>
+        <ul style={{ marginLeft: '20px', marginBottom: '15px', textAlign: 'left' }}>
+          <li><strong>Name:</strong> "{siteBeingEdited?.originalName}" → "{siteBeingEdited?.name}"</li>
+          {siteBeingEdited?.newSiteId && siteBeingEdited?.newSiteId !== (siteBeingEdited?.id || siteBeingEdited?.dSite_ID) && (
+            <li><strong>Site ID:</strong> "{siteBeingEdited?.id || siteBeingEdited?.dSite_ID}" → "{siteBeingEdited?.newSiteId}"</li>
+          )}
+        </ul>
+        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            className="save-btn"
+            onClick={() => {
+              setShowEditSuccessModal(false);
+              setEditModalOpen(false);
+            }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+    {/* Site Deactivated Warning Modal */}
+    {showSiteDeactivatedWarning && (
       <div className="modal-overlay">
-        <div className="modal" style={{ width: '400px' }}>
+        <div className="modal" style={{ width: '450px' }}>
           <div className="modal-header">
-            <h2>Edit Successful</h2>
+            <h2>Site is Deactivated</h2>
           </div>
-          <p>Site name has been changed from "{siteBeingEdited?.originalName}" to "{siteBeingEdited?.name}".</p>
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <p>
+            {deactivatedSiteName ? 
+              `Site "${deactivatedSiteName}" is currently deactivated. Reactivate Site first to select.` : 
+              "The parent site is currently deactivated. You need to reactivate the site before reactivating client assignments."}
+          </p>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'center' }}>
             <button
               className="save-btn"
-              onClick={() => {
-                setShowEditSuccessModal(false);
-                setEditModalOpen(false);
-              }}
+              onClick={() => setShowSiteDeactivatedWarning(false)}
             >
-              OK
+              Close
             </button>
           </div>
         </div>

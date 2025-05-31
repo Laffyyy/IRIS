@@ -56,7 +56,7 @@ router.post('/manage', (req, res) => {
       return siteManagementController.bulkReactivateClientSites(req, res);
     default:
       return res.status(400).json({ 
-        message: 'Invalid operation type. Valid operations include "add", "edit", "deactivate", "reactivate", "getAll", "getAllByStatus", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", "updateClientSite", "getClientLobs", "getExistingAssignments", "bulkDeactivateSites", "bulkReactivateSites", "bulkDeleteClientSiteAssignments", "bulkAddClientsToSite", and "getAvailableClients"' 
+        message: 'Invalid operation type. Valid operations include "add", "edit", "deactivate", "reactivate", "getAll", "getAllByStatus", "getClients", "addClientToSite", "getSiteClients", "removeClientFromSite", "updateClientSite", "getClientLobs", "getExistingAssignments", "bulkDeactivateSites", "bulkReactivateSites", "bulkDeleteClientSiteAssignments", "bulkAddClientsToSite", "getAvailableClients", "deactivateClientSite", "reactivateClientSite", "getClientSitesByStatus", "bulkDeactivateClientSites", and "bulkReactivateClientSites"' 
       });
   }
 });
