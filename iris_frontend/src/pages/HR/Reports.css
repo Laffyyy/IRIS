@@ -391,13 +391,13 @@
 }
 
 /* Column widths */
-.hr-reports-table th:nth-child(2), .hr-reports-table td:nth-child(2) { min-width: 100px; } /* Employee ID */
-.hr-reports-table th:nth-child(3), .hr-reports-table td:nth-child(3) { min-width: 150px; } /* Employee Name */
-.hr-reports-table th:nth-child(4), .hr-reports-table td:nth-child(4) { min-width: 100px; } /* Type */
-.hr-reports-table th:nth-child(5), .hr-reports-table td:nth-child(5) { min-width: 100px; } /* Month/Year */
-.hr-reports-table th:nth-child(6), .hr-reports-table td:nth-child(6) { min-width: 250px; } /* Description */
-.hr-reports-table th:nth-child(7), .hr-reports-table td:nth-child(7) { min-width: 150px; } /* Timestamp */
-.hr-reports-table th:nth-child(8), .hr-reports-table td:nth-child(8) { min-width: 150px; } /* Timestamp */
+.hr-reports-table th:nth-child(2), .hr-reports-table td:nth-child(2) { min-width: 50px; width: 50px; } /* Employee ID */
+.hr-reports-table th:nth-child(3), .hr-reports-table td:nth-child(3) { min-width: 50px; width: 50px;} /* Employee Name */
+.hr-reports-table th:nth-child(4), .hr-reports-table td:nth-child(4) { min-width: 50px; width: 50px;} /* Type */
+.hr-reports-table th:nth-child(5), .hr-reports-table td:nth-child(5) { min-width: 50px; width: 50px;} /* Month/Year */
+.hr-reports-table th:nth-child(6), .hr-reports-table td:nth-child(6) { min-width: 50px; width: 50px;} /* Description */
+.hr-reports-table th:nth-child(7), .hr-reports-table td:nth-child(7) { min-width: 50px; width: 50px;} /* Timestamp */
+.hr-reports-table th:nth-child(8), .hr-reports-table td:nth-child(8) { min-width: 50px; width: 50px;} /* Timestamp */
 
 /* Responsive styles */
 @media (max-width: 768px) {
@@ -443,18 +443,18 @@
     overflow-x: auto;
   }
 
-  table {
+  .hr-reports-table {
     font-size: 12px;
   }
 
-  th, td {
+  .hr-reports-table th, .hr-reports-table td {
     padding: 10px 12px;
   }
 
   .checkbox-column,
   .hr-reports-checkbox-column {
-    width: 30px;
-    min-width: 30px;
+    width: 50px !important;
+    min-width: 50px !important;
     padding: 10px 5px;
   }
 
@@ -480,11 +480,11 @@
     padding: 10px;
   }
 
-  table {
+  .hr-reports-table {
     font-size: 11px;
   }
 
-  th, td {
+  .hr-reports-table th, .hr-reports-table td {
     padding: 8px 10px;
   }
 

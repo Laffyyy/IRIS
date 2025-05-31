@@ -28,6 +28,7 @@
   color: #004D8D;
   margin-bottom: 4px;
   font-weight: 600;
+  margin-left: 20px;
 }
 
 .report-header .subtitle {
@@ -35,6 +36,7 @@
   color: #666;
   margin: 0;
   text-align: left;
+  margin-left: 20px;
 }
 
 .controls-section {

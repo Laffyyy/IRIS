@@ -28,7 +28,7 @@
   display: flex;
   gap: 2px;
   border-bottom: 1px solid #eee;
-  margin: 0 20px 10px 20px;
+  margin: 0 20px 20px 20px;
 }
 
 .hr-data-mgmt-tab {
@@ -222,8 +222,8 @@
 /* Define specific column widths */
 .checkbox-column,
 .hr-data-mgmt-checkbox-column {
-  width: 50px !important;
-  min-width: 50px !important;
+  width: 40px;
+  min-width: 40px;
   text-align: center;
   padding: 12px 8px;
 }
@@ -236,13 +236,13 @@
 }
 
 /* Column specific widths */
-.hr-data-mgmt-table th:nth-child(2), .hr-data-mgmt-table td:nth-child(2) { min-width: 50px; width: 50px; } /* Employee ID */
-.hr-data-mgmt-table th:nth-child(3), .hr-data-mgmt-table td:nth-child(3) { min-width: 50px; width: 50px; } /* Employee Name */
-.hr-data-mgmt-table th:nth-child(4), .hr-data-mgmt-table td:nth-child(4) { min-width: 50px; width: 50px; } /* Type */
-.hr-data-mgmt-table th:nth-child(5), .hr-data-mgmt-table td:nth-child(5) { min-width: 50px; width: 50px; } /* Month/Year */
-.hr-data-mgmt-table th:nth-child(6), .hr-data-mgmt-table td:nth-child(6) { min-width: 50px; width: 50px; } /* Description */
-.hr-data-mgmt-table th:nth-child(7), .hr-data-mgmt-table td:nth-child(7) { min-width: 50px; width: 50px; } /* Timestamp */
-.hr-data-mgmt-table th:nth-child(8), .hr-data-mgmt-table td:nth-child(8) { min-width: 50px; width: 50px; } /* Actions */
+.hr-data-mgmt-table th:nth-child(2), .hr-data-mgmt-table td:nth-child(2) { min-width: 100px; width: 100px; } /* Employee ID */
+.hr-data-mgmt-table th:nth-child(3), .hr-data-mgmt-table td:nth-child(3) { min-width: 100px; width: 100px; } /* Employee Name */
+.hr-data-mgmt-table th:nth-child(4), .hr-data-mgmt-table td:nth-child(4) { min-width: 100px; width: 100px; } /* Type */
+.hr-data-mgmt-table th:nth-child(5), .hr-data-mgmt-table td:nth-child(5) { min-width: 100px; width: 100px; } /* Month/Year */
+.hr-data-mgmt-table th:nth-child(6), .hr-data-mgmt-table td:nth-child(6) { min-width: 100px; width: 100px; } /* Description */
+.hr-data-mgmt-table th:nth-child(7), .hr-data-mgmt-table td:nth-child(7) { min-width: 100px; width: 100px; } /* Timestamp */
+.hr-data-mgmt-table th:nth-child(8), .hr-data-mgmt-table td:nth-child(8) { min-width: 100px; width: 100px; } /* Actions */
 
 /* Column specific styles */
 .employee-id,
