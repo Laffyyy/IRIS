@@ -586,94 +586,118 @@ const ClientManagement = () => {
   }
 }, [filterClientForSubLob, lobs]);
 
+// Replace the existing fetchClientData function around lines 585-760
 const fetchClientData = async (status = itemStatusTab) => {
   try {
     setLoading(true);
     setError(null);
     
-    const response = await axios.get(`http://localhost:3000/api/clients/getAll?status=${status}`);
+    // Use the new endpoint that includes site information
+    const response = await axios.get(`http://localhost:3000/api/clients/getClientsWithSites?status=${status}`);
     
     if (response.data && response.data.data) {
-      console.log('Client data from API:', response.data.data);
+      console.log('Client data with sites from API:', response.data.data);
       
       const transformedClients = [];
       const transformedLobs = [];
       const transformedSubLobs = [];
       const sitesMap = new Map();
+      const uniqueClientNamesMap = new Map();
+      
+      let clientId = 0;
       let lobId = 0;
       let subLobId = 0;
       
-      // First, create a map of unique clients
-      const uniqueClients = new Map();
-      
-      response.data.data.forEach((client) => {
-        const clientId = client.clientId;
-        // Only add each client once, using their unique ID
-        if (!uniqueClients.has(clientId)) {
-          uniqueClients.set(clientId, {
-            id: clientId,
-            name: client.clientName,
-            createdBy: client.createdBy || '-',
-            createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-          });
+      // Group data by client name
+      const clientGroups = response.data.data.reduce((groups, item) => {
+        if (!groups[item.clientName]) {
+          groups[item.clientName] = [];
         }
-      });
+        groups[item.clientName].push(item);
+        return groups;
+      }, {});
       
-      // Convert unique clients map to array
-      transformedClients.push(...uniqueClients.values());
-      
-      // Now process LOBs and SubLOBs
-      response.data.data.forEach((client) => {
-        const clientId = client.clientId;
+      Object.entries(clientGroups).forEach(([clientName, clientItems]) => {
+        clientId++;
+        uniqueClientNamesMap.set(clientName, clientId);
         
-        if (client.LOBs && Array.isArray(client.LOBs)) {
-          client.LOBs.forEach(lob => {
+        // Get the first item for client-level data
+        const firstItem = clientItems[0];
+        
+        transformedClients.push({
+          id: clientId,
+          name: clientName,
+          businessId: firstItem.clientId, // Add this to store dClientLOB_ID for display
+          createdBy: firstItem.dCreatedBy || '-',
+          createdAt: firstItem.tCreatedAt ? new Date(firstItem.tCreatedAt).toLocaleString() : '-'
+        });
+        
+        // Group by LOB
+        const lobGroups = clientItems.reduce((groups, item) => {
+          const lobKey = item.lobName || 'NO_LOB';
+          if (!groups[lobKey]) {
+            groups[lobKey] = [];
+          }
+          groups[lobKey].push(item);
+          return groups;
+        }, {});
+        
+        Object.entries(lobGroups).forEach(([lobKey, lobItems]) => {
+          if (lobKey !== 'NO_LOB') {
             lobId++;
+            const firstLobItem = lobItems[0];
             
-            // Extract site info from LOB
-            if (lob.sites && Array.isArray(lob.sites)) {
-              lob.sites.forEach(site => {
-                if (site.siteId && site.siteName) {
-                  sitesMap.set(site.siteId, {
-                    id: site.siteId,
-                    name: site.siteName
+            // Collect all sites for this LOB
+            const lobSites = [];
+            lobItems.forEach(item => {
+              if (item.siteId && item.siteName) {
+                if (!lobSites.find(s => s.siteId === item.siteId)) {
+                  lobSites.push({
+                    siteId: item.siteId,
+                    siteName: item.siteName,
+                    clientSiteId: item.clientSiteId
+                  });
+                  sitesMap.set(item.siteId, {
+                    id: item.siteId,
+                    name: item.siteName
                   });
                 }
-              });
-            } else if (lob.siteId && lob.siteName) {
-              sitesMap.set(lob.siteId, {
-                id: lob.siteId,
-                name: lob.siteName
-              });
-            }
+              }
+            });
             
             transformedLobs.push({
               id: lobId,
-              name: lob.name,
+              name: firstLobItem.lobName,
               clientId: clientId,
-              clientRowId: lob.clientRowId || clientId,
-              siteId: lob.siteId || null,
-              siteName: lob.siteName || null,
-              sites: lob.sites || []
+              clientRowId: firstLobItem.clientId, // This now correctly maps to dClientLOB_ID
+              sites: lobSites,
+              siteId: lobSites.length > 0 ? lobSites[0].siteId : null,
+              siteName: lobSites.length > 0 ? lobSites[0].siteName : null,
+              clientSiteId: lobSites.length > 0 ? lobSites[0].clientSiteId : null,
+              createdBy: firstLobItem.dCreatedBy || '-',
+              createdAt: firstLobItem.tCreatedAt ? new Date(firstLobItem.tCreatedAt).toLocaleString() : '-'
             });
             
-            if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-              lob.subLOBs.forEach(subLobName => {
+            // Process Sub LOBs
+            lobItems.forEach(item => {
+              if (item.subLobName) {
                 subLobId++;
                 transformedSubLobs.push({
                   id: subLobId,
-                  name: typeof subLobName === 'object' ? subLobName.name : subLobName,
+                  name: item.subLobName,
                   lobId: lobId,
-                  clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
+                  clientRowId: item.clientId, // This now correctly maps to dClientLOB_ID
+                  siteId: item.siteId,
+                  siteName: item.siteName,
+                  clientSiteId: item.clientSiteId,
+                  createdBy: item.dCreatedBy || '-',
+                  createdAt: item.tCreatedAt ? new Date(item.tCreatedAt).toLocaleString() : '-'
                 });
-              });
-            }
-          });
-        }
+              }
+            });
+          }
+        });
       });
-      
-      // Sort clients by ID in ascending order
-      transformedClients.sort((a, b) => a.id - b.id);
       
       setClients(transformedClients);
       setLobs(transformedLobs);
@@ -682,24 +706,21 @@ const fetchClientData = async (status = itemStatusTab) => {
       // Set sites from collected site data
       const transformedSites = Array.from(sitesMap.values());
       setSites(transformedSites.length > 0 ? transformedSites : []);
+      setUniqueClientNames(uniqueClientNamesMap);
       
       // Calculate row count based on how they're displayed in the UI
+      // DON'T auto-sort here - let the table sorting be handled by the sort state
       let rowCount = 0;
-      
       transformedClients.forEach(client => {
         const clientLobs = transformedLobs.filter(lob => lob.clientId === client.id);
         if (clientLobs.length === 0) {
-          // Client with no LOBs is just one row
           rowCount++;
         } else {
-          // For each LOB, count either the LOB itself or all its SubLOBs
           clientLobs.forEach(lob => {
             const lobSubLobs = transformedSubLobs.filter(subLob => subLob.lobId === lob.id);
             if (lobSubLobs.length === 0) {
-              // LOB with no SubLOBs is one row
               rowCount++;
             } else {
-              // Each SubLOB is a separate row
               rowCount += lobSubLobs.length;
             }
           });
@@ -713,33 +734,35 @@ const fetchClientData = async (status = itemStatusTab) => {
         setDeactivatedCount(rowCount);
       }
     }
-
+    
     // Always fetch and update both counts regardless of current status
     if (status === 'ACTIVE') {
       // Also fetch deactivated count
       try {
-        const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=DEACTIVATED');
-        // Calculate deactivated count using same logic
-        const deactivatedCount = calculateRowCount(deactivatedResponse.data.data);
-        setDeactivatedCount(deactivatedCount);
-      } catch (err) {
-        console.error('Error fetching deactivated count:', err);
+        const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getClientsWithSites?status=DEACTIVATED');
+        if (deactivatedResponse.data && deactivatedResponse.data.data) {
+          const deactivatedRowCount = calculateRowCount(deactivatedResponse.data.data);
+          setDeactivatedCount(deactivatedRowCount);
+        }
+      } catch (error) {
+        console.error('Error fetching deactivated count:', error);
       }
     } else if (status === 'DEACTIVATED') {
       // Also fetch active count
       try {
-        const activeResponse = await axios.get('http://localhost:3000/api/clients/getAll?status=ACTIVE');
-        // Calculate active count using same logic
-        const activeCount = calculateRowCount(activeResponse.data.data);
-        setActiveCount(activeCount);
-      } catch (err) {
-        console.error('Error fetching active count:', err);
+        const activeResponse = await axios.get('http://localhost:3000/api/clients/getClientsWithSites?status=ACTIVE');
+        if (activeResponse.data && activeResponse.data.data) {
+          const activeRowCount = calculateRowCount(activeResponse.data.data);
+          setActiveCount(activeRowCount);
+        }
+      } catch (error) {
+        console.error('Error fetching active count:', error);
       }
     }
-
+    
   } catch (err) {
     console.error('Error fetching client data:', err);
-    setError('Failed to load clients. Please try again later.');
+    setError('Failed to load client data');
   } finally {
     setLoading(false);
   }
@@ -970,179 +993,132 @@ const fetchClientData = async (status = itemStatusTab) => {
     );
   };
   
-  // Add Client with confirmation
-  const handleAddClient = async () => {
-    const finalizedClientName = finalizeInput(clientName);
-    const finalizedLobCards = lobCards.map(card => ({
-      lobName: finalizeInput(card.lobName),
-      subLobNames: card.subLobNames.map(name => finalizeInput(name)),
-    }));
-    if (finalizedClientName.trim() && finalizedLobCards.some(card => card.lobName.trim())) {
-      showConfirm(
-        <span>
-          Are you sure you want to add the following:
-          {formatAddClientConfirmation(finalizedClientName, finalizedLobCards)}
-        </span>,
-        async () => {
-          try {
-            // Validate all input fields
-            if (!isValidInput(finalizedClientName)) {
-              showToast('Invalid client name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+  // Replace the existing handleAddClient function around lines 1079-1154
+const handleAddClient = async () => {
+  const finalizedClientName = finalizeInput(clientName);
+  const finalizedLobCards = lobCards.map(card => ({
+    lobName: finalizeInput(card.lobName),
+    subLobNames: card.subLobNames.map(name => finalizeInput(name)),
+  }));
+  if (finalizedClientName.trim() && finalizedLobCards.some(card => card.lobName.trim())) {
+    showConfirm(
+      <span>
+        Are you sure you want to add the following:
+        {formatAddClientConfirmation(finalizedClientName, finalizedLobCards)}
+      </span>,
+      async () => {
+        try {
+          // Store current sort state before refresh
+          const currentSort = { ...tableSort };
+          
+          // Validate all input fields
+          if (!isValidInput(finalizedClientName)) {
+            showToast('Invalid client name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+            return;
+          }
+          for (const card of finalizedLobCards) {
+            if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
+              showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
               return;
             }
-            for (const card of finalizedLobCards) {
-              if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
-                showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+            for (const subLobName of card.subLobNames) {
+              if (subLobName.trim() && !isValidInput(subLobName.trim())) {
+                showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
                 return;
               }
-              for (const subLobName of card.subLobNames) {
-                if (subLobName.trim() && !isValidInput(subLobName.trim())) {
-                  showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
-                  return;
-                }
-              }
             }
+          }
 
-            // Check for duplicate client name (case/space insensitive)
-            if (clients.some(c => normalizeName(c.name) === normalizeName(finalizedClientName))) {
-              showToast('Error: Client name already exists.', 'error');
-              return;
-            }
-            // Check for duplicate LOB names (case-insensitive, trimmed, space-insensitive)
-            const lobNames = finalizedLobCards.map(card => normalizeName(card.lobName)).filter(name => name);
-            const uniqueLobNames = new Set(lobNames);
-            if (lobNames.length !== uniqueLobNames.size) {
-              showToast('Error: Duplicate LOB names are not allowed.', 'error');
-              return;
-            }
-            // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed, space-insensitive)
-            const allSubLobNames = finalizedLobCards.flatMap(card => card.subLobNames.map(name => normalizeName(name)).filter(name => name));
-            const uniqueSubLobNames = new Set(allSubLobNames);
-            if (allSubLobNames.length !== uniqueSubLobNames.size) {
-              showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
-              return;
-            }
-            // Check for duplicate Sub LOBs within each LOB (already present)
-            const hasDuplicateSubLobs = finalizedLobCards.some(card => {
-              const uniqueSubLobs = new Set();
-              return card.subLobNames.some(subLobName => {
-                const norm = normalizeName(subLobName);
-                if (norm && uniqueSubLobs.has(norm)) {
-                  return true; // Found a duplicate
-                }
-                if (norm) {
-                  uniqueSubLobs.add(norm);
-                }
-                return false;
-              });
-            });
-            if (hasDuplicateSubLobs) {
-              showToast('Error: Duplicate Sub LOB names are not allowed within the same LOB.', 'error');
-              return;
-            }
-
-            // Prepare data for API
-            const clientData = {
-              clientName: finalizedClientName,
-              LOBs: []
-            };
-            
-            // Add LOBs and SubLOBs
-            finalizedLobCards.forEach(card => {
-              if (card.lobName.trim()) {
-                const lob = {
-                  name: card.lobName.trim(),
-                  subLOBs: []
-                };
-                
-                // Add SubLOBs
-                card.subLobNames.forEach(subLobName => {
-                  if (subLobName.trim()) {
-                    lob.subLOBs.push(subLobName.trim());
-                  }
-                });
-                
-                // Only add LOB if it has at least one SubLOB
-                if (lob.subLOBs.length > 0) {
-                  clientData.LOBs.push(lob);
-                }
+          // Check for duplicate client name (case/space insensitive)
+          if (clients.some(c => normalizeName(c.name) === normalizeName(finalizedClientName))) {
+            showToast('Error: Client name already exists.', 'error');
+            return;
+          }
+          // Check for duplicate LOB names (case-insensitive, trimmed, space-insensitive)
+          const lobNames = finalizedLobCards.map(card => normalizeName(card.lobName)).filter(name => name);
+          const uniqueLobNames = new Set(lobNames);
+          if (lobNames.length !== uniqueLobNames.size) {
+            showToast('Error: Duplicate LOB names are not allowed.', 'error');
+            return;
+          }
+          // Check for duplicate Sub LOBs across all cards (case-insensitive, trimmed, space-insensitive)
+          const allSubLobNames = finalizedLobCards.flatMap(card => card.subLobNames.map(name => normalizeName(name)).filter(name => name));
+          const uniqueSubLobNames = new Set(allSubLobNames);
+          if (allSubLobNames.length !== uniqueSubLobNames.size) {
+            showToast('Error: Duplicate Sub LOB names are not allowed across all LOBs.', 'error');
+            return;
+          }
+          // Check for duplicate Sub LOBs within each LOB (already present)
+          const hasDuplicateSubLobs = finalizedLobCards.some(card => {
+            const uniqueSubLobs = new Set();
+            return card.subLobNames.some(subLobName => {
+              const norm = normalizeName(subLobName);
+              if (norm && uniqueSubLobs.has(norm)) {
+                return true; // Found a duplicate
               }
+              if (norm) {
+                uniqueSubLobs.add(norm);
+              }
+              return false;
             });
-            
-            // Send data to API
-            const response = await axios.post('http://localhost:3000/api/clients/add', clientData);
-            // Refresh client data
-            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-            if (refreshResponse.data && refreshResponse.data.data) {
-              // ... transformation logic ...
-              // (reuse your transformation logic here)
-              const transformedClients = [];
-              const transformedLobs = [];
-              const transformedSubLobs = [];
-              const sitesMap = new Map();
-              let lobId = 0;
-              let subLobId = 0;
-              refreshResponse.data.data.forEach((client) => {
-                const clientId = client.clientId; 
-                transformedClients.push({
-                  id: clientId,
-                  name: client.clientName,
-                  createdBy: client.createdBy || '-',
-                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-                });
-                if (client.LOBs && Array.isArray(client.LOBs)) {
-                  client.LOBs.forEach(lob => {
-                    lobId++;
-                    if (lob.sites && Array.isArray(lob.sites)) {
-                      lob.sites.forEach(site => {
-                        if (site.siteId && site.siteName) {
-                          sitesMap.set(site.siteId, {
-                            id: site.siteId,
-                            name: site.siteName
-                          });
-                        }
-                      });
-                    }
-                    transformedLobs.push({
-                      id: lobId,
-                      name: lob.name,
-                      clientId: clientId,
-                      siteId: lob.siteId || 1,
-                      sites: lob.sites || []
-                    });
-                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                      lob.subLOBs.forEach(subLobName => {
-                        subLobId++;
-                        transformedSubLobs.push({
-                          id: subLobId,
-                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                          lobId: lobId,
-                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                        });
-                      });
-                    }
-                  });
+          });
+          if (hasDuplicateSubLobs) {
+            showToast('Error: Duplicate Sub LOB names are not allowed within the same LOB.', 'error');
+            return;
+          }
+
+          // Prepare data for API
+          const clientData = {
+            clientName: finalizedClientName,
+            LOBs: []
+          };
+          
+          // Add LOBs and SubLOBs
+          finalizedLobCards.forEach(card => {
+            if (card.lobName.trim()) {
+              const lob = {
+                name: card.lobName.trim(),
+                subLOBs: []
+              };
+              
+              // Add SubLOBs
+              card.subLobNames.forEach(subLobName => {
+                if (subLobName.trim()) {
+                  lob.subLOBs.push(subLobName.trim());
                 }
               });
-              setClients(transformedClients);
-              setLobs(transformedLobs);
-              setSubLobs(transformedSubLobs);
-              if (sitesMap.size > 0) {
-                setSites(Array.from(sitesMap.values()));
+              
+              // Only add LOB if it has at least one SubLOB
+              if (lob.subLOBs.length > 0) {
+                clientData.LOBs.push(lob);
               }
             }
+          });
+          
+          // Send data to API
+          const response = await axios.post('http://localhost:3000/api/clients/add', clientData);
+          
+          if (response.data) {
+            // Refresh client data using the new endpoint with sites
+            await fetchClientData(itemStatusTab);
+            
+            // Restore the sort state after refresh
+            setTableSort(currentSort);
+            
+            // Clear form and show success message
             setClientName('');
             setLobCards([{ lobName: '', subLobNames: [''] }]);
             showToast('Client added successfully!');
-          } catch (error) {
-            console.error('Error adding client:', error);
-            showToast(`Failed to add client: ${error.response?.data?.error || error.message}`, 'error');
           }
-        },
-        () => {} // onCancel
-      );
-    }
-  };
+        } catch (error) {
+          console.error('Error adding client:', error);
+          showToast(`Failed to add client: ${error.response?.data?.error || error.message}`, 'error');
+        }
+      },
+      () => {} // onCancel
+    );
+  }
+};
 
   // Helper to format add LOB confirmation details
   const formatAddLobConfirmation = (clientName, siteName, lobCards) => {
@@ -2083,28 +2059,65 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
   };
 
   // Helper to cycle sort direction
-  const getNextSortDirection = (current) => {
-    if (current === null) return 'asc';
-    if (current === 'asc') return 'desc';
-    return null;
+  const getNextSortDirection = (currentDirection) => {
+    if (!currentDirection || currentDirection === '') return 'asc';
+    if (currentDirection === 'asc') return 'desc';
+    if (currentDirection === 'desc') return null; // Reset to no sorting
+    return 'asc';
   };
 
   // Helper to sort rows
-  const sortRows = (rows, column, direction) => {
-    if (!column || !direction) return rows;
-    return [...rows].sort((a, b) => {
-      let aValue = a[column];
-      let bValue = b[column];
-      // For string comparison, ignore case
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
+  const sortRows = (data, column, direction) => {
+    if (!column || !direction) return data;
+    
+    return [...data].sort((a, b) => {
+      let aVal = '';
+      let bVal = '';
+      
+      switch (column) {
+        case 'clientId':
+          aVal = a.clientRowId || a.businessId || a.clientId || '';
+          bVal = b.clientRowId || b.businessId || b.clientId || '';
+          break;
+        case 'clientSiteId':
+          aVal = a.clientSiteId || '';
+          bVal = b.clientSiteId || '';
+          break;
+        case 'name':
+          aVal = a.name || '';
+          bVal = b.name || '';
+          break;
+        case 'siteName':
+          aVal = a.siteName || '';
+          bVal = b.siteName || '';
+          break;
+        case 'lob':
+          aVal = a.lob || '';
+          bVal = b.lob || '';
+          break;
+        case 'subLob':
+          aVal = a.subLob || '';
+          bVal = b.subLob || '';
+          break;
+        case 'createdAt':
+          aVal = a.createdAt || '';
+          bVal = b.createdAt || '';
+          break;
+        default:
+          return 0;
       }
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-      return 0;
+      
+      // Handle numeric vs string comparison
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // String comparison
+      const comparison = aVal.toString().localeCompare(bVal.toString());
+      return direction === 'asc' ? comparison : -comparison;
     });
   };
+  
 
   // Add function to handle row selection
   const handleRowSelect = (rowKey, rowIndex, event) => {
@@ -3787,14 +3800,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                       onChange={(e) => {
                         const value = sanitizeInput(e.target.value, 50);
                         setSearchTerm(value);
-                        // Rebuild dropdown suggestions as user types
                         if (value.trim().length === 0) {
                           setSearchFilter(null);
                           setSearchDropdown([]);
                           setSearchDropdownVisible(false);
                           return;
                         }
-                        // Gather all matches
+                        // Gather all matches including sites
                         const lower = value.toLowerCase();
                         const clientMatches = clients
                           .filter(c => c.name && c.name.toLowerCase().includes(lower))
@@ -3805,9 +3817,13 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         const subLobMatches = subLobs
                           .filter(s => s.name && s.name.toLowerCase().includes(lower))
                           .map(s => ({ type: 'sublob', value: s.name }));
-                        // Remove duplicates by type+value
+                        const siteMatches = sites
+                          .filter(s => s.name && s.name.toLowerCase().includes(lower))
+                          .map(s => ({ type: 'site', value: s.name }));
+                          
+                        // Remove duplicates and combine
                         const seen = new Set();
-                        const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches].filter(item => {
+                        const allMatches = [...clientMatches, ...lobMatches, ...subLobMatches, ...siteMatches].filter(item => {
                           const key = item.type + ':' + item.value.toLowerCase();
                           if (seen.has(key)) return false;
                           seen.add(key);
@@ -3815,7 +3831,6 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                         });
                         setSearchDropdown(allMatches);
                         setSearchDropdownVisible(allMatches.length > 0);
-                        // Set filter immediately for dynamic search
                         setSearchFilter({ type: 'partial', value });
                       }}
                       maxLength={50}
@@ -3930,21 +3945,24 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     <tr>
                       <th style={{ width: '120px', textAlign: 'left', paddingLeft: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectAll}
-                          onChange={handleSelectAll}
-                          style={{ cursor: 'pointer' }}
-                        />
+                          <input
+                            type="checkbox"
+                            checked={selectAll}
+                            onChange={handleSelectAll}
+                            style={{ cursor: 'pointer' }}
+                          />
                           <span style={{ fontSize: '13px', color: '#2d3748' }}>Select All</span>
                         </div>
                       </th>
-                      {['clientId', 'name', 'lob', 'subLob', 'createdAt'].map((col, idx) => {
+                      {['clientId', 'clientSiteId', 'name', 'siteName', 'lob', 'subLob', 'createdBy', 'createdAt'].map((col, idx) => {
                         const colMap = {
                           clientId: 'Client ID',
+                          clientSiteId: 'Client Site ID',
                           name: 'Client Name',
+                          siteName: 'Site Name',
                           lob: 'LOB',
                           subLob: 'Sub LOB',
+                          createdBy: 'Created By',
                           createdAt: 'Created At',
                         };
                         // Show sort indicator
@@ -3971,212 +3989,83 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                     </tr>
                   </thead>
                   <tbody>
-                    {activeTableTab === 'clients' ? (
-                      (() => {
-                        // Build row data objects
-                        let rowData = [];
-                        filteredClients.forEach(client => {
-                          const clientLobs = lobs.filter(lob => lob.clientId === client.id);
-                          if (clientLobs.length === 0) {
-                            rowData.push({
-                              clientId: client.id,
-                              name: client.name,
-                              lob: '',
-                              subLob: '',
-                              createdAt: client.createdAt || '-',
-                              jsx: (
-                                <tr key={`client-${client.id}-no-lob`}>
-                                  <td>{client.id}</td>
-                                  <td>{client.name}</td>
-                                  <td>-</td>
-                                  <td>-</td>
-                                  <td>{client.createdBy || '-'}</td>
-                                  <td>{client.createdAt || '-'}</td>
-                                  <td>
-                                    <div className="action-buttons">
-                                      {itemStatusTab === 'DEACTIVATED' ? (
-                                        <button onClick={() => handleReactivateClient('client', client.id)} className="reactivate-btn">
-                                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
-                                        </button>
-                                      ) : (
-                                        <button onClick={() => handleDeactivateRow('client', client.id)} className="deactivate-btn">
-                                          <FaBan size={12} /> Deactivate
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            });
-                          } else {
-                            let filteredLobs = clientLobs;
-                            let filteredSubLobs = subLobs;
-                            if (searchFilter && searchFilter.type === 'lob') {
-                              filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
-                            }
-                            if (searchFilter && searchFilter.type === 'sublob') {
-                              filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
-                              const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
-                              filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
-                            }
-                            filteredLobs.forEach(lob => {
-                              const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
-                              if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
-                                rowData.push({
-                                  clientId: lob.clientRowId,
-                                  name: client.name,
-                                  lob: lob.name,
-                                  subLob: '',
-                                  createdAt: client.createdAt || '-',
-                                  jsx: (
-                                    <tr key={`client-${client.id}-lob-${lob.id}`}>
-                                      <td>{lob.clientRowId}</td>
-                                      <td>{client.name}</td>
-                                      <td>{lob.name}</td>
-                                      <td>-</td>
-                                      <td>{client.createdBy || '-'}</td>
-                                      <td>{client.createdAt || '-'}</td>
-                                      <td>
-                                        <div className="action-buttons">
-                                          {itemStatusTab === 'DEACTIVATED' ? (
-                                            <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
-                                              <FaCheckCircle size={14} color="#38a169" /> Reactivate
-                                            </button>
-                                          ) : (
-                                            <button onClick={() => handleDeactivateRow('lob', lob.id)} className="deactivate-btn">
-                                              <FaBan size={12} /> Deactivate
-                                            </button>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )
-                                });
-                              } else {
-                                lobSubLobs.forEach(subLob => {
-                                  rowData.push({
-                                    clientId: subLob.clientRowId,
-                                    name: client.name,
-                                    lob: lob.name,
-                                    subLob: subLob.name,
-                                    createdAt: client.createdAt || '-',
-                                    jsx: (
-                                      <tr key={`client-${client.id}-lob-${lob.id}-sublob-${subLob.id}`}>
-                                        <td>{subLob.clientRowId}</td>
-                                        <td>{client.name}</td>
-                                        <td>{lob.name}</td>
-                                        <td>{subLob.name}</td>
-                                        <td>{client.createdAt || '-'}</td>
-                                        <td>
-                                          <div className="action-buttons">
-                                            {itemStatusTab === 'DEACTIVATED' ? (
-                                              <button
-                                                onClick={() => handleReactivateRow('subLob', subLob.id)} 
-                                                className="reactivate-btn"
-                                              >
-                                                <FaCheckCircle size={14} color="#3182ce" /> Reactivate
-                                              </button>
-                                            ) : (
-                                              <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
-                                              <FaBan size={12} /> Deactivate
-                                            </button>
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )
-                                  });
-                                });
-                              }
-                            });
-                          }
-                        });
-                        // Dynamic search for partial search
-                        if (searchFilter && searchFilter.type === 'partial') {
-                          const lower = searchFilter.value.toLowerCase();
-                          rowData = rowData.filter(r =>
-                            [r.name, r.lob, r.subLob].some(val =>
-                              typeof val === 'string' && val.toLowerCase().includes(lower)
+                  {activeTableTab === 'clients' ? (
+                    (() => {
+                      // Build row data objects
+                      let rowData = [];
+                      filteredClients.forEach(client => {
+                        const clientLobs = lobs.filter(lob => lob.clientId === client.id);
+                        if (clientLobs.length === 0) {
+                          rowData.push({
+                            clientId: client.id,
+                            name: client.name,
+                            lob: '',
+                            subLob: '',
+                            createdAt: client.createdAt || '-',
+                            jsx: (
+                              <tr key={`client-${client.id}-no-lob`}>
+                                <td>{client.businessId || client.id}</td>
+                                <td>-</td>
+                                <td>{client.name}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>{client.createdBy || '-'}</td>
+                                <td>{client.createdAt || '-'}</td>
+                                <td>
+                                  <div className="action-buttons">
+                                    {itemStatusTab === 'DEACTIVATED' ? (
+                                      <button onClick={() => handleReactivateClient('client', client.id)} className="reactivate-btn">
+                                        <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => handleDeactivateClient('client', client.id)} className="deactivate-btn">
+                                        <FaBan size={12} /> Deactivate
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
                             )
-                          );
-                        }
-                        // Sort rowData if needed
-                        if (tableSort.column && tableSort.direction) {
-                          rowData = sortRows(rowData, tableSort.column, tableSort.direction);
-                        }
-                        if (rowData.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={7} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
-                                No Available Records
-                              </td>
-                            </tr>
-                          );
-                        }
-                        return rowData.map((r, rowIndex) => {
-                          const rowKey = r.subLob 
-                            ? `sublob-${r.name}-${r.lob}-${r.subLob}`
-                            : r.lob 
-                              ? `lob-${r.name}-${r.lob}`
-                              : `client-${r.name}`;
-                          return (
-                            <tr
-                              key={rowKey}
-                              onClick={e => {
-                                // Prevent toggling when clicking the checkbox itself or action buttons
-                                if (e.target.type === 'checkbox') return;
-                                if (e.target.closest && e.target.closest('.action-buttons')) return;
-                                handleRowSelect(rowKey, rowIndex, e);
-                              }}
-                              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
-                            >
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.has(rowKey)}
-                                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
-                                  style={{ cursor: 'pointer' }}
-                                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
-                                />
-                              </td>
-                              {r.jsx.props.children}
-                            </tr>
-                          );
-                        });
-                      })()
-                    ) : activeTableTab === 'lobs' ? (
-                      (() => {
-                        // Build row data objects for LOBs
-                        let rowData = lobs
-                          .filter(lob => {
-                            const client = clients.find(c => c.id === lob.clientId);
-                            return client && 
-                                  client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                                  (!filterClient || lob.clientId === filterClient);
-                          })
-                          .sort((a, b) => b.clientRowId - a.clientRowId)
-                          .flatMap(lob => {
-                            const client = clients.find(c => c.id === lob.clientId);
-                            const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
-                            if (lobSubLobs.length === 0) {
-                              return [{
+                          });
+                        } else {
+                          let filteredLobs = clientLobs;
+                          let filteredSubLobs = subLobs;
+                          if (searchFilter && searchFilter.type === 'lob') {
+                            filteredLobs = clientLobs.filter(lob => safeToLowerCase(lob.name) === safeToLowerCase(searchFilter.value));
+                          }
+                          if (searchFilter && searchFilter.type === 'sublob') {
+                            filteredSubLobs = subLobs.filter(subLob => safeToLowerCase(subLob.name) === safeToLowerCase(searchFilter.value));
+                            const allowedLobIds = new Set(filteredSubLobs.map(sl => sl.lobId));
+                            filteredLobs = clientLobs.filter(lob => allowedLobIds.has(lob.id));
+                          }
+                          // Remove the automatic sorting by clientRowId here
+                          filteredLobs.forEach(lob => {
+                            const lobSubLobs = filteredSubLobs.filter(subLob => subLob.lobId === lob.id);
+                            if (lobSubLobs.length === 0 && (!searchFilter || searchFilter.type !== 'sublob')) {
+                              rowData.push({
                                 clientId: lob.clientRowId,
-                                name: client ? client.name : '-',
+                                clientSiteId: lob.clientSiteId,
+                                name: client.name,
+                                siteName: lob.siteName,
                                 lob: lob.name,
                                 subLob: '',
-                                createdAt: client ? client.createdAt : '-',
+                                createdBy: lob.createdBy,
+                                createdAt: lob.createdAt || '-',
                                 jsx: (
-                                  <tr key={`lob-view-${lob.id}`}>
+                                  <tr key={`lob-${lob.id}-no-sublob`}>
                                     <td>{lob.clientRowId}</td>
-                                    <td>{client ? client.name : '-'}</td>
+                                    <td>{lob.clientSiteId || '-'}</td>
+                                    <td>{client.name}</td>
+                                    <td>{lob.siteName || '-'}</td>
                                     <td>{lob.name}</td>
                                     <td>-</td>
-                                    <td>{client ? client.createdBy : '-'}</td>
-                                    <td>{client ? client.createdAt : '-'}</td>
+                                    <td>{lob.createdBy || '-'}</td>
+                                    <td>{lob.createdAt || '-'}</td>
                                     <td>
                                       <div className="action-buttons">
                                         {itemStatusTab === 'DEACTIVATED' ? (
-                                          <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
+                                          <button onClick={() => handleReactivateClient('lob', lob.id)} className="reactivate-btn">
                                             <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                           </button>
                                         ) : (
@@ -4188,31 +4077,147 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                     </td>
                                   </tr>
                                 )
-                              }];
+                              });
+                            } else {
+                              // Remove the .sort((a, b) => b.clientRowId - a.clientRowId) here
+                              lobSubLobs.forEach(subLob => {
+                                rowData.push({
+                                  clientId: subLob.clientRowId,
+                                  clientSiteId: subLob.clientSiteId,
+                                  name: client.name,
+                                  siteName: subLob.siteName,
+                                  lob: lob.name,
+                                  subLob: subLob.name,
+                                  createdBy: subLob.createdBy,
+                                  createdAt: subLob.createdAt || '-',
+                                  jsx: (
+                                    <tr key={`sublob-${subLob.id}`}>
+                                      <td>{subLob.clientRowId}</td>
+                                      <td>{subLob.clientSiteId || '-'}</td>
+                                      <td>{client ? client.name : '-'}</td>
+                                      <td>{subLob.siteName || '-'}</td>
+                                      <td>{lob ? lob.name : '-'}</td>
+                                      <td>{subLob.name}</td>
+                                      <td>{subLob.createdBy || '-'}</td>
+                                      <td>{subLob.createdAt || '-'}</td>
+                                      <td>
+                                        <div className="action-buttons">
+                                          {itemStatusTab === 'DEACTIVATED' ? (
+                                            <button onClick={() => handleReactivateClient('sublob', subLob.id)} className="reactivate-btn">
+                                              <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                            </button>
+                                          ) : (
+                                            <button onClick={() => handleDeactivateRow('sublob', subLob.id)} className="deactivate-btn">
+                                              <FaBan size={12} /> Deactivate
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
+                                });
+                              });
                             }
-                            const sortedLobSubLobs = [...lobSubLobs].sort((a, b) => b.clientRowId - a.clientRowId);
-                            return sortedLobSubLobs.map(subLob => ({
-                              clientId: subLob.clientRowId,
+                          });
+                        }
+                      });
+                      
+                      // Dynamic search for partial search
+                      if (searchFilter && searchFilter.type === 'partial') {
+                        const lower = searchFilter.value.toLowerCase();
+                        rowData = rowData.filter(r =>
+                          [r.name, r.lob, r.subLob].some(val =>
+                            typeof val === 'string' && val.toLowerCase().includes(lower)
+                          )
+                        );
+                      }
+                      
+                      // Apply current table sorting ONLY if a sort is active
+                      if (tableSort.column && tableSort.direction) {
+                        rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+                      }
+                      
+                      if (rowData.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={10} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
+                              No Available Records
+                            </td>
+                          </tr>
+                        );
+                      }
+                      
+                      return rowData.map((r, rowIndex) => {
+                        const rowKey = r.subLob 
+                          ? `sublob-${r.name}-${r.lob}-${r.subLob}`
+                          : r.lob 
+                            ? `lob-${r.name}-${r.lob}`
+                            : `client-${r.name}`;
+                        
+                        return (
+                          <tr
+                            key={rowKey}
+                            onClick={e => {
+                              // Prevent toggling when clicking the checkbox itself or action buttons
+                              if (e.target.type === 'checkbox') return;
+                              if (e.target.closest && e.target.closest('.action-buttons')) return;
+                              handleRowSelect(rowKey, rowIndex, e);
+                            }}
+                            style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+                          >
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedRows.has(rowKey)}
+                                onChange={e => handleRowSelect(rowKey, rowIndex, e)}
+                                style={{ cursor: 'pointer' }}
+                                onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
+                              />
+                            </td>
+                            {r.jsx.props.children}
+                          </tr>
+                        );
+                      });
+                    })()
+                  ) : activeTableTab === 'lobs' ? (
+                    (() => {
+                      // Build row data objects for LOBs
+                      let rowData = lobs
+                        .filter(lob => {
+                          const client = clients.find(c => c.id === lob.clientId);
+                          return client && 
+                                client.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                                (!filterClient || lob.clientId === filterClient);
+                        })
+                        // Remove automatic sorting here too
+                        .flatMap(lob => {
+                          const client = clients.find(c => c.id === lob.clientId);
+                          const lobSubLobs = subLobs.filter(subLob => subLob.lobId === lob.id);
+                          if (lobSubLobs.length === 0) {
+                            return [{
+                              clientId: lob.clientRowId,
                               name: client ? client.name : '-',
                               lob: lob.name,
-                              subLob: subLob.name,
+                              subLob: '',
                               createdAt: client ? client.createdAt : '-',
                               jsx: (
-                                <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
-                                  <td>{subLob.clientRowId}</td>
+                                <tr key={`lob-view-${lob.id}`}>
+                                  <td>{lob.clientRowId}</td>
+                                  <td>{lob.clientSiteId || '-'}</td>
                                   <td>{client ? client.name : '-'}</td>
+                                  <td>{lob.siteName || '-'}</td>
                                   <td>{lob.name}</td>
-                                  <td>{subLob.name}</td>
-                                  <td>{client ? client.createdBy : '-'}</td>
-                                  <td>{client ? client.createdAt : '-'}</td>
+                                  <td>-</td>
+                                  <td>{lob.createdBy || '-'}</td>
+                                  <td>{lob.createdAt || '-'}</td>
                                   <td>
                                     <div className="action-buttons">
                                       {itemStatusTab === 'DEACTIVATED' ? (
-                                        <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                        <button onClick={() => handleReactivateLOB('lob', lob.id)} className="reactivate-btn">
                                           <FaCheckCircle size={14} color="#38a169" /> Reactivate
                                         </button>
                                       ) : (
-                                        <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
+                                        <button onClick={() => handleDeactivateRow('lob', lob.id)} className="deactivate-btn">
                                           <FaBan size={12} /> Deactivate
                                         </button>
                                       )}
@@ -4220,8 +4225,43 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                                   </td>
                                 </tr>
                               )
-                            }));
-                          });
+                            }];
+                          }
+                          // Remove automatic sorting here too
+                          return lobSubLobs.map(subLob => ({
+                            clientId: subLob.clientRowId,
+                            name: client ? client.name : '-',
+                            lob: lob.name,
+                            subLob: subLob.name,
+                            createdAt: client ? client.createdAt : '-',
+                            jsx: (
+                              <tr key={`lob-view-${lob.id}-sublob-${subLob.id}`}>
+                                <td>{subLob.clientRowId}</td>
+                                <td>{subLob.clientSiteId || '-'}</td>
+                                <td>{client ? client.name : '-'}</td>
+                                <td>{subLob.siteName || '-'}</td>
+                                <td>{lob.name}</td>
+                                <td>{subLob.name}</td>
+                                <td>{subLob.createdBy || '-'}</td>
+                                <td>{subLob.createdAt || '-'}</td>
+                                <td>
+                                  <div className="action-buttons">
+                                    {itemStatusTab === 'DEACTIVATED' ? (
+                                      <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                        <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
+                                        <FaBan size={12} /> Deactivate
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          }));
+                        });
+
                         // Dynamic search for partial search
                         if (searchFilter && searchFilter.type === 'partial') {
                           const lower = searchFilter.value.toLowerCase();
@@ -4231,98 +4271,102 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             )
                           );
                         }
-                        // Sort rowData if needed
+                        // Apply current table sorting ONLY if a sort is active
                         if (tableSort.column && tableSort.direction) {
                           rowData = sortRows(rowData, tableSort.column, tableSort.direction);
                         }
+                        
                         if (rowData.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={7} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
+                              <td colSpan={10} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
                                 No Available Records
                               </td>
                             </tr>
                           );
                         }
-                        return rowData.map((r, rowIndex) => {
-                          const rowKey = r.subLob 
-                            ? `sublob-${r.name}-${r.lob}-${r.subLob}`
-                            : `lob-${r.name}-${r.lob}`;
-                          return (
-                            <tr
-                              key={rowKey}
-                              onClick={e => {
-                                // Prevent toggling when clicking the checkbox itself or action buttons
-                                if (e.target.type === 'checkbox') return;
-                                if (e.target.closest && e.target.closest('.action-buttons')) return;
-                                handleRowSelect(rowKey, rowIndex, e);
-                              }}
-                              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
-                            >
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.has(rowKey)}
-                                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
-                                  style={{ cursor: 'pointer' }}
-                                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
-                                />
-                              </td>
-                              {r.jsx.props.children}
-                            </tr>
-                          );
-                        });
-                      })()
-                    ) : (
-                      (() => {
-                        // Build row data objects for SubLOBs
-                        let rowData = subLobs
-                          .filter(subLob => {
-                            const lob = lobs.find(l => l.id === subLob.lobId);
-                            const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+
+                      return rowData.map((r, rowIndex) => {
+                            const rowKey = r.subLob 
+                              ? `sublob-${r.name}-${r.lob}-${r.subLob}`
+                              : `lob-${r.name}-${r.lob}`;
+                            
                             return (
-                              client && 
-                              (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
-                               safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
-                               safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
-                              (!filterClient || (lob && lob.clientId === filterClient))
+                              <tr
+                                key={rowKey}
+                                onClick={e => {
+                                  // Prevent toggling when clicking the checkbox itself or action buttons
+                                  if (e.target.type === 'checkbox') return;
+                                  if (e.target.closest && e.target.closest('.action-buttons')) return;
+                                  handleRowSelect(rowKey, rowIndex, e);
+                                }}
+                                style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+                              >
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRows.has(rowKey)}
+                                    onChange={e => handleRowSelect(rowKey, rowIndex, e)}
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
+                                  />
+                                </td>
+                                {r.jsx.props.children}
+                              </tr>
                             );
-                          })
-                          .sort((a, b) => b.clientRowId - a.clientRowId)
-                          .map(subLob => {
-                            const lob = lobs.find(l => l.id === subLob.lobId);
-                            const client = lob ? clients.find(c => c.id === lob.clientId) : null;
-                            return {
-                              clientId: subLob.clientRowId,
-                              name: client ? client.name : '-',
-                              lob: lob ? lob.name : '-',
-                              subLob: subLob.name,
-                              createdAt: client ? client.createdAt : '-',
-                              jsx: (
-                                <tr key={`sublob-${subLob.id}`}>
-                                  <td>{subLob.clientRowId}</td>
-                                  <td>{client ? client.name : '-'}</td>
-                                  <td>{lob ? lob.name : '-'}</td>
-                                  <td>{subLob.name}</td>
-                                  <td>{client ? client.createdBy : '-'}</td>
-                                  <td>{client ? client.createdAt : '-'}</td>
-                                  <td>
-                                    <div className="action-buttons">
-                                      {itemStatusTab === 'DEACTIVATED' ? (
-                                        <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
-                                          <FaCheckCircle size={14} color="#38a169" /> Reactivate
-                                        </button>
-                                      ) : (
-                                        <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
-                                          <FaBan size={12} /> Deactivate
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            };
                           });
+                        })()
+                      ) : (
+                        (() => {
+                          // Build row data objects for SubLOBs
+                          let rowData = subLobs
+                            .filter(subLob => {
+                              const lob = lobs.find(l => l.id === subLob.lobId);
+                              const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                              return (
+                                client && 
+                                (safeToLowerCase(client.name).includes(safeToLowerCase(searchTerm)) ||
+                                 safeToLowerCase(lob.name).includes(safeToLowerCase(searchTerm)) ||
+                                 safeToLowerCase(subLob.name).includes(safeToLowerCase(searchTerm))) &&
+                                (!filterClient || (lob && lob.clientId === filterClient))
+                              );
+                            })
+                            .map(subLob => {
+                              const lob = lobs.find(l => l.id === subLob.lobId);
+                              const client = lob ? clients.find(c => c.id === lob.clientId) : null;
+                              return {
+                                clientId: subLob.clientRowId,
+                                name: client ? client.name : '-',
+                                lob: lob ? lob.name : '-',
+                                subLob: subLob.name,
+                                createdAt: client ? client.createdAt : '-',
+                                jsx: (
+                                  <tr key={`sublob-${subLob.id}`}>
+                                    <td>{subLob.clientRowId}</td>
+                                    <td>{subLob.clientSiteId || '-'}</td>
+                                    <td>{client ? client.name : '-'}</td>
+                                    <td>{subLob.siteName || '-'}</td>
+                                    <td>{lob ? lob.name : '-'}</td>
+                                    <td>{subLob.name}</td>
+                                    <td>{subLob.createdBy || '-'}</td>
+                                    <td>{subLob.createdAt || '-'}</td>
+                                    <td>
+                                      <div className="action-buttons">
+                                        {itemStatusTab === 'DEACTIVATED' ? (
+                                          <button onClick={() => handleReactivateSubLOB('subLob', subLob.id)} className="reactivate-btn">
+                                            <FaCheckCircle size={14} color="#38a169" /> Reactivate
+                                          </button>
+                                        ) : (
+                                          <button onClick={() => handleDeactivateRow('subLob', subLob.id)} className="delete-btn">
+                                            <FaBan size={12} /> Deactivate
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              };
+                            });
                         // Dynamic search for partial search
                         if (searchFilter && searchFilter.type === 'partial') {
                           const lower = searchFilter.value.toLowerCase();
@@ -4332,47 +4376,48 @@ filteredClients = filteredClients.sort((a, b) => b.id - a.id);
                             )
                           );
                         }
-                        // Sort rowData if needed
-                        if (tableSort.column && tableSort.direction) {
-                          rowData = sortRows(rowData, tableSort.column, tableSort.direction);
-                        }
-                        if (rowData.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={7} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
-                                No Available Records
-                              </td>
-                            </tr>
-                          );
-                        }
-                        return rowData.map((r, rowIndex) => {
-                          const rowKey = `sublob-${r.name}-${r.lob}-${r.subLob}`;
-                          return (
-                            <tr
-                              key={rowKey}
-                              onClick={e => {
-                                // Prevent toggling when clicking the checkbox itself or action buttons
-                                if (e.target.type === 'checkbox') return;
-                                if (e.target.closest && e.target.closest('.action-buttons')) return;
-                                handleRowSelect(rowKey, rowIndex, e);
-                              }}
-                              style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
-                            >
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.has(rowKey)}
-                                  onChange={e => handleRowSelect(rowKey, rowIndex, e)}
-                                  style={{ cursor: 'pointer' }}
-                                  onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
-                                />
-                              </td>
-                              {r.jsx.props.children}
-                            </tr>
-                          );
-                        });
-                      })()
-                    )}
+                       // Apply current table sorting ONLY if a sort is active
+                      if (tableSort.column && tableSort.direction) {
+                        rowData = sortRows(rowData, tableSort.column, tableSort.direction);
+                      }
+                      
+                      if (rowData.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={10} style={{ textAlign: 'center', color: '#888', fontSize: 16, padding: '32px 0' }}>
+                              No Available Records
+                            </td>
+                          </tr>
+                        );
+                      }
+                      return rowData.map((r, rowIndex) => {
+                        const rowKey = `sublob-${r.name}-${r.lob}-${r.subLob}`;
+                        return (
+                          <tr
+                            key={rowKey}
+                            onClick={e => {
+                              // Prevent toggling when clicking the checkbox itself or action buttons
+                              if (e.target.type === 'checkbox') return;
+                              if (e.target.closest && e.target.closest('.action-buttons')) return;
+                              handleRowSelect(rowKey, rowIndex, e);
+                            }}
+                            style={{ cursor: 'pointer', background: selectedRows.has(rowKey) ? '#e6f7ff' : undefined }}
+                          >
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedRows.has(rowKey)}
+                                onChange={e => handleRowSelect(rowKey, rowIndex, e)}
+                                style={{ cursor: 'pointer' }}
+                                onClick={e => e.stopPropagation()} // Prevent row click when clicking checkbox
+                              />
+                            </td>
+                            {r.jsx.props.children}
+                          </tr>
+                        );
+                      });
+                    })()
+                  )}
                   </tbody>
                 </table>
               </div>

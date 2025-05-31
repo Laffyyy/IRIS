@@ -228,6 +228,37 @@ class ClientManagementService {
             throw error;
         }
     }
+
+    async getClientsWithSites(status = 'ACTIVE') {
+        try {
+          const [clients] = await db.query(`
+            SELECT DISTINCT 
+              cl.dClientLOBEntry_ID as clientRowId,
+              cl.dClientLOB_ID as clientId,       
+              cl.dClientName as clientName,
+              cl.dLOB as lobName,
+              cl.dSubLOB as subLobName,
+              cl.dCreatedBy as dCreatedBy,
+              cl.tCreatedAt as tCreatedAt,
+              cs.dClientSite_ID as clientSiteId,
+              cs.dSite_ID as siteId,
+              cs.dSiteName as siteName,
+              cl.dStatus
+            FROM tbl_clientlob cl
+            LEFT JOIN tbl_clientsite cs ON cl.dClientName = cs.dClientName 
+              AND cl.dLOB = cs.dLOB 
+              AND cl.dSubLOB = cs.dSubLOB
+              AND cs.dStatus = 'ACTIVE'
+            WHERE cl.dStatus = ?
+            ORDER BY cl.dClientLOBEntry_ID DESC, cl.dLOB, cl.dSubLOB
+          `, [status]);
+          
+          return clients;
+        } catch (error) {
+          console.error('Error in getClientsWithSites service:', error);
+          throw error;
+        }
+    }
     
     async updateClient(clientData, userId) {
         try {

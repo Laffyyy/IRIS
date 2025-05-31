@@ -200,35 +200,53 @@
 /* Column-specific widths */
 .modern-table th:nth-child(1), 
 .modern-table td:nth-child(1) {
-  width: 100px;  /* Client ID */
+  width: 50px;  /* Checkbox */
 }
 
 .modern-table th:nth-child(2), 
 .modern-table td:nth-child(2) {
-  width: 150px;  /* Client Name */
+  width: 80px;  /* Client ID */
 }
 
 .modern-table th:nth-child(3), 
-.modern-table td:nth-child(3),
+.modern-table td:nth-child(3) {
+  width: 100px;  /* Client Site ID */
+}
+
 .modern-table th:nth-child(4), 
 .modern-table td:nth-child(4) {
-  width: 200px;  /* LOB and Sub LOB */
-  max-width: 200px;
+  width: 150px;  /* Client Name */
+}
+
+.modern-table th:nth-child(5), 
+.modern-table td:nth-child(5) {
+  width: 120px;  /* Site Name */
+}
+
+.modern-table th:nth-child(6), 
+.modern-table td:nth-child(6),
+.modern-table th:nth-child(7), 
+.modern-table td:nth-child(7) {
+  width: 150px;  /* LOB and Sub LOB */
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.modern-table th:nth-child(5), 
-.modern-table td:nth-child(5),
-.modern-table th:nth-child(6), 
-.modern-table td:nth-child(6) {
-  width: 150px;  /* Created By and Created At */
+.modern-table th:nth-child(8), 
+.modern-table td:nth-child(8) {
+  width: 100px;  /* Created By */
+}
+
+.modern-table th:nth-child(9), 
+.modern-table td:nth-child(9) {
+  width: 120px;  /* Created At */
 }
 
 .modern-table th:last-child, 
 .modern-table td:last-child {
-  width: 180px;  /* Actions */
+  width: 120px;  /* Actions */
 }
 
 .modern-table .action-buttons {

@@ -12,6 +12,7 @@ router.put('/update', (req, res) => clientManagementController.updateClient(req,
 router.post('/update', (req, res) => clientManagementController.updateClient(req, res));
 router.delete('/delete', (req, res) => clientManagementController.deleteClient(req, res));
 router.post('/deactivate', (req, res) => clientManagementController.deactivateClient(req, res));
+router.get('/getClientsWithSites', (req, res) => clientManagementController.getClientsWithSites(req, res));
 
 // LOB routes
 router.post('/lob/add', (req, res) => clientManagementController.addLOB(req, res));
@@ -31,5 +32,6 @@ router.post('/sublob/deactivate', (req, res) => clientManagementController.deact
 router.post('/reactivate', (req, res) => clientManagementController.reactivateClient(req, res));
 router.post('/lob/reactivate', (req, res) => clientManagementController.reactivateLOB(req, res));
 router.post('/sublob/reactivate', (req, res) => clientManagementController.reactivateSubLOB(req, res));
+
 
 module.exports = router;
