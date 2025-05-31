@@ -939,16 +939,24 @@ const SiteManagement = () => {
       setSelectedSiteIds(prev => {
         const newSelection = new Set(prev);
         rangeIds.forEach(id => newSelection.add(id));
-        return Array.from(newSelection);
+        const newSelectionArray = Array.from(newSelection);
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllSites(newSelectionArray.length === filteredSites.length);
+        
+        return newSelectionArray;
       });
     } else {
       // Normal click: toggle single selection
       setSelectedSiteIds(prev => {
-        if (prev.includes(siteId)) {
-          return prev.filter(id => id !== siteId);
-        } else {
-          return [...prev, siteId];
-        }
+        const newSelection = prev.includes(siteId) 
+          ? prev.filter(id => id !== siteId)
+          : [...prev, siteId];
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllSites(newSelection.length === filteredSites.length);
+        
+        return newSelection;
       });
     }
     
@@ -1022,16 +1030,40 @@ const SiteManagement = () => {
       setSelectedClientSiteIds(prev => {
         const newSelection = new Set(prev);
         rangeIds.forEach(id => newSelection.add(id));
-        return Array.from(newSelection);
+        const newSelectionArray = Array.from(newSelection);
+        
+        // Get count of selectable items for comparison
+        const selectableItems = filteredSiteClients.filter(clientSite => {
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            return !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+          }
+          return true;
+        });
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllClientSites(newSelectionArray.length === selectableItems.length);
+        
+        return newSelectionArray;
       });
     } else {
       // Normal click: toggle single selection
       setSelectedClientSiteIds(prev => {
-        if (prev.includes(clientSiteId)) {
-          return prev.filter(id => id !== clientSiteId);
-        } else {
-          return [...prev, clientSiteId];
-        }
+        const newSelection = prev.includes(clientSiteId)
+          ? prev.filter(id => id !== clientSiteId)
+          : [...prev, clientSiteId];
+        
+        // Get count of selectable items for comparison
+        const selectableItems = filteredSiteClients.filter(clientSite => {
+          if (clientSiteStatusTab === 'DEACTIVATED') {
+            return !deactivatedSites.some(site => site.dSite_ID === clientSite.dSite_ID);
+          }
+          return true;
+        });
+        
+        // Update "Select All" checkbox state based on selection
+        setSelectAllClientSites(newSelection.length === selectableItems.length);
+        
+        return newSelection;
       });
     }
     
