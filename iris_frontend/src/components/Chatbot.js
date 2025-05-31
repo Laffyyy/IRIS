@@ -123,7 +123,7 @@ const Chatbot = ({ onClose, onMinimize }) => {
       <div className="chatbot-chat-header">
         <div className="header-content">
           <img src={logo} alt="Aira Logo" className="logo" />
-          <h1>IRIS AI Assistant</h1>
+          <h1>AIRA</h1>
         </div>
         <div className="header-actions">
           <button className="new-chat-button" onClick={handleNewChat}>

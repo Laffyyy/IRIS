@@ -308,7 +308,7 @@ const ChatHistory = () => {
           <div className="chat-history-header">
             <div className="header-content">
               <img src={airaLogo} alt="Aira Logo" className="logo" />
-              <h1>History</h1>
+              <h1>AIRA</h1>
             </div>
             <div className="header-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
               <button className="back-button designed" onClick={() => navigate(-1)}>
