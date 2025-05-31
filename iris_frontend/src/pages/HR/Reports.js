@@ -219,7 +219,7 @@ const Reports = () => {
             <div className="table-container hr-reports-table-container">
               <div className="table-wrapper hr-reports-table-wrapper">
                 <div className="table-scroll hr-reports-table-scroll">
-                  <table>
+                  <table className="hr-reports-table">
                     <thead>
                       <tr>
                         <th className="checkbox-column hr-reports-checkbox-column">

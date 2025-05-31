@@ -70,7 +70,7 @@
   display: flex;
   gap: 2px;
   border-bottom: 1px solid #eee;
-  margin: 0 20px 20px 20px;
+  margin: 0 20px 10px 20px;
 }
 
 .hr-reports-tab {
@@ -229,7 +229,7 @@
   overflow: auto;
 }
 
-table {
+.hr-reports-table {
   width: max-content;
   min-width: 100%;
   border-collapse: separate;
@@ -238,14 +238,14 @@ table {
   background-color: white;
 }
 
-thead {
+.hr-reports-table thead {
   position: sticky;
   top: 0;
   z-index: 2;
   background: white;
 }
 
-th {
+.hr-reports-table th {
   position: sticky;
   top: 0;
   background-color: #f8fafc;
@@ -257,7 +257,7 @@ th {
   white-space: nowrap;
 }
 
-td {
+.hr-reports-table td {
   padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid #eee;
@@ -265,23 +265,23 @@ td {
   color: #444;
 }
 
-tr:hover {
+.hr-reports-table tr:hover {
   background-color: #f5f5f5;
 }
 
-tr:nth-child(even) {
+.hr-reports-table tr:nth-child(even) {
   background-color: #f8fafc;
 }
 
-tr:last-child td {
+.hr-reports-table tr:last-child td {
   border-bottom: none;
 }
 
 /* Column specific styles */
 .checkbox-column,
 .hr-reports-checkbox-column {
-  width: 40px;
-  min-width: 40px;
+  width: 40px !important;
+  min-width: 40px !important;
   text-align: center;
   padding: 12px 8px;
 }
@@ -391,12 +391,13 @@ tr:last-child td {
 }
 
 /* Column widths */
-th:nth-child(2), td:nth-child(2) { min-width: 100px; } /* Employee ID */
-th:nth-child(3), td:nth-child(3) { min-width: 150px; } /* Employee Name */
-th:nth-child(4), td:nth-child(4) { min-width: 100px; } /* Type */
-th:nth-child(5), td:nth-child(5) { min-width: 100px; } /* Month/Year */
-th:nth-child(6), td:nth-child(6) { min-width: 250px; } /* Description */
-th:nth-child(7), td:nth-child(7) { min-width: 150px; } /* Timestamp */
+.hr-reports-table th:nth-child(2), .hr-reports-table td:nth-child(2) { min-width: 100px; } /* Employee ID */
+.hr-reports-table th:nth-child(3), .hr-reports-table td:nth-child(3) { min-width: 150px; } /* Employee Name */
+.hr-reports-table th:nth-child(4), .hr-reports-table td:nth-child(4) { min-width: 100px; } /* Type */
+.hr-reports-table th:nth-child(5), .hr-reports-table td:nth-child(5) { min-width: 100px; } /* Month/Year */
+.hr-reports-table th:nth-child(6), .hr-reports-table td:nth-child(6) { min-width: 250px; } /* Description */
+.hr-reports-table th:nth-child(7), .hr-reports-table td:nth-child(7) { min-width: 150px; } /* Timestamp */
+.hr-reports-table th:nth-child(8), .hr-reports-table td:nth-child(8) { min-width: 150px; } /* Timestamp */
 
 /* Responsive styles */
 @media (max-width: 768px) {

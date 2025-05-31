@@ -58,7 +58,7 @@ const EmployeeData = () => {
           <div className="table-wrapper hr-employee-data-table-wrapper">
             <div className="table-scroll hr-employee-data-table-scroll">
               {excelData ? (
-                <table>
+                <table className="hr-employee-data-table">
                   <thead>
                     <tr>
                       {excelData[0]?.map((header, index) => (

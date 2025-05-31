@@ -251,7 +251,7 @@ const DataManagement = () => {
             <div className="table-container hr-data-mgmt-table-container">
               <div className="table-wrapper hr-data-mgmt-table-wrapper">
                 <div className="table-scroll hr-data-mgmt-table-scroll">
-                  <table>
+                  <table className="hr-data-mgmt-table">
                     <thead>
                       <tr>
                         <th className="checkbox-column hr-data-mgmt-checkbox-column">
@@ -270,7 +270,6 @@ const DataManagement = () => {
                         <th>Employee ID</th>
                         <th>Employee Name</th>
                         <th>Month/Year</th>
-                        <th>Description</th>
                         <th>Team</th>
                         <th>LOB</th>
                         <th>Sub LOB</th>
@@ -290,7 +289,6 @@ const DataManagement = () => {
                           <td className="employee-id hr-data-mgmt-employee-id">{report.employeeId}</td>
                           <td>{report.employeeName}</td>
                           <td>{report.monthYear}</td>
-                          <td className="description hr-data-mgmt-description">{report.description}</td>
                           <td>{report.team}</td>
                           <td>{report.lob}</td>
                           <td>{report.subLob}</td>

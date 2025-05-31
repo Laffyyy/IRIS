@@ -49,7 +49,7 @@
   gap: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid #eee;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .file-input-container,
@@ -164,7 +164,7 @@
   display: flex;
   gap: 2px;
   border-bottom: 1px solid #eee;
-  margin-bottom: 12px;
+  margin-bottom: 30px;
 }
 
 .hr-employee-data-tab {
@@ -223,7 +223,7 @@
   overflow: scroll;
 }
 
-table {
+.hr-employee-data-table{
   width: max-content;
   min-width: 100%;
   border-collapse: separate;
@@ -232,14 +232,14 @@ table {
   background-color: white;
 }
 
-thead {
+.hr-employee-data-table thead {
   position: sticky;
   top: 0;
   z-index: 2;
   background: white;
 }
 
-th {
+.hr-employee-data-table th {
   position: sticky;
   top: 0;
   background-color: #f8fafc;
@@ -251,7 +251,7 @@ th {
   white-space: nowrap;
 }
 
-td {
+.hr-employee-data-table td {
   padding: 12px 16px;
   text-align: left;
   border-bottom: 1px solid #eee;
@@ -259,24 +259,27 @@ td {
   color: #444;
 }
 
-tr:hover {
+.hr-employee-data-table tr:hover {
   background-color: #f5f5f5;
 }
 
-tr:nth-child(even) {
+.hr-employee-data-table tr:nth-child(even) {
   background-color: #f8fafc;
 }
 
 /* Define specific column widths */
-th, td { min-width: 150px; width: 150px; } /* Default width */
-th:first-child, td:first-child { min-width: 120px; width: 120px; } /* Employee ID */
-th:nth-child(2), td:nth-child(2) { min-width: 180px; width: 180px; } /* Name */
-th:nth-child(3), td:nth-child(3) { min-width: 200px; width: 200px; } /* Email */
-th:nth-child(4), td:nth-child(4) { min-width: 120px; width: 120px; } /* Role */
-th:nth-child(5), td:nth-child(5) { min-width: 100px; width: 100px; } /* Status */
+.hr-employee-data-table th, .hr-employee-data-table td { min-width: 50px; width: 50px; } /* Default width */
+.hr-employee-data-table th:first-child, .hr-employee-data-table td:first-child { min-width: 50px; width: 50px; } /* Employee ID */
+.hr-employee-data-table th:nth-child(2), .hr-employee-data-table td:nth-child(2) { min-width: 50px; width: 50px; } /* Name */
+.hr-employee-data-table th:nth-child(3), .hr-employee-data-table td:nth-child(3) { min-width: 50px; width: 50px; } /* Email */
+.hr-employee-data-table th:nth-child(4), .hr-employee-data-table td:nth-child(4) { min-width: 50px; width: 50px; } /* Role */
+.hr-employee-data-table th:nth-child(5), .hr-employee-data-table td:nth-child(5) { min-width: 50px; width: 50px; } /* Status */
+.hr-employee-data-table th:nth-child(6), .hr-employee-data-table td:nth-child(6) { min-width: 50px; width: 50px;} /* LOB */
+.hr-employee-data-table th:nth-child(7), .hr-employee-data-table td:nth-child(7) { min-width: 50px; width: 50px; } /* Sub LOB */
+.hr-employee-data-table th:nth-child(8), .hr-employee-data-table td:nth-child(8) { min-width: 50px; width: 50px; } /* Timestamp */
 
 /* Column specific styles */
-td:first-child {
+.hr-employee-data-table td:first-child {
   font-family: monospace;
   color: #004D8D;
 }
