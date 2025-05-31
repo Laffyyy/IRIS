@@ -5,9 +5,9 @@ import './Reports.css';
 const Reports = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('All Team');
-  const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [selectedMonthYear, setSelectedMonthYear] = useState('');
   const [selectedRows, setSelectedRows] = useState([]);
+  const [activeTab, setActiveTab] = useState('LOA'); // Default active tab
   const [reports] = useState([
     { 
       employeeId: 'E12345',
@@ -139,7 +139,7 @@ const Reports = () => {
       report.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesTeam = selectedTeam === 'All Team' || report.team === selectedTeam;
-    const matchesType = selectedStatus === 'All Status' || report.type === selectedStatus;
+    const matchesType = report.type === activeTab;
     
     const matchesDate = !selectedMonthYear || (() => {
       if (!selectedMonthYear) return true;
@@ -153,16 +153,16 @@ const Reports = () => {
   });
 
   return (
-    <div className="reports-container">
-      <div className="data-management-content">
-        <div className="reports-header">
+    <div className="reports-container hr-reports-container">
+      <div className="data-management-content hr-reports-content">
+        <div className="reports-header hr-reports-header">
           <h1>Reports</h1>
-          <p className="subtitle">View and manage employee reports with filters for team, type, and date.</p>
+          <p className="subtitle hr-reports-subtitle">View and manage employee reports with filters for team and date.</p>
         </div>
 
-        <div className="controls-section">
-          <div className="search-container">
-            <FaSearch className="search-icon" />
+        <div className="controls-section hr-reports-controls">
+          <div className="search-container hr-reports-search">
+            <FaSearch className="search-icon hr-reports-search-icon" />
             <input
               type="text"
               placeholder="Search"
@@ -171,11 +171,11 @@ const Reports = () => {
             />
           </div>
 
-          <div className="filters">
+          <div className="filters hr-reports-filters">
             <select
               value={selectedTeam}
               onChange={(e) => setSelectedTeam(e.target.value)}
-              className="data-type-filter"
+              className="data-type-filter hr-reports-team-filter"
             >
               <option value="All Team">All Teams</option>
               <option value="Team A">Team A</option>
@@ -183,89 +183,99 @@ const Reports = () => {
               <option value="Team C">Team C</option>
             </select>
 
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="data-type-filter"
-            >
-              <option value="All Status">All Types</option>
-              <option value="Attrition">Attrition</option>
-              <option value="DA">DA</option>
-              <option value="LOA">LOA</option>
-            </select>
-
             <input
               type="month"
               value={selectedMonthYear}
               onChange={(e) => setSelectedMonthYear(e.target.value)}
-              className="month-filter"
+              className="month-filter hr-reports-month-filter"
               placeholder="Month/Year"
             />
           </div>
         </div>
 
-        <div className="table-section">
-          <div className="table-container">
-            <div className="table-wrapper">
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="checkbox-column">
-                        <input
-                          type="checkbox"
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedRows(filteredReports.map(report => report.employeeId));
-                            } else {
-                              setSelectedRows([]);
-                            }
-                          }}
-                          checked={selectedRows.length === filteredReports.length && filteredReports.length > 0}
-                        />
-                      </th>
-                      <th>Employee ID</th>
-                      <th>Employee Name</th>
-                      <th>Type</th>
-                      <th>Month/Year</th>
-                      <th>Description</th>
-                      <th>Team</th>
-                      <th>LOB</th>
-                      <th>Sub LOB</th>
-                      <th>Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredReports.map((report) => (
-                      <tr key={report.employeeId}>
-                        <td className="checkbox-column">
-                          <input
-                            type="checkbox"
-                            checked={selectedRows.includes(report.employeeId)}
-                            onChange={() => handleRowSelect(report.employeeId)}
-                          />
-                        </td>
-                        <td className="employee-id">{report.employeeId}</td>
-                        <td>{report.employeeName}</td>
-                        <td>{report.type}</td>
-                        <td>{report.monthYear}</td>
-                        <td className="description">{report.description}</td>
-                        <td>{report.team}</td>
-                        <td>{report.lob}</td>
-                        <td>{report.subLob}</td>
-                        <td>{report.timestamp}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        <div className="hr-reports-tabs-container">
+          <div className="hr-reports-tabs">
+            <button 
+              className={`hr-reports-tab ${activeTab === 'LOA' ? 'active' : ''}`}
+              onClick={() => setActiveTab('LOA')}
+            >
+              LOA
+            </button>
+            <button 
+              className={`hr-reports-tab ${activeTab === 'Attrition' ? 'active' : ''}`}
+              onClick={() => setActiveTab('Attrition')}
+            >
+              Attrition
+            </button>
+            <button 
+              className={`hr-reports-tab ${activeTab === 'DA' ? 'active' : ''}`}
+              onClick={() => setActiveTab('DA')}
+            >
+              DA
+            </button>
           </div>
 
-          <div className="action-bar">
-            <button className="export-btn" onClick={handleExport}>
-              Export
-            </button>
+          <div className="table-section hr-reports-table-section">
+            <div className="table-container hr-reports-table-container">
+              <div className="table-wrapper hr-reports-table-wrapper">
+                <div className="table-scroll hr-reports-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th className="checkbox-column hr-reports-checkbox-column">
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRows(filteredReports.map(report => report.employeeId));
+                              } else {
+                                setSelectedRows([]);
+                              }
+                            }}
+                            checked={selectedRows.length === filteredReports.length && filteredReports.length > 0}
+                          />
+                        </th>
+                        <th>Employee ID</th>
+                        <th>Employee Name</th>
+                        <th>Month/Year</th>
+                        <th>Description</th>
+                        <th>Team</th>
+                        <th>LOB</th>
+                        <th>Sub LOB</th>
+                        <th>Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredReports.map((report) => (
+                        <tr key={report.employeeId}>
+                          <td className="checkbox-column hr-reports-checkbox-column">
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.includes(report.employeeId)}
+                              onChange={() => handleRowSelect(report.employeeId)}
+                            />
+                          </td>
+                          <td className="employee-id hr-reports-employee-id">{report.employeeId}</td>
+                          <td>{report.employeeName}</td>
+                          <td>{report.monthYear}</td>
+                          <td className="description hr-reports-description">{report.description}</td>
+                          <td>{report.team}</td>
+                          <td>{report.lob}</td>
+                          <td>{report.subLob}</td>
+                          <td>{report.timestamp}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="action-bar hr-reports-action-bar">
+              <button className="export-btn hr-reports-export-btn" onClick={handleExport}>
+                Export
+              </button>
+            </div>
           </div>
         </div>
       </div>

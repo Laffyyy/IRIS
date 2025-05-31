@@ -4,9 +4,9 @@ import './DataMGMT.css';
 
 const DataManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [dataType, setDataType] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedRows, setSelectedRows] = useState([]);
+  const [activeTab, setActiveTab] = useState('LOA'); // Default active tab
   const [employeeData, setEmployeeData] = useState([
     {
       employeeId: 'E12345',
@@ -160,7 +160,7 @@ const DataManagement = () => {
       employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.description.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesType = !dataType || employee.type === dataType;
+    const matchesType = employee.type === activeTab;
     
     // Convert selected date to format matching the data (MMM YYYY)
     const matchesDate = !selectedDate || (() => {
@@ -197,16 +197,16 @@ const DataManagement = () => {
   };
 
   return (
-    <div className="data-management-container">
-      <div className="data-management-content">
-        <div className="data-management-header">
+    <div className="data-management-container hr-data-mgmt-container">
+      <div className="data-management-content hr-data-mgmt-content">
+        <div className="data-management-header hr-data-mgmt-header">
           <h1>Data Management</h1>
-          <p className="subtitle">View, filter, and delete uploaded HR data by type, date, or employee ID.</p>
+          <p className="subtitle hr-data-mgmt-subtitle">View, filter, and delete uploaded HR data by date or employee ID.</p>
         </div>
 
-        <div className="controls-section">
-          <div className="search-container">
-            <FaSearch className="search-icon" />
+        <div className="controls-section hr-data-mgmt-controls">
+          <div className="search-container hr-data-mgmt-search">
+            <FaSearch className="search-icon hr-data-mgmt-search-icon" />
             <input
               type="text"
               placeholder="Search"
@@ -215,92 +215,102 @@ const DataManagement = () => {
             />
           </div>
 
-          <div className="filters">
-            <select
-              value={dataType}
-              onChange={(e) => setDataType(e.target.value)}
-              className="data-type-filter"
-            >
-              <option value="">Data Type</option>
-              <option value="Attrition">Attrition</option>
-              <option value="DA">DA</option>
-              <option value="LOA">LOA</option>
-            </select>
-
+          <div className="filters hr-data-mgmt-filters">
             <input
               type="month"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="month-filter"
+              className="month-filter hr-data-mgmt-month-filter"
             />
           </div>
         </div>
 
-        <div className="table-section">
-          <div className="table-container">
-            <div className="table-wrapper">
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="checkbox-column">
-                        <input
-                          type="checkbox"
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedRows(filteredData.map(emp => emp.employeeId));
-                            } else {
-                              setSelectedRows([]);
-                            }
-                          }}
-                          checked={selectedRows.length === filteredData.length && filteredData.length > 0}
-                        />
-                      </th>
-                      <th>Employee ID</th>
-                      <th>Employee Name</th>
-                      <th>Type</th>
-                      <th>Month/Year</th>
-                      <th>Description</th>
-                      <th>Team</th>
-                      <th>LOB</th>
-                      <th>Sub LOB</th>
-                      <th>Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredData.map((report) => (
-                      <tr key={report.employeeId}>
-                        <td className="checkbox-column">
-                          <input
-                            type="checkbox"
-                            checked={selectedRows.includes(report.employeeId)}
-                            onChange={() => handleRowSelect(report.employeeId)}
-                          />
-                        </td>
-                        <td className="employee-id">{report.employeeId}</td>
-                        <td>{report.employeeName}</td>
-                        <td>{report.type}</td>
-                        <td>{report.monthYear}</td>
-                        <td className="description">{report.description}</td>
-                        <td>{report.team}</td>
-                        <td>{report.lob}</td>
-                        <td>{report.subLob}</td>
-                        <td>{report.timestamp}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        <div className="hr-data-mgmt-tabs-container">
+          <div className="hr-data-mgmt-tabs">
+            <button 
+              className={`hr-data-mgmt-tab ${activeTab === 'LOA' ? 'active' : ''}`}
+              onClick={() => setActiveTab('LOA')}
+            >
+              LOA
+            </button>
+            <button 
+              className={`hr-data-mgmt-tab ${activeTab === 'Attrition' ? 'active' : ''}`}
+              onClick={() => setActiveTab('Attrition')}
+            >
+              Attrition
+            </button>
+            <button 
+              className={`hr-data-mgmt-tab ${activeTab === 'DA' ? 'active' : ''}`}
+              onClick={() => setActiveTab('DA')}
+            >
+              DA
+            </button>
           </div>
 
-          {selectedRows.length > 0 && (
-            <div className="action-bar">
-              <button className="delete-btn" onClick={handleDelete}>
-                <FaTrash /> Delete Selected ({selectedRows.length})
-              </button>
+          <div className="table-section hr-data-mgmt-table-section">
+            <div className="table-container hr-data-mgmt-table-container">
+              <div className="table-wrapper hr-data-mgmt-table-wrapper">
+                <div className="table-scroll hr-data-mgmt-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th className="checkbox-column hr-data-mgmt-checkbox-column">
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRows(filteredData.map(emp => emp.employeeId));
+                              } else {
+                                setSelectedRows([]);
+                              }
+                            }}
+                            checked={selectedRows.length === filteredData.length && filteredData.length > 0}
+                          />
+                        </th>
+                        <th>Employee ID</th>
+                        <th>Employee Name</th>
+                        <th>Month/Year</th>
+                        <th>Description</th>
+                        <th>Team</th>
+                        <th>LOB</th>
+                        <th>Sub LOB</th>
+                        <th>Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredData.map((report) => (
+                        <tr key={report.employeeId}>
+                          <td className="checkbox-column hr-data-mgmt-checkbox-column">
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.includes(report.employeeId)}
+                              onChange={() => handleRowSelect(report.employeeId)}
+                            />
+                          </td>
+                          <td className="employee-id hr-data-mgmt-employee-id">{report.employeeId}</td>
+                          <td>{report.employeeName}</td>
+                          <td>{report.monthYear}</td>
+                          <td className="description hr-data-mgmt-description">{report.description}</td>
+                          <td>{report.team}</td>
+                          <td>{report.lob}</td>
+                          <td>{report.subLob}</td>
+                          <td>{report.timestamp}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          )}
+
+            {selectedRows.length > 0 && (
+              <div className="action-bar hr-data-mgmt-action-bar">
+                <button className="delete-btn hr-data-mgmt-delete-btn" onClick={handleDelete}>
+                  <FaTrash /> Delete Selected ({selectedRows.length})
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
