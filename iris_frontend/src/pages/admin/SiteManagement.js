@@ -238,7 +238,7 @@ const SiteManagement = () => {
     }
     
     try {
-      const userId = localStorage.getItem('userId') || '0001';
+      const userId = localStorage.getItem('userId')
       
       const response = await fetch('http://localhost:3000/api/sites/manage', {
         method: 'POST',
@@ -674,7 +674,7 @@ const SiteManagement = () => {
         siteId: selectedSite.dSite_ID.toString(),
         lobName: clientSiteConfirmDetails.lobName,
         subLobName: clientSiteConfirmDetails.subLobName,
-        userID: localStorage.getItem('userId') || '0001' // Pass the user ID
+        userID: localStorage.getItem('userId')
       });
       
       // Close confirmation modal
