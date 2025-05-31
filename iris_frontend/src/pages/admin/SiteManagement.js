@@ -1717,10 +1717,15 @@ const SiteManagement = () => {
         </div>
 
         <div className="tab-container">
-          <div 
-            className={`tab ${activeTab === 'addSite' ? 'active' : ''}`}
-            onClick={() => setActiveTab('addSite')}
-          >
+        <div 
+          className={`tab ${activeTab === 'addSite' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('addSite');
+            // Reset to ACTIVE tab when switching to Add New Site
+            setSiteStatusTab('ACTIVE');
+            setClientSiteStatusTab('ACTIVE');
+          }}
+        >
             Add New Site
           </div>
           <div 
@@ -1728,6 +1733,9 @@ const SiteManagement = () => {
             onClick={() => {
               setActiveTab('addClient');
               setCurrentSite(null);
+              // Reset to ACTIVE tab when switching to Add Client to Site
+              setSiteStatusTab('ACTIVE');
+              setClientSiteStatusTab('ACTIVE');
             }}
           >
             Add Client to Site
