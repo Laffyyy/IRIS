@@ -592,11 +592,17 @@ const fetchClientData = async (status = itemStatusTab) => {
     setLoading(true);
     setError(null);
     
-    // Use the new endpoint that includes site information
+    console.log('Fetching client data with status:', status);
+    
+    // Use the endpoint that includes site information and proper Client ID mapping
     const response = await axios.get(`http://localhost:3000/api/clients/getClientsWithSites?status=${status}`);
     
     if (response.data && response.data.data) {
-      console.log('Client data with sites from API:', response.data.data);
+      console.log('Raw client data from API:', response.data.data);
+      
+      // Filter the data by status to ensure we only get the correct records
+      const filteredData = response.data.data.filter(item => item.dStatus === status);
+      console.log('Filtered data by status:', filteredData);
       
       const transformedClients = [];
       const transformedLobs = [];
@@ -609,7 +615,7 @@ const fetchClientData = async (status = itemStatusTab) => {
       let subLobId = 0;
       
       // Group data by client name
-      const clientGroups = response.data.data.reduce((groups, item) => {
+      const clientGroups = filteredData.reduce((groups, item) => {
         if (!groups[item.clientName]) {
           groups[item.clientName] = [];
         }
@@ -627,9 +633,10 @@ const fetchClientData = async (status = itemStatusTab) => {
         transformedClients.push({
           id: clientId,
           name: clientName,
-          businessId: firstItem.clientId, // Add this to store dClientLOB_ID for display
+          businessId: firstItem.clientId, // This stores dClientLOB_ID for display
           createdBy: firstItem.dCreatedBy || '-',
-          createdAt: firstItem.tCreatedAt ? new Date(firstItem.tCreatedAt).toLocaleString() : '-'
+          createdAt: firstItem.tCreatedAt ? new Date(firstItem.tCreatedAt).toLocaleString() : '-',
+          status: firstItem.dStatus // Add status for debugging
         });
         
         // Group by LOB
@@ -651,7 +658,9 @@ const fetchClientData = async (status = itemStatusTab) => {
             const lobSites = [];
             lobItems.forEach(item => {
               if (item.siteId && item.siteName) {
-                if (!lobSites.find(s => s.siteId === item.siteId)) {
+                // Check if this site is already in the array
+                const existingSite = lobSites.find(site => site.siteId === item.siteId);
+                if (!existingSite) {
                   lobSites.push({
                     siteId: item.siteId,
                     siteName: item.siteName,
@@ -669,13 +678,14 @@ const fetchClientData = async (status = itemStatusTab) => {
               id: lobId,
               name: firstLobItem.lobName,
               clientId: clientId,
-              clientRowId: firstLobItem.clientId, // This now correctly maps to dClientLOB_ID
+              clientRowId: firstLobItem.clientId, // This correctly maps to dClientLOB_ID
               sites: lobSites,
               siteId: lobSites.length > 0 ? lobSites[0].siteId : null,
               siteName: lobSites.length > 0 ? lobSites[0].siteName : null,
               clientSiteId: lobSites.length > 0 ? lobSites[0].clientSiteId : null,
               createdBy: firstLobItem.dCreatedBy || '-',
-              createdAt: firstLobItem.tCreatedAt ? new Date(firstLobItem.tCreatedAt).toLocaleString() : '-'
+              createdAt: firstLobItem.tCreatedAt ? new Date(firstLobItem.tCreatedAt).toLocaleString() : '-',
+              status: firstLobItem.dStatus // Add status for debugging
             });
             
             // Process Sub LOBs
@@ -686,18 +696,23 @@ const fetchClientData = async (status = itemStatusTab) => {
                   id: subLobId,
                   name: item.subLobName,
                   lobId: lobId,
-                  clientRowId: item.clientId, // This now correctly maps to dClientLOB_ID
+                  clientRowId: item.clientId, // This correctly maps to dClientLOB_ID
                   siteId: item.siteId,
                   siteName: item.siteName,
                   clientSiteId: item.clientSiteId,
                   createdBy: item.dCreatedBy || '-',
-                  createdAt: item.tCreatedAt ? new Date(item.tCreatedAt).toLocaleString() : '-'
+                  createdAt: item.tCreatedAt ? new Date(item.tCreatedAt).toLocaleString() : '-',
+                  status: item.dStatus // Add status for debugging
                 });
               }
             });
           }
         });
       });
+      
+      console.log('Transformed clients:', transformedClients);
+      console.log('Transformed lobs:', transformedLobs);
+      console.log('Transformed sublobs:', transformedSubLobs);
       
       setClients(transformedClients);
       setLobs(transformedLobs);
@@ -708,8 +723,8 @@ const fetchClientData = async (status = itemStatusTab) => {
       setSites(transformedSites.length > 0 ? transformedSites : []);
       setUniqueClientNames(uniqueClientNamesMap);
       
-      // Calculate row count based on how they're displayed in the UI
-      // DON'T auto-sort here - let the table sorting be handled by the sort state
+      // Calculate row count but don't auto-sort here
+      // Let the table sorting be handled by the sort state
       let rowCount = 0;
       transformedClients.forEach(client => {
         const clientLobs = transformedLobs.filter(lob => lob.clientId === client.id);
@@ -727,7 +742,9 @@ const fetchClientData = async (status = itemStatusTab) => {
         }
       });
       
-      // Update the appropriate count based on status
+      console.log(`Row count for ${status}:`, rowCount);
+      
+      // Update counts based on status
       if (status === 'ACTIVE') {
         setActiveCount(rowCount);
       } else if (status === 'DEACTIVATED') {
@@ -741,7 +758,8 @@ const fetchClientData = async (status = itemStatusTab) => {
       try {
         const deactivatedResponse = await axios.get('http://localhost:3000/api/clients/getClientsWithSites?status=DEACTIVATED');
         if (deactivatedResponse.data && deactivatedResponse.data.data) {
-          const deactivatedRowCount = calculateRowCount(deactivatedResponse.data.data);
+          const deactivatedData = deactivatedResponse.data.data.filter(item => item.dStatus === 'DEACTIVATED');
+          const deactivatedRowCount = calculateRowCountFromRawData(deactivatedData);
           setDeactivatedCount(deactivatedRowCount);
         }
       } catch (error) {
@@ -752,7 +770,8 @@ const fetchClientData = async (status = itemStatusTab) => {
       try {
         const activeResponse = await axios.get('http://localhost:3000/api/clients/getClientsWithSites?status=ACTIVE');
         if (activeResponse.data && activeResponse.data.data) {
-          const activeRowCount = calculateRowCount(activeResponse.data.data);
+          const activeData = activeResponse.data.data.filter(item => item.dStatus === 'ACTIVE');
+          const activeRowCount = calculateRowCountFromRawData(activeData);
           setActiveCount(activeRowCount);
         }
       } catch (error) {
@@ -766,6 +785,46 @@ const fetchClientData = async (status = itemStatusTab) => {
   } finally {
     setLoading(false);
   }
+};
+
+// Add helper function to calculate row count from raw data
+const calculateRowCountFromRawData = (data) => {
+  if (!data || !Array.isArray(data)) return 0;
+  
+  const clientGroups = data.reduce((groups, item) => {
+    if (!groups[item.clientName]) {
+      groups[item.clientName] = [];
+    }
+    groups[item.clientName].push(item);
+    return groups;
+  }, {});
+  
+  let rowCount = 0;
+  Object.entries(clientGroups).forEach(([clientName, clientItems]) => {
+    const lobGroups = clientItems.reduce((groups, item) => {
+      const lobKey = item.lobName || 'NO_LOB';
+      if (!groups[lobKey]) {
+        groups[lobKey] = [];
+      }
+      groups[lobKey].push(item);
+      return groups;
+    }, {});
+    
+    Object.entries(lobGroups).forEach(([lobKey, lobItems]) => {
+      if (lobKey === 'NO_LOB') {
+        rowCount++; // Client with no LOBs
+      } else {
+        const subLobCount = lobItems.filter(item => item.subLobName).length;
+        if (subLobCount === 0) {
+          rowCount++; // LOB with no Sub LOBs
+        } else {
+          rowCount += subLobCount; // Each Sub LOB is a row
+        }
+      }
+    });
+  });
+  
+  return rowCount;
 };
 
   useEffect(() => {
@@ -1181,100 +1240,116 @@ const handleAddClient = async () => {
     );
   };
 
-  // Add LOB with confirmation
-  const handleAddLob = async () => {
-    const finalizedLobCardsForLob = lobCardsForLob.map(card => ({
-      lobName: finalizeInput(card.lobName),
-      subLobNames: card.subLobNames.map(name => finalizeInput(name)),
-    }));
-    try {
-      if (!selectedClientForLob) {
-        showToast('Please select a client', 'error');
-                return;
-              }
+  // Replace the existing handleAddLob function around lines 1175-1310
+const handleAddLob = async () => {
+  const finalizedLobCardsForLob = lobCardsForLob.map(card => ({
+    lobName: finalizeInput(card.lobName),
+    subLobNames: card.subLobNames.map(name => finalizeInput(name)),
+  }));
+  
+  if (!selectedClientForLob) {
+    showToast('Please select a client', 'error');
+    return;
+  }
+  
+  try {
+    // Validate all input fields
+    for (const card of finalizedLobCardsForLob) {
+      if (card.lobName.trim() && !isValidInput(card.lobName.trim())) {
+        showToast('Invalid LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+        return;
+      }
+      for (const subLobName of card.subLobNames) {
+        if (subLobName.trim() && !isValidInput(subLobName.trim())) {
+          showToast('Invalid Sub LOB name. Only letters, numbers, and single spaces between words are allowed.', 'error');
+          return;
+        }
+      }
+    }
 
-      if (finalizedLobCardsForLob.length === 0) {
-        showToast('Please add at least one LOB', 'error');
-                  return;
+    const client = clients.find(c => c.id === selectedClientForLob);
+    if (!client) {
+      showToast('Selected client not found', 'error');
+      return;
+    }
+
+    // Validate all LOB cards
+    const validLobCards = finalizedLobCardsForLob.filter(card => {
+      const lobName = card.lobName.trim();
+      const subLobNames = card.subLobNames.filter(name => name.trim());
+      return lobName && subLobNames.length > 0;
+    });
+
+    if (validLobCards.length === 0) {
+      showToast('Please fill in all LOB and Sub LOB fields', 'error');
+      return;
+    }
+
+    // Format confirmation message
+    const confirmationMessage = formatAddLobConfirmation(
+      client.name,
+      selectedSiteForLob ? sites.find(s => s.id === selectedSiteForLob)?.name : 'No Site',
+      validLobCards
+    );
+
+    showConfirm(
+      confirmationMessage,
+      async () => {
+        try {
+          // Store current sort state before refresh
+          const currentSort = { ...tableSort };
+          
+          let allOperationsSuccessful = true;
+          
+          for (const card of validLobCards) {
+            if (card.lobName.trim() && card.subLobNames.some(name => name.trim())) {
+              const lobName = card.lobName.trim();
+              const subLobNames = card.subLobNames.filter(name => name.trim()).map(name => name.trim());
+              
+              // Check if LOB already exists
+              const existingLob = lobs.find(lob => 
+                lob.clientId === selectedClientForLob && 
+                lob.name.toLowerCase() === lobName.toLowerCase()
+              );
+              
+              if (!existingLob) {
+                // Add new LOB with first Sub LOB
+                const lobData = {
+                  clientName: client.name,
+                  lobName: lobName,
+                  siteId: selectedSiteForLob ? selectedSiteForLob : null,
+                  subLOBName: subLobNames[0]
+                };
+
+                try {
+                  await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
+                } catch (error) {
+                  showToast(error.response?.data?.error || 'Failed to add LOB', 'error');
+                  allOperationsSuccessful = false;
+                  break;
                 }
 
-      // Validate all LOB cards
-      const validLobCards = finalizedLobCardsForLob.filter(card => {
-        const lobName = card.lobName.trim();
-        const subLobNames = card.subLobNames.filter(name => name.trim());
-        return lobName && subLobNames.length > 0;
-      });
-
-      if (validLobCards.length === 0) {
-        showToast('Please fill in all LOB and Sub LOB fields', 'error');
-              return;
-            }
-
-      // Format confirmation message
-      const confirmationMessage = formatAddLobConfirmation(
-        clients.find(c => c.id === selectedClientForLob)?.name || '',
-        selectedSiteForLob ? sites.find(s => s.id === selectedSiteForLob)?.name : 'No Site',
-        validLobCards
-      );
-
-      // Show confirmation modal
-      showConfirm(
-        confirmationMessage,
-        async () => {
-          try {
-            const client = clients.find(c => c.id === selectedClientForLob);
-            if (!client) {
-              showToast('Client not found', 'error');
-              return;
-            }
-
-            const lobs = client.lobs || [];
-            let allOperationsSuccessful = true;
-
-            for (const card of validLobCards) {
-              const lobName = card.lobName.trim();
-              const subLobNames = card.subLobNames.filter(name => name.trim());
-              const existingLob = lobs.find(lob => lob.clientId === client.id && lob.name === lobName);
-
-              if (!existingLob) {
-                if (subLobNames.length > 0) {
-                  const lobData = {
+                // Add remaining sub LOBs if any
+                for (let i = 1; i < subLobNames.length; i++) {
+                  const subLobData = {
                     clientName: client.name,
                     lobName: lobName,
-                    siteId: selectedSiteForLob ? selectedSiteForLob : null,
-                    subLOBName: subLobNames[0]
+                    subLOBName: subLobNames[i]
                   };
 
                   try {
-                  await axios.post('http://localhost:3000/api/clients/lob/add', lobData);
+                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
                   } catch (error) {
-                    showToast(error.response?.data?.error || 'Failed to add LOB', 'error');
+                    showToast(error.response?.data?.error || 'Failed to add Sub LOB', 'error');
                     allOperationsSuccessful = false;
                     break;
-                  }
-
-                  // Add remaining sub LOBs if any
-                  for (let i = 1; i < subLobNames.length; i++) {
-                    const subLobData = {
-                      clientName: client.name,
-                      lobName: lobName,
-                      subLOBName: subLobNames[i]
-                    };
-
-                    try {
-                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
-                    } catch (error) {
-                      showToast(error.response?.data?.error || 'Failed to add Sub LOB', 'error');
-                      allOperationsSuccessful = false;
-                      break;
-                    }
                   }
                 }
               } else {
                 // Add only new sub LOBs to existing LOB
-                const existingSubLobs = existingLob.subLobs.map(sub => sub.name.toLowerCase());
+                const existingSubLobs = existingLob.subLobs ? existingLob.subLobs.map(sub => sub.name.toLowerCase()) : [];
                 for (const subLobName of subLobNames) {
-                  if (!existingSubLobs.includes(subLobName.trim().toLowerCase())) {
+                  if (!existingSubLobs.includes(subLobName.toLowerCase())) {
                     const subLobData = {
                       clientName: client.name,
                       lobName: lobName,
@@ -1282,7 +1357,7 @@ const handleAddClient = async () => {
                     };
 
                     try {
-                    await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
+                      await axios.post('http://localhost:3000/api/clients/sublob/add', subLobData);
                     } catch (error) {
                       showToast(error.response?.data?.error || 'Failed to add Sub LOB', 'error');
                       allOperationsSuccessful = false;
@@ -1292,23 +1367,32 @@ const handleAddClient = async () => {
                 }
               }
             }
+          }
 
-            if (allOperationsSuccessful) {
-              showToast('LOBs and Sub LOBs added successfully!');
+          if (allOperationsSuccessful) {
+            showToast('LOBs and Sub LOBs added successfully!');
+            
+            // Clear form
             setLobCardsForLob([{ lobName: '', subLobNames: [''] }]);
             setSelectedClientForLob(null);
             setSelectedSiteForLob(null);
-              fetchClientData();
-            }
-          } catch (error) {
-            showToast(error.response?.data?.error || 'An error occurred', 'error');
+            setClientSearchTerm('');
+            setSiteSearchTerm('');
+            
+            // Refresh data and restore sort state
+            await fetchClientData(itemStatusTab);
+            setTableSort(currentSort);
           }
+        } catch (error) {
+          showToast(error.response?.data?.error || 'An error occurred', 'error');
         }
-      );
-    } catch (error) {
-      showToast(error.response?.data?.error || 'An error occurred', 'error');
-    }
-  };
+      },
+      () => {} // onCancel
+    );
+  } catch (error) {
+    showToast(error.response?.data?.error || 'An error occurred', 'error');
+  }
+};
 
   // Helper to format add Sub LOB confirmation details
   const formatAddSubLobConfirmation = (clientName, siteName, lobName, subLobNames) => {
@@ -1358,10 +1442,10 @@ const handleAddClient = async () => {
     );
   };
 
-  // Add Sub LOB with confirmation
-  const handleAddSubLob = async () => {
-    const finalizedSubLobNames = subLobNames.map(name => finalizeInput(name));
-    try {
+  // Replace the existing handleAddSubLob function around lines 1362-1499
+const handleAddSubLob = async () => {
+  const finalizedSubLobNames = subLobNames.map(name => finalizeInput(name));
+  try {
     if (!selectedLobForSubLob) {
       showToast('Please select a LOB', 'error');
       return;
@@ -1380,7 +1464,7 @@ const handleAddClient = async () => {
     }
 
     // Check for duplicate Sub LOB names
-      const uniqueSubLobNames = new Set(validSubLobs.map(name => normalizeName(name)));
+    const uniqueSubLobNames = new Set(validSubLobs.map(name => normalizeName(name)));
     if (uniqueSubLobNames.size !== validSubLobs.length) {
       showToast('Error: Duplicate Sub LOB names are not allowed.', 'error');
       return;
@@ -1401,7 +1485,9 @@ const handleAddClient = async () => {
       </span>,
       async () => {
         try {
-          // ... existing code ...
+          // Store current sort state before refresh
+          const currentSort = { ...tableSort };
+          
           for (const subLobName of finalizedSubLobNames) {
             if (subLobName.trim()) {
               try {
@@ -1416,66 +1502,14 @@ const handleAddClient = async () => {
               }
             }
           }
-          // Refresh client data to get updated SubLOBs
+          
+          // Refresh client data using the endpoint that preserves Client ID
           try {
-            const refreshResponse = await axios.get('http://localhost:3000/api/clients/getAll');
-            if (refreshResponse.data && refreshResponse.data.data) {
-              // ... transformation logic ...
-              const transformedClients = [];
-              const transformedLobs = [];
-              const transformedSubLobs = [];
-              const sitesMap = new Map();
-              let lobId = 0;
-              let subLobId = 0;
-              refreshResponse.data.data.forEach((client) => {
-                const clientId = client.clientId;
-                transformedClients.push({
-                  id: clientId,
-                  name: client.clientName,
-                  createdBy: client.createdBy || '-',
-                  createdAt: client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'
-                });
-                if (client.LOBs && Array.isArray(client.LOBs)) {
-                  client.LOBs.forEach(lob => {
-                    lobId++;
-                    if (lob.sites && Array.isArray(lob.sites)) {
-                      lob.sites.forEach(site => {
-                        if (site.siteId && site.siteName) {
-                          sitesMap.set(site.siteId, {
-                            id: site.siteId,
-                            name: site.siteName
-                          });
-                        }
-                      });
-                    }
-                    transformedLobs.push({
-                      id: lobId,
-                      name: lob.name,
-                      clientId: clientId,
-                      siteId: lob.siteId || 1,
-                      sites: lob.sites || []
-                    });
-                    if (lob.subLOBs && Array.isArray(lob.subLOBs)) {
-                      lob.subLOBs.forEach(subLobName => {
-                        subLobId++;
-                        transformedSubLobs.push({
-                          id: subLobId,
-                          name: typeof subLobName === 'object' ? subLobName.name : subLobName,
-                          lobId: lobId,
-                          clientRowId: typeof subLobName === 'object' && subLobName.clientRowId ? subLobName.clientRowId : lob.clientRowId || clientId
-                        });
-                      });
-                    }
-                  });
-                }
-              });
-              setClients(transformedClients);
-              setLobs(transformedLobs);
-              setSubLobs(transformedSubLobs);
-              if (sitesMap.size > 0) {
-                setSites(Array.from(sitesMap.values()));
-              }
-            }
+            await fetchClientData(itemStatusTab);
+            
+            // Restore the sort state after refresh
+            setTableSort(currentSort);
+            
             setSubLobNames(['']);
             setSelectedLobForSubLob(null);
             setFilterClientForSubLob(null);
@@ -1493,10 +1527,10 @@ const handleAddClient = async () => {
       },
       () => {} // onCancel
     );
-    } catch (error) {
-      showToast(error.response?.data?.error || 'An error occurred', 'error');
-    }
-  };
+  } catch (error) {
+    showToast(error.response?.data?.error || 'An error occurred', 'error');
+  }
+};
 
   const handleAddAnotherLobCard = () => {
     if (lobCards.length < 4) {

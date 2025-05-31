@@ -76,23 +76,20 @@ class ClientManagementController {
 
     async getClientsWithSites(req, res) {
         try {
-          const { status = 'ACTIVE' } = req.query;
-          
-          const result = await this.clientManagementService.getClientsWithSites(status);
-          
-          res.json({
-            success: true,
-            data: result
-          });
+            const { status = 'ACTIVE' } = req.query;
+            
+            const result = await this.clientManagementService.getClientsWithSites(status);
+            
+            res.json(result);
         } catch (error) {
-          console.error('Error in getClientsWithSites controller:', error);
-          res.status(500).json({
-            success: false,
-            message: 'Failed to fetch clients with sites',
-            error: error.message
-          });
+            console.error('Error in getClientsWithSites controller:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch clients with sites',
+                error: error.message
+            });
         }
-      }
+    }
     
     async updateClient(req, res) {
         try {
