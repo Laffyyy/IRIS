@@ -123,6 +123,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 9;
 }
 .generate-template-btn {
   background: none;
@@ -531,4 +532,33 @@
     font-size: 0.9rem;
     margin-top: 0.5rem;
     color: #adb5bd;
+}
+
+.template-download-section {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.template-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  transition: all 0.2s ease;
+}
+
+.template-btn:hover {
+  background-color: #e0e0e0;
+  border-color: #ccc;
+}
+
+.template-btn svg {
+  font-size: 16px;
 } 

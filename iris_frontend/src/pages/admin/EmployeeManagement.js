@@ -39,9 +39,15 @@ const mockInvalidEmployees = [
   }
 ];
 
-function BulkUploadUI({ requiredFields, templateFields, file, setFile, dragActive, setDragActive, handleFileChange, handleDrag, handleDrop }) {
+function BulkUploadUI({ requiredFields, templateFields, file, setFile, dragActive, setDragActive, handleFileChange, handleDrag, handleDrop, onGenerateTemplate }) {
   return (
     <div className="bulk-upload-form">
+      <div className="bulk-upload-actions">
+        <h3><FaUpload /> Upload Employees</h3>
+        <button onClick={onGenerateTemplate} className="generate-template-btn">
+          <FaFileDownload /> Generate Template
+        </button>
+      </div>
       <div
         className={`drop-zone ${dragActive ? 'active' : ''}`}
         onDragEnter={handleDrag}
@@ -82,6 +88,8 @@ const EmployeeManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sites, setSites] = useState([]);
+  const [selectedSite, setSelectedSite] = useState('');
 
   // Per Sub-LoB state
   const [perSubLobFile, setPerSubLobFile] = useState(null);
@@ -98,24 +106,40 @@ const EmployeeManagement = () => {
   const [customAddInvalidEmployees, setCustomAddInvalidEmployees] = useState([]);
 
   // Fetch employees from the API
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get('http://localhost:3000/api/employees');
-        if (response.data.success) {
-          setEmployees(response.data.data || []);
-        } else {
-          setEmployees([]);
-        }
-      } catch (err) {
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('http://localhost:3000/api/employees');
+      if (response.data.success) {
+        setEmployees(response.data.data || []);
+      } else {
         setEmployees([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch active sites
+  const fetchActiveSites = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/employees/sites/active');
+      if (response.data.success) {
+        setSites(response.data.data || []);
+      } else {
+        setSites([]);
+      }
+    } catch (err) {
+      console.error('Error fetching sites:', err);
+      setSites([]);
+    }
+  };
+
+  useEffect(() => {
     fetchEmployees();
+    fetchActiveSites();
   }, []);
 
   // Filter employees based on search term
@@ -190,6 +214,86 @@ const EmployeeManagement = () => {
     setCustomAddPreviewTab('valid');
   };
 
+  const generatePerSubLobTemplate = () => {
+    const headers = [
+      'Employee ID',
+      'Employee Full Name',
+      'Hire Date',
+      'Classification',
+      'Supervisor ID',
+      'Manager ID'
+    ];
+    
+    const csvContent = headers.join(',') + '\n';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'iris_persublob_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generateCustomAddTemplate = () => {
+    const headers = [
+      'Employee ID',
+      'Employee Full Name',
+      'Hire Date',
+      'Classification',
+      'Client (Name)',
+      'LoB',
+      'Sub-LoB',
+      'Supervisor ID',
+      'Manager ID',
+      'Data Set'
+    ];
+    
+    const csvContent = headers.join(',') + '\n';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'iris_customadd_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Handle Per Sub-LoB upload
+  const handlePerSubLobUpload = async () => {
+    if (perSubLobFile) {
+      try {
+        const formData = new FormData();
+        formData.append('file', perSubLobFile);
+        await axios.post('http://localhost:3000/api/employees/upload-per-sublob', formData);
+        await fetchEmployees();
+        setPerSubLobFile(null);
+        setPerSubLobValidEmployees([]);
+        setPerSubLobInvalidEmployees([]);
+      } catch (error) {
+        console.error('Upload failed:', error);
+      }
+    }
+  };
+
+  // Handle Custom Add upload
+  const handleCustomAddUpload = async () => {
+    if (customAddFile) {
+      try {
+        const formData = new FormData();
+        formData.append('file', customAddFile);
+        await axios.post('http://localhost:3000/api/employees/upload-custom', formData);
+        await fetchEmployees();
+        setCustomAddFile(null);
+        setCustomAddValidEmployees([]);
+        setCustomAddInvalidEmployees([]);
+      } catch (error) {
+        console.error('Upload failed:', error);
+      }
+    }
+  };
+
   return (
     <div className="employee-management-container">
       <div className="white-card">
@@ -207,7 +311,18 @@ const EmployeeManagement = () => {
               <p className="option-desc">Upload employees for a specific organizational unit</p>
               <form className="per-sublob-form">
                 <label>Site</label>
-                <select><option>Select Site</option></select>
+                <select 
+                  value={selectedSite} 
+                  onChange={(e) => setSelectedSite(e.target.value)}
+                  required
+                >
+                  <option value="">Select Site</option>
+                  {sites.map((site) => (
+                    <option key={site.dSite_ID} value={site.dSite_ID}>
+                      {site.dSiteName}
+                    </option>
+                  ))}
+                </select>
                 <label>Client</label>
                 <select><option>Select Client</option></select>
                 <label>Line of Business (LoB)</label>
@@ -224,6 +339,7 @@ const EmployeeManagement = () => {
                   handleFileChange={handlePerSubLobFileChange}
                   handleDrag={handlePerSubLobDrag}
                   handleDrop={handlePerSubLobDrop}
+                  onGenerateTemplate={generatePerSubLobTemplate}
                 />
                 {(perSubLobValidEmployees.length > 0 || perSubLobInvalidEmployees.length > 0) && (
                   <div className="upload-preview">
@@ -315,7 +431,14 @@ const EmployeeManagement = () => {
                     </div>
                   </div>
                 )}
-                <button type="button" className="upload-btn" disabled={!perSubLobFile}>Upload Employees</button>
+                <button 
+                  type="button" 
+                  className="upload-btn" 
+                  disabled={!perSubLobFile}
+                  onClick={handlePerSubLobUpload}
+                >
+                  Upload Employees
+                </button>
               </form>
             </div>
           ) : (
@@ -333,6 +456,7 @@ const EmployeeManagement = () => {
                   handleFileChange={handleCustomAddFileChange}
                   handleDrag={handleCustomAddDrag}
                   handleDrop={handleCustomAddDrop}
+                  onGenerateTemplate={generateCustomAddTemplate}
                 />
                 {customAddFile && (customAddValidEmployees.length > 0 || customAddInvalidEmployees.length > 0) && (
                   <div className="upload-preview">
@@ -424,7 +548,14 @@ const EmployeeManagement = () => {
                     </div>
                   </div>
                 )}
-                <button type="button" className="upload-btn" disabled={!customAddFile}>Upload Employees</button>
+                <button 
+                  type="button" 
+                  className="upload-btn" 
+                  disabled={!customAddFile}
+                  onClick={handleCustomAddUpload}
+                >
+                  Upload Employees
+                </button>
               </form>
             </div>
           )}

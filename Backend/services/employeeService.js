@@ -157,6 +157,23 @@ class EmployeeService {
             throw new Error(`Error deleting employee: ${error.message}`);
         }
     }
+
+    async getActiveSites() {
+        try {
+            const query = `
+                SELECT 
+                    dSite_ID,
+                    dSiteName
+                FROM tbl_site
+                WHERE dStatus = 'ACTIVE'
+                ORDER BY dSiteName ASC
+            `;
+            const [rows] = await db.query(query);
+            return rows;
+        } catch (error) {
+            throw new Error(`Error fetching active sites: ${error.message}`);
+        }
+    }
 }
 
 module.exports = new EmployeeService(); 
