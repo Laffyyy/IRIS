@@ -1,0 +1,356 @@
+.mini-chatbot-container {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 500px;
+  height: 600px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.mini-chatbot-header {
+  background-color: #004D8D;
+  padding: 1rem 1.5rem;
+  color: white;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 56px;
+  max-height: 56px;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-content .logo {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+}
+
+.mini-chatbot-header h1 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mini-new-chat-button,
+.view-history-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 28px;
+  min-width: 70px;
+  gap: 0.25rem;
+}
+
+.mini-new-chat-button svg,
+.view-history-button svg {
+  width: 14px;
+  height: 14px;
+  margin-right: 0.25rem;
+}
+
+.mini-new-chat-button:hover,
+.view-history-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.mini-chatbot-messages {
+  flex: 1 1 0%;
+  overflow-y: auto;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  background: white;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: height 0.2s;
+}
+
+.welcome-message {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.welcome-message h2 {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.welcome-message p {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.quick-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto;
+}
+
+.quick-reply-button {
+  padding: 0.75rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #333;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-reply-button:hover {
+  background-color: #e7f1ff;
+  border-color: #004D8D;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-bottom: 0.2rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.message {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 7px;
+  max-width: 99%;
+  word-break: break-word;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.user-message {
+  background-color: #e7f1ff;
+  margin-left: auto;
+}
+
+.ai-message {
+  background-color: #f8fafc;
+  margin-right: auto;
+}
+
+.message-content {
+  flex: 1;
+}
+
+.message-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.message-timestamp {
+  font-size: 11px;
+  color: #666;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+.message-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.message:hover .message-actions {
+  opacity: 1;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #666;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.message-input-container {
+  padding: 1.25rem 0.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: white;
+  min-height: 80px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.message-input-container form {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.message-input {
+  width: calc(100% - 40px);
+  min-height: 36px;
+  max-height: 120px;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: border-color 0.2s ease;
+  background-color: white;
+  color: #1e293b;
+  margin: 0 2px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.message-input::-webkit-scrollbar {
+  width: 8px;
+}
+
+.message-input::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.message-input::-webkit-scrollbar-thumb {
+  background-color: #94a3b8;
+  border-radius: 4px;
+}
+
+.message-input::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+}
+
+.attach-button,
+.send-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #085ca6;
+  transition: background 0.2s;
+  vertical-align: middle;
+  margin: 0 2px;
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.attach-button:hover,
+.send-button:hover {
+  background: #e7f1ff;
+}
+
+.save-prompt-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 350px;
+  max-width: 90%;
+}
+
+.modal-content h3 {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.modal-content p {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.modal-buttons button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-buttons button:first-child {
+  background-color: #004D8D;
+  color: white;
+  border: none;
+}
+
+.modal-buttons button:last-child {
+  background-color: #f8fafc;
+  color: #333;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-buttons button:hover {
+  opacity: 0.9;
+}

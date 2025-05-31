@@ -1,8 +1,10 @@
 const express = require('express');
+const helment = require('helmet');
 const cors = require('cors');
 const passwordExpirationRoutes = require('./routes/passwordExpirationRoutes');
 const loginRoutes = require('./routes/loginroutes');
-const helmet = require('helmet');
+const changepassRoutes = require('./routes/changepasswordroutes');
+const SiteManagementRoutes = require('./routes/siteManagementRoutes');
 const otpRoutes = require('./routes/otproutes'); // Import the OTP routes
 const clientManagementRoutes = require('./routes/clientManagementRoutes');
 const changepassRoutes = require('./routes/changepasswordroutes');
@@ -26,6 +28,7 @@ app.use('/api/login', loginRoutes);
 app.use('/api/password-expiration', passwordExpirationRoutes);
 app.use('/api/otp', otpRoutes)
 app.use('/api/changepass', changepassRoutes);
+app.use('/api/sites', SiteManagementRoutes);
 app.use('/api/dev', devRoutes); // Add this line to include the Dev routes
 app.use('/api/clients', clientManagementRoutes);
 

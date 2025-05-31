@@ -1,13 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import UserManagement from './pages/admin/UserManagement';
-import AppManagement from './pages/admin/AppManagement';
-import ClientManagement from './pages/admin/ClientManagement';
-import SiteManagement from './pages/admin/SiteManagement';
-import KPIManagement from './pages/admin/KPIManagement';
-import AdminLogs from './pages/admin/AdminLogs';
 import './App.css';
 import Login from './Login';
 import Otp from './Otp';
@@ -18,87 +11,101 @@ import ProtectedRoute from './utilities/ProtectedRoute';
 import Unauthorize from './utilities/Unautorize';
 import AdminPage from './adminpagecollection';
 import InactivityHandler from './components/InactivityHandler';
+import FloatingChatbot from './components/FloatingChatbot';
+import ChatHistory from './pages/ChatHistory';
 
 function App() {
-  return (
-    <Router>
-      <div className="App">
-        <Routes>
-          {/* Login routes */}
-          <Route path="/" element={<Login />} />
-          <Route path="/otp" element={<Otp />} />
-          <Route 
-            path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
-          <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
-          <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
+  const location = useLocation();
+  // List of routes where the chatbot should NOT be shown
+  const publicRoutes = ['/', '/otp', '/change-password', '/security-questions', '/update-password'];
 
-          {/* Protected routes */}
-          <Route
-            path="/admin/*"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminPage />
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route
-            path="/hr"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['HR', 'admin']}>
-                      <div>HR Page</div>
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
-                      <div>Reports Page</div>
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route
-            path="/compensation"
-            element={
-              <InactivityHandler>
-                <div className="app-container">
-                  <Sidebar />
-                  <main className="main-content">
-                    <ProtectedRoute allowedRoles={['CNB', 'admin']}>
-                      <div>C&B Page</div>
-                    </ProtectedRoute>
-                  </main>
-                </div>
-              </InactivityHandler>
-            }
-          />
-          <Route path="/faqs" element={<div>FAQs Page</div>} />
-          <Route path="/unauthorized" element={<Unauthorize />} />
-        </Routes>
-      </div>
-    </Router>
+  const shouldShowChatbot = !publicRoutes.includes(location.pathname);
+
+  return (
+    <div className="App">
+      <Routes>
+        {/* Login routes */}
+        <Route path="/" element={<Login />} />
+        <Route path="/otp" element={<Otp />} />
+        <Route 
+          path="/change-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><ChangePassword /></ProtectedRoute>} />
+        <Route path="/security-questions" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><SecurityQuestions /></ProtectedRoute>} />
+        <Route path="/update-password" element={<ProtectedRoute allowedRoles={['admin' , 'HR' , 'REPORTS' , 'CNB']}><UpdatePassword /></ProtectedRoute>} />
+
+        {/* Protected routes */}
+        <Route
+          path="/admin/*"
+          element={
+            <InactivityHandler>
+              <div className="app-container">
+                <Sidebar />
+                <main className="main-content">
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminPage />
+                  </ProtectedRoute>
+                </main>
+              </div>
+            </InactivityHandler>
+          }
+        />
+        <Route
+          path="/hr"
+          element={
+            <InactivityHandler>
+              <div className="app-container">
+                <Sidebar />
+                <main className="main-content">
+                  <ProtectedRoute allowedRoles={['HR', 'admin']}>
+                    <div>HR Page</div>
+                  </ProtectedRoute>
+                </main>
+              </div>
+            </InactivityHandler>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <InactivityHandler>
+              <div className="app-container">
+                <Sidebar />
+                <main className="main-content">
+                  <ProtectedRoute allowedRoles={['REPORTS', 'admin']}>
+                    <div>Reports Page</div>
+                  </ProtectedRoute>
+                </main>
+              </div>
+            </InactivityHandler>
+          }
+        />
+        <Route
+          path="/compensation"
+          element={
+            <InactivityHandler>
+              <div className="app-container">
+                <Sidebar />
+                <main className="main-content">
+                  <ProtectedRoute allowedRoles={['CNB', 'admin']}>
+                    <div>C&B Page</div>
+                  </ProtectedRoute>
+                </main>
+              </div>
+            </InactivityHandler>
+          }
+        />
+        <Route path="/faqs" element={<div>FAQs Page</div>} />
+        <Route path="/unauthorized" element={<Unauthorize />} />
+        <Route path="/chat-history" element={<ChatHistory />} />
+      </Routes>
+      {shouldShowChatbot && <FloatingChatbot />}
+    </div>
   );
 }
 
-export default App;
+export default function AppWithRouter() {
+  return (
+    <Router>
+      <App />
+    </Router>
+  );
+}
