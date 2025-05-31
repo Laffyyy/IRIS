@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './AppManagement.css';
 
 const AppManagement = () => {
@@ -7,30 +8,69 @@ const AppManagement = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationText, setConfirmationText] = useState('');
   const [understood, setUnderstood] = useState(false);
+  const [currentProcessingMonth, setCurrentProcessingMonth] = useState(null);
+  const [error, setError] = useState(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() + i).toString());
-
-  // Get current real-time month and year
   const currentDate = new Date();
   const currentMonth = months[currentDate.getMonth()];
   const currentYear = currentDate.getFullYear().toString();
 
-  const handleSave = () => {
-    setShowConfirmation(true);
+  useEffect(() => {
+    fetchCurrentProcessingMonth();
+  }, []);
+
+  const fetchCurrentProcessingMonth = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/processing-month');
+      const { dMonth, dYear } = response.data;
+      setCurrentProcessingMonth({
+        month: dMonth, 
+        year: dYear.toString()
+      });
+      setError(null);
+    } catch (error) {
+      setError('Error fetching current processing month');
+      setCurrentProcessingMonth(null);
+    }
   };
 
-  const handleConfirm = () => {
+  const handleSave = () => {
+    // Prevent setting the same processing month
+    if (
+      currentProcessingMonth &&
+      currentProcessingMonth.month === month &&
+      currentProcessingMonth.year === year
+    ) {
+      setError('Selected processing month is already the current processing month.');
+      setShowErrorModal(true);
+      return;
+    }
+    setShowConfirmation(true);
+    setError(null);
+  };
+
+  const handleConfirm = async () => {
     if (confirmationText === 'CONFIRM' && understood) {
-      console.log('Processing month set to:', { month, year });
-      alert('Processing month configured successfully!');
-      setShowConfirmation(false);
-      setConfirmationText('');
-      setUnderstood(false);
+      try {
+        await axios.post('http://localhost:3000/api/processing-month', {
+          month,
+          year,
+          createdBy: localStorage.getItem('userId')
+        });
+        await fetchCurrentProcessingMonth();
+        setShowConfirmation(false);
+        setConfirmationText('');
+        setUnderstood(false);
+        setError(null);
+      } catch (error) {
+        setError(error.response?.data?.message || 'Error setting processing month');
+      }
     }
   };
 
@@ -39,6 +79,10 @@ const AppManagement = () => {
     setConfirmationText('');
     setUnderstood(false);
   };
+
+  // Format value for month picker
+  const monthPickerValue = `${year}-${String(months.indexOf(month) + 1).padStart(2, '0')}`;
+  const maxMonthPicker = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
   return (
     <div className="app-management-container">
@@ -62,7 +106,9 @@ const AppManagement = () => {
 
           <h2>Current Processing Month</h2>
           <div className="processing-month-value">
-            {month} {year}
+            {currentProcessingMonth 
+              ? `${currentProcessingMonth.month} ${currentProcessingMonth.year}`
+              : 'Not configured'}
           </div>
         </div>
 
@@ -70,20 +116,17 @@ const AppManagement = () => {
           <h2>Configure Processing Month</h2>
           <div className="form-row">
             <div className="form-group">
-              <label>Month</label>
-              <select value={month} onChange={(e) => setMonth(e.target.value)}>
-                {months.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Year</label>
-              <select value={year} onChange={(e) => setYear(e.target.value)}>
-                {years.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+              <label>Processing Month</label>
+              <input
+                type="month"
+                value={monthPickerValue}
+                max={maxMonthPicker}
+                onChange={e => {
+                  const [y, m] = e.target.value.split('-');
+                  setYear(y);
+                  setMonth(months[parseInt(m, 10) - 1]);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -95,7 +138,6 @@ const AppManagement = () => {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       {showConfirmation && (
         <div className="modal-overlay">
           <div className="modal">
@@ -103,7 +145,7 @@ const AppManagement = () => {
               <h3>Confirmation Required</h3>
               
               <div className="warning">
-                <p>Warning: Processing month will be set to <strong>{month} {year}</strong>. It cannot be change after it has been configured.</p>
+                <p>Warning: Processing month will be set to <strong>{month} {year}</strong>. It cannot be changed after it has been configured.</p>
               </div>
               
               <div className="confirmation-checkbox">
@@ -121,7 +163,12 @@ const AppManagement = () => {
                 <input
                   type="text"
                   value={confirmationText}
-                  onChange={(e) => setConfirmationText(e.target.value.toUpperCase())}
+                  maxLength={7}
+                  onChange={(e) => {
+                    // Only allow letters, max 7
+                    const sanitized = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 7);
+                    setConfirmationText(sanitized);
+                  }}
                   placeholder="CONFIRM"
                 />
               </div>
@@ -136,6 +183,24 @@ const AppManagement = () => {
                   disabled={confirmationText !== 'CONFIRM' || !understood}
                 >
                   Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showErrorModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-content">
+              <h3>Error</h3>
+              <div className="warning">
+                <p>{error}</p>
+              </div>
+              <div className="modal-buttons">
+                <button onClick={() => setShowErrorModal(false)} className="confirm-btn">
+                  OK
                 </button>
               </div>
             </div>

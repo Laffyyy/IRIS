@@ -134,62 +134,75 @@
 
 .modal {
   background: white;
-  border-radius: 8px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  width: 480px;
+  max-width: 98vw;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 400px;
 }
 
 .modal-content {
-  padding: 20px;
+  padding: 32px 32px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 300px;
 }
 
 .modal h3 {
-  font-size: 16px;
-  margin-bottom: 15px;
+  font-size: 20px;
+  margin-bottom: 18px;
   color: #333;
-}
-
-.modal p {
-  font-size: 14px;
-  margin-bottom: 15px;
-  color: #555;
+  text-align: center;
 }
 
 .warning {
   background-color: #ffe1e1;
-  padding: 10px;
+  padding: 12px 16px;
   border-left: 4px solid #ff0707;
-  margin: 15px 0;
-}
-
-.warning p {
-  margin: 0;
-  color: #333;
+  margin: 18px 0 20px 0;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .confirmation-checkbox {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 15px 0;
+  justify-content: center;
+  gap: 12px;
+  margin: 18px 0 10px 0;
+  width: 100%;
 }
 
-.confirmation-checkbox input {
+.confirmation-checkbox input[type="checkbox"] {
   accent-color: #004D8D;
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }
 
 .confirmation-checkbox label {
+  font-size: 14px;
   text-align: left;
+  margin: 0;
 }
 
 .confirmation-input {
-  margin: 15px 0;
+  margin: 18px 0 10px 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .confirmation-input p {
   margin-bottom: 8px;
   text-align: left;
+  width: 100%;
 }
 
 .confirmation-input input {
@@ -198,14 +211,14 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 13px;
-  text-transform: uppercase;
 }
 
 .modal-buttons {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  margin-top: 18px;
 }
 
 .cancel-btn {
